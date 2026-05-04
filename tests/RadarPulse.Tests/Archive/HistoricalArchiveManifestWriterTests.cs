@@ -1,6 +1,6 @@
 using System.Text.Json;
-using RadarPulse.Application.Archive;
 using RadarPulse.Domain.Archive;
+using RadarPulse.Infrastructure.Archive;
 
 namespace RadarPulse.Tests.Archive;
 
@@ -12,12 +12,10 @@ public sealed class HistoricalArchiveManifestWriterTests
         var path = Path.Combine(Path.GetTempPath(), $"radarpulse-manifest-{Guid.NewGuid():N}.json");
         var manifest = new HistoricalArchiveManifest(
             new DateOnly(2026, 5, 4),
-            NexradArchiveKey.BucketName,
             [
                 new HistoricalArchiveFile(
                     "KTLX",
                     new DateOnly(2026, 5, 4),
-                    NexradArchiveKey.BucketName,
                     "2026/05/04/KTLX/KTLX_20260504_120000_V06",
                     "KTLX_20260504_120000_V06",
                     42,
@@ -33,7 +31,6 @@ public sealed class HistoricalArchiveManifestWriterTests
             using var document = JsonDocument.Parse(json);
 
             Assert.Equal("2026-05-04", document.RootElement.GetProperty("archiveDate").GetString());
-            Assert.Equal(NexradArchiveKey.BucketName, document.RootElement.GetProperty("bucket").GetString());
             Assert.Single(document.RootElement.GetProperty("files").EnumerateArray());
         }
         finally

@@ -1,9 +1,9 @@
 using System.Globalization;
 using RadarPulse.Domain.Archive;
 
-namespace RadarPulse.Application.Archive;
+namespace RadarPulse.Infrastructure.Archive;
 
-public static class NexradArchiveKey
+public static class AwsNexradArchiveKey
 {
     public const string BucketName = "unidata-nexrad-level2";
 
@@ -11,22 +11,10 @@ public static class NexradArchiveKey
         string.Create(CultureInfo.InvariantCulture, $"{date:yyyy/MM/dd}/");
 
     public static string RadarPrefix(DateOnly date, string radarId) =>
-        $"{DatePrefix(date)}{NormalizeRadarId(radarId)}/";
-
-    public static string NormalizeRadarId(string radarId)
-    {
-        var normalized = radarId.Trim().ToUpperInvariant();
-        if (normalized.Length != 4 || !normalized.All(char.IsLetterOrDigit))
-        {
-            throw new ArgumentException("Radar id must be a 4-character alphanumeric identifier.", nameof(radarId));
-        }
-
-        return normalized;
-    }
+        $"{DatePrefix(date)}{HistoricalArchiveRequest.NormalizeRadarId(radarId)}/";
 
     public static bool TryParse(
         string s3Key,
-        string bucket,
         long sizeBytes,
         DateTimeOffset lastModified,
         out HistoricalArchiveFile? file)
@@ -51,12 +39,11 @@ public static class NexradArchiveKey
             return false;
         }
 
-        var radarId = parts[3].ToUpperInvariant();
+        var radarId = HistoricalArchiveRequest.NormalizeRadarId(parts[3]);
         var fileName = parts[^1];
         file = new HistoricalArchiveFile(
             radarId,
             archiveDate,
-            bucket,
             s3Key,
             fileName,
             sizeBytes,

@@ -1,5 +1,5 @@
-using RadarPulse.Application.Archive;
 using RadarPulse.Domain.Archive;
+using RadarPulse.Infrastructure.Archive;
 
 namespace RadarPulse.Tests.Archive;
 
@@ -11,7 +11,6 @@ public sealed class NexradCachePathMapperTests
         var file = new HistoricalArchiveFile(
             "KTLX",
             new DateOnly(2026, 5, 4),
-            NexradArchiveKey.BucketName,
             "2026/05/04/KTLX/KTLX_20260504_120000_V06",
             "KTLX_20260504_120000_V06",
             42,

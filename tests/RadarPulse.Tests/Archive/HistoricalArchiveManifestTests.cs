@@ -1,4 +1,3 @@
-using RadarPulse.Application.Archive;
 using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Tests.Archive;
@@ -15,7 +14,7 @@ public sealed class HistoricalArchiveManifestTests
             File("KINX", 20)
         };
 
-        var summary = new HistoricalArchiveManifest(new DateOnly(2026, 5, 4), NexradArchiveKey.BucketName, files).Summarize();
+        var summary = new HistoricalArchiveManifest(new DateOnly(2026, 5, 4), files).Summarize();
 
         Assert.Equal(2, summary.RadarCount);
         Assert.Equal(3, summary.FileCount);
@@ -27,7 +26,6 @@ public sealed class HistoricalArchiveManifestTests
         new(
             radarId,
             new DateOnly(2026, 5, 4),
-            NexradArchiveKey.BucketName,
             $"2026/05/04/{radarId}/{radarId}_20260504_120000_V06",
             $"{radarId}_20260504_120000_V06",
             sizeBytes,

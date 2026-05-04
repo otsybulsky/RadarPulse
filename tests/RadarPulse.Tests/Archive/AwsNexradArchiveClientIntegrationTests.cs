@@ -3,13 +3,13 @@ using RadarPulse.Infrastructure.Archive;
 
 namespace RadarPulse.Tests.Archive;
 
-public sealed class S3NexradArchiveClientIntegrationTests
+public sealed class AwsNexradArchiveClientIntegrationTests
 {
     [IntegrationFact]
-    public async Task BuildManifestAsyncListsPublicS3Archive()
+    public async Task BuildManifestAsyncListsPublicAwsArchive()
     {
         using var httpClient = new HttpClient();
-        var client = new S3NexradArchiveClient(httpClient);
+        var client = new AwsNexradArchiveClient(httpClient);
         var request = new HistoricalArchiveRequest(
             new DateOnly(2026, 5, 4),
             RadarIds: ["KTLX"],

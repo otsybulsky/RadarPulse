@@ -8,8 +8,19 @@ public sealed record HistoricalArchiveRequest(
     long? MaxBytes = null)
 {
     public IReadOnlyCollection<string> NormalizedRadarIds =>
-        RadarIds?.Select(r => r.Trim().ToUpperInvariant()).Where(r => r.Length > 0).Distinct().ToArray()
+        RadarIds?.Select(NormalizeRadarId).Distinct().ToArray()
         ?? Array.Empty<string>();
+
+    public static string NormalizeRadarId(string radarId)
+    {
+        var normalized = radarId.Trim().ToUpperInvariant();
+        if (normalized.Length != 4 || !normalized.All(char.IsLetterOrDigit))
+        {
+            throw new ArgumentException("Radar id must be a 4-character alphanumeric identifier.", nameof(radarId));
+        }
+
+        return normalized;
+    }
 
     public void ValidateForDiscovery()
     {

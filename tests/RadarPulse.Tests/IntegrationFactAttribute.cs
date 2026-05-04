@@ -9,7 +9,7 @@ public sealed class IntegrationFactAttribute : FactAttribute
             "true",
             StringComparison.OrdinalIgnoreCase))
         {
-            Skip = "Set RADARPULSE_RUN_INTEGRATION_TESTS=true to run live S3 integration tests.";
+            Skip = "Set RADARPULSE_RUN_INTEGRATION_TESTS=true to run live AWS integration tests.";
         }
     }
 }

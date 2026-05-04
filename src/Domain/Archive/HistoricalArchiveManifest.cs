@@ -2,7 +2,6 @@ namespace RadarPulse.Domain.Archive;
 
 public sealed record HistoricalArchiveManifest(
     DateOnly ArchiveDate,
-    string Bucket,
     IReadOnlyList<HistoricalArchiveFile> Files)
 {
     public HistoricalArchiveSummary Summarize()

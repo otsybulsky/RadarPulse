@@ -1,27 +1,26 @@
-using RadarPulse.Application.Archive;
+using RadarPulse.Infrastructure.Archive;
 
 namespace RadarPulse.Tests.Archive;
 
-public sealed class NexradArchiveKeyTests
+public sealed class AwsNexradArchiveKeyTests
 {
     [Fact]
     public void DatePrefixUsesArchiveLayout()
     {
-        Assert.Equal("2026/05/04/", NexradArchiveKey.DatePrefix(new DateOnly(2026, 5, 4)));
+        Assert.Equal("2026/05/04/", AwsNexradArchiveKey.DatePrefix(new DateOnly(2026, 5, 4)));
     }
 
     [Fact]
     public void RadarPrefixNormalizesRadarId()
     {
-        Assert.Equal("2026/05/04/KTLX/", NexradArchiveKey.RadarPrefix(new DateOnly(2026, 5, 4), "ktlx"));
+        Assert.Equal("2026/05/04/KTLX/", AwsNexradArchiveKey.RadarPrefix(new DateOnly(2026, 5, 4), "ktlx"));
     }
 
     [Fact]
     public void ArchiveKeyParsesMetadata()
     {
-        var parsed = NexradArchiveKey.TryParse(
+        var parsed = AwsNexradArchiveKey.TryParse(
             "2026/05/04/KTLX/KTLX_20260504_120000_V06",
-            NexradArchiveKey.BucketName,
             42,
             DateTimeOffset.Parse("2026-05-04T12:05:00Z"),
             out var file);
@@ -36,7 +35,7 @@ public sealed class NexradArchiveKeyTests
     [Fact]
     public void VolumeTimestampParsesFromFileName()
     {
-        var timestamp = NexradArchiveKey.TryParseVolumeTimestamp(
+        var timestamp = AwsNexradArchiveKey.TryParseVolumeTimestamp(
             "KTLX_20260504_120000_V06",
             new DateOnly(2026, 5, 4));
 
@@ -46,7 +45,7 @@ public sealed class NexradArchiveKeyTests
     [Fact]
     public void VolumeTimestampParsesCompactFileName()
     {
-        var timestamp = NexradArchiveKey.TryParseVolumeTimestamp(
+        var timestamp = AwsNexradArchiveKey.TryParseVolumeTimestamp(
             "KTLX20260504_120000_V06",
             new DateOnly(2026, 5, 4));
 
@@ -56,7 +55,7 @@ public sealed class NexradArchiveKeyTests
     [Fact]
     public void VolumeTimestampIgnoresShortFileName()
     {
-        var timestamp = NexradArchiveKey.TryParseVolumeTimestamp(
+        var timestamp = AwsNexradArchiveKey.TryParseVolumeTimestamp(
             "_20260504_1200",
             new DateOnly(2026, 5, 4));
 

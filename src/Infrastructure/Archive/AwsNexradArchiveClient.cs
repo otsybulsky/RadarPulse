@@ -5,9 +5,9 @@ using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Infrastructure.Archive;
 
-public sealed class S3NexradArchiveClient(HttpClient httpClient) : IHistoricalArchiveClient
+public sealed class AwsNexradArchiveClient(HttpClient httpClient) : IHistoricalArchiveClient
 {
-    private static readonly XNamespace S3Namespace = "http://s3.amazonaws.com/doc/2006-03-01/";
+    private static readonly XNamespace AwsBucketListNamespace = "http://s3.amazonaws.com/doc/2006-03-01/";
     private const int MaxAttempts = 4;
 
     public async Task<HistoricalArchiveManifest> BuildManifestAsync(
@@ -17,8 +17,8 @@ public sealed class S3NexradArchiveClient(HttpClient httpClient) : IHistoricalAr
         request.ValidateForDiscovery();
 
         var prefixes = request.AllRadars
-            ? [NexradArchiveKey.DatePrefix(request.Date)]
-            : request.NormalizedRadarIds.Select(radar => NexradArchiveKey.RadarPrefix(request.Date, radar)).ToArray();
+            ? [AwsNexradArchiveKey.DatePrefix(request.Date)]
+            : request.NormalizedRadarIds.Select(radar => AwsNexradArchiveKey.RadarPrefix(request.Date, radar)).ToArray();
 
         var files = new List<HistoricalArchiveFile>();
         long totalBytes = 0;
@@ -28,12 +28,12 @@ public sealed class S3NexradArchiveClient(HttpClient httpClient) : IHistoricalAr
             {
                 if (request.MaxFiles is { } maxFiles && files.Count >= maxFiles)
                 {
-                    return new HistoricalArchiveManifest(request.Date, NexradArchiveKey.BucketName, files);
+                    return new HistoricalArchiveManifest(request.Date, files);
                 }
 
                 if (request.MaxBytes is { } maxBytes && totalBytes + file.SizeBytes > maxBytes)
                 {
-                    return new HistoricalArchiveManifest(request.Date, NexradArchiveKey.BucketName, files);
+                    return new HistoricalArchiveManifest(request.Date, files);
                 }
 
                 files.Add(file);
@@ -41,7 +41,7 @@ public sealed class S3NexradArchiveClient(HttpClient httpClient) : IHistoricalAr
             }
         }
 
-        return new HistoricalArchiveManifest(request.Date, NexradArchiveKey.BucketName, files);
+        return new HistoricalArchiveManifest(request.Date, files);
     }
 
     private async IAsyncEnumerable<HistoricalArchiveFile> ListPrefixAsync(
@@ -58,16 +58,16 @@ public sealed class S3NexradArchiveClient(HttpClient httpClient) : IHistoricalAr
             await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
             var document = await XDocument.LoadAsync(stream, LoadOptions.None, cancellationToken);
 
-            foreach (var content in document.Descendants(S3Namespace + "Contents"))
+            foreach (var content in document.Descendants(AwsBucketListNamespace + "Contents"))
             {
-                var key = WebUtility.HtmlDecode(content.Element(S3Namespace + "Key")?.Value);
-                var sizeText = content.Element(S3Namespace + "Size")?.Value;
-                var modifiedText = content.Element(S3Namespace + "LastModified")?.Value;
+                var key = WebUtility.HtmlDecode(content.Element(AwsBucketListNamespace + "Key")?.Value);
+                var sizeText = content.Element(AwsBucketListNamespace + "Size")?.Value;
+                var modifiedText = content.Element(AwsBucketListNamespace + "LastModified")?.Value;
 
                 if (key is null ||
                     !long.TryParse(sizeText, out var sizeBytes) ||
                     !DateTimeOffset.TryParse(modifiedText, out var lastModified) ||
-                    !NexradArchiveKey.TryParse(key, NexradArchiveKey.BucketName, sizeBytes, lastModified, out var file) ||
+                    !AwsNexradArchiveKey.TryParse(key, sizeBytes, lastModified, out var file) ||
                     file is null)
                 {
                     continue;
@@ -77,7 +77,7 @@ public sealed class S3NexradArchiveClient(HttpClient httpClient) : IHistoricalAr
             }
 
             continuationToken = document
-                .Descendants(S3Namespace + "NextContinuationToken")
+                .Descendants(AwsBucketListNamespace + "NextContinuationToken")
                 .Select(element => element.Value)
                 .FirstOrDefault();
         } while (!string.IsNullOrWhiteSpace(continuationToken));
@@ -125,7 +125,7 @@ public sealed class S3NexradArchiveClient(HttpClient httpClient) : IHistoricalAr
 
     private static string BuildListUri(string prefix, string? continuationToken)
     {
-        var uri = $"https://{NexradArchiveKey.BucketName}.s3.amazonaws.com/?list-type=2&prefix={Uri.EscapeDataString(prefix)}";
+        var uri = $"https://{AwsNexradArchiveKey.BucketName}.s3.amazonaws.com/?list-type=2&prefix={Uri.EscapeDataString(prefix)}";
         if (!string.IsNullOrWhiteSpace(continuationToken))
         {
             uri += $"&continuation-token={Uri.EscapeDataString(continuationToken)}";

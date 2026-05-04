@@ -34,7 +34,7 @@ static async Task<int> ListArchiveAsync(string[] args)
         options.MaxBytes);
 
     using var httpClient = new HttpClient();
-    IHistoricalArchiveClient client = new S3NexradArchiveClient(httpClient);
+    IHistoricalArchiveClient client = new AwsNexradArchiveClient(httpClient);
     var manifest = await client.BuildManifestAsync(request, CancellationToken.None);
     if (options.ManifestPath is not null)
     {
@@ -44,7 +44,7 @@ static async Task<int> ListArchiveAsync(string[] args)
     var summary = manifest.Summarize();
 
     Console.WriteLine($"Archive date: {manifest.ArchiveDate:yyyy-MM-dd}");
-    Console.WriteLine($"Bucket: {manifest.Bucket}");
+    Console.WriteLine($"Source: AWS {AwsNexradArchiveKey.BucketName}");
     if (options.ManifestPath is not null)
     {
         Console.WriteLine($"Manifest: {options.ManifestPath}");
@@ -103,7 +103,7 @@ internal sealed record ArchiveOptions(
                     date = DateOnly.Parse(RequireValue(args, ref i, "--date"));
                     break;
                 case "--radar":
-                    radarIds.Add(NexradArchiveKey.NormalizeRadarId(RequireValue(args, ref i, "--radar")));
+                    radarIds.Add(HistoricalArchiveRequest.NormalizeRadarId(RequireValue(args, ref i, "--radar")));
                     break;
                 case "--all-radars":
                     allRadars = true;

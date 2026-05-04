@@ -6,7 +6,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <ProjectReference Include="..\..\src\Application\RadarPulse.Application.csproj" />
+    <ProjectReference Include="..\..\src\Domain\RadarPulse.Domain.csproj" />
     <ProjectReference Include="..\..\src\Infrastructure\RadarPulse.Infrastructure.csproj" />
   </ItemGroup>
   <PropertyGroup>

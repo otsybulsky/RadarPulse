@@ -4,7 +4,7 @@ using RadarPulse.Infrastructure.Archive;
 
 namespace RadarPulse.Tests.Archive;
 
-public sealed class S3NexradArchiveClientTests
+public sealed class AwsNexradArchiveClientTests
 {
     [Fact]
     public async Task BuildManifestAsyncStopsWhenMaxBytesWouldBeExceeded()
@@ -22,7 +22,7 @@ public sealed class S3NexradArchiveClientTests
               <Size>1000</Size>
             </Contents>
             """)));
-        var client = new S3NexradArchiveClient(httpClient);
+        var client = new AwsNexradArchiveClient(httpClient);
         var request = new HistoricalArchiveRequest(
             new DateOnly(2026, 5, 4),
             RadarIds: ["KTLX"],
@@ -51,7 +51,7 @@ public sealed class S3NexradArchiveClientTests
                     """))
             });
         using var httpClient = new HttpClient(handler);
-        var client = new S3NexradArchiveClient(httpClient);
+        var client = new AwsNexradArchiveClient(httpClient);
         var request = new HistoricalArchiveRequest(
             new DateOnly(2026, 5, 4),
             RadarIds: ["KTLX"],

@@ -1,6 +1,6 @@
 using RadarPulse.Domain.Archive;
 
-namespace RadarPulse.Application.Archive;
+namespace RadarPulse.Infrastructure.Archive;
 
 public sealed class NexradCachePathMapper
 {

@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using RadarPulse.Domain.Archive;
 
-namespace RadarPulse.Application.Archive;
+namespace RadarPulse.Infrastructure.Archive;
 
 public sealed class HistoricalArchiveManifestWriter
 {
