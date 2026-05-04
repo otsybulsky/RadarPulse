@@ -209,4 +209,44 @@ The first concrete implementation target:
 6. Add documentation for usage and data volume expectations.
 ```
 
-Download execution can follow immediately after manifest generation is stable.
+Current status:
+
+```text
+complete
+```
+
+Completed before download implementation:
+
+```text
+.NET project structure
+archive loader contracts
+manifest generation for one radar or explicit all-radars mode
+manifest summary output
+manifest JSON persistence
+local cache path mapping
+safe --max-files and --max-bytes listing limits
+transient S3 listing retry/backoff
+standard xUnit unit tests
+opt-in live S3 integration test
+loader usage documentation
+data/ and TestResults/ excluded from source control
+```
+
+Download execution can follow from the stable manifest milestone.
+
+## Next Implementation Milestone
+
+The next concrete implementation target:
+
+```text
+1. Add archive download command.
+2. Require --output for download execution.
+3. Download selected manifest entries into the deterministic cache layout.
+4. Skip existing valid files by size.
+5. Redownload missing or size-mismatched files.
+6. Write downloads to temporary files before final move.
+7. Respect cancellation and concurrency limits.
+8. Enforce byte/disk budget guardrails.
+9. Support download from saved manifest JSON when provided.
+10. Add unit tests for skip/redownload and path/write decisions.
+```
