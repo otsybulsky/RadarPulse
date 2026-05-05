@@ -1,7 +1,7 @@
 # Milestone 002: NEXRAD Archive Inspection
 
 RadarPulse will add a replay-oriented inspection layer for cached NOAA NEXRAD
-NEXRAD archive files downloaded by milestone 001.
+archive files downloaded by milestone 001.
 
 ## Current Status
 
@@ -147,6 +147,19 @@ https://www.roc.noaa.gov/interface-control-documents.php
 https://www.ncei.noaa.gov/products/radar/next-generation-weather-radar
 https://www.ncei.noaa.gov/products/radar/decoding-utilities-examples
 ```
+
+## Performance Notes
+
+The historical replay path is expected to become a high-throughput event source.
+Decompression and parsing should be evaluated against an eventual target of
+feeding up to 20 million events per second into the downstream pipeline.
+
+The current inspection command verifies correctness and byte counts. The next
+step should add a decompression throughput check for cached files before deeper
+message parsing is expanded. That check should report compressed bytes,
+decompressed bytes, records processed, elapsed time, compressed/decompressed
+MB/s, and records/s. Parser work after that should avoid unnecessary copies and
+should keep buffer reuse and parallelism in view.
 
 ## Limitations
 

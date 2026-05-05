@@ -25,9 +25,13 @@ Done:
 Planned next:
 
 - `002` NEXRAD archive inspection/decoding milestone.
+- Measure decompression throughput before expanding message parsing.
 - Continue from completed file classification, 24-byte Archive Two volume header
   parsing, compressed record boundary parsing, and per-record BZip2
   decompression summaries.
+- Design decompression and parsing as the future historical replay input path,
+  with an eventual target of feeding up to 20 million events per second into the
+  downstream pipeline.
 - Classify `_MDM` files separately before attempting base-data parsing.
 - Use ROC ICD 2620010J for the Archive Two container and ROC ICD 2620002Y for
   RDA/RPG message payloads, especially Message Type 31.
@@ -185,6 +189,10 @@ constant and moment data blocks.
   strategy is agreed first.
 - Milestone 002 should avoid promising visualization, event processing,
   partitioning, benchmarks, or live ingestion.
+- The next implementation slice should add a decompression throughput check. It
+  should report compressed bytes, decompressed bytes, compressed records,
+  elapsed time, compressed/decompressed MB/s, and records/s. This should guide
+  parser design toward the eventual 20M events/s replay target.
 
 ## Important Files
 
@@ -200,8 +208,8 @@ constant and moment data blocks.
 
 The next milestone 002 implementation slice should be considered done when:
 
-- Decompressed Archive Two record bytes can be scanned for radar message
-  headers.
-- The inspection command can report message counts by type.
-- Tests cover message header parsing with small fixtures.
+- Decompression throughput can be measured on one cached Archive Two file.
+- The command reports compressed bytes, decompressed bytes, compressed records,
+  elapsed time, compressed/decompressed MB/s, and records/s.
+- The result is documented before choosing the message parsing strategy.
 

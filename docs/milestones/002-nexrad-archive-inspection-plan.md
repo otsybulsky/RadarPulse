@@ -84,6 +84,35 @@ cache-wide inspection not implemented
 message header parsing not implemented
 ```
 
+## Performance Target
+
+Historical decompression and parsing are not just inspection utilities. They are
+the offline replay input path for the event engine. The decompression and parser
+pipeline must be designed and measured with an eventual target of feeding up to
+20 million events per second.
+
+The next slice should therefore measure decompression throughput before adding
+more parsing work. The benchmark should report at least:
+
+```text
+input file path
+compressed bytes read
+decompressed bytes produced
+compressed records processed
+elapsed time
+compressed MB/s
+decompressed MB/s
+records/s
+allocation pressure, when practical
+```
+
+The 20M events/s target should be interpreted as a downstream throughput
+requirement for parsed event generation, not as a claim that the current
+inspection command already reaches it. If decompression throughput is too low,
+the parser design should avoid extra copies and should consider streaming,
+buffer reuse, parallel file/record processing, and alternative BZip2
+implementations before deeper message parsing is built on top.
+
 ## Decoder Workflow
 
 Step 1: classify the file.
