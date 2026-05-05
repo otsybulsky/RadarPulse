@@ -29,6 +29,8 @@ Planned next:
 - Treat internal BZip2 records as part of the Archive II format, not as one
   whole-file BZip2 stream.
 - Classify `_MDM` files separately before attempting base-data parsing.
+- Use ROC ICD 2620010J for the Archive II container and ROC ICD 2620002Y for
+  RDA/RPG message payloads, especially Message Type 31.
 
 ## Documentation
 
@@ -100,6 +102,35 @@ KTLX20260504_005834_V06_MDM does not start with AR2V and contains BZh9 early
 
 This supports the milestone 002 plan: first classify files, then parse Archive
 II volume structure and its internal compressed records.
+
+Additional documentation search found:
+
+```text
+ROC ICD 2620010J Archive II/User, Build 23.0:
+  https://www.roc.noaa.gov/public-documents/icds/2620010J.pdf
+ROC ICD 2620002Y RDA/RPG, Build 23.0:
+  https://www.roc.noaa.gov/public-documents/icds/2620002Y.pdf
+ROC ICD index:
+  https://www.roc.noaa.gov/interface-control-documents.php
+NCEI NEXRAD Level-II overview:
+  https://www.ncei.noaa.gov/products/radar/next-generation-weather-radar
+NCEI decoding utilities:
+  https://www.ncei.noaa.gov/products/radar/decoding-utilities-examples
+```
+
+The expected base-data record shape is:
+
+```text
+24-byte Archive II volume header
+repeated records:
+  4-byte big-endian signed control word
+  abs(control word) bytes of bzip2-compressed Archive II messages
+```
+
+The first compressed record contains metadata messages. Later records contain
+radial messages, primarily Message Type 31, and may include Message Type 2 RDA
+status messages. Message Type 31 represents one radial and contains pointers to
+constant and moment data blocks.
 
 ## Constraints
 

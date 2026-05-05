@@ -25,6 +25,31 @@ BZip2-compressed records. `_MDM` files have a different shape and should be
 classified separately before RadarPulse tries to parse them as base data
 volumes.
 
+## Format References
+
+Primary references for this milestone:
+
+```text
+ROC ICD 2620010J: Interface Control Document for Archive II/User, Build 23.0
+ROC ICD 2620002Y: Interface Control Document for RDA/RPG, Build 23.0
+NCEI NEXRAD Level-II overview
+NCEI decoding utilities and examples
+```
+
+Useful links:
+
+```text
+https://www.roc.noaa.gov/public-documents/icds/2620010J.pdf
+https://www.roc.noaa.gov/public-documents/icds/2620002Y.pdf
+https://www.roc.noaa.gov/interface-control-documents.php
+https://www.ncei.noaa.gov/products/radar/next-generation-weather-radar
+https://www.ncei.noaa.gov/products/radar/decoding-utilities-examples
+```
+
+The Archive II/User ICD describes the historical Level II container used by the
+downloaded files. The RDA/RPG ICD describes the radar messages inside that
+container, especially Message Type 31, Digital Radar Data Generic Format.
+
 ## Initial Capability
 
 Required input:
@@ -66,6 +91,20 @@ internal BZip2 record payloads
 radar message stream
 ```
 
+Expected Archive II raw/LDM record shape for the base-data files:
+
+```text
+24-byte volume header
+repeated records:
+  4-byte big-endian signed control word
+  abs(control word) bytes of bzip2-compressed Archive II messages
+```
+
+The first compressed record is expected to contain metadata messages. Later
+compressed records contain radial messages, primarily Message Type 31, plus
+possible Message Type 2 RDA status messages. The reader must decompress each
+record independently.
+
 Step 3: parse minimal radar messages.
 
 ```text
@@ -76,6 +115,11 @@ Message 31 radial header
 Message 31 data block pointers
 moment block metadata
 ```
+
+Message Type 31 contains one radial of data. Its data block pointers lead to
+constant blocks such as `VOL`, `ELV`, and `RAD`, and moment blocks such as
+`REF`, `VEL`, `SW`, `ZDR`, `PHI`, and `RHO`/correlation coefficient depending on
+the build and decoder naming.
 
 Step 4: summarize the volume.
 

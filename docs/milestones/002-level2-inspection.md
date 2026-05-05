@@ -62,6 +62,26 @@ contain a 24-byte volume header followed by internally compressed records. The
 presence of `BZh` inside the file does not mean the entire file can be passed to
 a normal BZip2 decompressor.
 
+The primary format reference is ROC ICD 2620010J, "Interface Control Document for
+Archive II/User", Build 23.0. It describes the Archive II application layer,
+including the volume header and LDM compressed record layout. ROC ICD 2620002Y,
+"Interface Control Document for RDA/RPG", Build 23.0, describes the message
+payloads inside those records, including Message Type 31.
+
+Expected base-data container shape:
+
+```text
+24-byte Archive II volume header
+4-byte big-endian signed control word
+abs(control word) bytes of bzip2-compressed messages
+repeat compressed records until end of file
+```
+
+The first compressed record contains metadata messages. Later records contain
+radial messages, primarily Message Type 31, and may include Message Type 2 RDA
+status messages. Message Type 31 represents one radial and includes pointers to
+constant and moment data blocks.
+
 The first parser should work in layers:
 
 ```text
@@ -72,6 +92,16 @@ record decompressor
 message header reader
 Message 31 metadata reader
 inspection summary builder
+```
+
+Reference links:
+
+```text
+https://www.roc.noaa.gov/public-documents/icds/2620010J.pdf
+https://www.roc.noaa.gov/public-documents/icds/2620002Y.pdf
+https://www.roc.noaa.gov/interface-control-documents.php
+https://www.ncei.noaa.gov/products/radar/next-generation-weather-radar
+https://www.ncei.noaa.gov/products/radar/decoding-utilities-examples
 ```
 
 ## Limitations
