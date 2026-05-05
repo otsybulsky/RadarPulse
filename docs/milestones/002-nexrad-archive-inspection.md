@@ -1,29 +1,29 @@
-# Milestone 002: Level II Inspection
+# Milestone 002: NEXRAD Archive Inspection
 
 RadarPulse will add a replay-oriented inspection layer for cached NOAA NEXRAD
-Level II files downloaded by milestone 001.
+NEXRAD archive files downloaded by milestone 001.
 
 ## Current Status
 
 Initial file classification and single-file CLI inspection are implemented.
 
-The first cached KTLX base-data files look like Archive II volumes: they start
+The first cached KTLX base-data files look like Archive Two volumes: they start
 with an `AR2V` header and contain internal BZip2-compressed records. These files
 are binary by design and should not be treated as plain text or as a single
 standard BZip2 stream.
 
 Some cached `_MDM` files do not start with `AR2V`; they should be identified as
-a separate file class before the base-data volume parser attempts to read them.
+a separate file kind before the base-data volume parser attempts to read them.
 
 Implemented:
 
 ```text
 archive inspect --file
-Archive II base-data file classification
+Archive Two base-data file classification
 MDM/compressed-stream classification
 unknown binary classification
-24-byte Archive II volume header parsing
-CLI output for file class, size, archive filename, version, extension, radar id, and volume time
+24-byte Archive Two volume header parsing
+CLI output for file kind, size, archive filename, version, extension, radar id, and volume time
 unit tests with small synthetic fixtures
 ```
 
@@ -49,7 +49,7 @@ Expected summary shape:
 
 ```text
 File: data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06
-Class: Archive II volume
+Kind: Archive Two volume
 Radar: KTLX
 Volume time: 2026-05-04T00:02:45Z
 Messages: 31=...
@@ -62,7 +62,7 @@ Current implemented output is intentionally smaller:
 ```text
 File: data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_000245_V06
 Size bytes: 5_406_854
-Class: Archive II base data
+Kind: Archive Two base data
 Archive filename: AR2V0006.266
 Version: 06
 Extension number: 266
@@ -76,29 +76,29 @@ Inspect a small cache selection after cache selectors are added:
 dotnet run --project src/Presentation/RadarPulse.Cli.csproj -- archive inspect --cache data/nexrad --date 2026-05-04 --radar KTLX --max-files 1
 ```
 
-## Supported File Classes
+## Supported File Kinds
 
 Initial support should distinguish:
 
 ```text
-Archive II base-data volume
+Archive Two base-data volume
 MDM-shaped file
 external gzip/bzip2 wrapper, if encountered
 unknown binary
 ```
 
-Only Archive II base-data volumes are expected to produce full inspection
+Only Archive Two base-data volumes are expected to produce full inspection
 summaries in the first implementation slice.
 
 ## Decoder Notes
 
-NEXRAD Level II Archive II files are binary radar volumes. Modern files commonly
+NEXRAD Archive Two files are binary radar volumes. Modern files commonly
 contain a 24-byte volume header followed by internally compressed records. The
 presence of `BZh` inside the file does not mean the entire file can be passed to
 a normal BZip2 decompressor.
 
 The primary format reference is ROC ICD 2620010J, "Interface Control Document for
-Archive II/User", Build 23.0. It describes the Archive II application layer,
+Archive II/User", Build 23.0. It describes the Archive Two application layer,
 including the volume header and LDM compressed record layout. ROC ICD 2620002Y,
 "Interface Control Document for RDA/RPG", Build 23.0, describes the message
 payloads inside those records, including Message Type 31.
@@ -106,7 +106,7 @@ payloads inside those records, including Message Type 31.
 Expected base-data container shape:
 
 ```text
-24-byte Archive II volume header
+24-byte Archive Two volume header
 4-byte big-endian signed control word
 abs(control word) bytes of bzip2-compressed messages
 repeat compressed records until end of file
@@ -153,3 +153,4 @@ live ingestion
 ```
 
 Those belong to later milestones after the binary file reader is stable.
+

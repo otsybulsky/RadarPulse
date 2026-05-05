@@ -5,25 +5,25 @@ using RadarPulse.Infrastructure.Archive;
 
 namespace RadarPulse.Tests.Archive;
 
-public sealed class Level2FileInspectorTests
+public sealed class NexradArchiveFileInspectorTests
 {
     [Fact]
-    public async Task ArchiveIiVolumeHeaderParsesMetadata()
+    public async Task ArchiveTwoVolumeHeaderParsesMetadata()
     {
-        var path = WriteTempFile("KTLX20260504_000245_V06", BuildArchiveIiHeader());
+        var path = WriteTempFile("KTLX20260504_000245_V06", BuildArchiveTwoHeader());
         try
         {
-            var inspection = await new Level2FileInspector().InspectAsync(path, CancellationToken.None);
+            var inspection = await new NexradArchiveFileInspector().InspectAsync(path, CancellationToken.None);
 
-            Assert.Equal(Level2FileClass.ArchiveIiBaseData, inspection.FileClass);
+            Assert.Equal(NexradArchiveFileKind.ArchiveTwoBaseData, inspection.FileKind);
             Assert.Null(inspection.Diagnostic);
-            Assert.NotNull(inspection.ArchiveIiVolumeHeader);
-            Assert.Equal("AR2V0006.266", inspection.ArchiveIiVolumeHeader.ArchiveFilename);
-            Assert.Equal("06", inspection.ArchiveIiVolumeHeader.Version);
-            Assert.Equal(266, inspection.ArchiveIiVolumeHeader.ExtensionNumber);
-            Assert.Equal("KTLX", inspection.ArchiveIiVolumeHeader.RadarId);
-            Assert.Equal(new DateOnly(2026, 5, 4), inspection.ArchiveIiVolumeHeader.VolumeDate);
-            Assert.Equal(TimeSpan.FromMilliseconds(164_018), inspection.ArchiveIiVolumeHeader.VolumeTime);
+            Assert.NotNull(inspection.ArchiveTwoVolumeHeader);
+            Assert.Equal("AR2V0006.266", inspection.ArchiveTwoVolumeHeader.ArchiveFilename);
+            Assert.Equal("06", inspection.ArchiveTwoVolumeHeader.Version);
+            Assert.Equal(266, inspection.ArchiveTwoVolumeHeader.ExtensionNumber);
+            Assert.Equal("KTLX", inspection.ArchiveTwoVolumeHeader.RadarId);
+            Assert.Equal(new DateOnly(2026, 5, 4), inspection.ArchiveTwoVolumeHeader.VolumeDate);
+            Assert.Equal(TimeSpan.FromMilliseconds(164_018), inspection.ArchiveTwoVolumeHeader.VolumeTime);
         }
         finally
         {
@@ -32,14 +32,14 @@ public sealed class Level2FileInspectorTests
     }
 
     [Fact]
-    public async Task ShortArchiveIiSignatureReturnsUnknownWithDiagnostic()
+    public async Task ShortArchiveTwoSignatureReturnsUnknownWithDiagnostic()
     {
         var path = WriteTempFile("short", Encoding.ASCII.GetBytes("AR2V"));
         try
         {
-            var inspection = await new Level2FileInspector().InspectAsync(path, CancellationToken.None);
+            var inspection = await new NexradArchiveFileInspector().InspectAsync(path, CancellationToken.None);
 
-            Assert.Equal(Level2FileClass.Unknown, inspection.FileClass);
+            Assert.Equal(NexradArchiveFileKind.Unknown, inspection.FileKind);
             Assert.Contains("24-byte volume header", inspection.Diagnostic);
         }
         finally
@@ -54,10 +54,10 @@ public sealed class Level2FileInspectorTests
         var path = WriteTempFile("KTLX20260504_005834_V06_MDM", [0x00, 0x0A, 0x57, 0x0F]);
         try
         {
-            var inspection = await new Level2FileInspector().InspectAsync(path, CancellationToken.None);
+            var inspection = await new NexradArchiveFileInspector().InspectAsync(path, CancellationToken.None);
 
-            Assert.Equal(Level2FileClass.MdmOrCompressedStream, inspection.FileClass);
-            Assert.Null(inspection.ArchiveIiVolumeHeader);
+            Assert.Equal(NexradArchiveFileKind.MdmOrCompressedStream, inspection.FileKind);
+            Assert.Null(inspection.ArchiveTwoVolumeHeader);
         }
         finally
         {
@@ -71,9 +71,9 @@ public sealed class Level2FileInspectorTests
         var path = WriteTempFile("compressed-stream", [0x00, 0x01, (byte)'B', (byte)'Z', (byte)'h', (byte)'9']);
         try
         {
-            var inspection = await new Level2FileInspector().InspectAsync(path, CancellationToken.None);
+            var inspection = await new NexradArchiveFileInspector().InspectAsync(path, CancellationToken.None);
 
-            Assert.Equal(Level2FileClass.MdmOrCompressedStream, inspection.FileClass);
+            Assert.Equal(NexradArchiveFileKind.MdmOrCompressedStream, inspection.FileKind);
         }
         finally
         {
@@ -87,9 +87,9 @@ public sealed class Level2FileInspectorTests
         var path = WriteTempFile("unknown", [0x01, 0x02, 0x03, 0x04]);
         try
         {
-            var inspection = await new Level2FileInspector().InspectAsync(path, CancellationToken.None);
+            var inspection = await new NexradArchiveFileInspector().InspectAsync(path, CancellationToken.None);
 
-            Assert.Equal(Level2FileClass.Unknown, inspection.FileClass);
+            Assert.Equal(NexradArchiveFileKind.Unknown, inspection.FileKind);
             Assert.Contains("not recognized", inspection.Diagnostic);
         }
         finally
@@ -98,7 +98,7 @@ public sealed class Level2FileInspectorTests
         }
     }
 
-    private static byte[] BuildArchiveIiHeader()
+    private static byte[] BuildArchiveTwoHeader()
     {
         var header = new byte[24];
         Encoding.ASCII.GetBytes("AR2V0006.266").CopyTo(header, 0);
@@ -119,3 +119,5 @@ public sealed class Level2FileInspectorTests
         return path;
     }
 }
+
+

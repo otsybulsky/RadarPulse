@@ -1,6 +1,6 @@
 namespace RadarPulse.Domain.Archive;
 
-public sealed record ArchiveIiVolumeHeader(
+public sealed record ArchiveTwoVolumeHeader(
     string ArchiveFilename,
     string Version,
     int ExtensionNumber,
@@ -8,3 +8,4 @@ public sealed record ArchiveIiVolumeHeader(
     TimeSpan VolumeTime,
     DateTimeOffset VolumeTimestamp,
     string RadarId);
+

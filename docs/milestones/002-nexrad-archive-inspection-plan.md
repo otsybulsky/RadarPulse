@@ -1,13 +1,13 @@
-# Milestone 002: Level II Inspection Plan
+# Milestone 002: NEXRAD Archive Inspection Plan
 
 ## Goal
 
-Milestone 002 consumes cached NOAA NEXRAD Level II files from milestone 001 and
+Milestone 002 consumes cached NOAA NEXRAD archive files from milestone 001 and
 turns them into inspectable radar-volume metadata.
 
 This milestone does not implement event processing, partitioning, benchmarks,
 live ingestion, or a user-facing visualization. Its purpose is to prove that
-RadarPulse can recognize historical Level II archive files, decompress their
+RadarPulse can recognize historical NEXRAD archive files, decompress their
 internal records, parse enough structure to understand volumes/sweeps/radials,
 and report what is inside a cached file.
 
@@ -20,7 +20,7 @@ data/nexrad/level2/{yyyy}/{MM}/{dd}/{radarId}/{fileName}
 ```
 
 The current smoke-test cache includes KTLX files from 2026-05-04. A typical base
-data file begins with an `AR2V` Archive II volume header and contains internal
+data file begins with an `AR2V` Archive Two volume header and contains internal
 BZip2-compressed records. `_MDM` files have a different shape and should be
 classified separately before RadarPulse tries to parse them as base data
 volumes.
@@ -32,7 +32,7 @@ Primary references for this milestone:
 ```text
 ROC ICD 2620010J: Interface Control Document for Archive II/User, Build 23.0
 ROC ICD 2620002Y: Interface Control Document for RDA/RPG, Build 23.0
-NCEI NEXRAD Level-II overview
+NCEI NEXRAD archive overview
 NCEI decoding utilities and examples
 ```
 
@@ -46,7 +46,7 @@ https://www.ncei.noaa.gov/products/radar/next-generation-weather-radar
 https://www.ncei.noaa.gov/products/radar/decoding-utilities-examples
 ```
 
-The Archive II/User ICD describes the historical Level II container used by the
+The Archive II/User ICD describes the historical NEXRAD archive container used by the
 downloaded files. The RDA/RPG ICD describes the radar messages inside that
 container, especially Message Type 31, Digital Radar Data Generic Format.
 
@@ -55,7 +55,7 @@ container, especially Message Type 31, Digital Radar Data Generic Format.
 Required input:
 
 ```text
-one cached Level II file path
+one cached NEXRAD archive file path
 ```
 
 Optional inputs:
@@ -76,7 +76,7 @@ Current status:
 ```text
 single-file archive inspect command implemented
 file classification implemented
-24-byte Archive II volume header parsing implemented
+24-byte Archive Two volume header parsing implemented
 cache-wide inspection not implemented
 record decompression not implemented
 ```
@@ -86,13 +86,13 @@ record decompression not implemented
 Step 1: classify the file.
 
 ```text
-Archive II volume with AR2V header
+Archive Two volume with AR2V header
 MDM or compressed message stream
 externally compressed gzip/bzip2 wrapper, if encountered
 unknown or unsupported binary
 ```
 
-Step 2: parse the Archive II container.
+Step 2: parse the Archive Two container.
 
 ```text
 volume header
@@ -101,13 +101,13 @@ internal BZip2 record payloads
 radar message stream
 ```
 
-Expected Archive II raw/LDM record shape for the base-data files:
+Expected Archive Two raw/LDM record shape for the base-data files:
 
 ```text
 24-byte volume header
 repeated records:
   4-byte big-endian signed control word
-  abs(control word) bytes of bzip2-compressed Archive II messages
+  abs(control word) bytes of bzip2-compressed Archive Two messages
 ```
 
 The first compressed record is expected to contain metadata messages. Later
@@ -158,7 +158,7 @@ Candidate command after cache selection exists:
 radarpulse archive inspect --cache data/nexrad --date 2026-05-04 --radar KTLX --max-files 1
 ```
 
-The command should report unsupported file classes without failing the whole
+The command should report unsupported file kinds without failing the whole
 inspection run, unless the user explicitly selects one file and that file cannot
 be parsed.
 
@@ -167,8 +167,8 @@ be parsed.
 In scope:
 
 ```text
-Level II file classification
-Archive II volume header parsing
+NEXRAD archive file classification
+Archive Two volume header parsing
 LDM record framing
 internal BZip2 decompression
 generic radar message header parsing
@@ -211,7 +211,7 @@ Fixture strategy:
 ```text
 prefer small synthetic byte fixtures for fixed header parsing
 use one real cached KTLX file only for opt-in local integration coverage
-do not commit large downloaded Level II data under data/
+do not commit large downloaded NEXRAD archive data under data/
 ```
 
 ## Done Criteria
@@ -219,10 +219,11 @@ do not commit large downloaded Level II data under data/
 Milestone 002 is complete when:
 
 ```text
-RadarPulse can inspect one cached Archive II base-data file
+RadarPulse can inspect one cached Archive Two base-data file
 the reader handles internal BZip2 records correctly
 the command prints stable volume/sweep/radial/moment metadata
 MDM and unknown binary files are classified without accidental base-data parsing
 behavior is covered by focused tests
-documentation describes the supported file classes and limitations
+documentation describes the supported file kinds and limitations
 ```
+

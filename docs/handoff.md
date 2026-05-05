@@ -1,8 +1,8 @@
-# Handoff: Milestone 002 Level II Inspection
+# Handoff: Milestone 002 NEXRAD Archive Inspection
 
 ## Current Goal
 
-Plan and start milestone 002: consume cached NOAA NEXRAD Level II files from the
+Plan and start milestone 002: consume cached NOAA NEXRAD archive files from the
 milestone 001 archive loader and build a replay-oriented inspection/decoding
 foundation.
 
@@ -24,23 +24,23 @@ Done:
 
 Planned next:
 
-- `002` Level II inspection/decoding milestone.
-- Continue from completed file classification and 24-byte Archive II volume
+- `002` NEXRAD archive inspection/decoding milestone.
+- Continue from completed file classification and 24-byte Archive Two volume
   header parsing.
-- Treat internal BZip2 records as part of the Archive II format, not as one
+- Treat internal BZip2 records as part of the Archive Two format, not as one
   whole-file BZip2 stream.
 - Classify `_MDM` files separately before attempting base-data parsing.
-- Use ROC ICD 2620010J for the Archive II container and ROC ICD 2620002Y for
+- Use ROC ICD 2620010J for the Archive Two container and ROC ICD 2620002Y for
   RDA/RPG message payloads, especially Message Type 31.
 
 Completed in the first milestone 002 implementation slice:
 
 - `archive inspect --file`.
-- Archive II base-data classification for files starting with `AR2V`.
+- Archive Two base-data classification for files starting with `AR2V`.
 - MDM/compressed-stream classification for `_MDM` and early `BZh` non-`AR2V`
   files.
 - Unknown binary classification.
-- 24-byte Archive II volume header parsing.
+- 24-byte Archive Two volume header parsing.
 - CLI output for size, class, archive filename, version, extension number, radar
   id, and volume timestamp.
 - Unit tests with small synthetic fixtures.
@@ -49,8 +49,8 @@ Completed in the first milestone 002 implementation slice:
 
 - `docs/milestones/001-historical-loader-plan.md`
 - `docs/milestones/001-historical-loader.md`
-- `docs/milestones/002-level2-inspection-plan.md`
-- `docs/milestones/002-level2-inspection.md`
+- `docs/milestones/002-nexrad-archive-inspection-plan.md`
+- `docs/milestones/002-nexrad-archive-inspection.md`
 - `docs/handoff.md`
 
 ## Verification
@@ -74,7 +74,7 @@ dotnet run --project src/Presentation/RadarPulse.Cli.csproj -- archive inspect -
 dotnet run --project src/Presentation/RadarPulse.Cli.csproj -- archive inspect --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_005834_V06_MDM
 ```
 
-The first command classified the file as `Archive II base data` and parsed
+The first command classified the file as `Archive Two base data` and parsed
 `AR2V0006.266`, version `06`, extension `266`, radar `KTLX`, and volume time
 `2026-05-04T00:02:45.042Z`. The second command classified the `_MDM` file as
 `MDM or compressed stream`.
@@ -149,7 +149,7 @@ ROC ICD 2620002Y RDA/RPG, Build 23.0:
   https://www.roc.noaa.gov/public-documents/icds/2620002Y.pdf
 ROC ICD index:
   https://www.roc.noaa.gov/interface-control-documents.php
-NCEI NEXRAD Level-II overview:
+NCEI NEXRAD archive overview:
   https://www.ncei.noaa.gov/products/radar/next-generation-weather-radar
 NCEI decoding utilities:
   https://www.ncei.noaa.gov/products/radar/decoding-utilities-examples
@@ -158,10 +158,10 @@ NCEI decoding utilities:
 The expected base-data record shape is:
 
 ```text
-24-byte Archive II volume header
+24-byte Archive Two volume header
 repeated records:
   4-byte big-endian signed control word
-  abs(control word) bytes of bzip2-compressed Archive II messages
+  abs(control word) bytes of bzip2-compressed Archive Two messages
 ```
 
 The first compressed record contains metadata messages. Later records contain
@@ -176,7 +176,7 @@ constant and moment data blocks.
 - Do not use the deprecated `noaa-nexrad-level2` bucket for loader work.
 - Large downloaded data and generated manifests under `data/` stay outside
   source control.
-- Do not commit large real Level II binary fixtures unless a deliberate fixture
+- Do not commit large real NEXRAD archive binary fixtures unless a deliberate fixture
   strategy is agreed first.
 - Milestone 002 should avoid promising visualization, event processing,
   partitioning, benchmarks, or live ingestion.
@@ -199,3 +199,4 @@ The next milestone 002 implementation slice should be considered done when:
   record boundaries.
 - Internal BZip2 records can be decompressed into radar message bytes.
 - Tests cover record boundary behavior with small fixtures.
+

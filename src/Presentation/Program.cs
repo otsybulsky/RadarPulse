@@ -142,12 +142,12 @@ static int PrintUsage()
 static async Task<int> InspectArchiveAsync(string[] args)
 {
     var options = ArchiveInspectOptions.Parse(args);
-    var inspection = await new Level2FileInspector().InspectAsync(options.FilePath, CancellationToken.None);
+    var inspection = await new NexradArchiveFileInspector().InspectAsync(options.FilePath, CancellationToken.None);
 
     Console.WriteLine($"File: {inspection.FilePath}");
     Console.WriteLine($"Size bytes: {FormatNumber(inspection.SizeBytes)}");
-    Console.WriteLine($"Class: {FormatLevel2FileClass(inspection.FileClass)}");
-    if (inspection.ArchiveIiVolumeHeader is { } header)
+    Console.WriteLine($"Kind: {FormatNexradArchiveFileKind(inspection.FileKind)}");
+    if (inspection.ArchiveTwoVolumeHeader is { } header)
     {
         Console.WriteLine($"Archive filename: {header.ArchiveFilename}");
         Console.WriteLine($"Version: {header.Version}");
@@ -164,11 +164,11 @@ static async Task<int> InspectArchiveAsync(string[] args)
     return 0;
 }
 
-static string FormatLevel2FileClass(Level2FileClass fileClass) =>
+static string FormatNexradArchiveFileKind(NexradArchiveFileKind fileClass) =>
     fileClass switch
     {
-        Level2FileClass.ArchiveIiBaseData => "Archive II base data",
-        Level2FileClass.MdmOrCompressedStream => "MDM or compressed stream",
+        NexradArchiveFileKind.ArchiveTwoBaseData => "Archive Two base data",
+        NexradArchiveFileKind.MdmOrCompressedStream => "MDM or compressed stream",
         _ => "Unknown"
     };
 
@@ -324,3 +324,4 @@ internal sealed record ArchiveInspectOptions(string FilePath)
         return args[index];
     }
 }
+

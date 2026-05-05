@@ -4,19 +4,19 @@ using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Infrastructure.Archive;
 
-public sealed class Level2FileInspector
+public sealed class NexradArchiveFileInspector
 {
-    private const int ArchiveIiVolumeHeaderLength = 24;
+    private const int ArchiveTwoVolumeHeaderLength = 24;
     private const int ProbeLength = 4096;
 
-    public async Task<Level2FileInspection> InspectAsync(string filePath, CancellationToken cancellationToken)
+    public async Task<NexradArchiveFileInspection> InspectAsync(string filePath, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
         var fileInfo = new FileInfo(filePath);
         if (!fileInfo.Exists)
         {
-            throw new FileNotFoundException("Level II file was not found.", filePath);
+            throw new FileNotFoundException("NEXRAD archive file was not found.", filePath);
         }
 
         var probe = new byte[Math.Min(ProbeLength, checked((int)Math.Min(fileInfo.Length, ProbeLength)))];
@@ -29,45 +29,45 @@ public sealed class Level2FileInspector
             }
         }
 
-        if (StartsWithArchiveIiSignature(probe))
+        if (StartsWithArchiveTwoSignature(probe))
         {
-            if (probe.Length < ArchiveIiVolumeHeaderLength)
+            if (probe.Length < ArchiveTwoVolumeHeaderLength)
             {
-                return new Level2FileInspection(
+                return new NexradArchiveFileInspection(
                     filePath,
                     fileInfo.Length,
-                    Level2FileClass.Unknown,
+                    NexradArchiveFileKind.Unknown,
                     null,
-                    "Archive II signature is present, but the file is shorter than the 24-byte volume header.");
+                    "Archive Two signature is present, but the file is shorter than the 24-byte volume header.");
             }
 
-            return new Level2FileInspection(
+            return new NexradArchiveFileInspection(
                 filePath,
                 fileInfo.Length,
-                Level2FileClass.ArchiveIiBaseData,
-                ParseArchiveIiVolumeHeader(probe.AsSpan(0, ArchiveIiVolumeHeaderLength)),
+                NexradArchiveFileKind.ArchiveTwoBaseData,
+                ParseArchiveTwoVolumeHeader(probe.AsSpan(0, ArchiveTwoVolumeHeaderLength)),
                 null);
         }
 
         if (LooksLikeMdmOrCompressedStream(filePath, probe))
         {
-            return new Level2FileInspection(
+            return new NexradArchiveFileInspection(
                 filePath,
                 fileInfo.Length,
-                Level2FileClass.MdmOrCompressedStream,
+                NexradArchiveFileKind.MdmOrCompressedStream,
                 null,
-                "File does not start with an Archive II volume header and should not be parsed as base-data volume.");
+                "File does not start with an Archive Two volume header and should not be parsed as base-data volume.");
         }
 
-        return new Level2FileInspection(
+        return new NexradArchiveFileInspection(
             filePath,
             fileInfo.Length,
-            Level2FileClass.Unknown,
+            NexradArchiveFileKind.Unknown,
             null,
-            "File signature is not recognized as a supported Level II file class.");
+            "File signature is not recognized as a supported NEXRAD archive file kind.");
     }
 
-    private static bool StartsWithArchiveIiSignature(ReadOnlySpan<byte> buffer) =>
+    private static bool StartsWithArchiveTwoSignature(ReadOnlySpan<byte> buffer) =>
         buffer.Length >= 4 &&
         buffer[0] == (byte)'A' &&
         buffer[1] == (byte)'R' &&
@@ -93,14 +93,14 @@ public sealed class Level2FileInspector
         return false;
     }
 
-    private static ArchiveIiVolumeHeader ParseArchiveIiVolumeHeader(ReadOnlySpan<byte> header)
+    private static ArchiveTwoVolumeHeader ParseArchiveTwoVolumeHeader(ReadOnlySpan<byte> header)
     {
         var archiveFilename = Encoding.ASCII.GetString(header[..12]);
         var version = Encoding.ASCII.GetString(header.Slice(6, 2));
         var extensionText = Encoding.ASCII.GetString(header.Slice(9, 3));
         if (!int.TryParse(extensionText, out var extensionNumber))
         {
-            throw new FormatException($"Archive II volume extension is not numeric: {extensionText}");
+            throw new FormatException($"Archive Two volume extension is not numeric: {extensionText}");
         }
 
         var nexradModifiedJulianDate = BinaryPrimitives.ReadInt32BigEndian(header.Slice(12, 4));
@@ -110,7 +110,7 @@ public sealed class Level2FileInspector
             new DateOnly(1970, 1, 1).DayNumber + nexradModifiedJulianDate - 1);
         var volumeTime = TimeSpan.FromMilliseconds(millisecondsPastMidnight);
 
-        return new ArchiveIiVolumeHeader(
+        return new ArchiveTwoVolumeHeader(
             archiveFilename,
             version,
             extensionNumber,
@@ -120,3 +120,6 @@ public sealed class Level2FileInspector
             radarId);
     }
 }
+
+
+
