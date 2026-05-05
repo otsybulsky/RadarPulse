@@ -23,14 +23,15 @@ Archive Two base-data file classification
 MDM/compressed-stream classification
 unknown binary classification
 24-byte Archive Two volume header parsing
-CLI output for file kind, size, archive filename, version, extension, radar id, and volume time
+Archive Two compressed record boundary parsing
+per-record BZip2 signature detection
+CLI output for file kind, size, archive filename, version, extension, radar id, volume time, compressed record count, compressed bytes, and BZip2 signature count
 unit tests with small synthetic fixtures
 ```
 
 Not yet implemented:
 
 ```text
-LDM compressed record splitting
 per-record BZip2 decompression
 radar message header parsing
 Message Type 31 radial metadata parsing
@@ -68,6 +69,10 @@ Version: 06
 Extension number: 266
 Radar: KTLX
 Volume time: 2026-05-04T00:02:45.042Z
+Compressed records: 55
+Compressed bytes: 5_406_610
+Records with BZip2 signature: 55
+First record compressed bytes: 2_357
 ```
 
 Inspect a small cache selection after cache selectors are added:

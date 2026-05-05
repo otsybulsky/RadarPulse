@@ -38,15 +38,18 @@ public sealed class NexradArchiveFileInspector
                     fileInfo.Length,
                     NexradArchiveFileKind.Unknown,
                     null,
+                    Array.Empty<ArchiveTwoCompressedRecordSummary>(),
                     "Archive Two signature is present, but the file is shorter than the 24-byte volume header.");
             }
 
+            var compressedRecords = await ReadCompressedRecordSummariesAsync(fileInfo, cancellationToken);
             return new NexradArchiveFileInspection(
                 filePath,
                 fileInfo.Length,
                 NexradArchiveFileKind.ArchiveTwoBaseData,
                 ParseArchiveTwoVolumeHeader(probe.AsSpan(0, ArchiveTwoVolumeHeaderLength)),
-                null);
+                compressedRecords.Records,
+                compressedRecords.Diagnostic);
         }
 
         if (LooksLikeMdmOrCompressedStream(filePath, probe))
@@ -56,6 +59,7 @@ public sealed class NexradArchiveFileInspector
                 fileInfo.Length,
                 NexradArchiveFileKind.MdmOrCompressedStream,
                 null,
+                Array.Empty<ArchiveTwoCompressedRecordSummary>(),
                 "File does not start with an Archive Two volume header and should not be parsed as base-data volume.");
         }
 
@@ -64,6 +68,7 @@ public sealed class NexradArchiveFileInspector
             fileInfo.Length,
             NexradArchiveFileKind.Unknown,
             null,
+            Array.Empty<ArchiveTwoCompressedRecordSummary>(),
             "File signature is not recognized as a supported NEXRAD archive file kind.");
     }
 
@@ -118,6 +123,83 @@ public sealed class NexradArchiveFileInspector
             volumeTime,
             new DateTimeOffset(volumeDate.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero).Add(volumeTime),
             radarId);
+    }
+
+    private static async Task<(IReadOnlyList<ArchiveTwoCompressedRecordSummary> Records, string? Diagnostic)> ReadCompressedRecordSummariesAsync(
+        FileInfo fileInfo,
+        CancellationToken cancellationToken)
+    {
+        var records = new List<ArchiveTwoCompressedRecordSummary>();
+        var controlWordBuffer = new byte[4];
+        var signatureBuffer = new byte[3];
+
+        await using var stream = File.OpenRead(fileInfo.FullName);
+        stream.Position = ArchiveTwoVolumeHeaderLength;
+
+        while (stream.Position < stream.Length)
+        {
+            var controlWordOffset = stream.Position;
+            var remainingBytes = stream.Length - stream.Position;
+            if (remainingBytes < 4)
+            {
+                return (records, $"Trailing {remainingBytes} byte(s) after compressed records cannot contain a control word.");
+            }
+
+            await ReadExactlyAsync(stream, controlWordBuffer, cancellationToken);
+            var controlWord = BinaryPrimitives.ReadInt32BigEndian(controlWordBuffer);
+            if (controlWord == int.MinValue)
+            {
+                return (records, $"Compressed record at offset {controlWordOffset} has an unsupported control word value.");
+            }
+
+            var compressedSizeBytes = Math.Abs(controlWord);
+            if (compressedSizeBytes == 0)
+            {
+                return (records, $"Compressed record at offset {controlWordOffset} has zero compressed bytes.");
+            }
+
+            if (compressedSizeBytes > stream.Length - stream.Position)
+            {
+                return (records, $"Compressed record at offset {controlWordOffset} declares {compressedSizeBytes} bytes, but only {stream.Length - stream.Position} remain.");
+            }
+
+            var signatureBytesToRead = Math.Min(signatureBuffer.Length, compressedSizeBytes);
+            var startsWithBZip2Signature = false;
+            if (signatureBytesToRead > 0)
+            {
+                await ReadExactlyAsync(stream, signatureBuffer.AsMemory(0, signatureBytesToRead), cancellationToken);
+                startsWithBZip2Signature =
+                    signatureBytesToRead == 3 &&
+                    signatureBuffer[0] == (byte)'B' &&
+                    signatureBuffer[1] == (byte)'Z' &&
+                    signatureBuffer[2] == (byte)'h';
+            }
+
+            stream.Position += compressedSizeBytes - signatureBytesToRead;
+            records.Add(new ArchiveTwoCompressedRecordSummary(
+                records.Count + 1,
+                controlWordOffset,
+                controlWord,
+                compressedSizeBytes,
+                startsWithBZip2Signature));
+        }
+
+        return (records, null);
+    }
+
+    private static async Task ReadExactlyAsync(Stream stream, Memory<byte> buffer, CancellationToken cancellationToken)
+    {
+        var totalBytesRead = 0;
+        while (totalBytesRead < buffer.Length)
+        {
+            var bytesRead = await stream.ReadAsync(buffer[totalBytesRead..], cancellationToken);
+            if (bytesRead == 0)
+            {
+                throw new EndOfStreamException("Unexpected end of NEXRAD archive file.");
+            }
+
+            totalBytesRead += bytesRead;
+        }
     }
 }
 

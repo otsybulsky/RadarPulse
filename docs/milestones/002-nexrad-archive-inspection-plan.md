@@ -77,6 +77,8 @@ Current status:
 single-file archive inspect command implemented
 file classification implemented
 24-byte Archive Two volume header parsing implemented
+compressed record boundary parsing implemented
+BZip2 signature detection implemented
 cache-wide inspection not implemented
 record decompression not implemented
 ```

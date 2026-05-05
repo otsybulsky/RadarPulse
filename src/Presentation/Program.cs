@@ -156,6 +156,17 @@ static async Task<int> InspectArchiveAsync(string[] args)
         Console.WriteLine($"Volume time: {header.VolumeTimestamp:yyyy-MM-ddTHH:mm:ss.fffZ}");
     }
 
+    if (inspection.CompressedRecords.Count > 0)
+    {
+        var compressedBytes = inspection.CompressedRecords.Sum(record => (long)record.CompressedSizeBytes);
+        var recordsWithBZip2Signature = inspection.CompressedRecords.Count(record => record.StartsWithBZip2Signature);
+        var firstRecord = inspection.CompressedRecords[0];
+        Console.WriteLine($"Compressed records: {FormatNumber(inspection.CompressedRecords.Count)}");
+        Console.WriteLine($"Compressed bytes: {FormatNumber(compressedBytes)}");
+        Console.WriteLine($"Records with BZip2 signature: {FormatNumber(recordsWithBZip2Signature)}");
+        Console.WriteLine($"First record compressed bytes: {FormatNumber(firstRecord.CompressedSizeBytes)}");
+    }
+
     if (!string.IsNullOrWhiteSpace(inspection.Diagnostic))
     {
         Console.WriteLine($"Diagnostic: {inspection.Diagnostic}");

@@ -25,8 +25,8 @@ Done:
 Planned next:
 
 - `002` NEXRAD archive inspection/decoding milestone.
-- Continue from completed file classification and 24-byte Archive Two volume
-  header parsing.
+- Continue from completed file classification, 24-byte Archive Two volume header
+  parsing, and compressed record boundary parsing.
 - Treat internal BZip2 records as part of the Archive Two format, not as one
   whole-file BZip2 stream.
 - Classify `_MDM` files separately before attempting base-data parsing.
@@ -41,7 +41,10 @@ Completed in the first milestone 002 implementation slice:
   files.
 - Unknown binary classification.
 - 24-byte Archive Two volume header parsing.
-- CLI output for size, class, archive filename, version, extension number, radar
+- Archive Two compressed record boundary parsing from 4-byte signed big-endian
+  control words.
+- Per-record BZip2 signature detection.
+- CLI output for size, kind, archive filename, version, extension number, radar
   id, and volume timestamp.
 - Unit tests with small synthetic fixtures.
 
@@ -55,7 +58,7 @@ Completed in the first milestone 002 implementation slice:
 
 ## Verification
 
-Last verified normal command after the first milestone 002 slice:
+Last verified normal command after the current milestone 002 slice:
 
 ```powershell
 dotnet test RadarPulse.sln --no-restore
@@ -64,7 +67,7 @@ dotnet test RadarPulse.sln --no-restore
 Result:
 
 ```text
-30 passed, 2 skipped
+32 passed, 2 skipped
 ```
 
 Manual CLI smoke tests:
@@ -76,8 +79,9 @@ dotnet run --project src/Presentation/RadarPulse.Cli.csproj -- archive inspect -
 
 The first command classified the file as `Archive Two base data` and parsed
 `AR2V0006.266`, version `06`, extension `266`, radar `KTLX`, and volume time
-`2026-05-04T00:02:45.042Z`. The second command classified the `_MDM` file as
-`MDM or compressed stream`.
+`2026-05-04T00:02:45.042Z`. It also found 55 compressed records, 5_406_610
+compressed bytes, and 55 records with BZip2 signatures. The second command
+classified the `_MDM` file as `MDM or compressed stream`.
 
 Last verified normal command for milestone 001:
 
@@ -195,8 +199,7 @@ constant and moment data blocks.
 
 The next milestone 002 implementation slice should be considered done when:
 
-- One cached `AR2V` file can be read beyond the volume header through internal
-  record boundaries.
 - Internal BZip2 records can be decompressed into radar message bytes.
-- Tests cover record boundary behavior with small fixtures.
+- Tests cover decompression behavior with small fixtures or an agreed dependency
+  strategy.
 
