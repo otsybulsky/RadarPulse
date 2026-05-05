@@ -35,8 +35,9 @@ public sealed class NexradArchiveFileInspectorTests
     [Fact]
     public async Task ArchiveTwoCompressedRecordsParseControlWordsAndBZip2Signature()
     {
+        var firstPayload = ValidBZip2MetadataPayload();
         var contents = BuildArchiveTwoHeader()
-            .Concat(BuildCompressedRecord(6, [(byte)'B', (byte)'Z', (byte)'h', (byte)'9', 0x01, 0x02]))
+            .Concat(BuildCompressedRecord(firstPayload.Length, firstPayload))
             .Concat(BuildCompressedRecord(-4, [0x10, 0x11, 0x12, 0x13]))
             .ToArray();
         var path = WriteTempFile("KTLX20260504_000245_V06", contents);
@@ -52,18 +53,44 @@ public sealed class NexradArchiveFileInspectorTests
                 {
                     Assert.Equal(1, first.SequenceNumber);
                     Assert.Equal(24, first.ControlWordOffset);
-                    Assert.Equal(6, first.ControlWord);
-                    Assert.Equal(6, first.CompressedSizeBytes);
+                    Assert.Equal(firstPayload.Length, first.ControlWord);
+                    Assert.Equal(firstPayload.Length, first.CompressedSizeBytes);
                     Assert.True(first.StartsWithBZip2Signature);
+                    Assert.Equal(8, first.DecompressedSizeBytes);
+                    Assert.Null(first.DecompressionDiagnostic);
                 },
                 second =>
                 {
                     Assert.Equal(2, second.SequenceNumber);
-                    Assert.Equal(34, second.ControlWordOffset);
+                    Assert.Equal(28 + firstPayload.Length, second.ControlWordOffset);
                     Assert.Equal(-4, second.ControlWord);
                     Assert.Equal(4, second.CompressedSizeBytes);
                     Assert.False(second.StartsWithBZip2Signature);
+                    Assert.Null(second.DecompressedSizeBytes);
+                    Assert.Contains("does not start", second.DecompressionDiagnostic);
                 });
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(path)!, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ArchiveTwoCompressedRecordReportsInvalidBZip2Payload()
+    {
+        var contents = BuildArchiveTwoHeader()
+            .Concat(BuildCompressedRecord(6, [(byte)'B', (byte)'Z', (byte)'h', (byte)'9', 0x01, 0x02]))
+            .ToArray();
+        var path = WriteTempFile("KTLX20260504_000245_V06", contents);
+        try
+        {
+            var inspection = await new NexradArchiveFileInspector().InspectAsync(path, CancellationToken.None);
+
+            var record = Assert.Single(inspection.CompressedRecords);
+            Assert.True(record.StartsWithBZip2Signature);
+            Assert.Null(record.DecompressedSizeBytes);
+            Assert.NotNull(record.DecompressionDiagnostic);
         }
         finally
         {
@@ -181,6 +208,16 @@ public sealed class NexradArchiveFileInspectorTests
         BinaryPrimitives.WriteInt32BigEndian(buffer, controlWord);
         return buffer;
     }
+
+    private static byte[] ValidBZip2MetadataPayload() =>
+    [
+        0x42, 0x5A, 0x68, 0x39, 0x31, 0x41, 0x59, 0x26,
+        0x53, 0x59, 0x01, 0xFE, 0xBF, 0xBC, 0x00, 0x00,
+        0x02, 0x81, 0x80, 0x26, 0x02, 0x04, 0x00, 0x20,
+        0x00, 0x30, 0xCD, 0x00, 0xC1, 0xA0, 0xAD, 0x21,
+        0x38, 0xBB, 0x92, 0x29, 0xC2, 0x84, 0x80, 0x0F,
+        0xF5, 0xFD, 0xE0
+    ];
 
     private static string WriteTempFile(string fileName, byte[] contents)
     {

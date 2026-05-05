@@ -1,6 +1,8 @@
 using System.Buffers.Binary;
 using System.Text;
 using RadarPulse.Domain.Archive;
+using SharpCompress.Compressors;
+using SharpCompress.Compressors.BZip2;
 
 namespace RadarPulse.Infrastructure.Archive;
 
@@ -131,7 +133,6 @@ public sealed class NexradArchiveFileInspector
     {
         var records = new List<ArchiveTwoCompressedRecordSummary>();
         var controlWordBuffer = new byte[4];
-        var signatureBuffer = new byte[3];
 
         await using var stream = File.OpenRead(fileInfo.FullName);
         stream.Position = ArchiveTwoVolumeHeaderLength;
@@ -163,28 +164,56 @@ public sealed class NexradArchiveFileInspector
                 return (records, $"Compressed record at offset {controlWordOffset} declares {compressedSizeBytes} bytes, but only {stream.Length - stream.Position} remain.");
             }
 
-            var signatureBytesToRead = Math.Min(signatureBuffer.Length, compressedSizeBytes);
-            var startsWithBZip2Signature = false;
-            if (signatureBytesToRead > 0)
-            {
-                await ReadExactlyAsync(stream, signatureBuffer.AsMemory(0, signatureBytesToRead), cancellationToken);
-                startsWithBZip2Signature =
-                    signatureBytesToRead == 3 &&
-                    signatureBuffer[0] == (byte)'B' &&
-                    signatureBuffer[1] == (byte)'Z' &&
-                    signatureBuffer[2] == (byte)'h';
-            }
+            var compressedPayload = new byte[compressedSizeBytes];
+            await ReadExactlyAsync(stream, compressedPayload, cancellationToken);
+            var startsWithBZip2Signature = StartsWithBZip2Signature(compressedPayload);
+            var decompression = startsWithBZip2Signature
+                ? TryCountDecompressedBytes(compressedPayload)
+                : (DecompressedSizeBytes: (long?)null, Diagnostic: "Compressed payload does not start with a BZip2 signature.");
 
-            stream.Position += compressedSizeBytes - signatureBytesToRead;
             records.Add(new ArchiveTwoCompressedRecordSummary(
                 records.Count + 1,
                 controlWordOffset,
                 controlWord,
                 compressedSizeBytes,
-                startsWithBZip2Signature));
+                startsWithBZip2Signature,
+                decompression.DecompressedSizeBytes,
+                decompression.Diagnostic));
         }
 
         return (records, null);
+    }
+
+    private static bool StartsWithBZip2Signature(ReadOnlySpan<byte> buffer) =>
+        buffer.Length >= 3 &&
+        buffer[0] == (byte)'B' &&
+        buffer[1] == (byte)'Z' &&
+        buffer[2] == (byte)'h';
+
+    private static (long? DecompressedSizeBytes, string? Diagnostic) TryCountDecompressedBytes(byte[] compressedPayload)
+    {
+        try
+        {
+            using var compressedStream = new MemoryStream(compressedPayload, writable: false);
+            using var decompressedStream = BZip2Stream.Create(
+                compressedStream,
+                CompressionMode.Decompress,
+                decompressConcatenated: false,
+                leaveOpen: false);
+            var buffer = new byte[81920];
+            long decompressedSizeBytes = 0;
+            int bytesRead;
+            while ((bytesRead = decompressedStream.Read(buffer, 0, buffer.Length)) > 0)
+            {
+                decompressedSizeBytes += bytesRead;
+            }
+
+            return (decompressedSizeBytes, null);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return (null, ex.Message);
+        }
     }
 
     private static async Task ReadExactlyAsync(Stream stream, Memory<byte> buffer, CancellationToken cancellationToken)

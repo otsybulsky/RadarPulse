@@ -26,9 +26,8 @@ Planned next:
 
 - `002` NEXRAD archive inspection/decoding milestone.
 - Continue from completed file classification, 24-byte Archive Two volume header
-  parsing, and compressed record boundary parsing.
-- Treat internal BZip2 records as part of the Archive Two format, not as one
-  whole-file BZip2 stream.
+  parsing, compressed record boundary parsing, and per-record BZip2
+  decompression summaries.
 - Classify `_MDM` files separately before attempting base-data parsing.
 - Use ROC ICD 2620010J for the Archive Two container and ROC ICD 2620002Y for
   RDA/RPG message payloads, especially Message Type 31.
@@ -44,8 +43,9 @@ Completed in the first milestone 002 implementation slice:
 - Archive Two compressed record boundary parsing from 4-byte signed big-endian
   control words.
 - Per-record BZip2 signature detection.
+- Per-record BZip2 decompression byte counting through SharpCompress.
 - CLI output for size, kind, archive filename, version, extension number, radar
-  id, and volume timestamp.
+  id, volume timestamp, compressed record totals, and decompressed byte totals.
 - Unit tests with small synthetic fixtures.
 
 ## Documentation
@@ -67,7 +67,7 @@ dotnet test RadarPulse.sln --no-restore
 Result:
 
 ```text
-32 passed, 2 skipped
+33 passed, 2 skipped
 ```
 
 Manual CLI smoke tests:
@@ -80,8 +80,9 @@ dotnet run --project src/Presentation/RadarPulse.Cli.csproj -- archive inspect -
 The first command classified the file as `Archive Two base data` and parsed
 `AR2V0006.266`, version `06`, extension `266`, radar `KTLX`, and volume time
 `2026-05-04T00:02:45.042Z`. It also found 55 compressed records, 5_406_610
-compressed bytes, and 55 records with BZip2 signatures. The second command
-classified the `_MDM` file as `MDM or compressed stream`.
+compressed bytes, 55 records with BZip2 signatures, 55 decompressed records,
+50_741_824 decompressed bytes, and zero decompression diagnostics. The second
+command classified the `_MDM` file as `MDM or compressed stream`.
 
 Last verified normal command for milestone 001:
 
@@ -199,7 +200,8 @@ constant and moment data blocks.
 
 The next milestone 002 implementation slice should be considered done when:
 
-- Internal BZip2 records can be decompressed into radar message bytes.
-- Tests cover decompression behavior with small fixtures or an agreed dependency
-  strategy.
+- Decompressed Archive Two record bytes can be scanned for radar message
+  headers.
+- The inspection command can report message counts by type.
+- Tests cover message header parsing with small fixtures.
 

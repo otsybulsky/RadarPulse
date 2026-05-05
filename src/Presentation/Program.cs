@@ -160,11 +160,21 @@ static async Task<int> InspectArchiveAsync(string[] args)
     {
         var compressedBytes = inspection.CompressedRecords.Sum(record => (long)record.CompressedSizeBytes);
         var recordsWithBZip2Signature = inspection.CompressedRecords.Count(record => record.StartsWithBZip2Signature);
+        var decompressedRecordCount = inspection.CompressedRecords.Count(record => record.DecompressedSizeBytes is not null);
+        var decompressedBytes = inspection.CompressedRecords.Sum(record => record.DecompressedSizeBytes ?? 0L);
+        var recordsWithDecompressionDiagnostics = inspection.CompressedRecords.Count(record => record.DecompressionDiagnostic is not null);
         var firstRecord = inspection.CompressedRecords[0];
         Console.WriteLine($"Compressed records: {FormatNumber(inspection.CompressedRecords.Count)}");
         Console.WriteLine($"Compressed bytes: {FormatNumber(compressedBytes)}");
         Console.WriteLine($"Records with BZip2 signature: {FormatNumber(recordsWithBZip2Signature)}");
+        Console.WriteLine($"Decompressed records: {FormatNumber(decompressedRecordCount)}");
+        Console.WriteLine($"Decompressed bytes: {FormatNumber(decompressedBytes)}");
+        Console.WriteLine($"Records with decompression diagnostics: {FormatNumber(recordsWithDecompressionDiagnostics)}");
         Console.WriteLine($"First record compressed bytes: {FormatNumber(firstRecord.CompressedSizeBytes)}");
+        if (firstRecord.DecompressedSizeBytes is not null)
+        {
+            Console.WriteLine($"First record decompressed bytes: {FormatNumber(firstRecord.DecompressedSizeBytes.Value)}");
+        }
     }
 
     if (!string.IsNullOrWhiteSpace(inspection.Diagnostic))

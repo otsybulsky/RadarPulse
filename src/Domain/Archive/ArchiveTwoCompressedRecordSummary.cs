@@ -5,4 +5,6 @@ public sealed record ArchiveTwoCompressedRecordSummary(
     long ControlWordOffset,
     int ControlWord,
     int CompressedSizeBytes,
-    bool StartsWithBZip2Signature);
+    bool StartsWithBZip2Signature,
+    long? DecompressedSizeBytes,
+    string? DecompressionDiagnostic);

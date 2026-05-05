@@ -79,8 +79,9 @@ file classification implemented
 24-byte Archive Two volume header parsing implemented
 compressed record boundary parsing implemented
 BZip2 signature detection implemented
+per-record BZip2 decompression byte counting implemented
 cache-wide inspection not implemented
-record decompression not implemented
+message header parsing not implemented
 ```
 
 ## Decoder Workflow

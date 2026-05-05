@@ -25,14 +25,14 @@ unknown binary classification
 24-byte Archive Two volume header parsing
 Archive Two compressed record boundary parsing
 per-record BZip2 signature detection
-CLI output for file kind, size, archive filename, version, extension, radar id, volume time, compressed record count, compressed bytes, and BZip2 signature count
+per-record BZip2 decompression byte counting
+CLI output for file kind, size, archive filename, version, extension, radar id, volume time, compressed record count, compressed bytes, BZip2 signature count, decompressed record count, and decompressed bytes
 unit tests with small synthetic fixtures
 ```
 
 Not yet implemented:
 
 ```text
-per-record BZip2 decompression
 radar message header parsing
 Message Type 31 radial metadata parsing
 sweep/radial/moment summaries
@@ -72,7 +72,11 @@ Volume time: 2026-05-04T00:02:45.042Z
 Compressed records: 55
 Compressed bytes: 5_406_610
 Records with BZip2 signature: 55
+Decompressed records: 55
+Decompressed bytes: 50_741_824
+Records with decompression diagnostics: 0
 First record compressed bytes: 2_357
+First record decompressed bytes: 325_888
 ```
 
 Inspect a small cache selection after cache selectors are added:
