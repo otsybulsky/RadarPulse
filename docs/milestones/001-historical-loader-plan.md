@@ -1,8 +1,8 @@
-# Historical NEXRAD Loader Plan
+# Milestone 001: Historical NEXRAD Loader Plan
 
 ## Goal
 
-The first RadarPulse milestone is a historical NOAA NEXRAD Level II data loader.
+Milestone 001 is a historical NOAA NEXRAD Level II data loader.
 
 This milestone does not implement radar decoding, event processing,
 partitioning, or benchmark execution. Its purpose is to reliably discover,
@@ -206,7 +206,7 @@ test strategy
 known limitations
 ```
 
-## First Implementation Milestone
+## Phase 001A: Manifest Milestone
 
 The first concrete implementation target:
 
@@ -225,7 +225,7 @@ Current status:
 complete
 ```
 
-## Download Milestone
+## Phase 001B: Download Milestone
 
 The next concrete implementation target:
 

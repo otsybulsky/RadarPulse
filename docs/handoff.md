@@ -1,39 +1,46 @@
-# Handoff: Historical NEXRAD Loader
+# Handoff: Milestone 002 Level II Inspection
 
-## Goal
+## Current Goal
 
-Bring the historical NOAA NEXRAD Level II loader to a working `archive download`
-milestone on top of the existing manifest-first workflow.
+Plan and start milestone 002: consume cached NOAA NEXRAD Level II files from the
+milestone 001 archive loader and build a replay-oriented inspection/decoding
+foundation.
 
-## Current Status
+## Milestone Status
 
 Done:
 
-- `archive list` for one radar and explicit `--all-radars`.
-- Manifest summary output.
-- Manifest JSON write/read.
-- `archive download` with required `--output`.
-- Download from live AWS listing or saved manifest JSON.
-- Partial saved-manifest download with `--radar`, `--max-files`, and
+- `001` historical archive loader is complete.
+- `archive list` supports one radar and explicit `--all-radars`.
+- Manifest summary output and JSON write/read are implemented.
+- `archive download` supports live AWS listing and saved manifests.
+- Saved manifest download can be filtered with `--radar`, `--max-files`, and
   `--max-bytes`.
-- `--concurrency` for parallel download.
-- Existing-file skip by size.
-- Cache metadata sidecar validation for archive path, expected size, and source
-  last-modified timestamp.
-- Cache metadata backfill for legacy size-valid files during skip.
-- Missing or size-mismatched file redownload.
-- Preflight free-space check for bytes that actually need downloading.
-- CLI output for required download bytes and available disk bytes.
-- Temporary write through `*.part`, then final move.
-- Ctrl+C cancellation.
-- Retry/backoff for S3 listing and object download.
-- Deterministic cache path mapping.
-- Unit tests and opt-in listing/download integration test coverage.
-- Loader documentation updated.
+- Download concurrency, retry/backoff, Ctrl+C cancellation, temp-file writes,
+  deterministic cache paths, metadata sidecars, skip/redownload behavior, and
+  free-space preflight are implemented.
+- Standard unit tests and opt-in live AWS integration tests covered the loader
+  milestone at handoff time.
+
+Planned next:
+
+- `002` Level II inspection/decoding milestone.
+- Start with binary file classification and Archive II container parsing.
+- Treat internal BZip2 records as part of the Archive II format, not as one
+  whole-file BZip2 stream.
+- Classify `_MDM` files separately before attempting base-data parsing.
+
+## Documentation
+
+- `docs/milestones/001-historical-loader-plan.md`
+- `docs/milestones/001-historical-loader.md`
+- `docs/milestones/002-level2-inspection-plan.md`
+- `docs/milestones/002-level2-inspection.md`
+- `docs/handoff.md`
 
 ## Verification
 
-Last verified normal command:
+Last verified normal command for milestone 001:
 
 ```powershell
 dotnet test RadarPulse.sln --no-restore
@@ -47,7 +54,7 @@ Result:
 
 The skipped tests are opt-in live AWS integration tests.
 
-Last verified full opt-in command:
+Last verified full opt-in command for milestone 001:
 
 ```powershell
 $env:RADARPULSE_RUN_INTEGRATION_TESTS='true'; dotnet test RadarPulse.sln --no-restore
@@ -68,43 +75,6 @@ dotnet run --project src/Presentation/RadarPulse.Cli.csproj -- archive download 
 The files downloaded successfully. Re-running the same command skipped existing
 valid files.
 
-Saved manifest subset download shape:
-
-```powershell
-dotnet run --project src/Presentation/RadarPulse.Cli.csproj -- archive download --manifest data/manifests/2026-05-04.json --radar KTLX --max-files 10 --output data/nexrad
-```
-
-## Important Files
-
-- `docs/historical-loader.md`
-- `docs/historical-loader-plan.md`
-- `docs/handoff.md`
-- `src/Presentation/Program.cs`
-- `src/Application/Archive/IHistoricalArchiveClient.cs`
-- `src/Application/Archive/HistoricalArchiveManifestSelector.cs`
-- `src/Infrastructure/Archive/AwsNexradArchiveClient.cs`
-- `src/Infrastructure/Archive/HistoricalArchiveDownloader.cs`
-- `src/Infrastructure/Archive/HistoricalArchiveCacheMetadata.cs`
-- `src/Infrastructure/Archive/HistoricalArchiveCacheMetadataStore.cs`
-- `src/Infrastructure/Archive/HistoricalArchiveDownloadResult.cs`
-- `src/Infrastructure/Archive/HistoricalArchiveDownloadPreflight.cs`
-- `src/Infrastructure/Archive/DriveInfoDiskSpaceProbe.cs`
-- `src/Infrastructure/Archive/IDiskSpaceProbe.cs`
-- `src/Infrastructure/Archive/HistoricalArchiveManifestReader.cs`
-- `src/Infrastructure/Archive/HistoricalArchiveManifestWriter.cs`
-- `src/Infrastructure/Archive/NexradCachePathMapper.cs`
-- `tests/RadarPulse.Tests/Archive/*`
-
-## Constraints
-
-- Live AWS tests remain opt-in because they require network access and public AWS
-  availability.
-- Do not use the deprecated `noaa-nexrad-level2` bucket.
-- Large downloaded data and generated manifests under `data/` stay outside
-  source control.
-- Free-space guardrail is a preflight check. It does not atomically reserve disk
-  space during parallel download.
-
 ## Cache Layout
 
 Downloaded files are stored deterministically:
@@ -119,28 +89,48 @@ Example for the manual smoke test:
 data/nexrad/level2/2026/05/04/KTLX/{fileName}
 ```
 
-## Next Work
+## Decoder Observations
 
-Possible follow-up:
+Local inspection of the cached KTLX files showed:
 
-- Start the next milestone: consume cached Level II files for replay-oriented
-  parsing/inspection.
+```text
+KTLX20260504_000245_V06 starts with AR2V0006...KTLX and later contains BZh9
+KTLX20260504_005834_V06_MDM does not start with AR2V and contains BZh9 early
+```
 
-## Done Criteria
+This supports the milestone 002 plan: first classify files, then parse Archive
+II volume structure and its internal compressed records.
 
-Met:
+## Constraints
 
-- `archive download` downloads selected manifest entries into deterministic
-  cache.
-- Valid existing files are skipped safely.
-- Existing metadata is validated when present, and new downloads write metadata
-  sidecars.
-- Legacy size-valid cached files get metadata sidecars without redownload.
-- Missing or size-mismatched files are redownloaded.
-- Saved manifests can be filtered locally before download.
-- Free disk space is checked before download starts.
-- CLI reports required download bytes and available disk bytes.
-- Writes go through temporary files before final move.
-- Cancellation and concurrency are respected.
-- Behavior is covered by unit tests, opt-in live AWS integration tests, and
-  documentation.
+- Live AWS tests remain opt-in because they require network access and public AWS
+  availability.
+- Do not use the deprecated `noaa-nexrad-level2` bucket for loader work.
+- Large downloaded data and generated manifests under `data/` stay outside
+  source control.
+- Do not commit large real Level II binary fixtures unless a deliberate fixture
+  strategy is agreed first.
+- Milestone 002 should avoid promising visualization, event processing,
+  partitioning, benchmarks, or live ingestion.
+
+## Important Files
+
+- `src/Presentation/Program.cs`
+- `src/Application/Archive/IHistoricalArchiveClient.cs`
+- `src/Application/Archive/HistoricalArchiveManifestSelector.cs`
+- `src/Infrastructure/Archive/AwsNexradArchiveClient.cs`
+- `src/Infrastructure/Archive/HistoricalArchiveDownloader.cs`
+- `src/Infrastructure/Archive/NexradCachePathMapper.cs`
+- `tests/RadarPulse.Tests/Archive/*`
+
+## Done Criteria For Next Slice
+
+The first milestone 002 implementation slice should be considered done when:
+
+- RadarPulse can classify a cached file as Archive II base data, MDM-shaped, or
+  unsupported.
+- One cached `AR2V` file can be read through volume header and internal record
+  boundaries.
+- Internal BZip2 records can be decompressed into radar message bytes.
+- The CLI can print a minimal inspection summary for one cached base-data file.
+- Tests cover classifier/header/record behavior with small fixtures.
