@@ -1,8 +1,7 @@
 # Historical NEXRAD Loader
 
-RadarPulse currently implements the manifest-first part of the historical NOAA
-NEXRAD Level II loader. Download execution is intentionally left for the next
-milestone.
+RadarPulse implements a manifest-first historical NOAA NEXRAD Level II loader,
+including archive discovery and deterministic cache download.
 
 ## Current Status
 
@@ -13,21 +12,22 @@ archive manifest generation from public S3
 single-radar and explicit all-radars listing
 manifest summary output
 manifest JSON persistence
+manifest JSON loading for download
+partial download/filtering from saved manifest
+archive download
+download concurrency control
+existing-file skip by size
+cache metadata sidecar validation
+cache metadata backfill for legacy matching files
+missing/mismatched-file redownload
+temporary-file write then final move
+preflight free-space guardrail
+preflight required/available byte output
 file and byte listing limits
 transient S3 listing retry/backoff
 deterministic cache path mapping
 standard xUnit test coverage
-opt-in live S3 integration test
-```
-
-Not implemented yet:
-
-```text
-archive download
-download concurrency
-download resume/skip/redownload decisions
-download disk budget checks
-loading from a saved manifest
+opt-in live S3 listing and object download integration tests
 ```
 
 ## Source
@@ -71,17 +71,54 @@ Persist the discovered manifest to JSON:
 dotnet run --project src/Presentation/RadarPulse.Cli.csproj -- archive list --date 2026-05-04 --radar KTLX --manifest data/manifests/2026-05-04-KTLX.json
 ```
 
-The command still prints the summary after writing the manifest. Large local data
-and generated manifests under `data/` are ignored by source control.
+Download one radar directly from AWS listing:
+
+```text
+dotnet run --project src/Presentation/RadarPulse.Cli.csproj -- archive download --date 2026-05-04 --radar KTLX --output data/nexrad
+```
+
+Download all radars for a date:
+
+```text
+dotnet run --project src/Presentation/RadarPulse.Cli.csproj -- archive download --date 2026-05-04 --all-radars --output data/nexrad
+```
+
+Download from a saved manifest:
+
+```text
+dotnet run --project src/Presentation/RadarPulse.Cli.csproj -- archive download --manifest data/manifests/2026-05-04-KTLX.json --output data/nexrad
+```
+
+Download a filtered subset from a saved manifest:
+
+```text
+dotnet run --project src/Presentation/RadarPulse.Cli.csproj -- archive download --manifest data/manifests/2026-05-04.json --radar KTLX --max-files 10 --output data/nexrad
+```
+
+When downloading from a saved manifest, `--radar`, `--max-files`, and
+`--max-bytes` are applied locally to the manifest entries. `--date` and
+`--all-radars` are not valid with `--manifest` because the manifest already
+defines the archive date and selected files.
+
+Increase parallel downloads when needed:
+
+```text
+dotnet run --project src/Presentation/RadarPulse.Cli.csproj -- archive download --date 2026-05-04 --radar KTLX --output data/nexrad --concurrency 8
+```
+
+Large local data and generated manifests under `data/` are ignored by source
+control.
 
 All-radars mode is explicit because a full network day can represent tens to
-hundreds of GB once download support is enabled.
+hundreds of GB.
 
 Summary output formats large numbers with `_` triad separators:
 
 ```text
 Files: 22_150
 Bytes: 114_330_886_326
+Required download bytes: 5_406_854
+Available disk bytes: 812_345_678_901
 ```
 
 ## Manifest Fields
@@ -91,8 +128,7 @@ Each discovered archive file is represented with:
 ```text
 radar id
 archive date
-S3 bucket
-S3 key
+archive path
 file name
 object size
 last modified timestamp
@@ -104,13 +140,11 @@ Manifest JSON uses camel-case property names. Example:
 ```json
 {
   "archiveDate": "2026-05-04",
-  "bucket": "unidata-nexrad-level2",
   "files": [
     {
       "radarId": "KTLX",
       "archiveDate": "2026-05-04",
-      "bucket": "unidata-nexrad-level2",
-      "s3Key": "2026/05/04/KTLX/KTLX20260504_000245_V06",
+      "archivePath": "2026/05/04/KTLX/KTLX20260504_000245_V06",
       "fileName": "KTLX20260504_000245_V06",
       "sizeBytes": 5406854,
       "lastModified": "2026-05-04T00:09:43+00:00",
@@ -122,8 +156,8 @@ Manifest JSON uses camel-case property names. Example:
 
 ## Resilience
 
-S3 listing retries transient failures before failing the command. Retried
-conditions include:
+S3 listing and object download retry transient failures before failing the
+command. Retried conditions include:
 
 ```text
 408 Request Timeout
@@ -143,9 +177,32 @@ The deterministic local cache mapping is:
 data/nexrad/level2/{yyyy}/{MM}/{dd}/{radarId}/{fileName}
 ```
 
-Download execution is the next milestone. The cache layout already exists so
-downloaded files can be addressed deterministically by later replay and
-benchmark workflows.
+Download behavior uses that deterministic path mapping and applies the following
+rules:
+
+```text
+existing file with matching size -> skip
+existing file with matching metadata -> skip
+legacy existing file without metadata -> skip and backfill metadata
+existing file with mismatched metadata -> redownload
+missing file -> download
+existing file with mismatched size -> redownload
+write to *.part then move into final path
+write cache metadata to *.metadata.json
+verify free disk space before starting downloads
+print required download bytes and available disk bytes
+```
+
+New downloads write a sidecar metadata file next to the cached object:
+
+```text
+data/nexrad/level2/{yyyy}/{MM}/{dd}/{radarId}/{fileName}.metadata.json
+```
+
+The metadata records archive path, expected size, source last-modified timestamp,
+and local cache timestamp. Existing legacy files without metadata are accepted
+when their size matches the manifest entry, then metadata is backfilled without
+redownloading the object.
 
 ## Tests
 
@@ -156,8 +213,10 @@ dotnet test
 ```
 
 They cover prefix generation, key parsing, radar id normalization, volume
-timestamp parsing, cache path mapping, manifest summaries, manifest JSON writing,
-retry behavior, byte limits, and the explicit all-radars guardrail.
+timestamp parsing, cache path mapping, manifest summaries, manifest JSON
+writing/reading, retry behavior, byte limits, download skip/redownload
+decisions, cache metadata write/validation, saved-manifest filtering, free-space
+preflight reporting, and the explicit all-radars guardrail.
 
 Live S3 integration tests are opt-in:
 
@@ -166,21 +225,23 @@ $env:RADARPULSE_RUN_INTEGRATION_TESTS = "true"
 dotnet test
 ```
 
-Normal `dotnet test` runs skip live S3 tests. Test runner output under
-`TestResults/` is ignored by source control.
-
-## Next Milestone
-
-The next implementation milestone is `archive download`:
+Last verified normal run:
 
 ```text
-download selected manifest entries
-support --output
-skip existing valid files
-redownload missing or size-mismatched files
-write through temporary files before final move
-respect cancellation
-respect download concurrency
-enforce download byte/disk budget guardrails
-optionally download from saved manifest JSON
+25 passed, 2 skipped
 ```
+
+Last verified opt-in live run:
+
+```text
+27 passed, 0 skipped
+```
+
+Normal `dotnet test` runs skip live S3 tests. The live object download test is
+capped before download by the selected object's manifest size. Test runner
+output under `TestResults/` is ignored by source control.
+
+## Remaining Gaps
+
+No additional loader work is required for the current historical archive
+download milestone.

@@ -13,11 +13,16 @@ try
     return args[1] switch
     {
         "list" => await ListArchiveAsync(args[2..]),
-        "download" => DownloadNotYetImplemented(),
+        "download" => await DownloadArchiveAsync(args[2..]),
         _ => PrintUsage()
     };
 }
-catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or FormatException)
+catch (OperationCanceledException)
+{
+    Console.Error.WriteLine("Operation cancelled.");
+    return 1;
+}
+catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or FormatException or IOException)
 {
     Console.Error.WriteLine(ex.Message);
     return 1;
@@ -63,10 +68,62 @@ static async Task<int> ListArchiveAsync(string[] args)
 
 static string FormatNumber(long value) => value.ToString("N0").Replace(',', '_');
 
-static int DownloadNotYetImplemented()
+static async Task<int> DownloadArchiveAsync(string[] args)
 {
-    Console.Error.WriteLine("archive download is planned after manifest generation is stable.");
-    return 2;
+    var options = ArchiveOptions.Parse(args);
+    if (string.IsNullOrWhiteSpace(options.OutputPath))
+    {
+        throw new InvalidOperationException("--output is required.");
+    }
+
+    using var cancellation = new CancellationTokenSource();
+    ConsoleCancelEventHandler handler = (_, eventArgs) =>
+    {
+        eventArgs.Cancel = true;
+        cancellation.Cancel();
+    };
+
+    Console.CancelKeyPress += handler;
+    try
+    {
+        using var httpClient = new HttpClient();
+        IHistoricalArchiveClient client = new AwsNexradArchiveClient(httpClient);
+        var manifest = await LoadManifestForDownloadAsync(options, client, cancellation.Token);
+        var summary = manifest.Summarize();
+
+        Console.WriteLine($"Archive date: {manifest.ArchiveDate:yyyy-MM-dd}");
+        Console.WriteLine($"Source: AWS {AwsNexradArchiveKey.BucketName}");
+        if (options.ManifestPath is not null)
+        {
+            Console.WriteLine($"Manifest input: {options.ManifestPath}");
+        }
+
+        Console.WriteLine($"Output: {options.OutputPath}");
+        Console.WriteLine($"Radars: {FormatNumber(summary.RadarCount)}");
+        Console.WriteLine($"Files: {FormatNumber(summary.FileCount)}");
+        Console.WriteLine($"Bytes: {FormatNumber(summary.TotalBytes)}");
+
+        var downloader = new HistoricalArchiveDownloader(client, new NexradCachePathMapper());
+        var preflight = downloader.CheckPreflight(manifest, options.OutputPath, cancellation.Token);
+        Console.WriteLine($"Required download bytes: {FormatNumber(preflight.RequiredDownloadBytes)}");
+        Console.WriteLine($"Available disk bytes: {FormatNumber(preflight.AvailableBytes)}");
+
+        var result = await downloader.DownloadAsync(
+            manifest,
+            options.OutputPath,
+            options.Concurrency,
+            cancellation.Token);
+
+        Console.WriteLine($"Downloaded files: {FormatNumber(result.DownloadedFileCount)}");
+        Console.WriteLine($"Skipped files: {FormatNumber(result.SkippedFileCount)}");
+        Console.WriteLine($"Downloaded bytes: {FormatNumber(result.DownloadedBytes)}");
+        Console.WriteLine($"Skipped bytes: {FormatNumber(result.SkippedBytes)}");
+        return 0;
+    }
+    finally
+    {
+        Console.CancelKeyPress -= handler;
+    }
 }
 
 static int PrintUsage()
@@ -74,8 +131,42 @@ static int PrintUsage()
     Console.WriteLine("Usage:");
     Console.WriteLine("  radarpulse archive list --date yyyy-MM-dd --radar KTLX [--max-files n] [--max-bytes n] [--manifest path]");
     Console.WriteLine("  radarpulse archive list --date yyyy-MM-dd --all-radars [--max-files n] [--max-bytes n] [--manifest path]");
-    Console.WriteLine("  radarpulse archive download --date yyyy-MM-dd --radar KTLX --output data/nexrad");
+    Console.WriteLine("  radarpulse archive download --date yyyy-MM-dd --radar KTLX --output data/nexrad [--concurrency n]");
+    Console.WriteLine("  radarpulse archive download --date yyyy-MM-dd --all-radars --output data/nexrad [--concurrency n]");
+    Console.WriteLine("  radarpulse archive download --manifest data/manifests/2026-05-04.json --output data/nexrad [--radar KTLX] [--max-files n] [--max-bytes n] [--concurrency n]");
     return 2;
+}
+
+static async Task<HistoricalArchiveManifest> LoadManifestForDownloadAsync(
+    ArchiveOptions options,
+    IHistoricalArchiveClient client,
+    CancellationToken cancellationToken)
+{
+    if (!string.IsNullOrWhiteSpace(options.ManifestPath))
+    {
+        if (options.Date is not null ||
+            options.AllRadars)
+        {
+            throw new InvalidOperationException(
+                "--manifest cannot be combined with --date or --all-radars for download.");
+        }
+
+        var manifest = await new HistoricalArchiveManifestReader().ReadAsync(options.ManifestPath, cancellationToken);
+        return new HistoricalArchiveManifestSelector().Select(
+            manifest,
+            options.RadarIds,
+            options.MaxFiles,
+            options.MaxBytes);
+    }
+
+    var request = new HistoricalArchiveRequest(
+        options.Date ?? throw new InvalidOperationException("--date is required when --manifest is not provided."),
+        options.RadarIds,
+        options.AllRadars,
+        options.MaxFiles,
+        options.MaxBytes);
+
+    return await client.BuildManifestAsync(request, cancellationToken);
 }
 
 internal sealed record ArchiveOptions(
@@ -84,7 +175,9 @@ internal sealed record ArchiveOptions(
     bool AllRadars,
     int? MaxFiles,
     long? MaxBytes,
-    string? ManifestPath)
+    string? ManifestPath,
+    string? OutputPath,
+    int Concurrency)
 {
     public static ArchiveOptions Parse(string[] args)
     {
@@ -94,6 +187,8 @@ internal sealed record ArchiveOptions(
         int? maxFiles = null;
         long? maxBytes = null;
         string? manifestPath = null;
+        string? outputPath = null;
+        var concurrency = 4;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -117,12 +212,33 @@ internal sealed record ArchiveOptions(
                 case "--manifest":
                     manifestPath = RequireValue(args, ref i, "--manifest");
                     break;
+                case "--output":
+                    outputPath = RequireValue(args, ref i, "--output");
+                    break;
+                case "--concurrency":
+                    concurrency = int.Parse(RequireValue(args, ref i, "--concurrency"));
+                    break;
                 default:
                     throw new ArgumentException($"Unknown option: {args[i]}");
             }
         }
 
-        return new ArchiveOptions(date, radarIds, allRadars, maxFiles, maxBytes, manifestPath);
+        if (concurrency <= 0)
+        {
+            throw new InvalidOperationException("--concurrency must be greater than zero.");
+        }
+
+        if (maxFiles is <= 0)
+        {
+            throw new InvalidOperationException("--max-files must be greater than zero.");
+        }
+
+        if (maxBytes is <= 0)
+        {
+            throw new InvalidOperationException("--max-bytes must be greater than zero.");
+        }
+
+        return new ArchiveOptions(date, radarIds, allRadars, maxFiles, maxBytes, manifestPath, outputPath, concurrency);
     }
 
     private static string RequireValue(string[] args, ref int index, string option)

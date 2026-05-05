@@ -44,6 +44,22 @@ public sealed class AwsNexradArchiveClient(HttpClient httpClient) : IHistoricalA
         return new HistoricalArchiveManifest(request.Date, files);
     }
 
+    public async Task DownloadFileAsync(
+        HistoricalArchiveFile file,
+        Stream destination,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(file);
+        ArgumentNullException.ThrowIfNull(destination);
+
+        using var response = await GetWithRetryAsync(BuildObjectUri(file), cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        await using var source = await response.Content.ReadAsStreamAsync(cancellationToken);
+        await source.CopyToAsync(destination, cancellationToken);
+        await destination.FlushAsync(cancellationToken);
+    }
+
     private async IAsyncEnumerable<HistoricalArchiveFile> ListPrefixAsync(
         string prefix,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
@@ -133,4 +149,7 @@ public sealed class AwsNexradArchiveClient(HttpClient httpClient) : IHistoricalA
 
         return uri;
     }
+
+    private static string BuildObjectUri(HistoricalArchiveFile file) =>
+        $"https://{AwsNexradArchiveKey.BucketName}.s3.amazonaws.com/{Uri.EscapeDataString(file.ArchivePath).Replace("%2F", "/")}";
 }

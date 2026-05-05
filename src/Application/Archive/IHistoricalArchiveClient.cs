@@ -7,4 +7,9 @@ public interface IHistoricalArchiveClient
     Task<HistoricalArchiveManifest> BuildManifestAsync(
         HistoricalArchiveRequest request,
         CancellationToken cancellationToken);
+
+    Task DownloadFileAsync(
+        HistoricalArchiveFile file,
+        Stream destination,
+        CancellationToken cancellationToken);
 }

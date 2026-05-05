@@ -4,10 +4,10 @@
 
 The first RadarPulse milestone is a historical NOAA NEXRAD Level II data loader.
 
-This milestone does not implement radar decoding, event processing, partitioning, or
-benchmark execution. Its purpose is to reliably discover, describe, and download
-historical radar archive files from public AWS S3 so later milestones can use a
-deterministic local dataset.
+This milestone does not implement radar decoding, event processing,
+partitioning, or benchmark execution. Its purpose is to reliably discover,
+describe, and download historical radar archive files from public AWS S3 so
+later milestones can use a deterministic local dataset.
 
 ## Data Source
 
@@ -18,8 +18,8 @@ AWS Open Data: NEXRAD Level II archive
 Bucket: unidata-nexrad-level2
 ```
 
-The older `noaa-nexrad-level2` archive bucket is deprecated and should not be used
-for new implementation work.
+The older `noaa-nexrad-level2` archive bucket is deprecated and should not be
+used for new implementation work.
 
 ## Initial Capability
 
@@ -40,6 +40,7 @@ radar ids
 max files
 max bytes
 download concurrency
+saved manifest path
 ```
 
 The all-radars mode must be explicit. Downloading a full day across the radar
@@ -47,15 +48,14 @@ network can involve large data volume and should not happen accidentally.
 
 ## Manifest-First Workflow
 
-The loader should separate discovery from download.
+The loader separates discovery from download.
 
 Step 1: build a manifest.
 
 ```text
 radar id
 archive date
-S3 bucket
-S3 key
+archive path
 file name
 object size
 last modified timestamp
@@ -74,7 +74,7 @@ per-radar byte count
 
 Step 3: download selected manifest entries.
 
-The downloader should be resumable and cache-aware:
+The downloader is resumable and cache-aware:
 
 ```text
 skip existing valid files
@@ -88,8 +88,8 @@ support disk budget guardrails
 
 A full-day, all-radars download can be large.
 
-NEXRAD Level II files are produced repeatedly throughout the day for roughly 160
-radar sites. A full network day can reasonably be tens to hundreds of GB,
+NEXRAD Level II files are produced repeatedly throughout the day for roughly
+160 radar sites. A full network day can reasonably be tens to hundreds of GB,
 depending on date, radar availability, compression, and weather activity.
 
 The loader should therefore default to safe behavior:
@@ -103,17 +103,19 @@ allow file/byte limits for test runs
 
 ## Proposed CLI Shape
 
-Initial commands:
+Implemented commands:
 
 ```text
-radarpulse archive list --date 2026-05-04
 radarpulse archive list --date 2026-05-04 --radar KTLX
+radarpulse archive list --date 2026-05-04 --all-radars
 radarpulse archive download --date 2026-05-04 --radar KTLX --output data/nexrad
 radarpulse archive download --date 2026-05-04 --all-radars --output data/nexrad
+radarpulse archive download --manifest data/manifests/2026-05-04-KTLX.json --output data/nexrad
+radarpulse archive download --manifest data/manifests/2026-05-04.json --radar KTLX --max-files 10 --output data/nexrad
 ```
 
-Bulk download should print the manifest summary before starting and should require
-an explicit all-radars option.
+Bulk download prints the manifest summary before starting and requires explicit
+all-radars intent.
 
 ## Local Cache Layout
 
@@ -123,14 +125,14 @@ Recommended local layout:
 data/nexrad/level2/{yyyy}/{MM}/{dd}/{radarId}/{fileName}
 ```
 
-The cache layout should be deterministic so future replay and benchmark runs can
-refer to local files without depending on live AWS availability.
+The cache layout is deterministic so future replay and benchmark runs can refer
+to local files without depending on live AWS availability.
 
 Large downloaded data should remain outside source control.
 
 ## Code Boundaries
 
-This milestone should introduce only loader-oriented contracts and implementation.
+This milestone introduces only loader-oriented contracts and implementation.
 
 In scope:
 
@@ -140,6 +142,7 @@ Historical archive manifest
 Historical archive file metadata
 S3 archive listing
 S3 archive download
+Manifest read/write
 Local cache path mapping
 CLI entry points for list/download
 ```
@@ -166,7 +169,13 @@ radar id parsing
 volume timestamp parsing, when available
 cache path mapping
 manifest summary calculation
+manifest JSON read/write
+saved-manifest filtering
 download skip/redownload decision logic
+cache metadata sidecar validation
+cache metadata backfill for legacy matching files
+temp-file write/move behavior
+preflight free-space guardrail
 ```
 
 Integration tests:
@@ -176,18 +185,19 @@ opt-in only
 disabled by default
 require explicit environment variable
 use a small radar/date/file limit
-verify public S3 listing and download behavior
+verify public S3 listing behavior
+verify public S3 object download behavior with a size cap
 ```
 
-Integration tests should not be required for normal local or CI test runs because
-they depend on network access and public AWS availability.
+Integration tests should not be required for normal local or CI test runs
+because they depend on network access and public AWS availability.
 
 ## Documentation Deliverables
 
-The first implementation milestone should include:
+This milestone includes:
 
 ```text
-README usage section or dedicated loader document
+dedicated loader document
 AWS bucket and archive layout notes
 CLI examples
 cache layout explanation
@@ -215,26 +225,7 @@ Current status:
 complete
 ```
 
-Completed before download implementation:
-
-```text
-.NET project structure
-archive loader contracts
-manifest generation for one radar or explicit all-radars mode
-manifest summary output
-manifest JSON persistence
-local cache path mapping
-safe --max-files and --max-bytes listing limits
-transient S3 listing retry/backoff
-standard xUnit unit tests
-opt-in live S3 integration test
-loader usage documentation
-data/ and TestResults/ excluded from source control
-```
-
-Download execution can follow from the stable manifest milestone.
-
-## Next Implementation Milestone
+## Download Milestone
 
 The next concrete implementation target:
 
@@ -249,4 +240,10 @@ The next concrete implementation target:
 8. Enforce byte/disk budget guardrails.
 9. Support download from saved manifest JSON when provided.
 10. Add unit tests for skip/redownload and path/write decisions.
+```
+
+Current status:
+
+```text
+complete
 ```
