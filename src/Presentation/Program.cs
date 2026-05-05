@@ -14,6 +14,7 @@ try
     {
         "list" => await ListArchiveAsync(args[2..]),
         "download" => await DownloadArchiveAsync(args[2..]),
+        "inspect" => await InspectArchiveAsync(args[2..]),
         _ => PrintUsage()
     };
 }
@@ -134,8 +135,42 @@ static int PrintUsage()
     Console.WriteLine("  radarpulse archive download --date yyyy-MM-dd --radar KTLX --output data/nexrad [--concurrency n]");
     Console.WriteLine("  radarpulse archive download --date yyyy-MM-dd --all-radars --output data/nexrad [--concurrency n]");
     Console.WriteLine("  radarpulse archive download --manifest data/manifests/2026-05-04.json --output data/nexrad [--radar KTLX] [--max-files n] [--max-bytes n] [--concurrency n]");
+    Console.WriteLine("  radarpulse archive inspect --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06");
     return 2;
 }
+
+static async Task<int> InspectArchiveAsync(string[] args)
+{
+    var options = ArchiveInspectOptions.Parse(args);
+    var inspection = await new Level2FileInspector().InspectAsync(options.FilePath, CancellationToken.None);
+
+    Console.WriteLine($"File: {inspection.FilePath}");
+    Console.WriteLine($"Size bytes: {FormatNumber(inspection.SizeBytes)}");
+    Console.WriteLine($"Class: {FormatLevel2FileClass(inspection.FileClass)}");
+    if (inspection.ArchiveIiVolumeHeader is { } header)
+    {
+        Console.WriteLine($"Archive filename: {header.ArchiveFilename}");
+        Console.WriteLine($"Version: {header.Version}");
+        Console.WriteLine($"Extension number: {header.ExtensionNumber}");
+        Console.WriteLine($"Radar: {header.RadarId}");
+        Console.WriteLine($"Volume time: {header.VolumeTimestamp:yyyy-MM-ddTHH:mm:ss.fffZ}");
+    }
+
+    if (!string.IsNullOrWhiteSpace(inspection.Diagnostic))
+    {
+        Console.WriteLine($"Diagnostic: {inspection.Diagnostic}");
+    }
+
+    return 0;
+}
+
+static string FormatLevel2FileClass(Level2FileClass fileClass) =>
+    fileClass switch
+    {
+        Level2FileClass.ArchiveIiBaseData => "Archive II base data",
+        Level2FileClass.MdmOrCompressedStream => "MDM or compressed stream",
+        _ => "Unknown"
+    };
 
 static async Task<HistoricalArchiveManifest> LoadManifestForDownloadAsync(
     ArchiveOptions options,
@@ -239,6 +274,43 @@ internal sealed record ArchiveOptions(
         }
 
         return new ArchiveOptions(date, radarIds, allRadars, maxFiles, maxBytes, manifestPath, outputPath, concurrency);
+    }
+
+    private static string RequireValue(string[] args, ref int index, string option)
+    {
+        if (index + 1 >= args.Length)
+        {
+            throw new ArgumentException($"{option} requires a value.");
+        }
+
+        index++;
+        return args[index];
+    }
+}
+
+internal sealed record ArchiveInspectOptions(string FilePath)
+{
+    public static ArchiveInspectOptions Parse(string[] args)
+    {
+        string? filePath = null;
+        for (var i = 0; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--file":
+                    filePath = RequireValue(args, ref i, "--file");
+                    break;
+                default:
+                    throw new ArgumentException($"Unknown option: {args[i]}");
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            throw new InvalidOperationException("--file is required.");
+        }
+
+        return new ArchiveInspectOptions(filePath);
     }
 
     private static string RequireValue(string[] args, ref int index, string option)

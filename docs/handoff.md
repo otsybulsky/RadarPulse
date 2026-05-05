@@ -25,12 +25,25 @@ Done:
 Planned next:
 
 - `002` Level II inspection/decoding milestone.
-- Start with binary file classification and Archive II container parsing.
+- Continue from completed file classification and 24-byte Archive II volume
+  header parsing.
 - Treat internal BZip2 records as part of the Archive II format, not as one
   whole-file BZip2 stream.
 - Classify `_MDM` files separately before attempting base-data parsing.
 - Use ROC ICD 2620010J for the Archive II container and ROC ICD 2620002Y for
   RDA/RPG message payloads, especially Message Type 31.
+
+Completed in the first milestone 002 implementation slice:
+
+- `archive inspect --file`.
+- Archive II base-data classification for files starting with `AR2V`.
+- MDM/compressed-stream classification for `_MDM` and early `BZh` non-`AR2V`
+  files.
+- Unknown binary classification.
+- 24-byte Archive II volume header parsing.
+- CLI output for size, class, archive filename, version, extension number, radar
+  id, and volume timestamp.
+- Unit tests with small synthetic fixtures.
 
 ## Documentation
 
@@ -41,6 +54,30 @@ Planned next:
 - `docs/handoff.md`
 
 ## Verification
+
+Last verified normal command after the first milestone 002 slice:
+
+```powershell
+dotnet test RadarPulse.sln --no-restore
+```
+
+Result:
+
+```text
+30 passed, 2 skipped
+```
+
+Manual CLI smoke tests:
+
+```powershell
+dotnet run --project src/Presentation/RadarPulse.Cli.csproj -- archive inspect --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06
+dotnet run --project src/Presentation/RadarPulse.Cli.csproj -- archive inspect --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_005834_V06_MDM
+```
+
+The first command classified the file as `Archive II base data` and parsed
+`AR2V0006.266`, version `06`, extension `266`, radar `KTLX`, and volume time
+`2026-05-04T00:02:45.042Z`. The second command classified the `_MDM` file as
+`MDM or compressed stream`.
 
 Last verified normal command for milestone 001:
 
@@ -156,12 +193,9 @@ constant and moment data blocks.
 
 ## Done Criteria For Next Slice
 
-The first milestone 002 implementation slice should be considered done when:
+The next milestone 002 implementation slice should be considered done when:
 
-- RadarPulse can classify a cached file as Archive II base data, MDM-shaped, or
-  unsupported.
-- One cached `AR2V` file can be read through volume header and internal record
-  boundaries.
+- One cached `AR2V` file can be read beyond the volume header through internal
+  record boundaries.
 - Internal BZip2 records can be decompressed into radar message bytes.
-- The CLI can print a minimal inspection summary for one cached base-data file.
-- Tests cover classifier/header/record behavior with small fixtures.
+- Tests cover record boundary behavior with small fixtures.

@@ -71,6 +71,16 @@ include unsupported files
 The first implementation should focus on one file at a time. Cache-wide
 inspection can be added after the single-file reader is reliable.
 
+Current status:
+
+```text
+single-file archive inspect command implemented
+file classification implemented
+24-byte Archive II volume header parsing implemented
+cache-wide inspection not implemented
+record decompression not implemented
+```
+
 ## Decoder Workflow
 
 Step 1: classify the file.

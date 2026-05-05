@@ -5,7 +5,7 @@ Level II files downloaded by milestone 001.
 
 ## Current Status
 
-Planned, not implemented.
+Initial file classification and single-file CLI inspection are implemented.
 
 The first cached KTLX base-data files look like Archive II volumes: they start
 with an `AR2V` header and contain internal BZip2-compressed records. These files
@@ -14,6 +14,28 @@ standard BZip2 stream.
 
 Some cached `_MDM` files do not start with `AR2V`; they should be identified as
 a separate file class before the base-data volume parser attempts to read them.
+
+Implemented:
+
+```text
+archive inspect --file
+Archive II base-data file classification
+MDM/compressed-stream classification
+unknown binary classification
+24-byte Archive II volume header parsing
+CLI output for file class, size, archive filename, version, extension, radar id, and volume time
+unit tests with small synthetic fixtures
+```
+
+Not yet implemented:
+
+```text
+LDM compressed record splitting
+per-record BZip2 decompression
+radar message header parsing
+Message Type 31 radial metadata parsing
+sweep/radial/moment summaries
+```
 
 ## Intended Usage
 
@@ -33,6 +55,19 @@ Volume time: 2026-05-04T00:02:45Z
 Messages: 31=...
 Sweeps: ...
 Moments: REF, VEL, SW, ZDR, CC, PHI
+```
+
+Current implemented output is intentionally smaller:
+
+```text
+File: data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_000245_V06
+Size bytes: 5_406_854
+Class: Archive II base data
+Archive filename: AR2V0006.266
+Version: 06
+Extension number: 266
+Radar: KTLX
+Volume time: 2026-05-04T00:02:45.042Z
 ```
 
 Inspect a small cache selection after cache selectors are added:
