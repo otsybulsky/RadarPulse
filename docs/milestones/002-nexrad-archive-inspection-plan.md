@@ -90,6 +90,7 @@ differential decompression validation against SharpZipLib implemented
 streaming message header scanning implemented
 minimal Message Type 31 moment metadata parsing implemented
 parse throughput benchmark implemented
+optional raw 8/16-bit moment value decode benchmark implemented
 cache-wide inspection not implemented
 sweep/elevation summary not implemented
 ```
@@ -204,8 +205,18 @@ radarpulse parse, parallelism 24: about 748_824_137 estimated gate-moment events
 
 These measurements include Archive Two record framing, BZip2 decompression,
 RDA/RPG message scanning, and minimal Type 31 moment metadata extraction. They
-do not yet include calibrated moment value decoding or downstream event
-publication.
+do not yet include downstream event publication.
+
+The `--decode-moments` parse benchmark additionally reads raw 8/16-bit moment
+gate values and accumulates a checksum. On the same KTLX file, decoded value
+count equals the metadata denominator, 38_759_040 values per iteration:
+
+```text
+radarpulse parse --decode-moments, parallelism 1:  about 96_122_482 decoded gate-moment values/s
+radarpulse parse --decode-moments, parallelism 24: about 659_912_891 decoded gate-moment values/s
+```
+
+These are raw encoded moment samples, not calibrated meteorological values.
 
 The validation path compares `radarpulse` against SharpZipLib per compressed
 record using streaming hashes. The current local KTLX validation sample compared

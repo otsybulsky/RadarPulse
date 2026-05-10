@@ -19,6 +19,23 @@ public sealed class NexradArchiveParseBenchmark
         int warmupIterations,
         int degreeOfParallelism,
         string decompressorName,
+        CancellationToken cancellationToken) =>
+        Measure(
+            filePath,
+            iterations,
+            warmupIterations,
+            degreeOfParallelism,
+            decompressorName,
+            decodeMomentValues: false,
+            cancellationToken);
+
+    public ArchiveTwoParseBenchmarkResult Measure(
+        string filePath,
+        int iterations,
+        int warmupIterations,
+        int degreeOfParallelism,
+        string decompressorName,
+        bool decodeMomentValues,
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
@@ -45,7 +62,7 @@ public sealed class NexradArchiveParseBenchmark
         }
 
         ValidateArchiveTwoSignature(fileInfo);
-        var workers = CreateWorkers(decompressor, degreeOfParallelism);
+        var workers = CreateWorkers(decompressor, degreeOfParallelism, decodeMomentValues);
         try
         {
             for (var warmupIteration = 0; warmupIteration < warmupIterations; warmupIteration++)
@@ -80,6 +97,7 @@ public sealed class NexradArchiveParseBenchmark
                 iterations,
                 warmupIterations,
                 degreeOfParallelism,
+                decodeMomentValues,
                 fileInfo.Length,
                 measurement.CompressedRecordCount,
                 measurement.CompressedBytes,
@@ -87,6 +105,8 @@ public sealed class NexradArchiveParseBenchmark
                 measurement.MessageCount,
                 measurement.Type31RadialCount,
                 measurement.EstimatedGateMomentEvents,
+                measurement.DecodedGateMomentValues,
+                measurement.DecodedGateMomentValueChecksum,
                 stopwatch.Elapsed,
                 allocatedBytes);
         }
@@ -297,12 +317,13 @@ public sealed class NexradArchiveParseBenchmark
 
     private static IReadOnlyList<ArchiveTwoParseBenchmarkWorker> CreateWorkers(
         IArchiveBZip2Decompressor decompressor,
-        int degreeOfParallelism)
+        int degreeOfParallelism,
+        bool decodeMomentValues)
     {
         var workers = new ArchiveTwoParseBenchmarkWorker[degreeOfParallelism];
         for (var i = 0; i < workers.Length; i++)
         {
-            workers[i] = new ArchiveTwoParseBenchmarkWorker(decompressor.CreateSession());
+            workers[i] = new ArchiveTwoParseBenchmarkWorker(decompressor.CreateSession(), decodeMomentValues);
         }
 
         return workers;
@@ -376,30 +397,42 @@ public sealed class NexradArchiveParseBenchmark
         long DecompressedBytes,
         int MessageCount,
         int Type31RadialCount,
-        long EstimatedGateMomentEvents)
+        long EstimatedGateMomentEvents,
+        long DecodedGateMomentValues,
+        ulong DecodedGateMomentValueChecksum)
     {
         public static ArchiveTwoParseIterationMeasurement operator +(
             ArchiveTwoParseIterationMeasurement left,
-            ArchiveTwoParseIterationMeasurement right) =>
-            new(
-                left.CompressedRecordCount + right.CompressedRecordCount,
-                left.CompressedBytes + right.CompressedBytes,
-                left.DecompressedBytes + right.DecompressedBytes,
-                left.MessageCount + right.MessageCount,
-                left.Type31RadialCount + right.Type31RadialCount,
-                left.EstimatedGateMomentEvents + right.EstimatedGateMomentEvents);
+            ArchiveTwoParseIterationMeasurement right)
+        {
+            unchecked
+            {
+                return new ArchiveTwoParseIterationMeasurement(
+                    left.CompressedRecordCount + right.CompressedRecordCount,
+                    left.CompressedBytes + right.CompressedBytes,
+                    left.DecompressedBytes + right.DecompressedBytes,
+                    left.MessageCount + right.MessageCount,
+                    left.Type31RadialCount + right.Type31RadialCount,
+                    left.EstimatedGateMomentEvents + right.EstimatedGateMomentEvents,
+                    left.DecodedGateMomentValues + right.DecodedGateMomentValues,
+                    left.DecodedGateMomentValueChecksum + right.DecodedGateMomentValueChecksum);
+            }
+        }
     }
 
     private sealed class ArchiveTwoParseBenchmarkWorker : IDisposable
     {
-        private readonly ArchiveTwoMessageSummaryBuilder messageSummaryBuilder = new();
+        private readonly ArchiveTwoMessageSummaryBuilder messageSummaryBuilder;
         private readonly ArchiveTwoMessageStreamScanner messageScanner;
         private byte[]? compressedPayloadBuffer;
 
-        public ArchiveTwoParseBenchmarkWorker(IArchiveBZip2DecompressionSession decompressionSession)
+        public ArchiveTwoParseBenchmarkWorker(
+            IArchiveBZip2DecompressionSession decompressionSession,
+            bool decodeMomentValues)
         {
             DecompressionSession = decompressionSession;
             OutputBuffer = ArrayPool<byte>.Shared.Rent(OutputBufferSize);
+            messageSummaryBuilder = new ArchiveTwoMessageSummaryBuilder(decodeMomentValues);
             messageScanner = new ArchiveTwoMessageStreamScanner(messageSummaryBuilder);
         }
 
@@ -424,7 +457,9 @@ public sealed class NexradArchiveParseBenchmark
                 DecompressedBytes: decompressedBytes,
                 MessageCount: messageSummaryBuilder.MessageCount,
                 Type31RadialCount: messageSummaryBuilder.Type31RadialCount,
-                EstimatedGateMomentEvents: messageSummaryBuilder.EstimatedGateMomentEventCount);
+                EstimatedGateMomentEvents: messageSummaryBuilder.EstimatedGateMomentEventCount,
+                DecodedGateMomentValues: messageSummaryBuilder.DecodedGateMomentValueCount,
+                DecodedGateMomentValueChecksum: messageSummaryBuilder.DecodedGateMomentValueChecksum);
         }
 
         public byte[] EnsureCompressedPayloadBuffer(int requiredLength)

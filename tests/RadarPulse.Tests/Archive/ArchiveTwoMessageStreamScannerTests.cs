@@ -57,6 +57,34 @@ public sealed class ArchiveTwoMessageStreamScannerTests
     }
 
     [Fact]
+    public void DecodesEightBitType31MomentValues()
+    {
+        var builder = new ArchiveTwoMessageSummaryBuilder(decodeMomentValues: true);
+        var scanner = new ArchiveTwoMessageStreamScanner(builder);
+
+        scanner.Append(BuildMessage(31, BuildEightBitType31Payload("REF", [0, 1, 2, 255])));
+        scanner.Complete();
+
+        Assert.Equal(4, builder.EstimatedGateMomentEventCount);
+        Assert.Equal(4, builder.DecodedGateMomentValueCount);
+        Assert.Equal((ulong)(0 + 1 + 2 + 255), builder.DecodedGateMomentValueChecksum);
+    }
+
+    [Fact]
+    public void DecodesSixteenBitType31MomentValues()
+    {
+        var builder = new ArchiveTwoMessageSummaryBuilder(decodeMomentValues: true);
+        var scanner = new ArchiveTwoMessageStreamScanner(builder);
+
+        scanner.Append(BuildMessage(31, BuildSixteenBitType31Payload("PHI", [0, 1, 500, 65535])));
+        scanner.Complete();
+
+        Assert.Equal(4, builder.EstimatedGateMomentEventCount);
+        Assert.Equal(4, builder.DecodedGateMomentValueCount);
+        Assert.Equal((ulong)(0 + 1 + 500 + 65_535), builder.DecodedGateMomentValueChecksum);
+    }
+
+    [Fact]
     public void IgnoresShortNonMessageTail()
     {
         var builder = new ArchiveTwoMessageSummaryBuilder();
@@ -90,7 +118,35 @@ public sealed class ArchiveTwoMessageStreamScannerTests
 
     private static byte[] BuildType31Payload(string momentName, ushort gates)
     {
-        var payload = new byte[128];
+        var payload = BuildType31Payload(momentName, gates, wordSizeBits: 8, momentDataByteCount: 0);
+        return payload;
+    }
+
+    private static byte[] BuildEightBitType31Payload(string momentName, byte[] values)
+    {
+        var payload = BuildType31Payload(momentName, checked((ushort)values.Length), wordSizeBits: 8, values.Length);
+        values.CopyTo(payload.AsSpan(100));
+        return payload;
+    }
+
+    private static byte[] BuildSixteenBitType31Payload(string momentName, ushort[] values)
+    {
+        var payload = BuildType31Payload(momentName, checked((ushort)values.Length), wordSizeBits: 16, values.Length * sizeof(ushort));
+        for (var i = 0; i < values.Length; i++)
+        {
+            BinaryPrimitives.WriteUInt16BigEndian(payload.AsSpan(100 + i * sizeof(ushort), sizeof(ushort)), values[i]);
+        }
+
+        return payload;
+    }
+
+    private static byte[] BuildType31Payload(
+        string momentName,
+        ushort gates,
+        byte wordSizeBits,
+        int momentDataByteCount)
+    {
+        var payload = new byte[Math.Max(128, 100 + momentDataByteCount)];
         BinaryPrimitives.WriteUInt16BigEndian(payload.AsSpan(18, 2), (ushort)payload.Length);
         BinaryPrimitives.WriteUInt16BigEndian(payload.AsSpan(30, 2), 1);
         BinaryPrimitives.WriteInt32BigEndian(payload.AsSpan(32, 4), 72);
@@ -102,7 +158,7 @@ public sealed class ArchiveTwoMessageStreamScannerTests
         }
 
         BinaryPrimitives.WriteUInt16BigEndian(payload.AsSpan(80, 2), gates);
-        payload[91] = 8;
+        payload[91] = wordSizeBits;
         return payload;
     }
 }

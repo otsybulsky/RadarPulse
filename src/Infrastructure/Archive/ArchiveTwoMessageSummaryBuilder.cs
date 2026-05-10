@@ -12,18 +12,32 @@ public sealed class ArchiveTwoMessageSummaryBuilder
     private const int Type31DataBlockPointerLength = 4;
     private const int Type31MaximumDataBlockPointers = 10;
     private const int GenericMomentDescriptorLength = 28;
+    private const int GenericMomentDataOffset = 28;
+    private const int GenericMomentWordSizeOffset = 19;
 
+    private readonly bool decodeMomentValues;
     private readonly Dictionary<int, int> messageTypeCounts = new();
     private readonly Dictionary<string, MomentAccumulator> moments = new(StringComparer.Ordinal);
     private int messageCount;
     private int type31RadialCount;
     private long estimatedGateMomentEvents;
+    private long decodedGateMomentValues;
+    private ulong decodedGateMomentValueChecksum;
+
+    public ArchiveTwoMessageSummaryBuilder(bool decodeMomentValues = false)
+    {
+        this.decodeMomentValues = decodeMomentValues;
+    }
 
     public int MessageCount => messageCount;
 
     public int Type31RadialCount => type31RadialCount;
 
     public long EstimatedGateMomentEventCount => estimatedGateMomentEvents;
+
+    public long DecodedGateMomentValueCount => decodedGateMomentValues;
+
+    public ulong DecodedGateMomentValueChecksum => decodedGateMomentValueChecksum;
 
     public void Reset()
     {
@@ -32,6 +46,8 @@ public sealed class ArchiveTwoMessageSummaryBuilder
         messageCount = 0;
         type31RadialCount = 0;
         estimatedGateMomentEvents = 0;
+        decodedGateMomentValues = 0;
+        decodedGateMomentValueChecksum = 0;
     }
 
     public void Add(ArchiveTwoMessageSummary summary)
@@ -133,6 +149,11 @@ public sealed class ArchiveTwoMessageSummaryBuilder
             accumulator.GateCount += gateCount;
             moments[name] = accumulator;
             estimatedGateMomentEvents += gateCount;
+            if (decodeMomentValues)
+            {
+                DecodeMomentValues(block, gateCount);
+            }
+
             radialHadMoment = true;
         }
 
@@ -140,6 +161,57 @@ public sealed class ArchiveTwoMessageSummaryBuilder
         {
             type31RadialCount++;
         }
+    }
+
+    private void DecodeMomentValues(ReadOnlySpan<byte> block, int gateCount)
+    {
+        var wordSizeBits = block[GenericMomentWordSizeOffset];
+        switch (wordSizeBits)
+        {
+            case 8:
+                DecodeEightBitMomentValues(block[GenericMomentDataOffset..], gateCount);
+                break;
+            case 16:
+                DecodeSixteenBitMomentValues(block[GenericMomentDataOffset..], gateCount);
+                break;
+        }
+    }
+
+    private void DecodeEightBitMomentValues(ReadOnlySpan<byte> data, int gateCount)
+    {
+        if (data.Length < gateCount)
+        {
+            return;
+        }
+
+        for (var i = 0; i < gateCount; i++)
+        {
+            unchecked
+            {
+                decodedGateMomentValueChecksum += data[i];
+            }
+        }
+
+        decodedGateMomentValues += gateCount;
+    }
+
+    private void DecodeSixteenBitMomentValues(ReadOnlySpan<byte> data, int gateCount)
+    {
+        var requiredBytes = checked(gateCount * sizeof(ushort));
+        if (data.Length < requiredBytes)
+        {
+            return;
+        }
+
+        for (var i = 0; i < requiredBytes; i += sizeof(ushort))
+        {
+            unchecked
+            {
+                decodedGateMomentValueChecksum += BinaryPrimitives.ReadUInt16BigEndian(data.Slice(i, sizeof(ushort)));
+            }
+        }
+
+        decodedGateMomentValues += gateCount;
     }
 
     private struct MomentAccumulator

@@ -37,6 +37,7 @@ streaming RDA/RPG message header scanning
 minimal Message Type 31 moment metadata parsing
 message counts, Type 31 radial counts, and estimated gate-moment event counts
 parse throughput benchmark for decompress+message-scan+minimal-Type31
+optional raw 8/16-bit Type 31 moment value decode benchmark
 CLI output for file kind, size, archive filename, version, extension, radar id, volume time, compressed record count, compressed bytes, BZip2 signature count, decompressed record count, and decompressed bytes
 unit tests with small synthetic fixtures
 ```
@@ -45,7 +46,7 @@ Not yet implemented:
 
 ```text
 sweep/radial/moment summaries
-moment sample decoding and calibration
+moment sample calibration
 ordered event publishing
 ```
 
@@ -257,8 +258,26 @@ allocated bytes / estimated event: 0.03
 
 The same path with `--parallelism 1` measured about 90_930_375 estimated
 gate-moment events/s. These are parser-front-end measurements only: they do not
-decode calibrated moment sample values and do not publish downstream engine
-events yet.
+publish downstream engine events yet.
+
+With `--decode-moments`, the parse benchmark also reads actual 8/16-bit moment
+gate values and accumulates a checksum so the loop cannot be treated as
+metadata-only counting. On the same file:
+
+```text
+command: archive benchmark parse --iterations 20 --warmup-iterations 2 --parallelism 24 --decompressor radarpulse --decode-moments
+
+decoded gate-moment values per iteration: 38_759_040
+decoded gate-moment value checksum per iteration: 1_063_626_011
+elapsed ms: 1_174.67
+decompressed MB/s: 863.93
+decoded gate-moment values/s: 659_912_891.38
+allocated bytes / decoded value: 0.03
+```
+
+The same decoded path with `--parallelism 1` measured about 96_122_482 decoded
+gate-moment values/s. These values are raw encoded moment samples, not calibrated
+meteorological values.
 
 The validation command compares `radarpulse` against SharpZipLib per compressed
 record using streaming hashes. On the local KTLX corpus sample it compared 20

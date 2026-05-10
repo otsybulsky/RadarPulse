@@ -6,6 +6,7 @@ public sealed record ArchiveTwoParseBenchmarkResult(
     int Iterations,
     int WarmupIterations,
     int DegreeOfParallelism,
+    bool DecodeMomentValues,
     long FileSizeBytes,
     int CompressedRecordsPerIteration,
     long CompressedBytesPerIteration,
@@ -13,6 +14,8 @@ public sealed record ArchiveTwoParseBenchmarkResult(
     int MessagesPerIteration,
     int Type31RadialsPerIteration,
     long EstimatedGateMomentEventsPerIteration,
+    long DecodedGateMomentValuesPerIteration,
+    ulong DecodedGateMomentValueChecksumPerIteration,
     TimeSpan Elapsed,
     long AllocatedBytes)
 {
@@ -27,4 +30,6 @@ public sealed record ArchiveTwoParseBenchmarkResult(
     public long TotalType31Radials => (long)Type31RadialsPerIteration * Iterations;
 
     public long TotalEstimatedGateMomentEvents => EstimatedGateMomentEventsPerIteration * Iterations;
+
+    public long TotalDecodedGateMomentValues => DecodedGateMomentValuesPerIteration * Iterations;
 }

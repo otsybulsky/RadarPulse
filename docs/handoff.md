@@ -73,9 +73,10 @@ Completed in the first milestone 002 implementation slice:
   counts, estimated gate-moment events, and moment gate/radial totals.
 - `archive benchmark parse --file ... [--iterations n]
   [--warmup-iterations n] [--parallelism n]
-  [--decompressor radarpulse|sharpziplib|sharpcompress]` measures
-  decompress+message-scan+minimal-Type31 throughput in estimated
-  gate-moment events/s.
+  [--decompressor radarpulse|sharpziplib|sharpcompress] [--decode-moments]`
+  measures decompress+message-scan+minimal-Type31 throughput in estimated
+  gate-moment events/s, and optionally reads actual 8/16-bit moment gate
+  values with a checksum.
 - The inspection path also uses the shared decompressor abstraction and pooled
   compressed-payload/output buffers.
 - CLI output for size, kind, archive filename, version, extension number, radar
@@ -117,14 +118,15 @@ Achieved:
   radials, and 38_759_040 estimated gate-moment events.
 - The parse benchmark now gives a first measured answer against the 20M
   events/s target for decompression plus minimal parsing.
+- With `--decode-moments`, the same KTLX file decodes all 38_759_040 raw
+  gate-moment values per iteration and measures above the 20M values/s target.
 
 Not achieved yet:
 
 - No real event stream is generated yet.
-- Moment sample values are not decoded or calibrated yet.
+- Moment sample values are read as raw 8/16-bit values, but not calibrated yet.
 - Sweep/elevation grouping is not summarized yet.
-- The parser benchmark reports estimated gate-moment events from moment block
-  metadata; it does not yet publish downstream engine events.
+- The parser benchmark still does not publish downstream engine events.
 
 ## Documentation
 
@@ -145,7 +147,7 @@ dotnet test RadarPulse.sln --no-restore
 Result:
 
 ```text
-48 passed, 3 skipped
+50 passed, 3 skipped
 ```
 
 Manual CLI smoke tests:
@@ -275,6 +277,32 @@ Allocated bytes / estimated event: 0.03
 
 The sequential Release parse benchmark on the same file and backend measured
 about 90_930_375 estimated gate-moment events/s with `--parallelism 1`.
+
+Last verified decoded moment benchmark command:
+
+```powershell
+dotnet run --no-restore -c Release --project src/Presentation/RadarPulse.Cli.csproj -- archive benchmark parse --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 --iterations 20 --warmup-iterations 2 --parallelism 24 --decompressor radarpulse --decode-moments
+```
+
+Result on the current development machine:
+
+```text
+Decode moment values: True
+Messages per iteration: 6_496
+Type 31 radials per iteration: 6_480
+Estimated gate-moment events per iteration: 38_759_040
+Decoded gate-moment values per iteration: 38_759_040
+Decoded gate-moment value checksum per iteration: 1_063_626_011
+Elapsed ms: 1_174.67
+Decompressed MB/s: 863.93
+Estimated gate-moment events/s: 659_912_891.38
+Decoded gate-moment values/s: 659_912_891.38
+Allocated bytes: 25_314_800
+Allocated bytes / decoded value: 0.03
+```
+
+The sequential Release decoded benchmark on the same file and backend measured
+about 96_122_482 decoded gate-moment values/s with `--parallelism 1`.
 
 Last verified normal command for milestone 001:
 
