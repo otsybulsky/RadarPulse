@@ -6,6 +6,7 @@ public sealed record NexradArchiveFileInspection(
     NexradArchiveFileKind FileKind,
     ArchiveTwoVolumeHeader? ArchiveTwoVolumeHeader,
     IReadOnlyList<ArchiveTwoCompressedRecordSummary> CompressedRecords,
-    string? Diagnostic);
+    string? Diagnostic,
+    ArchiveTwoMessageSummary? MessageSummary = null);
 
 

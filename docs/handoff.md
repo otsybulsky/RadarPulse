@@ -65,6 +65,17 @@ Completed in the first milestone 002 implementation slice:
   parsing can consume decompressed bytes without materializing full records.
 - `archive validate decompress` compares the default `radarpulse` backend
   against SharpZipLib record-by-record with streaming hashes.
+- Decompressed Archive Two bytes are now scanned through the streaming callback
+  for RDA/RPG message headers.
+- Minimal Message Type 31 parsing reports radial counts and gate-count totals
+  for generic moment data blocks.
+- `archive inspect --file` reports message counts by type, Type 31 radial
+  counts, estimated gate-moment events, and moment gate/radial totals.
+- `archive benchmark parse --file ... [--iterations n]
+  [--warmup-iterations n] [--parallelism n]
+  [--decompressor radarpulse|sharpziplib|sharpcompress]` measures
+  decompress+message-scan+minimal-Type31 throughput in estimated
+  gate-moment events/s.
 - The inspection path also uses the shared decompressor abstraction and pooled
   compressed-payload/output buffers.
 - CLI output for size, kind, archive filename, version, extension number, radar
@@ -100,16 +111,20 @@ Achieved:
   SharpZipLib across selected cached Archive Two files before parser work.
 - The inspection path and benchmark path both use the shared BZip2 decompressor
   abstraction and pooled compressed-payload/output buffers.
+- The message scanner now validates the RDA/RPG header enough to avoid
+  byte-shift false positives in real KTLX records.
+- The current KTLX smoke file reports 6_496 messages, including 6_480 Type 31
+  radials, and 38_759_040 estimated gate-moment events.
+- The parse benchmark now gives a first measured answer against the 20M
+  events/s target for decompression plus minimal parsing.
 
 Not achieved yet:
 
-- Radar message headers are not parsed yet.
-- Message Type 31 radial metadata is not parsed yet.
 - No real event stream is generated yet.
-- The 20M events/s target has not been demonstrated. Current benchmarks measure
-  decompressed bytes/s and records/s, not parsed events/s.
-- The current decompression benchmark and validator still measure decompressed
-  bytes/s, records/s, and streaming byte equality, not parsed events/s.
+- Moment sample values are not decoded or calibrated yet.
+- Sweep/elevation grouping is not summarized yet.
+- The parser benchmark reports estimated gate-moment events from moment block
+  metadata; it does not yet publish downstream engine events.
 
 ## Documentation
 
@@ -130,7 +145,7 @@ dotnet test RadarPulse.sln --no-restore
 Result:
 
 ```text
-45 passed, 3 skipped
+48 passed, 3 skipped
 ```
 
 Manual CLI smoke tests:
@@ -144,7 +159,8 @@ The first command classified the file as `Archive Two base data` and parsed
 `AR2V0006.266`, version `06`, extension `266`, radar `KTLX`, and volume time
 `2026-05-04T00:02:45.042Z`. It also found 55 compressed records, 5_406_610
 compressed bytes, 55 records with BZip2 signatures, 55 decompressed records,
-50_741_824 decompressed bytes, and zero decompression diagnostics. The second
+50_741_824 decompressed bytes, zero decompression diagnostics, 6_496 messages,
+6_480 Type 31 radials, and 38_759_040 estimated gate-moment events. The second
 command classified the `_MDM` file as `MDM or compressed stream`.
 
 Last verified decompression validation command:
@@ -230,6 +246,35 @@ sharpziplib   24           643.11      789.01             855.22     2_511_390_7
 Parallel decompression improves byte throughput substantially on the current
 machine. The next parser slice must preserve file/message order when publishing
 data: worker completion order is not a valid stream order.
+
+Last verified parse benchmark command:
+
+```powershell
+dotnet run --no-restore -c Release --project src/Presentation/RadarPulse.Cli.csproj -- archive benchmark parse --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 --iterations 20 --warmup-iterations 2 --parallelism 24 --decompressor radarpulse
+```
+
+Result on the current development machine:
+
+```text
+Decompressor: radarpulse
+Iterations: 20
+Warmup iterations: 2
+Parallelism: 24
+Messages per iteration: 6_496
+Type 31 radials per iteration: 6_480
+Estimated gate-moment events per iteration: 38_759_040
+Elapsed ms: 1_035.20
+Compressed MB/s: 104.46
+Decompressed MB/s: 980.33
+Messages/s: 125_502.63
+Type 31 radials/s: 125_193.51
+Estimated gate-moment events/s: 748_824_137.31
+Allocated bytes: 25_297_992
+Allocated bytes / estimated event: 0.03
+```
+
+The sequential Release parse benchmark on the same file and backend measured
+about 90_930_375 estimated gate-moment events/s with `--parallelism 1`.
 
 Last verified normal command for milestone 001:
 
@@ -347,7 +392,10 @@ constant and moment data blocks.
 - `src/Infrastructure/Archive/ArchiveBZip2Decompressors.cs`
 - `src/Infrastructure/Archive/HistoricalArchiveDownloader.cs`
 - `src/Infrastructure/Archive/IArchiveBZip2Decompressor.cs`
+- `src/Infrastructure/Archive/ArchiveTwoMessageStreamScanner.cs`
+- `src/Infrastructure/Archive/ArchiveTwoMessageSummaryBuilder.cs`
 - `src/Infrastructure/Archive/NexradArchiveDecompressionBenchmark.cs`
+- `src/Infrastructure/Archive/NexradArchiveParseBenchmark.cs`
 - `src/Infrastructure/Archive/NexradArchiveDecompressionValidator.cs`
 - `src/Infrastructure/Archive/NexradArchiveFileInspector.cs`
 - `src/Infrastructure/Archive/ReusableArchiveBZip2Decompressor.cs`
@@ -360,8 +408,9 @@ constant and moment data blocks.
 
 The next milestone 002 implementation slice should be considered done when:
 
-- Decompressed Archive Two bytes are scanned through the streaming/chunk
-  decompression callback without materializing full records.
-- The inspection command can report message counts by type.
-- Tests cover message header parsing with small fixtures.
+- Type 31 sweep/elevation/radial sequencing is summarized from `VOL`/`ELV`/`RAD`
+  constant blocks and radial status.
+- Message order is represented explicitly enough for a future ordered replay
+  publisher.
+- Tests cover the next Type 31 metadata fields with small fixtures.
 

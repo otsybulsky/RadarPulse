@@ -33,6 +33,10 @@ selectable radarpulse/SharpZipLib/SharpCompress BZip2 benchmark backends
 radarpulse as the default reusable-workspace BZip2 backend
 streaming/chunk decompression callback for future parsers
 differential decompression validation against SharpZipLib
+streaming RDA/RPG message header scanning
+minimal Message Type 31 moment metadata parsing
+message counts, Type 31 radial counts, and estimated gate-moment event counts
+parse throughput benchmark for decompress+message-scan+minimal-Type31
 CLI output for file kind, size, archive filename, version, extension, radar id, volume time, compressed record count, compressed bytes, BZip2 signature count, decompressed record count, and decompressed bytes
 unit tests with small synthetic fixtures
 ```
@@ -40,9 +44,9 @@ unit tests with small synthetic fixtures
 Not yet implemented:
 
 ```text
-radar message header parsing
-Message Type 31 radial metadata parsing
 sweep/radial/moment summaries
+moment sample decoding and calibration
+ordered event publishing
 ```
 
 ## Intended Usage
@@ -84,6 +88,11 @@ Decompressed bytes: 50_741_824
 Records with decompression diagnostics: 0
 First record compressed bytes: 2_357
 First record decompressed bytes: 325_888
+Messages: 6_496
+Message types: 2=4, 3=1, 5=1, 15=5, 18=4, 31=6_480, 32=1
+Type 31 radials: 6_480
+Estimated gate-moment events: 38_759_040
+Moments: CFP=6_219_360 gates/4_320 radials, PHI=4_749_120 gates/4_320 radials, REF=8_794_080 gates/6_480 radials, RHO=4_749_120 gates/4_320 radials, SW=4_749_120 gates/4_320 radials, VEL=4_749_120 gates/4_320 radials, ZDR=4_749_120 gates/4_320 radials
 ```
 
 Inspect a small cache selection after cache selectors are added:
@@ -227,6 +236,29 @@ preserves byte counts while removing the large per-record managed BZip2
 workspace allocations seen in the stream-based SharpZipLib path. Parser work
 after this should avoid unnecessary copies and should keep lower allocation
 pressure and ordered parallelism in view.
+
+The first parse benchmark measures decompression plus streaming message scan and
+minimal Message Type 31 moment metadata extraction. On the same KTLX file, the
+current development machine produced:
+
+```text
+command: archive benchmark parse --iterations 20 --warmup-iterations 2 --parallelism 24 --decompressor radarpulse
+
+messages per iteration: 6_496
+Type 31 radials per iteration: 6_480
+estimated gate-moment events per iteration: 38_759_040
+elapsed ms: 1_035.20
+decompressed MB/s: 980.33
+messages/s: 125_502.63
+Type 31 radials/s: 125_193.51
+estimated gate-moment events/s: 748_824_137.31
+allocated bytes / estimated event: 0.03
+```
+
+The same path with `--parallelism 1` measured about 90_930_375 estimated
+gate-moment events/s. These are parser-front-end measurements only: they do not
+decode calibrated moment sample values and do not publish downstream engine
+events yet.
 
 The validation command compares `radarpulse` against SharpZipLib per compressed
 record using streaming hashes. On the local KTLX corpus sample it compared 20

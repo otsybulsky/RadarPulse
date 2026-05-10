@@ -87,8 +87,11 @@ selectable radarpulse/SharpZipLib/SharpCompress BZip2 benchmark backends impleme
 radarpulse selected as the default reusable-workspace BZip2 backend
 streaming/chunk decompression callback implemented
 differential decompression validation against SharpZipLib implemented
+streaming message header scanning implemented
+minimal Message Type 31 moment metadata parsing implemented
+parse throughput benchmark implemented
 cache-wide inspection not implemented
-message header parsing not implemented
+sweep/elevation summary not implemented
 ```
 
 ## Performance Target
@@ -187,6 +190,22 @@ default because it preserves byte counts while avoiding the large per-record
 managed BZip2 workspace allocations from stream-based decoders. Parser design
 should avoid extra copies and should consider streaming, buffer reuse, and
 parallel file/record processing before deeper message parsing is built on top.
+
+After adding the streaming message scanner and minimal Type 31 moment metadata
+parser, the parse benchmark gives a first front-end measurement against that
+target. On the current KTLX file, one iteration contains 6_496 messages, 6_480
+Type 31 radials, and 38_759_040 estimated gate-moment events. Release benchmark
+results on the current development machine:
+
+```text
+radarpulse parse, parallelism 1:  about 90_930_375 estimated gate-moment events/s
+radarpulse parse, parallelism 24: about 748_824_137 estimated gate-moment events/s
+```
+
+These measurements include Archive Two record framing, BZip2 decompression,
+RDA/RPG message scanning, and minimal Type 31 moment metadata extraction. They
+do not yet include calibrated moment value decoding or downstream event
+publication.
 
 The validation path compares `radarpulse` against SharpZipLib per compressed
 record using streaming hashes. The current local KTLX validation sample compared

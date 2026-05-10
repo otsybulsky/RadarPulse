@@ -152,6 +152,7 @@ static int PrintUsage()
     Console.WriteLine("  radarpulse archive download --manifest data/manifests/2026-05-04.json --output data/nexrad [--radar KTLX] [--max-files n] [--max-bytes n] [--concurrency n]");
     Console.WriteLine("  radarpulse archive inspect --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06");
     Console.WriteLine("  radarpulse archive benchmark decompress --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
+    Console.WriteLine("  radarpulse archive benchmark parse --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse archive validate decompress (--file path | --cache data/nexrad [--radar KTLX] [--max-files n])");
     return 2;
 }
@@ -166,6 +167,7 @@ static int BenchmarkArchive(string[] args)
     return args[0] switch
     {
         "decompress" => BenchmarkArchiveDecompression(args[1..]),
+        "parse" => BenchmarkArchiveParse(args[1..]),
         _ => PrintUsage()
     };
 }
@@ -200,6 +202,47 @@ static int BenchmarkArchiveDecompression(string[] args)
     Console.WriteLine($"Allocated bytes: {FormatNumber(result.AllocatedBytes)}");
     Console.WriteLine($"Allocated bytes / decompressed MB: {FormatDecimal(result.AllocatedBytes / Math.Max(result.TotalDecompressedBytes / 1_000_000d, 1d))}");
     Console.WriteLine($"Allocated bytes / record: {FormatDecimal(result.AllocatedBytes / Math.Max((double)result.TotalCompressedRecords, 1d))}");
+    return 0;
+}
+
+static int BenchmarkArchiveParse(string[] args)
+{
+    var options = ArchiveBenchmarkParseOptions.Parse(args);
+    var result = new NexradArchiveParseBenchmark().Measure(
+        options.FilePath,
+        options.Iterations,
+        options.WarmupIterations,
+        options.Parallelism,
+        options.Decompressor,
+        CancellationToken.None);
+
+    Console.WriteLine($"File: {result.FilePath}");
+    Console.WriteLine($"Decompressor: {result.Decompressor}");
+    Console.WriteLine($"Iterations: {FormatNumber(result.Iterations)}");
+    Console.WriteLine($"Warmup iterations: {FormatNumber(result.WarmupIterations)}");
+    Console.WriteLine($"Parallelism: {FormatNumber(result.DegreeOfParallelism)}");
+    Console.WriteLine($"File size bytes: {FormatNumber(result.FileSizeBytes)}");
+    Console.WriteLine($"Compressed records per iteration: {FormatNumber(result.CompressedRecordsPerIteration)}");
+    Console.WriteLine($"Compressed bytes per iteration: {FormatNumber(result.CompressedBytesPerIteration)}");
+    Console.WriteLine($"Decompressed bytes per iteration: {FormatNumber(result.DecompressedBytesPerIteration)}");
+    Console.WriteLine($"Messages per iteration: {FormatNumber(result.MessagesPerIteration)}");
+    Console.WriteLine($"Type 31 radials per iteration: {FormatNumber(result.Type31RadialsPerIteration)}");
+    Console.WriteLine($"Estimated gate-moment events per iteration: {FormatNumber(result.EstimatedGateMomentEventsPerIteration)}");
+    Console.WriteLine($"Total compressed records: {FormatNumber(result.TotalCompressedRecords)}");
+    Console.WriteLine($"Total compressed bytes: {FormatNumber(result.TotalCompressedBytes)}");
+    Console.WriteLine($"Total decompressed bytes: {FormatNumber(result.TotalDecompressedBytes)}");
+    Console.WriteLine($"Total messages: {FormatNumber(result.TotalMessages)}");
+    Console.WriteLine($"Total Type 31 radials: {FormatNumber(result.TotalType31Radials)}");
+    Console.WriteLine($"Total estimated gate-moment events: {FormatNumber(result.TotalEstimatedGateMomentEvents)}");
+    Console.WriteLine($"Elapsed ms: {FormatDecimal(result.Elapsed.TotalMilliseconds)}");
+    Console.WriteLine($"Compressed MB/s: {FormatDecimal(MegabytesPerSecond(result.TotalCompressedBytes, result.Elapsed))}");
+    Console.WriteLine($"Decompressed MB/s: {FormatDecimal(MegabytesPerSecond(result.TotalDecompressedBytes, result.Elapsed))}");
+    Console.WriteLine($"Messages/s: {FormatDecimal(PerSecond(result.TotalMessages, result.Elapsed))}");
+    Console.WriteLine($"Type 31 radials/s: {FormatDecimal(PerSecond(result.TotalType31Radials, result.Elapsed))}");
+    Console.WriteLine($"Estimated gate-moment events/s: {FormatDecimal(PerSecond(result.TotalEstimatedGateMomentEvents, result.Elapsed))}");
+    Console.WriteLine($"Allocated bytes: {FormatNumber(result.AllocatedBytes)}");
+    Console.WriteLine($"Allocated bytes / message: {FormatDecimal(result.AllocatedBytes / Math.Max((double)result.TotalMessages, 1d))}");
+    Console.WriteLine($"Allocated bytes / estimated event: {FormatDecimal(result.AllocatedBytes / Math.Max((double)result.TotalEstimatedGateMomentEvents, 1d))}");
     return 0;
 }
 
@@ -288,6 +331,20 @@ static async Task<int> InspectArchiveAsync(string[] args)
         if (firstRecord.DecompressedSizeBytes is not null)
         {
             Console.WriteLine($"First record decompressed bytes: {FormatNumber(firstRecord.DecompressedSizeBytes.Value)}");
+        }
+    }
+
+    if (inspection.MessageSummary is { MessageCount: > 0 } messages)
+    {
+        Console.WriteLine($"Messages: {FormatNumber(messages.MessageCount)}");
+        Console.WriteLine("Message types: " + string.Join(", ", messages.MessageTypes.Select(type => $"{type.MessageType}={FormatNumber(type.Count)}")));
+        Console.WriteLine($"Type 31 radials: {FormatNumber(messages.Type31.RadialCount)}");
+        Console.WriteLine($"Estimated gate-moment events: {FormatNumber(messages.Type31.EstimatedGateMomentEventCount)}");
+        if (messages.Type31.Moments.Count > 0)
+        {
+            Console.WriteLine("Moments: " + string.Join(
+                ", ",
+                messages.Type31.Moments.Select(moment => $"{moment.Name}={FormatNumber(moment.GateCount)} gates/{FormatNumber(moment.RadialCount)} radials")));
         }
     }
 
@@ -521,6 +578,81 @@ internal sealed record ArchiveBenchmarkDecompressionOptions(
         ArchiveBZip2Decompressors.Create(decompressor);
 
         return new ArchiveBenchmarkDecompressionOptions(filePath, iterations, warmupIterations, parallelism, decompressor);
+    }
+
+    private static string RequireValue(string[] args, ref int index, string option)
+    {
+        if (index + 1 >= args.Length)
+        {
+            throw new ArgumentException($"{option} requires a value.");
+        }
+
+        index++;
+        return args[index];
+    }
+}
+
+internal sealed record ArchiveBenchmarkParseOptions(
+    string FilePath,
+    int Iterations,
+    int WarmupIterations,
+    int Parallelism,
+    string Decompressor)
+{
+    public static ArchiveBenchmarkParseOptions Parse(string[] args)
+    {
+        string? filePath = null;
+        var iterations = 3;
+        var warmupIterations = 1;
+        var parallelism = 1;
+        var decompressor = ArchiveBZip2Decompressors.DefaultName;
+        for (var i = 0; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--file":
+                    filePath = RequireValue(args, ref i, "--file");
+                    break;
+                case "--iterations":
+                    iterations = int.Parse(RequireValue(args, ref i, "--iterations"));
+                    break;
+                case "--warmup-iterations":
+                    warmupIterations = int.Parse(RequireValue(args, ref i, "--warmup-iterations"));
+                    break;
+                case "--parallelism":
+                    parallelism = int.Parse(RequireValue(args, ref i, "--parallelism"));
+                    break;
+                case "--decompressor":
+                    decompressor = RequireValue(args, ref i, "--decompressor");
+                    break;
+                default:
+                    throw new ArgumentException($"Unknown option: {args[i]}");
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            throw new InvalidOperationException("--file is required.");
+        }
+
+        if (iterations <= 0)
+        {
+            throw new InvalidOperationException("--iterations must be greater than zero.");
+        }
+
+        if (warmupIterations < 0)
+        {
+            throw new InvalidOperationException("--warmup-iterations cannot be negative.");
+        }
+
+        if (parallelism <= 0)
+        {
+            throw new InvalidOperationException("--parallelism must be greater than zero.");
+        }
+
+        ArchiveBZip2Decompressors.Create(decompressor);
+
+        return new ArchiveBenchmarkParseOptions(filePath, iterations, warmupIterations, parallelism, decompressor);
     }
 
     private static string RequireValue(string[] args, ref int index, string option)
