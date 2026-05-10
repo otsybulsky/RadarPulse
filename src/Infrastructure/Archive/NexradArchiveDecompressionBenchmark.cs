@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Buffers.Binary;
+using System.Collections.Concurrent;
 using System.Runtime.ExceptionServices;
 using Microsoft.Win32.SafeHandles;
 using RadarPulse.Domain.Archive;
@@ -77,51 +78,62 @@ public sealed class NexradArchiveDecompressionBenchmark
 
         ValidateArchiveTwoSignature(fileInfo);
 
-        for (var warmupIteration = 0; warmupIteration < warmupIterations; warmupIteration++)
+        var workers = CreateWorkers(decompressor, degreeOfParallelism);
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            MeasureIteration(fileInfo, degreeOfParallelism, decompressor, cancellationToken);
-        }
-
-        var allocatedBytesBefore = GC.GetTotalAllocatedBytes(precise: true);
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-
-        int? compressedRecordsPerIteration = null;
-        long? compressedBytesPerIteration = null;
-        long? decompressedBytesPerIteration = null;
-
-        for (var iteration = 0; iteration < iterations; iteration++)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var iterationResult = MeasureIteration(fileInfo, degreeOfParallelism, decompressor, cancellationToken);
-
-            compressedRecordsPerIteration ??= iterationResult.CompressedRecordCount;
-            compressedBytesPerIteration ??= iterationResult.CompressedBytes;
-            decompressedBytesPerIteration ??= iterationResult.DecompressedBytes;
-
-            if (compressedRecordsPerIteration != iterationResult.CompressedRecordCount ||
-                compressedBytesPerIteration != iterationResult.CompressedBytes ||
-                decompressedBytesPerIteration != iterationResult.DecompressedBytes)
+            for (var warmupIteration = 0; warmupIteration < warmupIterations; warmupIteration++)
             {
-                throw new InvalidDataException("Archive decompression benchmark produced inconsistent iteration totals.");
+                cancellationToken.ThrowIfCancellationRequested();
+                MeasureIteration(fileInfo, degreeOfParallelism, workers, cancellationToken);
+            }
+
+            var allocatedBytesBefore = GC.GetTotalAllocatedBytes(precise: true);
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+            int? compressedRecordsPerIteration = null;
+            long? compressedBytesPerIteration = null;
+            long? decompressedBytesPerIteration = null;
+
+            for (var iteration = 0; iteration < iterations; iteration++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var iterationResult = MeasureIteration(fileInfo, degreeOfParallelism, workers, cancellationToken);
+
+                compressedRecordsPerIteration ??= iterationResult.CompressedRecordCount;
+                compressedBytesPerIteration ??= iterationResult.CompressedBytes;
+                decompressedBytesPerIteration ??= iterationResult.DecompressedBytes;
+
+                if (compressedRecordsPerIteration != iterationResult.CompressedRecordCount ||
+                    compressedBytesPerIteration != iterationResult.CompressedBytes ||
+                    decompressedBytesPerIteration != iterationResult.DecompressedBytes)
+                {
+                    throw new InvalidDataException("Archive decompression benchmark produced inconsistent iteration totals.");
+                }
+            }
+
+            stopwatch.Stop();
+            var allocatedBytes = GC.GetTotalAllocatedBytes(precise: true) - allocatedBytesBefore;
+
+            return new ArchiveTwoDecompressionBenchmarkResult(
+                filePath,
+                decompressor.Name,
+                iterations,
+                warmupIterations,
+                degreeOfParallelism,
+                fileInfo.Length,
+                compressedRecordsPerIteration ?? 0,
+                compressedBytesPerIteration ?? 0,
+                decompressedBytesPerIteration ?? 0,
+                stopwatch.Elapsed,
+                allocatedBytes);
+        }
+        finally
+        {
+            foreach (var worker in workers)
+            {
+                worker.Dispose();
             }
         }
-
-        stopwatch.Stop();
-        var allocatedBytes = GC.GetTotalAllocatedBytes(precise: true) - allocatedBytesBefore;
-
-        return new ArchiveTwoDecompressionBenchmarkResult(
-            filePath,
-            decompressor.Name,
-            iterations,
-            warmupIterations,
-            degreeOfParallelism,
-            fileInfo.Length,
-            compressedRecordsPerIteration ?? 0,
-            compressedBytesPerIteration ?? 0,
-            decompressedBytesPerIteration ?? 0,
-            stopwatch.Elapsed,
-            allocatedBytes);
     }
 
     private static void ValidateArchiveTwoSignature(FileInfo fileInfo)
@@ -141,58 +153,44 @@ public sealed class NexradArchiveDecompressionBenchmark
     private static ArchiveTwoIterationMeasurement MeasureIteration(
         FileInfo fileInfo,
         int degreeOfParallelism,
-        IArchiveBZip2Decompressor decompressor,
+        IReadOnlyList<ArchiveBZip2BenchmarkWorker> workers,
         CancellationToken cancellationToken) =>
         degreeOfParallelism == 1
-            ? MeasureIterationSequential(fileInfo, decompressor, cancellationToken)
-            : MeasureIterationParallel(fileInfo, degreeOfParallelism, decompressor, cancellationToken);
+            ? MeasureIterationSequential(fileInfo, workers[0], cancellationToken)
+            : MeasureIterationParallel(fileInfo, degreeOfParallelism, workers, cancellationToken);
 
     private static ArchiveTwoIterationMeasurement MeasureIterationSequential(
         FileInfo fileInfo,
-        IArchiveBZip2Decompressor decompressor,
+        ArchiveBZip2BenchmarkWorker worker,
         CancellationToken cancellationToken)
     {
         var controlWordBuffer = new byte[4];
-        var outputBuffer = ArrayPool<byte>.Shared.Rent(OutputBufferSize);
-        byte[]? compressedPayloadBuffer = null;
         var compressedRecordCount = 0;
         long compressedBytes = 0;
         long decompressedBytes = 0;
 
-        try
+        using var stream = File.OpenRead(fileInfo.FullName);
+        stream.Position = ArchiveTwoVolumeHeaderLength;
+
+        while (stream.Position < stream.Length)
         {
-            using var stream = File.OpenRead(fileInfo.FullName);
-            stream.Position = ArchiveTwoVolumeHeaderLength;
+            cancellationToken.ThrowIfCancellationRequested();
+            var controlWordOffset = stream.Position;
+            var compressedSizeBytes = ReadCompressedRecordSize(stream, controlWordBuffer, controlWordOffset);
 
-            while (stream.Position < stream.Length)
+            var compressedPayloadBuffer = worker.EnsureCompressedPayloadBuffer(compressedSizeBytes);
+            ReadExactly(stream, compressedPayloadBuffer.AsSpan(0, compressedSizeBytes));
+            if (!StartsWithBZip2Signature(compressedPayloadBuffer.AsSpan(0, compressedSizeBytes)))
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                var controlWordOffset = stream.Position;
-                var compressedSizeBytes = ReadCompressedRecordSize(stream, controlWordBuffer, controlWordOffset);
-
-                compressedPayloadBuffer = EnsureBufferCapacity(compressedPayloadBuffer, compressedSizeBytes);
-                ReadExactly(stream, compressedPayloadBuffer.AsSpan(0, compressedSizeBytes));
-                if (!StartsWithBZip2Signature(compressedPayloadBuffer.AsSpan(0, compressedSizeBytes)))
-                {
-                    throw new InvalidDataException($"Compressed record at offset {controlWordOffset} does not start with a BZip2 signature.");
-                }
-
-                compressedRecordCount++;
-                compressedBytes += compressedSizeBytes;
-                decompressedBytes += decompressor.CountDecompressedBytes(
-                    compressedPayloadBuffer,
-                    compressedSizeBytes,
-                    outputBuffer);
-            }
-        }
-        finally
-        {
-            if (compressedPayloadBuffer is not null)
-            {
-                ArrayPool<byte>.Shared.Return(compressedPayloadBuffer);
+                throw new InvalidDataException($"Compressed record at offset {controlWordOffset} does not start with a BZip2 signature.");
             }
 
-            ArrayPool<byte>.Shared.Return(outputBuffer);
+            compressedRecordCount++;
+            compressedBytes += compressedSizeBytes;
+            decompressedBytes += worker.DecompressionSession.CountDecompressedBytes(
+                compressedPayloadBuffer,
+                compressedSizeBytes,
+                worker.OutputBuffer);
         }
 
         return new ArchiveTwoIterationMeasurement(compressedRecordCount, compressedBytes, decompressedBytes);
@@ -201,11 +199,12 @@ public sealed class NexradArchiveDecompressionBenchmark
     private static ArchiveTwoIterationMeasurement MeasureIterationParallel(
         FileInfo fileInfo,
         int degreeOfParallelism,
-        IArchiveBZip2Decompressor decompressor,
+        IReadOnlyList<ArchiveBZip2BenchmarkWorker> workers,
         CancellationToken cancellationToken)
     {
         var records = ReadCompressedRecordDescriptors(fileInfo, cancellationToken);
         var decompressedBytesByRecord = new long[records.Count];
+        var availableWorkers = new ConcurrentStack<ArchiveBZip2BenchmarkWorker>(workers);
 
         using var fileHandle = File.OpenHandle(
             fileInfo.FullName,
@@ -230,11 +229,14 @@ public sealed class NexradArchiveDecompressionBenchmark
                 {
                     options.CancellationToken.ThrowIfCancellationRequested();
                     var record = records[recordIndex];
-                    var compressedPayloadBuffer = ArrayPool<byte>.Shared.Rent(record.CompressedSizeBytes);
-                    var outputBuffer = ArrayPool<byte>.Shared.Rent(OutputBufferSize);
+                    if (!availableWorkers.TryPop(out var worker))
+                    {
+                        throw new InvalidOperationException("No BZip2 benchmark worker was available.");
+                    }
 
                     try
                     {
+                        var compressedPayloadBuffer = worker.EnsureCompressedPayloadBuffer(record.CompressedSizeBytes);
                         ReadExactly(
                             fileHandle,
                             compressedPayloadBuffer.AsSpan(0, record.CompressedSizeBytes),
@@ -245,15 +247,14 @@ public sealed class NexradArchiveDecompressionBenchmark
                             throw new InvalidDataException($"Compressed record at offset {record.ControlWordOffset} does not start with a BZip2 signature.");
                         }
 
-                        decompressedBytesByRecord[record.Index] = decompressor.CountDecompressedBytes(
+                        decompressedBytesByRecord[record.Index] = worker.DecompressionSession.CountDecompressedBytes(
                             compressedPayloadBuffer,
                             record.CompressedSizeBytes,
-                            outputBuffer);
+                            worker.OutputBuffer);
                     }
                     finally
                     {
-                        ArrayPool<byte>.Shared.Return(compressedPayloadBuffer);
-                        ArrayPool<byte>.Shared.Return(outputBuffer);
+                        availableWorkers.Push(worker);
                     }
                 });
         }
@@ -345,19 +346,17 @@ public sealed class NexradArchiveDecompressionBenchmark
         return compressedSizeBytes;
     }
 
-    private static byte[] EnsureBufferCapacity(byte[]? buffer, int requiredLength)
+    private static IReadOnlyList<ArchiveBZip2BenchmarkWorker> CreateWorkers(
+        IArchiveBZip2Decompressor decompressor,
+        int degreeOfParallelism)
     {
-        if (buffer is not null && buffer.Length >= requiredLength)
+        var workers = new ArchiveBZip2BenchmarkWorker[degreeOfParallelism];
+        for (var i = 0; i < workers.Length; i++)
         {
-            return buffer;
+            workers[i] = new ArchiveBZip2BenchmarkWorker(decompressor.CreateSession());
         }
 
-        if (buffer is not null)
-        {
-            ArrayPool<byte>.Shared.Return(buffer);
-        }
-
-        return ArrayPool<byte>.Shared.Rent(requiredLength);
+        return workers;
     }
 
     private static bool StartsWithBZip2Signature(ReadOnlySpan<byte> buffer) =>
@@ -421,4 +420,45 @@ public sealed class NexradArchiveDecompressionBenchmark
         int CompressedRecordCount,
         long CompressedBytes,
         long DecompressedBytes);
+
+    private sealed class ArchiveBZip2BenchmarkWorker : IDisposable
+    {
+        private byte[]? compressedPayloadBuffer;
+
+        public ArchiveBZip2BenchmarkWorker(IArchiveBZip2DecompressionSession decompressionSession)
+        {
+            DecompressionSession = decompressionSession;
+            OutputBuffer = ArrayPool<byte>.Shared.Rent(OutputBufferSize);
+        }
+
+        public IArchiveBZip2DecompressionSession DecompressionSession { get; }
+
+        public byte[] OutputBuffer { get; }
+
+        public byte[] EnsureCompressedPayloadBuffer(int requiredLength)
+        {
+            if (compressedPayloadBuffer is not null && compressedPayloadBuffer.Length >= requiredLength)
+            {
+                return compressedPayloadBuffer;
+            }
+
+            if (compressedPayloadBuffer is not null)
+            {
+                ArrayPool<byte>.Shared.Return(compressedPayloadBuffer);
+            }
+
+            compressedPayloadBuffer = ArrayPool<byte>.Shared.Rent(requiredLength);
+            return compressedPayloadBuffer;
+        }
+
+        public void Dispose()
+        {
+            if (compressedPayloadBuffer is not null)
+            {
+                ArrayPool<byte>.Shared.Return(compressedPayloadBuffer);
+            }
+
+            ArrayPool<byte>.Shared.Return(OutputBuffer);
+        }
+    }
 }

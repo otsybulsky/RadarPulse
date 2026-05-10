@@ -17,6 +17,7 @@ try
         "download" => await DownloadArchiveAsync(args[2..]),
         "inspect" => await InspectArchiveAsync(args[2..]),
         "benchmark" => BenchmarkArchive(args[2..]),
+        "validate" => ValidateArchive(args[2..]),
         _ => PrintUsage()
     };
 }
@@ -150,7 +151,8 @@ static int PrintUsage()
     Console.WriteLine("  radarpulse archive download --date yyyy-MM-dd --all-radars --output data/nexrad [--concurrency n]");
     Console.WriteLine("  radarpulse archive download --manifest data/manifests/2026-05-04.json --output data/nexrad [--radar KTLX] [--max-files n] [--max-bytes n] [--concurrency n]");
     Console.WriteLine("  radarpulse archive inspect --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06");
-    Console.WriteLine("  radarpulse archive benchmark decompress --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor sharpcompress|sharpziplib]");
+    Console.WriteLine("  radarpulse archive benchmark decompress --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
+    Console.WriteLine("  radarpulse archive validate decompress (--file path | --cache data/nexrad [--radar KTLX] [--max-files n])");
     return 2;
 }
 
@@ -199,6 +201,56 @@ static int BenchmarkArchiveDecompression(string[] args)
     Console.WriteLine($"Allocated bytes / decompressed MB: {FormatDecimal(result.AllocatedBytes / Math.Max(result.TotalDecompressedBytes / 1_000_000d, 1d))}");
     Console.WriteLine($"Allocated bytes / record: {FormatDecimal(result.AllocatedBytes / Math.Max((double)result.TotalCompressedRecords, 1d))}");
     return 0;
+}
+
+static int ValidateArchive(string[] args)
+{
+    if (args.Length == 0)
+    {
+        return PrintUsage();
+    }
+
+    return args[0] switch
+    {
+        "decompress" => ValidateArchiveDecompression(args[1..]),
+        _ => PrintUsage()
+    };
+}
+
+static int ValidateArchiveDecompression(string[] args)
+{
+    var options = ArchiveValidateDecompressionOptions.Parse(args);
+    var validator = new NexradArchiveDecompressionValidator();
+    var result = options.FilePath is not null
+        ? validator.ValidateFile(options.FilePath, CancellationToken.None)
+        : validator.ValidateCache(
+            options.CachePath ?? throw new InvalidOperationException("--cache is required when --file is not provided."),
+            options.RadarId,
+            options.MaxFiles,
+            CancellationToken.None);
+
+    Console.WriteLine($"Candidate decompressor: {result.CandidateDecompressor}");
+    Console.WriteLine($"Reference decompressor: {result.ReferenceDecompressor}");
+    Console.WriteLine($"Examined files: {FormatNumber(result.ExaminedFileCount)}");
+    Console.WriteLine($"Skipped files: {FormatNumber(result.SkippedFileCount)}");
+    Console.WriteLine($"Compared files: {FormatNumber(result.ComparedFileCount)}");
+    Console.WriteLine($"Failed files: {FormatNumber(result.FailedFileCount)}");
+    Console.WriteLine($"Compressed records: {FormatNumber(result.TotalCompressedRecordCount)}");
+    Console.WriteLine($"Compressed bytes: {FormatNumber(result.TotalCompressedBytes)}");
+    Console.WriteLine($"Decompressed bytes: {FormatNumber(result.TotalDecompressedBytes)}");
+
+    foreach (var file in result.Files.Where(file => !file.Succeeded))
+    {
+        Console.WriteLine($"Failure: {file.FilePath}");
+        Console.WriteLine($"Diagnostic: {file.Diagnostic}");
+    }
+
+    if (result.ComparedFileCount == 0)
+    {
+        Console.WriteLine("Diagnostic: no Archive Two base-data files were selected for validation.");
+    }
+
+    return result.Succeeded ? 0 : 1;
 }
 
 static async Task<int> InspectArchiveAsync(string[] args)
@@ -469,6 +521,70 @@ internal sealed record ArchiveBenchmarkDecompressionOptions(
         ArchiveBZip2Decompressors.Create(decompressor);
 
         return new ArchiveBenchmarkDecompressionOptions(filePath, iterations, warmupIterations, parallelism, decompressor);
+    }
+
+    private static string RequireValue(string[] args, ref int index, string option)
+    {
+        if (index + 1 >= args.Length)
+        {
+            throw new ArgumentException($"{option} requires a value.");
+        }
+
+        index++;
+        return args[index];
+    }
+}
+
+internal sealed record ArchiveValidateDecompressionOptions(
+    string? FilePath,
+    string? CachePath,
+    string? RadarId,
+    int MaxFiles)
+{
+    public static ArchiveValidateDecompressionOptions Parse(string[] args)
+    {
+        string? filePath = null;
+        string? cachePath = null;
+        string? radarId = null;
+        var maxFiles = 20;
+
+        for (var i = 0; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--file":
+                    filePath = RequireValue(args, ref i, "--file");
+                    break;
+                case "--cache":
+                    cachePath = RequireValue(args, ref i, "--cache");
+                    break;
+                case "--radar":
+                    radarId = HistoricalArchiveRequest.NormalizeRadarId(RequireValue(args, ref i, "--radar"));
+                    break;
+                case "--max-files":
+                    maxFiles = int.Parse(RequireValue(args, ref i, "--max-files"));
+                    break;
+                default:
+                    throw new ArgumentException($"Unknown option: {args[i]}");
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(filePath) == string.IsNullOrWhiteSpace(cachePath))
+        {
+            throw new InvalidOperationException("Provide exactly one of --file or --cache.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(filePath) && radarId is not null)
+        {
+            throw new InvalidOperationException("--radar can only be used with --cache.");
+        }
+
+        if (maxFiles <= 0)
+        {
+            throw new InvalidOperationException("--max-files must be greater than zero.");
+        }
+
+        return new ArchiveValidateDecompressionOptions(filePath, cachePath, radarId, maxFiles);
     }
 
     private static string RequireValue(string[] args, ref int index, string option)

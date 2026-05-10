@@ -52,14 +52,19 @@ Completed in the first milestone 002 implementation slice:
   decompressor abstraction.
 - `archive benchmark decompress --file ... [--iterations n]
   [--warmup-iterations n] [--parallelism n]
-  [--decompressor sharpcompress|sharpziplib]`.
+  [--decompressor radarpulse|sharpziplib|sharpcompress]`.
 - Benchmark path pools compressed-payload and output buffers to avoid measuring
   avoidable local buffer churn.
 - Parallel benchmark mode scans compressed record boundaries in file order,
   decompresses independent BZip2 records concurrently, and aggregates results by
   original record index so worker completion order does not mix records.
-- SharpZipLib 1.4.2 is the default BZip2 backend after A/B benchmarking.
-  SharpCompress remains selectable for comparison and was updated to 0.48.0.
+- `radarpulse` is the default BZip2 backend after adding a reusable-workspace
+  decoder to remove per-record managed BZip2 workspace allocations.
+  SharpZipLib and SharpCompress remain selectable for comparison.
+- BZip2 decompression sessions now expose a streaming/chunk callback so future
+  parsing can consume decompressed bytes without materializing full records.
+- `archive validate decompress` compares the default `radarpulse` backend
+  against SharpZipLib record-by-record with streaming hashes.
 - The inspection path also uses the shared decompressor abstraction and pooled
   compressed-payload/output buffers.
 - CLI output for size, kind, archive filename, version, extension number, radar
@@ -86,9 +91,13 @@ Achieved:
 - Parallel decompression is implemented for independent compressed records.
   The implementation preserves order by scanning records in file order and
   writing worker results back by original record index.
-- Benchmarking now compares managed BZip2 backends with the same Archive Two
-  framing path. SharpZipLib is currently the default because it is faster and
-  allocates less than SharpCompress on the measured KTLX file.
+- Benchmarking now compares the reusable-workspace `radarpulse` BZip2 backend
+  with SharpZipLib and SharpCompress on the same Archive Two framing path.
+- The `radarpulse` backend is currently the default because it preserves the
+  measured byte counts while reducing measured per-record allocation by roughly
+  three orders of magnitude on the current KTLX file.
+- A local differential validation gate compares `radarpulse` against
+  SharpZipLib across selected cached Archive Two files before parser work.
 - The inspection path and benchmark path both use the shared BZip2 decompressor
   abstraction and pooled compressed-payload/output buffers.
 
@@ -99,8 +108,8 @@ Not achieved yet:
 - No real event stream is generated yet.
 - The 20M events/s target has not been demonstrated. Current benchmarks measure
   decompressed bytes/s and records/s, not parsed events/s.
-- Managed BZip2 allocation pressure remains high. The best measured path still
-  allocates about 2.5 GB over ten benchmark iterations on the current KTLX file.
+- The current decompression benchmark and validator still measure decompressed
+  bytes/s, records/s, and streaming byte equality, not parsed events/s.
 
 ## Documentation
 
@@ -121,7 +130,7 @@ dotnet test RadarPulse.sln --no-restore
 Result:
 
 ```text
-40 passed, 2 skipped
+45 passed, 3 skipped
 ```
 
 Manual CLI smoke tests:
@@ -138,29 +147,61 @@ compressed bytes, 55 records with BZip2 signatures, 55 decompressed records,
 50_741_824 decompressed bytes, and zero decompression diagnostics. The second
 command classified the `_MDM` file as `MDM or compressed stream`.
 
+Last verified decompression validation command:
+
+```powershell
+dotnet run --no-restore --project src/Presentation/RadarPulse.Cli.csproj -- archive validate decompress --cache data/nexrad --radar KTLX --max-files 20
+```
+
+Result:
+
+```text
+Candidate decompressor: radarpulse
+Reference decompressor: sharpziplib
+Examined files: 22
+Skipped files: 2
+Compared files: 20
+Failed files: 0
+Compressed records: 1_100
+Compressed bytes: 112_494_786
+Decompressed bytes: 1_014_836_480
+```
+
+Last verified opt-in corpus command:
+
+```powershell
+$env:RADARPULSE_RUN_CORPUS_TESTS='true'; $env:RADARPULSE_NEXRAD_CORPUS='data/nexrad'; $env:RADARPULSE_NEXRAD_CORPUS_RADAR='KTLX'; $env:RADARPULSE_NEXRAD_CORPUS_MAX_FILES='20'; dotnet test RadarPulse.sln --no-restore --filter NexradArchiveDecompressionValidatorCorpusTests
+```
+
+Result:
+
+```text
+1 passed, 0 skipped
+```
+
 Last verified decompression benchmark command:
 
 ```powershell
-dotnet run -c Release --project src/Presentation/RadarPulse.Cli.csproj -- archive benchmark decompress --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 --iterations 10 --warmup-iterations 1 --parallelism 24 --decompressor sharpziplib
+dotnet run --no-restore -c Release --project src/Presentation/RadarPulse.Cli.csproj -- archive benchmark decompress --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 --iterations 10 --warmup-iterations 1 --parallelism 24 --decompressor radarpulse
 ```
 
 Result on the current development machine:
 
 ```text
-Decompressor: sharpziplib
+Decompressor: radarpulse
 Iterations: 10
 Warmup iterations: 1
 Parallelism: 24
 Compressed records per iteration: 55
 Compressed bytes per iteration: 5_406_610
 Decompressed bytes per iteration: 50_741_824
-Elapsed ms: 518.16
-Compressed MB/s: 104.34
-Decompressed MB/s: 979.27
-Records/s: 1_061.45
-Allocated bytes: 2_514_650_928
-Allocated bytes / decompressed MB: 4_955_775.59
-Allocated bytes / record: 4_572_092.60
+Elapsed ms: 467.16
+Compressed MB/s: 115.73
+Decompressed MB/s: 1_086.18
+Records/s: 1_177.33
+Allocated bytes: 1_243_568
+Allocated bytes / decompressed MB: 2_450.78
+Allocated bytes / record: 2_261.03
 ```
 
 Historical SharpCompress baseline before the decoder comparison:
@@ -173,26 +214,22 @@ Records/s: 102.70
 Allocated bytes: 907_268_368
 ```
 
-After adding ordered parallel per-record decompression and a selectable decoder,
-the longer Release comparison on the same machine and file produced:
+After adding the reusable-workspace `radarpulse` decoder, the Release comparison
+on the same machine and file produced:
 
 ```text
 iterations: 10
 warmup iterations: 1
 
-decompressor   parallelism  elapsed ms  decompressed MB/s  records/s  allocated bytes  allocated bytes / decompressed MB
-sharpcompress  1            5_299.00    95.76              103.79     3_024_135_496    5_959_847.83
-sharpcompress  24           689.91      735.48             797.20     3_028_736_312    5_968_914.94
-sharpziplib    1            4_545.02    111.64             121.01     2_510_325_344    4_947_250.90
-sharpziplib    24           518.16      979.27             1_061.45   2_514_650_928    4_955_775.59
+decompressor  parallelism  elapsed ms  decompressed MB/s  records/s  allocated bytes  allocated bytes / record
+radarpulse    1            3_800.97    133.50             144.70     43_920           79.85
+radarpulse    24           467.16      1_086.18           1_177.33   1_243_568        2_261.03
+sharpziplib   24           643.11      789.01             855.22     2_511_390_704    4_566_164.92
 ```
 
 Parallel decompression improves byte throughput substantially on the current
-machine. Switching the default managed backend to SharpZipLib reduces measured
-allocation pressure by roughly 17% and improves throughput, but the path still
-allocates about 2.5 GB over ten iterations. The next parser slice must preserve
-file/message order when publishing data: worker completion order is not a valid
-stream order.
+machine. The next parser slice must preserve file/message order when publishing
+data: worker completion order is not a valid stream order.
 
 Last verified normal command for milestone 001:
 
@@ -311,7 +348,9 @@ constant and moment data blocks.
 - `src/Infrastructure/Archive/HistoricalArchiveDownloader.cs`
 - `src/Infrastructure/Archive/IArchiveBZip2Decompressor.cs`
 - `src/Infrastructure/Archive/NexradArchiveDecompressionBenchmark.cs`
+- `src/Infrastructure/Archive/NexradArchiveDecompressionValidator.cs`
 - `src/Infrastructure/Archive/NexradArchiveFileInspector.cs`
+- `src/Infrastructure/Archive/ReusableArchiveBZip2Decompressor.cs`
 - `src/Infrastructure/Archive/NexradCachePathMapper.cs`
 - `src/Infrastructure/Archive/SharpCompressArchiveBZip2Decompressor.cs`
 - `src/Infrastructure/Archive/SharpZipLibArchiveBZip2Decompressor.cs`
@@ -321,8 +360,8 @@ constant and moment data blocks.
 
 The next milestone 002 implementation slice should be considered done when:
 
-- Decompressed Archive Two record bytes can be scanned for radar message
-  headers without unnecessary extra copies.
+- Decompressed Archive Two bytes are scanned through the streaming/chunk
+  decompression callback without materializing full records.
 - The inspection command can report message counts by type.
 - Tests cover message header parsing with small fixtures.
 

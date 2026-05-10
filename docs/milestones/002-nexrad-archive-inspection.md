@@ -29,8 +29,10 @@ per-record BZip2 decompression byte counting
 decompression throughput benchmark
 pooled compressed-payload and output buffers in the benchmark path
 parallel per-record decompression benchmark with ordered result aggregation
-selectable SharpCompress/SharpZipLib BZip2 benchmark backends
-SharpZipLib as the default managed backend after A/B benchmarking
+selectable radarpulse/SharpZipLib/SharpCompress BZip2 benchmark backends
+radarpulse as the default reusable-workspace BZip2 backend
+streaming/chunk decompression callback for future parsers
+differential decompression validation against SharpZipLib
 CLI output for file kind, size, archive filename, version, extension, radar id, volume time, compressed record count, compressed bytes, BZip2 signature count, decompressed record count, and decompressed bytes
 unit tests with small synthetic fixtures
 ```
@@ -88,6 +90,12 @@ Inspect a small cache selection after cache selectors are added:
 
 ```text
 dotnet run --project src/Presentation/RadarPulse.Cli.csproj -- archive inspect --cache data/nexrad --date 2026-05-04 --radar KTLX --max-files 1
+```
+
+Validate the reusable BZip2 backend against SharpZipLib on a local cache sample:
+
+```text
+dotnet run --project src/Presentation/RadarPulse.Cli.csproj -- archive validate decompress --cache data/nexrad --radar KTLX --max-files 20
 ```
 
 ## Supported File Kinds
@@ -192,7 +200,7 @@ Allocated bytes: 907_268_368
 ```
 
 Parallel per-record decompression now accepts `--parallelism n`, and the
-benchmark accepts `--decompressor sharpcompress|sharpziplib`. The current
+benchmark accepts `--decompressor radarpulse|sharpziplib|sharpcompress`. The current
 implementation first scans the Archive Two record boundaries in file order,
 then decompresses each independent BZip2 payload in parallel. Results are stored
 by original record index before aggregation, so worker completion order does not
@@ -206,20 +214,24 @@ Release comparison on the current development machine with the same KTLX file:
 iterations: 10
 warmup iterations: 1
 
-decompressor   parallelism  elapsed ms  decompressed MB/s  records/s  allocated bytes  allocated bytes / decompressed MB
-sharpcompress  1            5_299.00    95.76              103.79     3_024_135_496    5_959_847.83
-sharpcompress  24           689.91      735.48             797.20     3_028_736_312    5_968_914.94
-sharpziplib    1            4_545.02    111.64             121.01     2_510_325_344    4_947_250.90
-sharpziplib    24           518.16      979.27             1_061.45   2_514_650_928    4_955_775.59
+decompressor  parallelism  elapsed ms  decompressed MB/s  records/s  allocated bytes  allocated bytes / record
+radarpulse    1            3_800.97    133.50             144.70     43_920           79.85
+radarpulse    24           467.16      1_086.18           1_177.33   1_243_568        2_261.03
+sharpziplib   24           643.11      789.01             855.22     2_511_390_704    4_566_164.92
 ```
 
 The baseline is useful but not sufficient for the eventual 20M events/s replay
 target. Parallel decompression significantly improves byte throughput on this
-machine. SharpZipLib improves both throughput and allocation pressure relative
-to SharpCompress, so it is the default managed backend, but allocation pressure
-remains high. Parser work after this should avoid unnecessary copies and should
-keep lower allocation pressure, ordered parallelism, and native/custom-allocator
-BZip2 options in view.
+machine. The reusable-workspace `radarpulse` backend is the default because it
+preserves byte counts while removing the large per-record managed BZip2
+workspace allocations seen in the stream-based SharpZipLib path. Parser work
+after this should avoid unnecessary copies and should keep lower allocation
+pressure and ordered parallelism in view.
+
+The validation command compares `radarpulse` against SharpZipLib per compressed
+record using streaming hashes. On the local KTLX corpus sample it compared 20
+Archive Two files, 1_100 compressed records, and 1_014_836_480 decompressed bytes
+with zero failures.
 
 ## Limitations
 

@@ -2,7 +2,7 @@ namespace RadarPulse.Infrastructure.Archive;
 
 public static class ArchiveBZip2Decompressors
 {
-    public const string DefaultName = SharpZipLibArchiveBZip2Decompressor.DecompressorName;
+    public const string DefaultName = ReusableArchiveBZip2Decompressor.DecompressorName;
 
     public static IArchiveBZip2Decompressor Create(string name)
     {
@@ -10,6 +10,7 @@ public static class ArchiveBZip2Decompressors
 
         return NormalizeName(name) switch
         {
+            ReusableArchiveBZip2Decompressor.DecompressorName => new ReusableArchiveBZip2Decompressor(),
             SharpCompressArchiveBZip2Decompressor.DecompressorName => new SharpCompressArchiveBZip2Decompressor(),
             SharpZipLibArchiveBZip2Decompressor.DecompressorName => new SharpZipLibArchiveBZip2Decompressor(),
             _ => throw new ArgumentException(
@@ -19,7 +20,7 @@ public static class ArchiveBZip2Decompressors
     }
 
     public static string SupportedNames =>
-        $"{SharpCompressArchiveBZip2Decompressor.DecompressorName}, {SharpZipLibArchiveBZip2Decompressor.DecompressorName}";
+        $"{ReusableArchiveBZip2Decompressor.DecompressorName}, {SharpZipLibArchiveBZip2Decompressor.DecompressorName}, {SharpCompressArchiveBZip2Decompressor.DecompressorName}";
 
     private static string NormalizeName(string name) =>
         name.Trim().ToLowerInvariant();

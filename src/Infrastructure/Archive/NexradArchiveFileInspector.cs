@@ -146,6 +146,7 @@ public sealed class NexradArchiveFileInspector
         var records = new List<ArchiveTwoCompressedRecordSummary>();
         var controlWordBuffer = new byte[4];
         var outputBuffer = ArrayPool<byte>.Shared.Rent(OutputBufferSize);
+        var decompressionSession = decompressor.CreateSession();
         byte[]? compressedPayloadBuffer = null;
 
         try
@@ -184,7 +185,7 @@ public sealed class NexradArchiveFileInspector
                 await ReadExactlyAsync(stream, compressedPayloadBuffer.AsMemory(0, compressedSizeBytes), cancellationToken);
                 var startsWithBZip2Signature = StartsWithBZip2Signature(compressedPayloadBuffer.AsSpan(0, compressedSizeBytes));
                 var decompression = startsWithBZip2Signature
-                    ? TryCountDecompressedBytes(compressedPayloadBuffer, compressedSizeBytes, outputBuffer)
+                    ? TryCountDecompressedBytes(decompressionSession, compressedPayloadBuffer, compressedSizeBytes, outputBuffer)
                     : (DecompressedSizeBytes: (long?)null, Diagnostic: "Compressed payload does not start with a BZip2 signature.");
 
                 records.Add(new ArchiveTwoCompressedRecordSummary(
@@ -231,14 +232,15 @@ public sealed class NexradArchiveFileInspector
         return ArrayPool<byte>.Shared.Rent(requiredLength);
     }
 
-    private (long? DecompressedSizeBytes, string? Diagnostic) TryCountDecompressedBytes(
+    private static (long? DecompressedSizeBytes, string? Diagnostic) TryCountDecompressedBytes(
+        IArchiveBZip2DecompressionSession decompressionSession,
         byte[] compressedPayload,
         int compressedSizeBytes,
         byte[] outputBuffer)
     {
         try
         {
-            return (decompressor.CountDecompressedBytes(compressedPayload, compressedSizeBytes, outputBuffer), null);
+            return (decompressionSession.CountDecompressedBytes(compressedPayload, compressedSizeBytes, outputBuffer), null);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

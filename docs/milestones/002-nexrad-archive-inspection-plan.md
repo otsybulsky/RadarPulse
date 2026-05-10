@@ -83,8 +83,10 @@ per-record BZip2 decompression byte counting implemented
 decompression throughput benchmark implemented
 pooled compressed payload and output buffers implemented for benchmark path
 parallel per-record decompression benchmark implemented
-selectable SharpCompress/SharpZipLib BZip2 benchmark backends implemented
-SharpZipLib selected as the default managed backend after A/B benchmarking
+selectable radarpulse/SharpZipLib/SharpCompress BZip2 benchmark backends implemented
+radarpulse selected as the default reusable-workspace BZip2 backend
+streaming/chunk decompression callback implemented
+differential decompression validation against SharpZipLib implemented
 cache-wide inspection not implemented
 message header parsing not implemented
 ```
@@ -156,6 +158,19 @@ sharpziplib    1            4_545.02    111.64             121.01     2_510_325_
 sharpziplib    24           518.16      979.27             1_061.45   2_514_650_928    4_955_775.59
 ```
 
+After adding the reusable-workspace `radarpulse` decoder, the Release
+comparison on the same machine and file produced:
+
+```text
+iterations: 10
+warmup iterations: 1
+
+decompressor  parallelism  elapsed ms  decompressed MB/s  records/s  allocated bytes  allocated bytes / record
+radarpulse    1            3_800.97    133.50             144.70     43_920           79.85
+radarpulse    24           467.16      1_086.18           1_177.33   1_243_568        2_261.03
+sharpziplib   24           643.11      789.01             855.22     2_511_390_704    4_566_164.92
+```
+
 The parallel benchmark preserves record order by scanning the Archive Two file
 into ordered record descriptors first. Workers decompress records independently,
 but each worker stores its result at the original record index. Future event
@@ -167,11 +182,20 @@ different ordering contract.
 The 20M events/s target should be interpreted as a downstream throughput
 requirement for parsed event generation, not as a claim that the current
 inspection command already reaches it. The benchmark shows working
-SharpCompress and SharpZipLib paths. SharpZipLib is faster and allocates less,
-so it is the default managed backend, but allocation pressure remains high.
-Parser design should avoid extra copies and should consider streaming, buffer
-reuse, parallel file/record processing, and native/custom-allocator BZip2
-options before deeper message parsing is built on top.
+radarpulse, SharpZipLib, and SharpCompress paths. The radarpulse backend is the
+default because it preserves byte counts while avoiding the large per-record
+managed BZip2 workspace allocations from stream-based decoders. Parser design
+should avoid extra copies and should consider streaming, buffer reuse, and
+parallel file/record processing before deeper message parsing is built on top.
+
+The validation path compares `radarpulse` against SharpZipLib per compressed
+record using streaming hashes. The current local KTLX validation sample compared
+20 Archive Two files, 1_100 compressed records, and 1_014_836_480 decompressed
+bytes with zero failures:
+
+```text
+dotnet run --no-restore --project src/Presentation/RadarPulse.Cli.csproj -- archive validate decompress --cache data/nexrad --radar KTLX --max-files 20
+```
 
 ## Decoder Workflow
 

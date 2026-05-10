@@ -41,6 +41,7 @@ public sealed class NexradArchiveDecompressionBenchmarkTests
     }
 
     [Theory]
+    [InlineData(ReusableArchiveBZip2Decompressor.DecompressorName)]
     [InlineData(SharpCompressArchiveBZip2Decompressor.DecompressorName)]
     [InlineData(SharpZipLibArchiveBZip2Decompressor.DecompressorName)]
     public void MeasureSupportsConfiguredDecompressor(string decompressor)
@@ -67,6 +68,94 @@ public sealed class NexradArchiveDecompressionBenchmarkTests
             Assert.Equal(2, result.CompressedRecordsPerIteration);
             Assert.Equal(compressedPayload.Length * 2L, result.CompressedBytesPerIteration);
             Assert.Equal(16, result.DecompressedBytesPerIteration);
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(path)!, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ReusableDecompressorCountsBZip2PayloadWithLongRuns()
+    {
+        var original = Enumerable.Repeat((byte)'A', 1_024)
+            .Concat(Encoding.ASCII.GetBytes("KTLX"))
+            .Concat(Enumerable.Repeat((byte)0, 512))
+            .ToArray();
+        var compressedPayload = ValidBZip2PayloadWithLongRuns();
+        var outputBuffer = new byte[128];
+
+        var reusableBytes = new ReusableArchiveBZip2Decompressor()
+            .CreateSession()
+            .CountDecompressedBytes(compressedPayload, compressedPayload.Length, outputBuffer);
+        var sharpZipLibBytes = new SharpZipLibArchiveBZip2Decompressor()
+            .CreateSession()
+            .CountDecompressedBytes(compressedPayload, compressedPayload.Length, outputBuffer);
+
+        Assert.Equal(original.Length, reusableBytes);
+        Assert.Equal(sharpZipLibBytes, reusableBytes);
+    }
+
+    [Fact]
+    public void ReusableDecompressorStreamsChunksInOrder()
+    {
+        var original = Enumerable.Repeat((byte)'A', 1_024)
+            .Concat(Encoding.ASCII.GetBytes("KTLX"))
+            .Concat(Enumerable.Repeat((byte)0, 512))
+            .ToArray();
+        var compressedPayload = ValidBZip2PayloadWithLongRuns();
+        var outputBuffer = new byte[7];
+        using var streamed = new MemoryStream();
+
+        var decompressedBytes = new ReusableArchiveBZip2Decompressor()
+            .CreateSession()
+            .Decompress(
+                compressedPayload,
+                compressedPayload.Length,
+                outputBuffer,
+                chunk => streamed.Write(chunk));
+
+        Assert.Equal(original.Length, decompressedBytes);
+        Assert.Equal(original, streamed.ToArray());
+    }
+
+    [Fact]
+    public void ReusableDecompressorRejectsBZip2CrcMismatch()
+    {
+        var compressedPayload = ValidBZip2MetadataPayload().ToArray();
+        compressedPayload[10] ^= 0x01;
+        var outputBuffer = new byte[128];
+
+        var exception = Assert.Throws<InvalidDataException>(
+            () => new ReusableArchiveBZip2Decompressor()
+                .CreateSession()
+                .CountDecompressedBytes(compressedPayload, compressedPayload.Length, outputBuffer));
+
+        Assert.Contains("CRC", exception.Message);
+    }
+
+    [Fact]
+    public void ValidatorComparesReusableBackendAgainstSharpZipLib()
+    {
+        var firstPayload = ValidBZip2MetadataPayload();
+        var secondPayload = ValidBZip2PayloadWithLongRuns();
+        var path = WriteTempFile(
+            "KTLX20260504_000245_V06",
+            BuildArchiveTwoHeader()
+                .Concat(BuildCompressedRecord(firstPayload.Length, firstPayload))
+                .Concat(BuildCompressedRecord(secondPayload.Length, secondPayload))
+                .ToArray());
+        try
+        {
+            var result = new NexradArchiveDecompressionValidator().ValidateFile(path, CancellationToken.None);
+
+            Assert.True(result.Succeeded, string.Join(Environment.NewLine, result.Files.Select(file => file.Diagnostic)));
+            Assert.Equal(1, result.ExaminedFileCount);
+            Assert.Equal(0, result.SkippedFileCount);
+            Assert.Equal(1, result.ComparedFileCount);
+            Assert.Equal(2, result.TotalCompressedRecordCount);
+            Assert.Equal(firstPayload.Length + secondPayload.Length, result.TotalCompressedBytes);
+            Assert.Equal(8 + 1_540, result.TotalDecompressedBytes);
         }
         finally
         {
@@ -176,6 +265,17 @@ public sealed class NexradArchiveDecompressionBenchmarkTests
         0x00, 0x30, 0xCD, 0x00, 0xC1, 0xA0, 0xAD, 0x21,
         0x38, 0xBB, 0x92, 0x29, 0xC2, 0x84, 0x80, 0x0F,
         0xF5, 0xFD, 0xE0
+    ];
+
+    private static byte[] ValidBZip2PayloadWithLongRuns() =>
+    [
+        0x42, 0x5A, 0x68, 0x39, 0x31, 0x41, 0x59, 0x26,
+        0x53, 0x59, 0xC4, 0x6C, 0x25, 0xCD, 0x00, 0x00,
+        0x09, 0x46, 0x00, 0xC0, 0x00, 0x20, 0x0C, 0x04,
+        0x40, 0x00, 0x08, 0x20, 0x00, 0x31, 0x0C, 0x00,
+        0x90, 0x86, 0x9D, 0x60, 0xDA, 0xC6, 0x35, 0x02,
+        0x40, 0x4E, 0xF5, 0xC3, 0x43, 0xC5, 0xDC, 0x91,
+        0x4E, 0x14, 0x24, 0x31, 0x1B, 0x09, 0x73, 0x40
     ];
 
     private static string WriteTempFile(string fileName, byte[] contents)
