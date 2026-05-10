@@ -26,6 +26,11 @@ unknown binary classification
 Archive Two compressed record boundary parsing
 per-record BZip2 signature detection
 per-record BZip2 decompression byte counting
+decompression throughput benchmark
+pooled compressed-payload and output buffers in the benchmark path
+parallel per-record decompression benchmark with ordered result aggregation
+selectable SharpCompress/SharpZipLib BZip2 benchmark backends
+SharpZipLib as the default managed backend after A/B benchmarking
 CLI output for file kind, size, archive filename, version, extension, radar id, volume time, compressed record count, compressed bytes, BZip2 signature count, decompressed record count, and decompressed bytes
 unit tests with small synthetic fixtures
 ```
@@ -154,12 +159,67 @@ The historical replay path is expected to become a high-throughput event source.
 Decompression and parsing should be evaluated against an eventual target of
 feeding up to 20 million events per second into the downstream pipeline.
 
-The current inspection command verifies correctness and byte counts. The next
-step should add a decompression throughput check for cached files before deeper
-message parsing is expanded. That check should report compressed bytes,
-decompressed bytes, records processed, elapsed time, compressed/decompressed
-MB/s, and records/s. Parser work after that should avoid unnecessary copies and
-should keep buffer reuse and parallelism in view.
+The current inspection command verifies correctness and byte counts. The
+benchmark command measures decompression throughput for cached files before
+deeper message parsing is expanded:
+
+```text
+dotnet run --project src/Presentation/RadarPulse.Cli.csproj -- archive benchmark decompress --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 --iterations 3 --warmup-iterations 1 --parallelism 1 --decompressor sharpcompress
+```
+
+Initial baseline on the current development machine:
+
+```text
+Compressed records per iteration: 55
+Compressed bytes per iteration: 5_406_610
+Decompressed bytes per iteration: 50_741_824
+Elapsed ms: 1_664.43
+Compressed MB/s: 9.74
+Decompressed MB/s: 91.46
+Records/s: 99.13
+Allocated bytes: 923_734_856
+```
+
+After pooling the benchmark compressed-payload and output buffers, the same
+Release benchmark produced:
+
+```text
+Elapsed ms: 1_606.65
+Compressed MB/s: 10.10
+Decompressed MB/s: 94.75
+Records/s: 102.70
+Allocated bytes: 907_268_368
+```
+
+Parallel per-record decompression now accepts `--parallelism n`, and the
+benchmark accepts `--decompressor sharpcompress|sharpziplib`. The current
+implementation first scans the Archive Two record boundaries in file order,
+then decompresses each independent BZip2 payload in parallel. Results are stored
+by original record index before aggregation, so worker completion order does not
+change record order. The same rule must be preserved when this becomes a real
+event producer: parallel stages may finish out of order, but publication to any
+ordered stream must use an ordered merge by source record/message position.
+
+Release comparison on the current development machine with the same KTLX file:
+
+```text
+iterations: 10
+warmup iterations: 1
+
+decompressor   parallelism  elapsed ms  decompressed MB/s  records/s  allocated bytes  allocated bytes / decompressed MB
+sharpcompress  1            5_299.00    95.76              103.79     3_024_135_496    5_959_847.83
+sharpcompress  24           689.91      735.48             797.20     3_028_736_312    5_968_914.94
+sharpziplib    1            4_545.02    111.64             121.01     2_510_325_344    4_947_250.90
+sharpziplib    24           518.16      979.27             1_061.45   2_514_650_928    4_955_775.59
+```
+
+The baseline is useful but not sufficient for the eventual 20M events/s replay
+target. Parallel decompression significantly improves byte throughput on this
+machine. SharpZipLib improves both throughput and allocation pressure relative
+to SharpCompress, so it is the default managed backend, but allocation pressure
+remains high. Parser work after this should avoid unnecessary copies and should
+keep lower allocation pressure, ordered parallelism, and native/custom-allocator
+BZip2 options in view.
 
 ## Limitations
 

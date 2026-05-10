@@ -1,3 +1,4 @@
+using System.Globalization;
 using RadarPulse.Application.Archive;
 using RadarPulse.Domain.Archive;
 using RadarPulse.Infrastructure.Archive;
@@ -15,6 +16,7 @@ try
         "list" => await ListArchiveAsync(args[2..]),
         "download" => await DownloadArchiveAsync(args[2..]),
         "inspect" => await InspectArchiveAsync(args[2..]),
+        "benchmark" => BenchmarkArchive(args[2..]),
         _ => PrintUsage()
     };
 }
@@ -23,7 +25,7 @@ catch (OperationCanceledException)
     Console.Error.WriteLine("Operation cancelled.");
     return 1;
 }
-catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or FormatException or IOException)
+catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or FormatException or IOException or InvalidDataException)
 {
     Console.Error.WriteLine(ex.Message);
     return 1;
@@ -68,6 +70,18 @@ static async Task<int> ListArchiveAsync(string[] args)
 }
 
 static string FormatNumber(long value) => value.ToString("N0").Replace(',', '_');
+
+static string FormatDecimal(double value) => value.ToString("N2", CultureInfo.InvariantCulture).Replace(',', '_');
+
+static double MegabytesPerSecond(long bytes, TimeSpan elapsed) =>
+    elapsed.TotalSeconds <= 0
+        ? 0
+        : bytes / 1_000_000d / elapsed.TotalSeconds;
+
+static double PerSecond(long count, TimeSpan elapsed) =>
+    elapsed.TotalSeconds <= 0
+        ? 0
+        : count / elapsed.TotalSeconds;
 
 static async Task<int> DownloadArchiveAsync(string[] args)
 {
@@ -136,7 +150,55 @@ static int PrintUsage()
     Console.WriteLine("  radarpulse archive download --date yyyy-MM-dd --all-radars --output data/nexrad [--concurrency n]");
     Console.WriteLine("  radarpulse archive download --manifest data/manifests/2026-05-04.json --output data/nexrad [--radar KTLX] [--max-files n] [--max-bytes n] [--concurrency n]");
     Console.WriteLine("  radarpulse archive inspect --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06");
+    Console.WriteLine("  radarpulse archive benchmark decompress --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor sharpcompress|sharpziplib]");
     return 2;
+}
+
+static int BenchmarkArchive(string[] args)
+{
+    if (args.Length == 0)
+    {
+        return PrintUsage();
+    }
+
+    return args[0] switch
+    {
+        "decompress" => BenchmarkArchiveDecompression(args[1..]),
+        _ => PrintUsage()
+    };
+}
+
+static int BenchmarkArchiveDecompression(string[] args)
+{
+    var options = ArchiveBenchmarkDecompressionOptions.Parse(args);
+    var result = new NexradArchiveDecompressionBenchmark().Measure(
+        options.FilePath,
+        options.Iterations,
+        options.WarmupIterations,
+        options.Parallelism,
+        options.Decompressor,
+        CancellationToken.None);
+
+    Console.WriteLine($"File: {result.FilePath}");
+    Console.WriteLine($"Decompressor: {result.Decompressor}");
+    Console.WriteLine($"Iterations: {FormatNumber(result.Iterations)}");
+    Console.WriteLine($"Warmup iterations: {FormatNumber(result.WarmupIterations)}");
+    Console.WriteLine($"Parallelism: {FormatNumber(result.DegreeOfParallelism)}");
+    Console.WriteLine($"File size bytes: {FormatNumber(result.FileSizeBytes)}");
+    Console.WriteLine($"Compressed records per iteration: {FormatNumber(result.CompressedRecordsPerIteration)}");
+    Console.WriteLine($"Compressed bytes per iteration: {FormatNumber(result.CompressedBytesPerIteration)}");
+    Console.WriteLine($"Decompressed bytes per iteration: {FormatNumber(result.DecompressedBytesPerIteration)}");
+    Console.WriteLine($"Total compressed records: {FormatNumber(result.TotalCompressedRecords)}");
+    Console.WriteLine($"Total compressed bytes: {FormatNumber(result.TotalCompressedBytes)}");
+    Console.WriteLine($"Total decompressed bytes: {FormatNumber(result.TotalDecompressedBytes)}");
+    Console.WriteLine($"Elapsed ms: {FormatDecimal(result.Elapsed.TotalMilliseconds)}");
+    Console.WriteLine($"Compressed MB/s: {FormatDecimal(MegabytesPerSecond(result.TotalCompressedBytes, result.Elapsed))}");
+    Console.WriteLine($"Decompressed MB/s: {FormatDecimal(MegabytesPerSecond(result.TotalDecompressedBytes, result.Elapsed))}");
+    Console.WriteLine($"Records/s: {FormatDecimal(PerSecond(result.TotalCompressedRecords, result.Elapsed))}");
+    Console.WriteLine($"Allocated bytes: {FormatNumber(result.AllocatedBytes)}");
+    Console.WriteLine($"Allocated bytes / decompressed MB: {FormatDecimal(result.AllocatedBytes / Math.Max(result.TotalDecompressedBytes / 1_000_000d, 1d))}");
+    Console.WriteLine($"Allocated bytes / record: {FormatDecimal(result.AllocatedBytes / Math.Max((double)result.TotalCompressedRecords, 1d))}");
+    return 0;
 }
 
 static async Task<int> InspectArchiveAsync(string[] args)
@@ -332,6 +394,81 @@ internal sealed record ArchiveInspectOptions(string FilePath)
         }
 
         return new ArchiveInspectOptions(filePath);
+    }
+
+    private static string RequireValue(string[] args, ref int index, string option)
+    {
+        if (index + 1 >= args.Length)
+        {
+            throw new ArgumentException($"{option} requires a value.");
+        }
+
+        index++;
+        return args[index];
+    }
+}
+
+internal sealed record ArchiveBenchmarkDecompressionOptions(
+    string FilePath,
+    int Iterations,
+    int WarmupIterations,
+    int Parallelism,
+    string Decompressor)
+{
+    public static ArchiveBenchmarkDecompressionOptions Parse(string[] args)
+    {
+        string? filePath = null;
+        var iterations = 3;
+        var warmupIterations = 1;
+        var parallelism = 1;
+        var decompressor = ArchiveBZip2Decompressors.DefaultName;
+        for (var i = 0; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--file":
+                    filePath = RequireValue(args, ref i, "--file");
+                    break;
+                case "--iterations":
+                    iterations = int.Parse(RequireValue(args, ref i, "--iterations"));
+                    break;
+                case "--warmup-iterations":
+                    warmupIterations = int.Parse(RequireValue(args, ref i, "--warmup-iterations"));
+                    break;
+                case "--parallelism":
+                    parallelism = int.Parse(RequireValue(args, ref i, "--parallelism"));
+                    break;
+                case "--decompressor":
+                    decompressor = RequireValue(args, ref i, "--decompressor");
+                    break;
+                default:
+                    throw new ArgumentException($"Unknown option: {args[i]}");
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            throw new InvalidOperationException("--file is required.");
+        }
+
+        if (iterations <= 0)
+        {
+            throw new InvalidOperationException("--iterations must be greater than zero.");
+        }
+
+        if (warmupIterations < 0)
+        {
+            throw new InvalidOperationException("--warmup-iterations cannot be negative.");
+        }
+
+        if (parallelism <= 0)
+        {
+            throw new InvalidOperationException("--parallelism must be greater than zero.");
+        }
+
+        ArchiveBZip2Decompressors.Create(decompressor);
+
+        return new ArchiveBenchmarkDecompressionOptions(filePath, iterations, warmupIterations, parallelism, decompressor);
     }
 
     private static string RequireValue(string[] args, ref int index, string option)

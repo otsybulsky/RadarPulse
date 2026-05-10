@@ -5,11 +5,11 @@
 Milestone 002 consumes cached NOAA NEXRAD archive files from milestone 001 and
 turns them into inspectable radar-volume metadata.
 
-This milestone does not implement event processing, partitioning, benchmarks,
-live ingestion, or a user-facing visualization. Its purpose is to prove that
-RadarPulse can recognize historical NEXRAD archive files, decompress their
-internal records, parse enough structure to understand volumes/sweeps/radials,
-and report what is inside a cached file.
+This milestone does not implement event processing, partitioning, live
+ingestion, production replay benchmarking, or a user-facing visualization. Its
+purpose is to prove that RadarPulse can recognize historical NEXRAD archive
+files, decompress their internal records, parse enough structure to understand
+volumes/sweeps/radials, and report what is inside a cached file.
 
 ## Starting Point
 
@@ -80,6 +80,11 @@ file classification implemented
 compressed record boundary parsing implemented
 BZip2 signature detection implemented
 per-record BZip2 decompression byte counting implemented
+decompression throughput benchmark implemented
+pooled compressed payload and output buffers implemented for benchmark path
+parallel per-record decompression benchmark implemented
+selectable SharpCompress/SharpZipLib BZip2 benchmark backends implemented
+SharpZipLib selected as the default managed backend after A/B benchmarking
 cache-wide inspection not implemented
 message header parsing not implemented
 ```
@@ -91,8 +96,7 @@ the offline replay input path for the event engine. The decompression and parser
 pipeline must be designed and measured with an eventual target of feeding up to
 20 million events per second.
 
-The next slice should therefore measure decompression throughput before adding
-more parsing work. The benchmark should report at least:
+The decompression benchmark reports:
 
 ```text
 input file path
@@ -103,15 +107,71 @@ elapsed time
 compressed MB/s
 decompressed MB/s
 records/s
+degree of parallelism
+decompressor backend
 allocation pressure, when practical
 ```
 
+Initial baseline command:
+
+```text
+dotnet run --project src/Presentation/RadarPulse.Cli.csproj -- archive benchmark decompress --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 --iterations 3 --warmup-iterations 1 --parallelism 1 --decompressor sharpcompress
+```
+
+Initial baseline result on the current development machine:
+
+```text
+compressed records per iteration: 55
+compressed bytes per iteration: 5_406_610
+decompressed bytes per iteration: 50_741_824
+elapsed ms: 1_664.43
+compressed MB/s: 9.74
+decompressed MB/s: 91.46
+records/s: 99.13
+allocated bytes: 923_734_856
+```
+
+After pooling the benchmark compressed-payload and output buffers, the same
+Release benchmark produced:
+
+```text
+elapsed ms: 1_606.65
+compressed MB/s: 10.10
+decompressed MB/s: 94.75
+records/s: 102.70
+allocated bytes: 907_268_368
+```
+
+After adding parallel per-record decompression, a longer Release comparison on
+the same machine and file produced:
+
+```text
+iterations: 10
+warmup iterations: 1
+
+decompressor   parallelism  elapsed ms  decompressed MB/s  records/s  allocated bytes  allocated bytes / decompressed MB
+sharpcompress  1            5_299.00    95.76              103.79     3_024_135_496    5_959_847.83
+sharpcompress  24           689.91      735.48             797.20     3_028_736_312    5_968_914.94
+sharpziplib    1            4_545.02    111.64             121.01     2_510_325_344    4_947_250.90
+sharpziplib    24           518.16      979.27             1_061.45   2_514_650_928    4_955_775.59
+```
+
+The parallel benchmark preserves record order by scanning the Archive Two file
+into ordered record descriptors first. Workers decompress records independently,
+but each worker stores its result at the original record index. Future event
+production must keep the same rule: parallel decompression may finish out of
+order, but parsed messages/events must be merged or published according to the
+original file order unless a later partitioning design explicitly defines a
+different ordering contract.
+
 The 20M events/s target should be interpreted as a downstream throughput
 requirement for parsed event generation, not as a claim that the current
-inspection command already reaches it. If decompression throughput is too low,
-the parser design should avoid extra copies and should consider streaming,
-buffer reuse, parallel file/record processing, and alternative BZip2
-implementations before deeper message parsing is built on top.
+inspection command already reaches it. The benchmark shows working
+SharpCompress and SharpZipLib paths. SharpZipLib is faster and allocates less,
+so it is the default managed backend, but allocation pressure remains high.
+Parser design should avoid extra copies and should consider streaming, buffer
+reuse, parallel file/record processing, and native/custom-allocator BZip2
+options before deeper message parsing is built on top.
 
 ## Decoder Workflow
 
@@ -217,7 +277,7 @@ full meteorological product decoding
 rendering or map visualization
 event engine processing
 logical source partitioning
-throughput benchmarks
+production replay benchmark suite
 live SNS/SQS ingestion
 automatic download during inspection
 ```
