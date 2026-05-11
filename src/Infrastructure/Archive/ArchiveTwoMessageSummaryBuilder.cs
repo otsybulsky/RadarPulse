@@ -13,7 +13,12 @@ public sealed class ArchiveTwoMessageSummaryBuilder
     private const int Type31MaximumDataBlockPointers = 10;
     private const int GenericMomentDescriptorLength = 28;
     private const int GenericMomentDataOffset = 28;
+    private const int GenericMomentGateCountOffset = 8;
+    private const int GenericMomentFirstGateRangeOffset = 10;
+    private const int GenericMomentGateSpacingOffset = 12;
     private const int GenericMomentWordSizeOffset = 19;
+    private const int GenericMomentScaleOffset = 20;
+    private const int GenericMomentOffsetOffset = 24;
 
     private readonly bool decodeMomentValues;
     private readonly bool collectSweepSummaries;
@@ -81,8 +86,8 @@ public sealed class ArchiveTwoMessageSummaryBuilder
         foreach (var moment in summary.Type31.Moments)
         {
             moments.TryGetValue(moment.Name, out var accumulator);
-            accumulator.RadialCount += moment.RadialCount;
-            accumulator.GateCount += moment.GateCount;
+            accumulator ??= new MomentAccumulator();
+            accumulator.Add(moment);
             moments[moment.Name] = accumulator;
         }
 
@@ -135,7 +140,19 @@ public sealed class ArchiveTwoMessageSummaryBuilder
                     .Select(pair => new ArchiveTwoMomentSummary(
                         pair.Key,
                         pair.Value.RadialCount,
-                        pair.Value.GateCount))
+                        pair.Value.GateCount,
+                        pair.Value.MinimumGateCount,
+                        pair.Value.MaximumGateCount,
+                        pair.Value.MinimumWordSizeBits,
+                        pair.Value.MaximumWordSizeBits,
+                        pair.Value.MinimumFirstGateRangeKilometers,
+                        pair.Value.MaximumFirstGateRangeKilometers,
+                        pair.Value.MinimumGateSpacingKilometers,
+                        pair.Value.MaximumGateSpacingKilometers,
+                        pair.Value.MinimumScale,
+                        pair.Value.MaximumScale,
+                        pair.Value.MinimumOffset,
+                        pair.Value.MaximumOffset))
                     .ToArray(),
                 collectSweepSummaries
                     ? sweeps.Select(sweep => sweep.ToSummary()).ToArray()
@@ -262,21 +279,30 @@ public sealed class ArchiveTwoMessageSummaryBuilder
             return;
         }
 
-        var gateCount = BinaryPrimitives.ReadUInt16BigEndian(block.Slice(8, 2));
+        var metadata = ReadMomentMetadata(block);
         moments.TryGetValue(name, out var accumulator);
-        accumulator.RadialCount++;
-        accumulator.GateCount += gateCount;
+        accumulator ??= new MomentAccumulator();
+        accumulator.Add(metadata);
         moments[name] = accumulator;
         sweep?.AcceptMoment(name);
-        estimatedGateMomentEvents += gateCount;
+        estimatedGateMomentEvents += metadata.GateCount;
         if (decodeMomentValues)
         {
-            DecodeMomentValues(block, gateCount);
+            DecodeMomentValues(block, metadata.GateCount);
         }
     }
 
     private static string ReadDataBlockName(ReadOnlySpan<byte> block) =>
         Encoding.ASCII.GetString(block.Slice(1, 3)).TrimEnd('\0', ' ');
+
+    private static Type31MomentMetadata ReadMomentMetadata(ReadOnlySpan<byte> block) =>
+        new(
+            BinaryPrimitives.ReadUInt16BigEndian(block.Slice(GenericMomentGateCountOffset, 2)),
+            BinaryPrimitives.ReadUInt16BigEndian(block.Slice(GenericMomentFirstGateRangeOffset, 2)) / 1_000f,
+            BinaryPrimitives.ReadUInt16BigEndian(block.Slice(GenericMomentGateSpacingOffset, 2)) / 1_000f,
+            block[GenericMomentWordSizeOffset],
+            ReadSingleBigEndian(block.Slice(GenericMomentScaleOffset, 4)),
+            ReadSingleBigEndian(block.Slice(GenericMomentOffsetOffset, 4)));
 
     private static float ReadSingleBigEndian(ReadOnlySpan<byte> buffer) =>
         BitConverter.Int32BitsToSingle(BinaryPrimitives.ReadInt32BigEndian(buffer));
@@ -332,11 +358,120 @@ public sealed class ArchiveTwoMessageSummaryBuilder
         decodedGateMomentValues += gateCount;
     }
 
-    private struct MomentAccumulator
+    private sealed class MomentAccumulator
     {
-        public int RadialCount;
-        public long GateCount;
+        private bool hasMetadata;
+
+        public int RadialCount { get; private set; }
+
+        public long GateCount { get; private set; }
+
+        public int MinimumGateCount { get; private set; }
+
+        public int MaximumGateCount { get; private set; }
+
+        public int MinimumWordSizeBits { get; private set; }
+
+        public int MaximumWordSizeBits { get; private set; }
+
+        public float MinimumFirstGateRangeKilometers { get; private set; }
+
+        public float MaximumFirstGateRangeKilometers { get; private set; }
+
+        public float MinimumGateSpacingKilometers { get; private set; }
+
+        public float MaximumGateSpacingKilometers { get; private set; }
+
+        public float MinimumScale { get; private set; }
+
+        public float MaximumScale { get; private set; }
+
+        public float MinimumOffset { get; private set; }
+
+        public float MaximumOffset { get; private set; }
+
+        public void Add(Type31MomentMetadata metadata)
+        {
+            RadialCount++;
+            GateCount += metadata.GateCount;
+            AcceptMetadata(
+                metadata.GateCount,
+                metadata.WordSizeBits,
+                metadata.FirstGateRangeKilometers,
+                metadata.GateSpacingKilometers,
+                metadata.Scale,
+                metadata.Offset);
+        }
+
+        public void Add(ArchiveTwoMomentSummary summary)
+        {
+            RadialCount += summary.RadialCount;
+            GateCount += summary.GateCount;
+            AcceptMetadata(
+                summary.MinimumGateCount,
+                summary.MinimumWordSizeBits,
+                summary.MinimumFirstGateRangeKilometers,
+                summary.MinimumGateSpacingKilometers,
+                summary.MinimumScale,
+                summary.MinimumOffset);
+
+            AcceptMetadata(
+                summary.MaximumGateCount,
+                summary.MaximumWordSizeBits,
+                summary.MaximumFirstGateRangeKilometers,
+                summary.MaximumGateSpacingKilometers,
+                summary.MaximumScale,
+                summary.MaximumOffset);
+        }
+
+        private void AcceptMetadata(
+            int gateCount,
+            int wordSizeBits,
+            float firstGateRangeKilometers,
+            float gateSpacingKilometers,
+            float scale,
+            float offset)
+        {
+            if (!hasMetadata)
+            {
+                MinimumGateCount = gateCount;
+                MaximumGateCount = gateCount;
+                MinimumWordSizeBits = wordSizeBits;
+                MaximumWordSizeBits = wordSizeBits;
+                MinimumFirstGateRangeKilometers = firstGateRangeKilometers;
+                MaximumFirstGateRangeKilometers = firstGateRangeKilometers;
+                MinimumGateSpacingKilometers = gateSpacingKilometers;
+                MaximumGateSpacingKilometers = gateSpacingKilometers;
+                MinimumScale = scale;
+                MaximumScale = scale;
+                MinimumOffset = offset;
+                MaximumOffset = offset;
+                hasMetadata = true;
+                return;
+            }
+
+            MinimumGateCount = Math.Min(MinimumGateCount, gateCount);
+            MaximumGateCount = Math.Max(MaximumGateCount, gateCount);
+            MinimumWordSizeBits = Math.Min(MinimumWordSizeBits, wordSizeBits);
+            MaximumWordSizeBits = Math.Max(MaximumWordSizeBits, wordSizeBits);
+            MinimumFirstGateRangeKilometers = Math.Min(MinimumFirstGateRangeKilometers, firstGateRangeKilometers);
+            MaximumFirstGateRangeKilometers = Math.Max(MaximumFirstGateRangeKilometers, firstGateRangeKilometers);
+            MinimumGateSpacingKilometers = Math.Min(MinimumGateSpacingKilometers, gateSpacingKilometers);
+            MaximumGateSpacingKilometers = Math.Max(MaximumGateSpacingKilometers, gateSpacingKilometers);
+            MinimumScale = Math.Min(MinimumScale, scale);
+            MaximumScale = Math.Max(MaximumScale, scale);
+            MinimumOffset = Math.Min(MinimumOffset, offset);
+            MaximumOffset = Math.Max(MaximumOffset, offset);
+        }
     }
+
+    private readonly record struct Type31MomentMetadata(
+        int GateCount,
+        float FirstGateRangeKilometers,
+        float GateSpacingKilometers,
+        int WordSizeBits,
+        float Scale,
+        float Offset);
 
     private readonly record struct Type31RadialMetadata(
         int RadialStatus,

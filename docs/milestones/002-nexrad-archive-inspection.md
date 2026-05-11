@@ -38,6 +38,7 @@ minimal Message Type 31 moment metadata parsing
 message counts, Type 31 radial counts, and estimated gate-moment event counts
 Type 31 VOL/ELV/RAD constant block counts
 Type 31 sweep/elevation/radial sequencing summaries with source order
+Type 31 generic moment descriptor metadata for gate count range, word size, first-gate range, gate spacing, scale, and offset
 parse throughput benchmark for decompress+message-scan+minimal-Type31
 optional raw 8/16-bit Type 31 moment value decode benchmark
 CLI output for file kind, size, archive filename, version, extension, radar id, volume time, compressed record count, compressed bytes, BZip2 signature count, decompressed record count, and decompressed bytes
@@ -47,7 +48,7 @@ unit tests with small synthetic fixtures
 Not yet implemented:
 
 ```text
-moment sample calibration
+calibrated moment sample output
 ordered event publishing
 ```
 
@@ -95,7 +96,10 @@ Message types: 2=4, 3=1, 5=1, 15=5, 18=4, 31=6_480, 32=1
 Type 31 radials: 6_480
 Estimated gate-moment events: 38_759_040
 Type 31 constant blocks: VOL=6_480, ELV=6_480, RAD=6_480
-Moments: CFP=6_219_360 gates/4_320 radials, PHI=4_749_120 gates/4_320 radials, REF=8_794_080 gates/6_480 radials, RHO=4_749_120 gates/4_320 radials, SW=4_749_120 gates/4_320 radials, VEL=4_749_120 gates/4_320 radials, ZDR=4_749_120 gates/4_320 radials
+Moment calibration formula: value=(raw-offset)/scale
+Moments:
+  REF: 8_794_080 gates/6_480 radials, gates/radial=680-1_832, wordSize=8 bits, firstGate=2.125 km, gateSpacing=0.25 km, scale=2, offset=66
+  VEL: 4_749_120 gates/4_320 radials, gates/radial=680-1_192, wordSize=8 bits, firstGate=2.125 km, gateSpacing=0.25 km, scale=2, offset=129
 Sweeps: 12
 Sweep 1: elevation=1, cutSector=1, radials=720, angle=0.44-0.46 deg avg=0.44 deg, status=start volume (3)->end elevation (2), source=2/1/1->7/120/720, moments=CFP,PHI,REF,RHO,ZDR
 ```
@@ -280,8 +284,9 @@ allocated bytes / decoded value: 0.03
 ```
 
 The same decoded path with `--parallelism 1` measured about 96_122_482 decoded
-gate-moment values/s. These values are raw encoded moment samples, not calibrated
-meteorological values.
+gate-moment values/s. These values are raw encoded moment samples. The parser
+now summarizes the per-moment scale and offset required for calibration, but it
+does not yet publish calibrated meteorological values.
 
 The validation command compares `radarpulse` against SharpZipLib per compressed
 record using streaming hashes. On the local KTLX corpus sample it compared 20

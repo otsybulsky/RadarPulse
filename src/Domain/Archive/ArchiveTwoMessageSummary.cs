@@ -19,7 +19,19 @@ public sealed record ArchiveTwoType31Summary(
 public sealed record ArchiveTwoMomentSummary(
     string Name,
     int RadialCount,
-    long GateCount);
+    long GateCount,
+    int MinimumGateCount,
+    int MaximumGateCount,
+    int MinimumWordSizeBits,
+    int MaximumWordSizeBits,
+    float MinimumFirstGateRangeKilometers,
+    float MaximumFirstGateRangeKilometers,
+    float MinimumGateSpacingKilometers,
+    float MaximumGateSpacingKilometers,
+    float MinimumScale,
+    float MaximumScale,
+    float MinimumOffset,
+    float MaximumOffset);
 
 public sealed record ArchiveTwoType31ConstantBlockSummary(
     int VolumeCount,

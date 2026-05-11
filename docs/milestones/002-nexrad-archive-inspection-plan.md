@@ -92,6 +92,7 @@ minimal Message Type 31 moment metadata parsing implemented
 Type 31 VOL/ELV/RAD constant block counts implemented
 Type 31 sweep/elevation/radial sequencing summaries implemented
 explicit compressed-record/message/radial source order in inspection summaries implemented
+Type 31 generic moment descriptor metadata implemented for gate count range, word size, first-gate range, gate spacing, scale, and offset
 parse throughput benchmark implemented
 optional raw 8/16-bit moment value decode benchmark implemented
 cache-wide inspection not implemented
@@ -218,7 +219,9 @@ radarpulse parse --decode-moments, parallelism 1:  about 96_122_482 decoded gate
 radarpulse parse --decode-moments, parallelism 24: about 659_912_891 decoded gate-moment values/s
 ```
 
-These are raw encoded moment samples, not calibrated meteorological values.
+These are raw encoded moment samples. The inspection summary now reports the
+per-moment scale and offset needed for calibration, but calibrated sample output
+is still deferred.
 
 The validation path compares `radarpulse` against SharpZipLib per compressed
 record using streaming hashes. The current local KTLX validation sample compared

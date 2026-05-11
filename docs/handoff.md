@@ -77,6 +77,9 @@ Completed in the first milestone 002 implementation slice:
 - Type 31 sweep summaries carry explicit source order as compressed record,
   message-in-record, and Type 31 radial sequence positions for future ordered
   replay publishing.
+- Type 31 generic moment descriptors now summarize per-moment gate count range,
+  word size, first-gate range, gate spacing, scale, and offset. CLI output
+  documents the calibration formula `value=(raw-offset)/scale`.
 - `archive benchmark parse --file ... [--iterations n]
   [--warmup-iterations n] [--parallelism n]
   [--decompressor radarpulse|sharpziplib|sharpcompress] [--decode-moments]`
@@ -125,6 +128,9 @@ Achieved:
 - The current KTLX smoke file reports 12 Type 31 sweeps, 6_480 `VOL`,
   6_480 `ELV`, and 6_480 `RAD` constant blocks, with sweep source ranges
   ordered by compressed record/message/radial position.
+- The current KTLX smoke file reports stable descriptor metadata such as
+  `REF scale=2 offset=66`, `VEL scale=2 offset=129`, `ZDR scale=32 offset=418`,
+  and 0.25 km gate spacing for the observed moments.
 - The parse benchmark now gives a first measured answer against the 20M
   events/s target for decompression plus minimal parsing.
 - With `--decode-moments`, the same KTLX file decodes all 38_759_040 raw
@@ -133,7 +139,9 @@ Achieved:
 Not achieved yet:
 
 - No real event stream is generated yet.
-- Moment sample values are read as raw 8/16-bit values, but not calibrated yet.
+- Moment sample values are read as raw 8/16-bit values and the required
+  per-moment scale/offset metadata is summarized, but calibrated sample output
+  is not generated yet.
 - The parser benchmark still does not publish downstream engine events.
 
 ## Documentation
@@ -155,7 +163,7 @@ dotnet test RadarPulse.sln --no-restore
 Result:
 
 ```text
-51 passed, 3 skipped
+52 passed, 3 skipped
 ```
 
 Manual CLI smoke tests:
@@ -171,8 +179,9 @@ The first command classified the file as `Archive Two base data` and parsed
 compressed bytes, 55 records with BZip2 signatures, 55 decompressed records,
 50_741_824 decompressed bytes, zero decompression diagnostics, 6_496 messages,
 6_480 Type 31 radials, 38_759_040 estimated gate-moment events, 6_480 each of
-`VOL`/`ELV`/`RAD` constant blocks, and 12 sweep summaries. The second command
-classified the `_MDM` file as `MDM or compressed stream`.
+`VOL`/`ELV`/`RAD` constant blocks, 12 sweep summaries, and descriptor metadata
+for all observed moments. The second command classified the `_MDM` file as
+`MDM or compressed stream`.
 
 Last verified decompression validation command:
 
@@ -445,9 +454,9 @@ constant and moment data blocks.
 
 The next milestone 002 implementation slice should be considered done when:
 
-- Moment value calibration design is documented against per-moment scale/offset
-  fields before implementing calibrated output.
+- Calibrated value decoding applies per-block scale/offset while preserving the
+  raw-value sentinel semantics needed by Message Type 31.
 - The replay event shape is proposed separately from inspection summaries.
-- Tests cover any new calibrated-value or event-shape fields with small
+- Tests cover calibrated-value handling or event-shape fields with small
   fixtures.
 

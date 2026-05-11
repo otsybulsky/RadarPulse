@@ -376,9 +376,12 @@ static async Task<int> InspectArchiveAsync(string[] args)
 
         if (messages.Type31.Moments.Count > 0)
         {
-            Console.WriteLine("Moments: " + string.Join(
-                ", ",
-                messages.Type31.Moments.Select(moment => $"{moment.Name}={FormatNumber(moment.GateCount)} gates/{FormatNumber(moment.RadialCount)} radials")));
+            Console.WriteLine("Moment calibration formula: value=(raw-offset)/scale");
+            Console.WriteLine("Moments:");
+            foreach (var moment in messages.Type31.Moments)
+            {
+                Console.WriteLine($"  {FormatMomentSummary(moment)}");
+            }
         }
 
         if (messages.Type31.Sweeps.Count > 0)
@@ -428,6 +431,28 @@ static string FormatMomentNames(IReadOnlyList<string> moments) =>
     moments.Count == 0
         ? "none"
         : string.Join(",", moments);
+
+static string FormatMomentSummary(ArchiveTwoMomentSummary moment) =>
+    $"{moment.Name}: {FormatNumber(moment.GateCount)} gates/{FormatNumber(moment.RadialCount)} radials, " +
+    $"gates/radial={FormatIntRange(moment.MinimumGateCount, moment.MaximumGateCount)}, " +
+    $"wordSize={FormatIntRange(moment.MinimumWordSizeBits, moment.MaximumWordSizeBits)} bits, " +
+    $"firstGate={FormatFloatRange(moment.MinimumFirstGateRangeKilometers, moment.MaximumFirstGateRangeKilometers)} km, " +
+    $"gateSpacing={FormatFloatRange(moment.MinimumGateSpacingKilometers, moment.MaximumGateSpacingKilometers)} km, " +
+    $"scale={FormatFloatRange(moment.MinimumScale, moment.MaximumScale)}, " +
+    $"offset={FormatFloatRange(moment.MinimumOffset, moment.MaximumOffset)}";
+
+static string FormatIntRange(int minimum, int maximum) =>
+    minimum == maximum
+        ? FormatNumber(minimum)
+        : $"{FormatNumber(minimum)}-{FormatNumber(maximum)}";
+
+static string FormatFloatRange(float minimum, float maximum) =>
+    MathF.Abs(minimum - maximum) < 0.0005f
+        ? FormatCompactFloat(minimum)
+        : $"{FormatCompactFloat(minimum)}-{FormatCompactFloat(maximum)}";
+
+static string FormatCompactFloat(float value) =>
+    value.ToString("0.###", CultureInfo.InvariantCulture);
 
 static string FormatCutSectorRange(int minimum, int maximum) =>
     minimum == maximum

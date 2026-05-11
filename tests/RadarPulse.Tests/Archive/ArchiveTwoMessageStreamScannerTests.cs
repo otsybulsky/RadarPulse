@@ -58,6 +58,51 @@ public sealed class ArchiveTwoMessageStreamScannerTests
     }
 
     [Fact]
+    public void ExtractsType31MomentDescriptorMetadata()
+    {
+        var builder = new ArchiveTwoMessageSummaryBuilder();
+        var scanner = new ArchiveTwoMessageStreamScanner(builder);
+
+        scanner.Append(BuildMessage(31, BuildType31Payload(
+            "REF",
+            4,
+            wordSizeBits: 8,
+            momentDataByteCount: 0,
+            firstGateRangeKilometers: 0.3f,
+            gateSpacingKilometers: 0.25f,
+            scale: 2f,
+            offset: 66f)));
+        scanner.Append(BuildMessage(31, BuildType31Payload(
+            "REF",
+            6,
+            wordSizeBits: 16,
+            momentDataByteCount: 0,
+            firstGateRangeKilometers: 0.6f,
+            gateSpacingKilometers: 1.0f,
+            scale: 0.5f,
+            offset: 100f)));
+        scanner.Complete();
+
+        var summary = builder.Build();
+        var moment = Assert.Single(summary.Type31.Moments);
+        Assert.Equal("REF", moment.Name);
+        Assert.Equal(2, moment.RadialCount);
+        Assert.Equal(10, moment.GateCount);
+        Assert.Equal(4, moment.MinimumGateCount);
+        Assert.Equal(6, moment.MaximumGateCount);
+        Assert.Equal(8, moment.MinimumWordSizeBits);
+        Assert.Equal(16, moment.MaximumWordSizeBits);
+        Assert.Equal(0.3f, moment.MinimumFirstGateRangeKilometers, precision: 3);
+        Assert.Equal(0.6f, moment.MaximumFirstGateRangeKilometers, precision: 3);
+        Assert.Equal(0.25f, moment.MinimumGateSpacingKilometers, precision: 3);
+        Assert.Equal(1.0f, moment.MaximumGateSpacingKilometers, precision: 3);
+        Assert.Equal(0.5f, moment.MinimumScale, precision: 3);
+        Assert.Equal(2f, moment.MaximumScale, precision: 3);
+        Assert.Equal(66f, moment.MinimumOffset, precision: 3);
+        Assert.Equal(100f, moment.MaximumOffset, precision: 3);
+    }
+
+    [Fact]
     public void SummarizesType31SweepsConstantBlocksAndSourceOrder()
     {
         var builder = new ArchiveTwoMessageSummaryBuilder();
@@ -225,7 +270,11 @@ public sealed class ArchiveTwoMessageStreamScannerTests
         bool includeConstantBlocks = false,
         byte radialStatus = 0,
         byte elevationNumber = 1,
-        float elevationAngleDegrees = 0)
+        float elevationAngleDegrees = 0,
+        float firstGateRangeKilometers = 0.3f,
+        float gateSpacingKilometers = 0.25f,
+        float scale = 2f,
+        float offset = 66f)
     {
         var momentOffset = includeConstantBlocks ? 136 : 72;
         var payload = new byte[Math.Max(momentOffset + 28 + momentDataByteCount, 160)];
@@ -258,7 +307,11 @@ public sealed class ArchiveTwoMessageStreamScannerTests
         }
 
         BinaryPrimitives.WriteUInt16BigEndian(payload.AsSpan(momentOffset + 8, 2), gates);
+        WriteScaledKilometers(payload.AsSpan(momentOffset + 10, 2), firstGateRangeKilometers);
+        WriteScaledKilometers(payload.AsSpan(momentOffset + 12, 2), gateSpacingKilometers);
         payload[momentOffset + 19] = wordSizeBits;
+        WriteSingleBigEndian(payload.AsSpan(momentOffset + 20, 4), scale);
+        WriteSingleBigEndian(payload.AsSpan(momentOffset + 24, 4), offset);
         return payload;
     }
 
@@ -275,4 +328,7 @@ public sealed class ArchiveTwoMessageStreamScannerTests
 
     private static void WriteSingleBigEndian(Span<byte> destination, float value) =>
         BinaryPrimitives.WriteInt32BigEndian(destination, BitConverter.SingleToInt32Bits(value));
+
+    private static void WriteScaledKilometers(Span<byte> destination, float kilometers) =>
+        BinaryPrimitives.WriteUInt16BigEndian(destination, checked((ushort)MathF.Round(kilometers * 1_000f)));
 }
