@@ -1,13 +1,10 @@
 using System.Buffers;
-using System.Buffers.Binary;
 using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Infrastructure.Archive;
 
 public sealed class NexradArchiveDecompressionValidator
 {
-    private const int ArchiveTwoVolumeHeaderLength = 24;
-    private const int BZip2SignatureLength = 3;
     private const int OutputBufferSize = 81920;
 
     private readonly IArchiveBZip2Decompressor candidateDecompressor;
@@ -39,7 +36,7 @@ public sealed class NexradArchiveDecompressionValidator
             throw new FileNotFoundException("NEXRAD archive file was not found.", filePath);
         }
 
-        ArchiveTwoDecompressionValidationFileResult[] files = IsArchiveTwoBaseData(fileInfo)
+        ArchiveTwoDecompressionValidationFileResult[] files = ArchiveTwoFileReader.IsArchiveTwoBaseData(fileInfo)
             ? [ValidateArchiveTwoFile(fileInfo, cancellationToken)]
             : Array.Empty<ArchiveTwoDecompressionValidationFileResult>();
 
@@ -90,7 +87,7 @@ public sealed class NexradArchiveDecompressionValidator
             }
 
             examinedFiles++;
-            if (!IsArchiveTwoBaseData(fileInfo))
+            if (!ArchiveTwoFileReader.IsArchiveTwoBaseData(fileInfo))
             {
                 skippedFiles++;
                 continue;
@@ -124,21 +121,21 @@ public sealed class NexradArchiveDecompressionValidator
         try
         {
             using var stream = File.OpenRead(fileInfo.FullName);
-            if (stream.Length < ArchiveTwoVolumeHeaderLength)
+            if (stream.Length < ArchiveTwoFileReader.VolumeHeaderLength)
             {
                 return Failed(fileInfo, "File is shorter than the 24-byte Archive Two volume header.");
             }
 
-            stream.Position = ArchiveTwoVolumeHeaderLength;
+            stream.Position = ArchiveTwoFileReader.VolumeHeaderLength;
             while (stream.Position < stream.Length)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var controlWordOffset = stream.Position;
-                var compressedSizeBytes = ReadCompressedRecordSize(stream, controlWordBuffer, controlWordOffset);
-                compressedPayloadBuffer = EnsureBufferCapacity(compressedPayloadBuffer, compressedSizeBytes);
-                ReadExactly(stream, compressedPayloadBuffer.AsSpan(0, compressedSizeBytes));
+                var compressedSizeBytes = ArchiveTwoFileReader.ReadCompressedRecordSize(stream, controlWordBuffer, controlWordOffset);
+                compressedPayloadBuffer = ArchiveTwoFileReader.EnsurePooledBufferCapacity(compressedPayloadBuffer, compressedSizeBytes);
+                ArchiveTwoFileReader.ReadExactly(stream, compressedPayloadBuffer.AsSpan(0, compressedSizeBytes));
 
-                if (!StartsWithBZip2Signature(compressedPayloadBuffer.AsSpan(0, compressedSizeBytes)))
+                if (!ArchiveTwoFileReader.StartsWithBZip2Signature(compressedPayloadBuffer.AsSpan(0, compressedSizeBytes)))
                 {
                     return Failed(fileInfo, $"Compressed record {compressedRecordCount + 1} at offset {controlWordOffset} does not start with a BZip2 signature.");
                 }
@@ -208,90 +205,6 @@ public sealed class NexradArchiveDecompressionValidator
         return fileInfo.Name.StartsWith(radarId, StringComparison.OrdinalIgnoreCase) ||
             fileInfo.DirectoryName?.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
                 .Any(segment => string.Equals(segment, radarId, StringComparison.OrdinalIgnoreCase)) == true;
-    }
-
-    private static bool IsArchiveTwoBaseData(FileInfo fileInfo)
-    {
-        if (fileInfo.Length < 4)
-        {
-            return false;
-        }
-
-        Span<byte> signature = stackalloc byte[4];
-        using var stream = File.OpenRead(fileInfo.FullName);
-        ReadExactly(stream, signature);
-        return signature[0] == (byte)'A' &&
-            signature[1] == (byte)'R' &&
-            signature[2] == (byte)'2' &&
-            signature[3] == (byte)'V';
-    }
-
-    private static int ReadCompressedRecordSize(
-        Stream stream,
-        byte[] controlWordBuffer,
-        long controlWordOffset)
-    {
-        var remainingBytes = stream.Length - stream.Position;
-        if (remainingBytes < 4)
-        {
-            throw new InvalidDataException($"Trailing {remainingBytes} byte(s) after compressed records cannot contain a control word.");
-        }
-
-        ReadExactly(stream, controlWordBuffer);
-        var controlWord = BinaryPrimitives.ReadInt32BigEndian(controlWordBuffer);
-        if (controlWord == int.MinValue)
-        {
-            throw new InvalidDataException($"Compressed record at offset {controlWordOffset} has an unsupported control word value.");
-        }
-
-        var compressedSizeBytes = Math.Abs(controlWord);
-        if (compressedSizeBytes == 0)
-        {
-            throw new InvalidDataException($"Compressed record at offset {controlWordOffset} has zero compressed bytes.");
-        }
-
-        if (compressedSizeBytes > stream.Length - stream.Position)
-        {
-            throw new InvalidDataException($"Compressed record at offset {controlWordOffset} declares {compressedSizeBytes} bytes, but only {stream.Length - stream.Position} remain.");
-        }
-
-        return compressedSizeBytes;
-    }
-
-    private static byte[] EnsureBufferCapacity(byte[]? buffer, int requiredLength)
-    {
-        if (buffer is not null && buffer.Length >= requiredLength)
-        {
-            return buffer;
-        }
-
-        if (buffer is not null)
-        {
-            ArrayPool<byte>.Shared.Return(buffer);
-        }
-
-        return ArrayPool<byte>.Shared.Rent(requiredLength);
-    }
-
-    private static bool StartsWithBZip2Signature(ReadOnlySpan<byte> buffer) =>
-        buffer.Length >= BZip2SignatureLength &&
-        buffer[0] == (byte)'B' &&
-        buffer[1] == (byte)'Z' &&
-        buffer[2] == (byte)'h';
-
-    private static void ReadExactly(Stream stream, Span<byte> buffer)
-    {
-        var totalBytesRead = 0;
-        while (totalBytesRead < buffer.Length)
-        {
-            var bytesRead = stream.Read(buffer[totalBytesRead..]);
-            if (bytesRead == 0)
-            {
-                throw new EndOfStreamException("Unexpected end of NEXRAD archive file.");
-            }
-
-            totalBytesRead += bytesRead;
-        }
     }
 
     private sealed class StreamingHash

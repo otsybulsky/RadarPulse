@@ -1,16 +1,12 @@
 using System.Buffers;
-using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Runtime.ExceptionServices;
-using Microsoft.Win32.SafeHandles;
 using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Infrastructure.Archive;
 
 public sealed class NexradArchiveParseBenchmark
 {
-    private const int ArchiveTwoVolumeHeaderLength = 24;
-    private const int BZip2SignatureLength = 3;
     private const int OutputBufferSize = 81920;
 
     public ArchiveTwoParseBenchmarkResult Measure(
@@ -81,7 +77,7 @@ public sealed class NexradArchiveParseBenchmark
             throw new FileNotFoundException("NEXRAD archive file was not found.", filePath);
         }
 
-        ValidateArchiveTwoSignature(fileInfo);
+        ArchiveTwoFileReader.ValidateVolumeHeaderSignature(fileInfo);
         var workers = CreateWorkers(
             decompressor,
             degreeOfParallelism,
@@ -155,25 +151,6 @@ public sealed class NexradArchiveParseBenchmark
         }
     }
 
-    private static void ValidateArchiveTwoSignature(FileInfo fileInfo)
-    {
-        if (fileInfo.Length < ArchiveTwoVolumeHeaderLength)
-        {
-            throw new InvalidDataException("File is shorter than the 24-byte Archive Two volume header.");
-        }
-
-        Span<byte> signature = stackalloc byte[4];
-        using var stream = File.OpenRead(fileInfo.FullName);
-        ReadExactly(stream, signature);
-        if (signature[0] != (byte)'A' ||
-            signature[1] != (byte)'R' ||
-            signature[2] != (byte)'2' ||
-            signature[3] != (byte)'V')
-        {
-            throw new InvalidDataException("File does not start with an Archive Two volume header.");
-        }
-    }
-
     private static ArchiveTwoParseIterationMeasurement MeasureIteration(
         FileInfo fileInfo,
         int degreeOfParallelism,
@@ -192,16 +169,16 @@ public sealed class NexradArchiveParseBenchmark
         var measurement = new ArchiveTwoParseIterationMeasurement();
 
         using var stream = File.OpenRead(fileInfo.FullName);
-        stream.Position = ArchiveTwoVolumeHeaderLength;
+        stream.Position = ArchiveTwoFileReader.VolumeHeaderLength;
 
         while (stream.Position < stream.Length)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var controlWordOffset = stream.Position;
-            var compressedSizeBytes = ReadCompressedRecordSize(stream, controlWordBuffer, controlWordOffset);
+            var compressedSizeBytes = ArchiveTwoFileReader.ReadCompressedRecordSize(stream, controlWordBuffer, controlWordOffset);
             var compressedPayloadBuffer = worker.EnsureCompressedPayloadBuffer(compressedSizeBytes);
-            ReadExactly(stream, compressedPayloadBuffer.AsSpan(0, compressedSizeBytes));
-            ValidateBZip2Signature(compressedPayloadBuffer.AsSpan(0, compressedSizeBytes), controlWordOffset);
+            ArchiveTwoFileReader.ReadExactly(stream, compressedPayloadBuffer.AsSpan(0, compressedSizeBytes));
+            ArchiveTwoFileReader.ValidateBZip2Signature(compressedPayloadBuffer.AsSpan(0, compressedSizeBytes), controlWordOffset);
 
             measurement += worker.MeasureRecord(compressedPayloadBuffer, compressedSizeBytes);
         }
@@ -215,7 +192,7 @@ public sealed class NexradArchiveParseBenchmark
         IReadOnlyList<ArchiveTwoParseBenchmarkWorker> workers,
         CancellationToken cancellationToken)
     {
-        var records = ReadCompressedRecordDescriptors(fileInfo, cancellationToken);
+        var records = ArchiveTwoFileReader.ReadCompressedRecordDescriptors(fileInfo, cancellationToken);
         var measurementsByRecord = new ArchiveTwoParseIterationMeasurement[records.Count];
         var availableWorkers = new ConcurrentStack<ArchiveTwoParseBenchmarkWorker>(workers);
 
@@ -250,11 +227,11 @@ public sealed class NexradArchiveParseBenchmark
                     try
                     {
                         var compressedPayloadBuffer = worker.EnsureCompressedPayloadBuffer(record.CompressedSizeBytes);
-                        ReadExactly(
+                        ArchiveTwoFileReader.ReadExactly(
                             fileHandle,
                             compressedPayloadBuffer.AsSpan(0, record.CompressedSizeBytes),
                             record.PayloadOffset);
-                        ValidateBZip2Signature(
+                        ArchiveTwoFileReader.ValidateBZip2Signature(
                             compressedPayloadBuffer.AsSpan(0, record.CompressedSizeBytes),
                             record.ControlWordOffset);
 
@@ -283,74 +260,6 @@ public sealed class NexradArchiveParseBenchmark
         return total;
     }
 
-    private static IReadOnlyList<ArchiveTwoCompressedRecordDescriptor> ReadCompressedRecordDescriptors(
-        FileInfo fileInfo,
-        CancellationToken cancellationToken)
-    {
-        var records = new List<ArchiveTwoCompressedRecordDescriptor>();
-        var controlWordBuffer = new byte[4];
-        Span<byte> signature = stackalloc byte[BZip2SignatureLength];
-
-        using var stream = File.OpenRead(fileInfo.FullName);
-        stream.Position = ArchiveTwoVolumeHeaderLength;
-
-        while (stream.Position < stream.Length)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var controlWordOffset = stream.Position;
-            var compressedSizeBytes = ReadCompressedRecordSize(stream, controlWordBuffer, controlWordOffset);
-            if (compressedSizeBytes < BZip2SignatureLength)
-            {
-                throw new InvalidDataException($"Compressed record at offset {controlWordOffset} is too short to contain a BZip2 signature.");
-            }
-
-            var payloadOffset = stream.Position;
-            ReadExactly(stream, signature);
-            ValidateBZip2Signature(signature, controlWordOffset);
-            stream.Position += compressedSizeBytes - BZip2SignatureLength;
-
-            records.Add(new ArchiveTwoCompressedRecordDescriptor(
-                records.Count,
-                controlWordOffset,
-                payloadOffset,
-                compressedSizeBytes));
-        }
-
-        return records;
-    }
-
-    private static int ReadCompressedRecordSize(
-        Stream stream,
-        byte[] controlWordBuffer,
-        long controlWordOffset)
-    {
-        var remainingBytes = stream.Length - stream.Position;
-        if (remainingBytes < 4)
-        {
-            throw new InvalidDataException($"Trailing {remainingBytes} byte(s) after compressed records cannot contain a control word.");
-        }
-
-        ReadExactly(stream, controlWordBuffer);
-        var controlWord = BinaryPrimitives.ReadInt32BigEndian(controlWordBuffer);
-        if (controlWord == int.MinValue)
-        {
-            throw new InvalidDataException($"Compressed record at offset {controlWordOffset} has an unsupported control word value.");
-        }
-
-        var compressedSizeBytes = Math.Abs(controlWord);
-        if (compressedSizeBytes == 0)
-        {
-            throw new InvalidDataException($"Compressed record at offset {controlWordOffset} has zero compressed bytes.");
-        }
-
-        if (compressedSizeBytes > stream.Length - stream.Position)
-        {
-            throw new InvalidDataException($"Compressed record at offset {controlWordOffset} declares {compressedSizeBytes} bytes, but only {stream.Length - stream.Position} remain.");
-        }
-
-        return compressedSizeBytes;
-    }
-
     private static IReadOnlyList<ArchiveTwoParseBenchmarkWorker> CreateWorkers(
         IArchiveBZip2Decompressor decompressor,
         int degreeOfParallelism,
@@ -369,47 +278,6 @@ public sealed class NexradArchiveParseBenchmark
         return workers;
     }
 
-    private static void ValidateBZip2Signature(ReadOnlySpan<byte> buffer, long controlWordOffset)
-    {
-        if (buffer.Length < BZip2SignatureLength ||
-            buffer[0] != (byte)'B' ||
-            buffer[1] != (byte)'Z' ||
-            buffer[2] != (byte)'h')
-        {
-            throw new InvalidDataException($"Compressed record at offset {controlWordOffset} does not start with a BZip2 signature.");
-        }
-    }
-
-    private static void ReadExactly(Stream stream, Span<byte> buffer)
-    {
-        var totalBytesRead = 0;
-        while (totalBytesRead < buffer.Length)
-        {
-            var bytesRead = stream.Read(buffer[totalBytesRead..]);
-            if (bytesRead == 0)
-            {
-                throw new EndOfStreamException("Unexpected end of NEXRAD archive file.");
-            }
-
-            totalBytesRead += bytesRead;
-        }
-    }
-
-    private static void ReadExactly(SafeFileHandle fileHandle, Span<byte> buffer, long fileOffset)
-    {
-        var totalBytesRead = 0;
-        while (totalBytesRead < buffer.Length)
-        {
-            var bytesRead = RandomAccess.Read(fileHandle, buffer[totalBytesRead..], fileOffset + totalBytesRead);
-            if (bytesRead == 0)
-            {
-                throw new EndOfStreamException("Unexpected end of NEXRAD archive file.");
-            }
-
-            totalBytesRead += bytesRead;
-        }
-    }
-
     private static void ThrowSingleInnerExceptionWhenUseful(AggregateException exception)
     {
         var flattened = exception.Flatten();
@@ -424,12 +292,6 @@ public sealed class NexradArchiveParseBenchmark
             ExceptionDispatchInfo.Capture(innerException).Throw();
         }
     }
-
-    private readonly record struct ArchiveTwoCompressedRecordDescriptor(
-        int Index,
-        long ControlWordOffset,
-        long PayloadOffset,
-        int CompressedSizeBytes);
 
     private readonly record struct ArchiveTwoParseIterationMeasurement(
         int CompressedRecordCount,

@@ -1,13 +1,10 @@
 using System.Buffers;
-using System.Buffers.Binary;
-using System.Text;
 using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Infrastructure.Archive;
 
 public sealed class NexradArchiveFileInspector
 {
-    private const int ArchiveTwoVolumeHeaderLength = 24;
     private const int ProbeLength = 4096;
     private const int OutputBufferSize = 81920;
 
@@ -43,9 +40,9 @@ public sealed class NexradArchiveFileInspector
             }
         }
 
-        if (StartsWithArchiveTwoSignature(probe))
+        if (ArchiveTwoFileReader.StartsWithArchiveTwoSignature(probe))
         {
-            if (probe.Length < ArchiveTwoVolumeHeaderLength)
+            if (probe.Length < ArchiveTwoFileReader.VolumeHeaderLength)
             {
                 return new NexradArchiveFileInspection(
                     filePath,
@@ -61,7 +58,7 @@ public sealed class NexradArchiveFileInspector
                 filePath,
                 fileInfo.Length,
                 NexradArchiveFileKind.ArchiveTwoBaseData,
-                ParseArchiveTwoVolumeHeader(probe.AsSpan(0, ArchiveTwoVolumeHeaderLength)),
+                ArchiveTwoFileReader.ParseVolumeHeader(probe.AsSpan(0, ArchiveTwoFileReader.VolumeHeaderLength)),
                 compressedRecords.Records,
                 compressedRecords.Diagnostic,
                 compressedRecords.MessageSummary);
@@ -87,24 +84,15 @@ public sealed class NexradArchiveFileInspector
             "File signature is not recognized as a supported NEXRAD archive file kind.");
     }
 
-    private static bool StartsWithArchiveTwoSignature(ReadOnlySpan<byte> buffer) =>
-        buffer.Length >= 4 &&
-        buffer[0] == (byte)'A' &&
-        buffer[1] == (byte)'R' &&
-        buffer[2] == (byte)'2' &&
-        buffer[3] == (byte)'V';
-
     private static bool LooksLikeMdmOrCompressedStream(string filePath, ReadOnlySpan<byte> buffer) =>
         Path.GetFileName(filePath).Contains("_MDM", StringComparison.OrdinalIgnoreCase) ||
         ContainsBZip2Signature(buffer);
 
     private static bool ContainsBZip2Signature(ReadOnlySpan<byte> buffer)
     {
-        for (var i = 0; i <= buffer.Length - 3; i++)
+        for (var i = 0; i <= buffer.Length - ArchiveTwoFileReader.BZip2SignatureLength; i++)
         {
-            if (buffer[i] == (byte)'B' &&
-                buffer[i + 1] == (byte)'Z' &&
-                buffer[i + 2] == (byte)'h')
+            if (ArchiveTwoFileReader.StartsWithBZip2Signature(buffer[i..]))
             {
                 return true;
             }
@@ -112,34 +100,6 @@ public sealed class NexradArchiveFileInspector
 
         return false;
     }
-
-    private static ArchiveTwoVolumeHeader ParseArchiveTwoVolumeHeader(ReadOnlySpan<byte> header)
-    {
-        var archiveFilename = Encoding.ASCII.GetString(header[..12]);
-        var version = Encoding.ASCII.GetString(header.Slice(6, 2));
-        var extensionText = Encoding.ASCII.GetString(header.Slice(9, 3));
-        if (!int.TryParse(extensionText, out var extensionNumber))
-        {
-            throw new FormatException($"Archive Two volume extension is not numeric: {extensionText}");
-        }
-
-        var nexradModifiedJulianDate = BinaryPrimitives.ReadInt32BigEndian(header.Slice(12, 4));
-        var millisecondsPastMidnight = BinaryPrimitives.ReadInt32BigEndian(header.Slice(16, 4));
-        var radarId = Encoding.ASCII.GetString(header.Slice(20, 4)).TrimEnd('\0', ' ');
-        var volumeDate = DateOnly.FromDayNumber(
-            new DateOnly(1970, 1, 1).DayNumber + nexradModifiedJulianDate - 1);
-        var volumeTime = TimeSpan.FromMilliseconds(millisecondsPastMidnight);
-
-        return new ArchiveTwoVolumeHeader(
-            archiveFilename,
-            version,
-            extensionNumber,
-            volumeDate,
-            volumeTime,
-            new DateTimeOffset(volumeDate.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero).Add(volumeTime),
-            radarId);
-    }
-
     private async Task<(
         IReadOnlyList<ArchiveTwoCompressedRecordSummary> Records,
         string? Diagnostic,
@@ -158,38 +118,35 @@ public sealed class NexradArchiveFileInspector
         try
         {
             await using var stream = File.OpenRead(fileInfo.FullName);
-            stream.Position = ArchiveTwoVolumeHeaderLength;
+            stream.Position = ArchiveTwoFileReader.VolumeHeaderLength;
 
             while (stream.Position < stream.Length)
             {
                 var controlWordOffset = stream.Position;
-                var remainingBytes = stream.Length - stream.Position;
-                if (remainingBytes < 4)
+                ArchiveTwoCompressedRecordHeader recordHeader;
+                try
                 {
-                    return (records, $"Trailing {remainingBytes} byte(s) after compressed records cannot contain a control word.", messageSummaryBuilder.Build());
+                    recordHeader = await ArchiveTwoFileReader.ReadCompressedRecordHeaderAsync(
+                        stream,
+                        controlWordBuffer,
+                        controlWordOffset,
+                        cancellationToken);
+                }
+                catch (InvalidDataException ex)
+                {
+                    return (records, ex.Message, messageSummaryBuilder.Build());
                 }
 
-                await ReadExactlyAsync(stream, controlWordBuffer, cancellationToken);
-                var controlWord = BinaryPrimitives.ReadInt32BigEndian(controlWordBuffer);
-                if (controlWord == int.MinValue)
-                {
-                    return (records, $"Compressed record at offset {controlWordOffset} has an unsupported control word value.", messageSummaryBuilder.Build());
-                }
-
-                var compressedSizeBytes = Math.Abs(controlWord);
-                if (compressedSizeBytes == 0)
-                {
-                    return (records, $"Compressed record at offset {controlWordOffset} has zero compressed bytes.", messageSummaryBuilder.Build());
-                }
-
-                if (compressedSizeBytes > stream.Length - stream.Position)
-                {
-                    return (records, $"Compressed record at offset {controlWordOffset} declares {compressedSizeBytes} bytes, but only {stream.Length - stream.Position} remain.", messageSummaryBuilder.Build());
-                }
-
-                compressedPayloadBuffer = EnsureBufferCapacity(compressedPayloadBuffer, compressedSizeBytes);
-                await ReadExactlyAsync(stream, compressedPayloadBuffer.AsMemory(0, compressedSizeBytes), cancellationToken);
-                var startsWithBZip2Signature = StartsWithBZip2Signature(compressedPayloadBuffer.AsSpan(0, compressedSizeBytes));
+                var compressedSizeBytes = recordHeader.CompressedSizeBytes;
+                compressedPayloadBuffer = ArchiveTwoFileReader.EnsurePooledBufferCapacity(
+                    compressedPayloadBuffer,
+                    compressedSizeBytes);
+                await ArchiveTwoFileReader.ReadExactlyAsync(
+                    stream,
+                    compressedPayloadBuffer.AsMemory(0, compressedSizeBytes),
+                    cancellationToken);
+                var startsWithBZip2Signature = ArchiveTwoFileReader.StartsWithBZip2Signature(
+                    compressedPayloadBuffer.AsSpan(0, compressedSizeBytes));
                 var decompression = startsWithBZip2Signature
                     ? TryDecompressAndScan(
                         decompressionSession,
@@ -203,7 +160,7 @@ public sealed class NexradArchiveFileInspector
                 records.Add(new ArchiveTwoCompressedRecordSummary(
                     records.Count + 1,
                     controlWordOffset,
-                    controlWord,
+                    recordHeader.ControlWord,
                     compressedSizeBytes,
                     startsWithBZip2Signature,
                     decompression.DecompressedSizeBytes,
@@ -221,27 +178,6 @@ public sealed class NexradArchiveFileInspector
         }
 
         return (records, null, messageSummaryBuilder.Build());
-    }
-
-    private static bool StartsWithBZip2Signature(ReadOnlySpan<byte> buffer) =>
-        buffer.Length >= 3 &&
-        buffer[0] == (byte)'B' &&
-        buffer[1] == (byte)'Z' &&
-        buffer[2] == (byte)'h';
-
-    private static byte[] EnsureBufferCapacity(byte[]? buffer, int requiredLength)
-    {
-        if (buffer is not null && buffer.Length >= requiredLength)
-        {
-            return buffer;
-        }
-
-        if (buffer is not null)
-        {
-            ArrayPool<byte>.Shared.Return(buffer);
-        }
-
-        return ArrayPool<byte>.Shared.Rent(requiredLength);
     }
 
     private static (long? DecompressedSizeBytes, string? Diagnostic) TryDecompressAndScan(
@@ -266,21 +202,6 @@ public sealed class NexradArchiveFileInspector
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return (null, ex.Message);
-        }
-    }
-
-    private static async Task ReadExactlyAsync(Stream stream, Memory<byte> buffer, CancellationToken cancellationToken)
-    {
-        var totalBytesRead = 0;
-        while (totalBytesRead < buffer.Length)
-        {
-            var bytesRead = await stream.ReadAsync(buffer[totalBytesRead..], cancellationToken);
-            if (bytesRead == 0)
-            {
-                throw new EndOfStreamException("Unexpected end of NEXRAD archive file.");
-            }
-
-            totalBytesRead += bytesRead;
         }
     }
 }
