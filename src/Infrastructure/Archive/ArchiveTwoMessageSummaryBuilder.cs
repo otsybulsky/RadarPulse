@@ -4,7 +4,7 @@ using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Infrastructure.Archive;
 
-public sealed class ArchiveTwoMessageSummaryBuilder
+public sealed class ArchiveTwoMessageSummaryBuilder : IArchiveTwoMessageConsumer
 {
     private const int MessageHeaderLength = 16;
     private const int Type31DataHeaderMinimumLength = 72;

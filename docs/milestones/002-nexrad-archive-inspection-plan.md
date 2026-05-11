@@ -96,6 +96,8 @@ Type 31 generic moment descriptor metadata implemented for gate count range, wor
 parse throughput benchmark implemented
 optional raw 8/16-bit moment value decode benchmark implemented
 optional calibrated Type 31 moment value decode benchmark implemented with sentinel/status counts
+first Type 31 gate-moment event shape implemented
+parallel replay-shape benchmark implemented with source-order-preserving projection
 cache-wide inspection not implemented
 ```
 
@@ -244,6 +246,30 @@ bytes with zero failures:
 
 ```text
 dotnet run --no-restore --project src/Presentation/RadarPulse.Cli.csproj -- archive validate decompress --cache data/nexrad --radar KTLX --max-files 20
+```
+
+The first replay-shape benchmark projects every Type 31 gate moment into the
+event shape that a later publisher can consume. On the same KTLX file:
+
+```text
+radarpulse replay-shape, parallelism 24, iterations 3, warmup 1:
+  38_759_040 replay-shaped events per iteration
+  5_523_459 valid events per iteration
+  1_063_626_011 raw value checksum per iteration
+  70_028_121_122 calibrated value scaled checksum per iteration
+  5_257_350_734_454_804_390 chronology checksum per iteration
+  about 258_930_680 replay-shaped events/s
+  about 36_899_598 valid events/s
+```
+
+The parallel replay-shape path uses a Type 31 radial-transition prepass to
+compute each record's starting projector state. Records are then decoded in
+parallel, while aggregation happens by original Archive Two record index. The
+chronology checksum is mandatory, order-sensitive, and matched the sequential
+run on the current KTLX smoke file:
+
+```text
+chronology checksum per iteration: 5_257_350_734_454_804_390
 ```
 
 ## Decoder Workflow

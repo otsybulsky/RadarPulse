@@ -9,15 +9,15 @@ public sealed class ArchiveTwoMessageStreamScanner
     private const int RetainedSearchBytes = 128;
     private const int MaximumMessageBytes = 2 * 1024 * 1024;
 
-    private readonly ArchiveTwoMessageSummaryBuilder summaryBuilder;
+    private readonly IArchiveTwoMessageConsumer messageConsumer;
     private byte[] pendingBuffer = new byte[RetainedSearchBytes];
     private int pendingLength;
     private int sourceRecordSequenceNumber;
     private int sourceMessageSequenceNumber;
 
-    public ArchiveTwoMessageStreamScanner(ArchiveTwoMessageSummaryBuilder summaryBuilder)
+    public ArchiveTwoMessageStreamScanner(IArchiveTwoMessageConsumer messageConsumer)
     {
-        this.summaryBuilder = summaryBuilder ?? throw new ArgumentNullException(nameof(summaryBuilder));
+        this.messageConsumer = messageConsumer ?? throw new ArgumentNullException(nameof(messageConsumer));
     }
 
     public void Reset(int sourceRecordSequenceNumber = 0)
@@ -89,7 +89,7 @@ public sealed class ArchiveTwoMessageStreamScanner
             }
 
             sourceMessageSequenceNumber++;
-            summaryBuilder.AcceptMessage(
+            messageConsumer.AcceptMessage(
                 pendingBuffer.AsSpan(0, messageBytes),
                 new ArchiveTwoMessageSource(sourceRecordSequenceNumber, sourceMessageSequenceNumber));
             Consume(messageBytes);

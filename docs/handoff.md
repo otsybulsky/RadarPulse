@@ -91,6 +91,22 @@ Completed in the first milestone 002 implementation slice:
   measures decompress+message-scan+minimal-Type31 throughput in estimated
   gate-moment events/s, and optionally reads actual 8/16-bit moment gate
   values or calibrated moment values with checksums.
+- A first reusable Type 31 gate-moment event shape is implemented with radar id,
+  volume timestamp, sweep/elevation/radial/gate identity, range, moment name,
+  raw value, decoded status, optional calibrated value, and explicit source
+  order.
+- `archive benchmark replay-shape --file ... [--iterations n]
+  [--warmup-iterations n] [--parallelism n]
+  [--decompressor radarpulse|sharpziplib|sharpcompress]`
+  projects ordered Type 31 gate-moment events and measures the cost of creating
+  the replay-facing event shape before a downstream publisher exists.
+- Replay-shape projection supports parallel compressed-record decoding. The
+  parallel path first builds per-record starting projector states from Type 31
+  radial transitions, then projects records concurrently and aggregates record
+  results in original Archive Two record order.
+- Replay-shape benchmark output includes an order-sensitive chronology checksum
+  on every run, so parallel runs can be compared against sequential runs for
+  event-order preservation, not just commutative totals.
 - The inspection path also uses the shared decompressor abstraction and pooled
   compressed-payload/output buffers.
 - CLI output for size, kind, archive filename, version, extension number, radar
@@ -141,6 +157,12 @@ Achieved:
   range-folded values, 5_794_484 CFP filter-not-applied values, 65_871 CFP
   point-clutter-filter values, 56_930 CFP dual-pol-filtered values, no reserved
   or unsupported values, and a calibrated range of `-31.5..359.649`.
+- Replay-shape projection on the current KTLX smoke file generates 38_759_040
+  ordered gate-moment events per volume, with the same raw checksum
+  `1_063_626_011`, calibrated checksum `70_028_121_122`, valid/status counts,
+  calibrated range `-31.5..359.649`, range span `2.125..459.875` km, and
+  chronology checksum `5_257_350_734_454_804_390`. Sequential and parallel runs
+  produced the same chronology checksum.
 - The parse benchmark now gives a first measured answer against the 20M
   events/s target for decompression plus minimal parsing.
 - With `--decode-moments`, the same KTLX file decodes all 38_759_040 raw
@@ -148,11 +170,9 @@ Achieved:
 
 Not achieved yet:
 
-- No real event stream is generated yet.
-- Moment sample values can be read as raw 8/16-bit values or calibrated with
-  sentinel/status preservation in benchmark mode, but no reusable event stream
-  API publishes calibrated samples yet.
-- The parser benchmark still does not publish downstream engine events.
+- No downstream event publisher or ordered parallel merge is implemented yet.
+- No downstream event publisher is wired to the ordered record merge yet.
+- The parser/replay benchmarks still do not publish downstream engine events.
 
 ## Documentation
 
@@ -173,7 +193,7 @@ dotnet test RadarPulse.sln --no-restore
 Result:
 
 ```text
-53 passed, 3 skipped
+54 passed, 3 skipped
 ```
 
 Manual CLI smoke tests:
@@ -364,6 +384,49 @@ The sequential Release calibrated benchmark on the same file and backend
 measured about 10_851_453 valid calibrated values/s, while still reading all
 raw gate-moment values at about 76_146_475 decoded values/s.
 
+Last verified replay-shape benchmark command:
+
+```powershell
+dotnet run --no-build -c Release --project src/Presentation/RadarPulse.Cli.csproj -- archive benchmark replay-shape --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 --iterations 3 --warmup-iterations 1 --parallelism 24 --decompressor radarpulse
+```
+
+Result on the current development machine:
+
+```text
+Replay-shaped events per iteration: 38_759_040
+Valid events per iteration: 5_523_459
+Below-threshold events per iteration: 27_316_941
+Range-folded events per iteration: 1_355
+CFP filter-not-applied events per iteration: 5_794_484
+CFP point-clutter-filter events per iteration: 65_871
+CFP dual-pol-filtered events per iteration: 56_930
+Reserved events per iteration: 0
+Unsupported events per iteration: 0
+Raw value checksum per iteration: 1_063_626_011
+Calibrated value scaled checksum per iteration: 70_028_121_122
+Chronology checksum per iteration: 5_257_350_734_454_804_390
+Calibrated value range per iteration: -31.5..359.649
+Range km per iteration: 2.125..459.875
+Replay-shaped events/s: 258_930_679.77
+Valid events/s: 36_899_597.97
+Allocated bytes / event: 0.08
+```
+
+Last verified sequential chronology smoke command:
+
+```powershell
+dotnet run --no-build -c Release --project src/Presentation/RadarPulse.Cli.csproj -- archive benchmark replay-shape --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 --iterations 1 --warmup-iterations 0 --parallelism 1 --decompressor radarpulse
+```
+
+Result:
+
+```text
+Chronology checksum per iteration: 5_257_350_734_454_804_390
+Replay-shaped events per iteration: 38_759_040
+Raw value checksum per iteration: 1_063_626_011
+Calibrated value scaled checksum per iteration: 70_028_121_122
+```
+
 Last verified normal command for milestone 001:
 
 ```powershell
@@ -482,8 +545,13 @@ constant and moment data blocks.
 - `src/Infrastructure/Archive/IArchiveBZip2Decompressor.cs`
 - `src/Infrastructure/Archive/ArchiveTwoMessageStreamScanner.cs`
 - `src/Infrastructure/Archive/ArchiveTwoMessageSummaryBuilder.cs`
+- `src/Domain/Archive/ArchiveTwoGateMomentEvent.cs`
+- `src/Domain/Archive/ArchiveTwoReplayShapeBenchmarkResult.cs`
+- `src/Infrastructure/Archive/IArchiveTwoMessageConsumer.cs`
+- `src/Infrastructure/Archive/ArchiveTwoGateMomentEventProjector.cs`
 - `src/Infrastructure/Archive/NexradArchiveDecompressionBenchmark.cs`
 - `src/Infrastructure/Archive/NexradArchiveParseBenchmark.cs`
+- `src/Infrastructure/Archive/NexradArchiveReplayShapeBenchmark.cs`
 - `src/Infrastructure/Archive/NexradArchiveDecompressionValidator.cs`
 - `src/Infrastructure/Archive/NexradArchiveFileInspector.cs`
 - `src/Infrastructure/Archive/ReusableArchiveBZip2Decompressor.cs`
@@ -496,9 +564,10 @@ constant and moment data blocks.
 
 The next milestone 002 implementation slice should be considered done when:
 
-- The replay event shape is proposed separately from inspection summaries and
-  carries raw value, decoded status, optional calibrated value, range, and
-  source-order fields.
-- Tests cover the event-shape projection with small fixtures before wiring a
-  publisher.
+- Replay-shape projection can be summarized across the cached KTLX corpus, not
+  only one file.
+- The report exposes unevenness in calibrated-event flow by sweep, record, or
+  another explicit replay time bucket.
+- The next publisher-facing API consumes the ordered record merge instead of
+  letting worker completion order reach the downstream pipeline.
 

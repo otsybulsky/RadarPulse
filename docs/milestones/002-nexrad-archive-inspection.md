@@ -42,6 +42,8 @@ Type 31 generic moment descriptor metadata for gate count range, word size, firs
 parse throughput benchmark for decompress+message-scan+minimal-Type31
 optional raw 8/16-bit Type 31 moment value decode benchmark
 optional calibrated Type 31 moment value decode benchmark with sentinel/status counts
+first reusable Type 31 gate-moment event shape
+parallel replay-shape benchmark with source-order-preserving event projection
 CLI output for file kind, size, archive filename, version, extension, radar id, volume time, compressed record count, compressed bytes, BZip2 signature count, decompressed record count, and decompressed bytes
 unit tests with small synthetic fixtures
 ```
@@ -49,8 +51,9 @@ unit tests with small synthetic fixtures
 Not yet implemented:
 
 ```text
-reusable calibrated moment event stream
-ordered event publishing
+downstream event publishing
+ordered parallel replay merge
+cache-wide replay-shape unevenness report
 ```
 
 ## Intended Usage
@@ -308,6 +311,37 @@ uses raw sentinel/status codes. On the current KTLX file, one volume contains
 5_523_459 valid calibrated samples, 27_316_941 below-threshold samples,
 1_355 range-folded samples, and CFP status counts for the remaining CFP gates.
 
+The first replay-shape benchmark projects Type 31 gate moments into an ordered
+event struct with radar id, volume timestamp, sweep/elevation/radial/gate
+identity, range, moment name, raw value, decoded status, optional calibrated
+value, and source order. Its parallel mode decodes compressed records
+concurrently, but computes per-record starting projector state first and
+aggregates results in original Archive Two record order. Order-sensitive
+chronology verification is mandatory and reported on every replay-shape run.
+
+On the same KTLX file:
+
+```text
+command: archive benchmark replay-shape --iterations 3 --warmup-iterations 1 --parallelism 24 --decompressor radarpulse
+
+replay-shaped events per iteration: 38_759_040
+valid events per iteration: 5_523_459
+raw value checksum per iteration: 1_063_626_011
+calibrated value scaled checksum per iteration: 70_028_121_122
+chronology checksum per iteration: 5_257_350_734_454_804_390
+range km per iteration: 2.125..459.875
+replay-shaped events/s: 258_930_679.77
+valid events/s: 36_899_597.97
+allocated bytes / event: 0.08
+```
+
+Sequential and parallel `radarpulse` runs produced the same order-sensitive
+chronology checksum:
+
+```text
+chronology checksum per iteration: 5_257_350_734_454_804_390
+```
+
 The validation command compares `radarpulse` against SharpZipLib per compressed
 record using streaming hashes. On the local KTLX corpus sample it compared 20
 Archive Two files, 1_100 compressed records, and 1_014_836_480 decompressed bytes
@@ -319,7 +353,6 @@ Milestone 002 should not promise:
 
 ```text
 rendered radar imagery
-reusable calibrated event stream
 geospatial projection
 event detection
 benchmark-ready replay
