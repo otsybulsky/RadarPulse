@@ -107,6 +107,11 @@ Completed in the first milestone 002 implementation slice:
 - Replay-shape benchmark output includes an order-sensitive chronology checksum
   on every run, so parallel runs can be compared against sequential runs for
   event-order preservation, not just commutative totals.
+- `archive validate replay-shape (--file path | --cache data/nexrad [--radar
+  KTLX] [--max-files n]) [--parallelism n]
+  [--decompressor radarpulse|sharpziplib|sharpcompress]` compares sequential
+  ordered projection against parallel replay-shape projection and reports
+  calibrated-data unevenness by compressed record and sweep.
 - The inspection path also uses the shared decompressor abstraction and pooled
   compressed-payload/output buffers.
 - CLI output for size, kind, archive filename, version, extension number, radar
@@ -163,6 +168,15 @@ Achieved:
   calibrated range `-31.5..359.649`, range span `2.125..459.875` km, and
   chronology checksum `5_257_350_734_454_804_390`. Sequential and parallel runs
   produced the same chronology checksum.
+- Cache-wide KTLX replay-shape validation examined 244 files, skipped 24
+  non-base-data files, compared 220 Archive Two base-data files, found zero
+  sequential/parallel mismatches, and reported 8_513_587_200 replay-shaped
+  events with 1_369_194_138 valid calibrated events.
+- The cache-wide unevenness report found the largest compressed-record valid
+  share spread in `KTLX20260504_032003_V06`: record 51 had 8.592% valid events
+  while record 13 had 50.437%. The largest sweep spread was also in
+  `KTLX20260504_032003_V06`: sweep 11 had 9.187% valid events while sweep 2 had
+  44.909%.
 - The parse benchmark now gives a first measured answer against the 20M
   events/s target for decompression plus minimal parsing.
 - With `--decode-moments`, the same KTLX file decodes all 38_759_040 raw
@@ -427,6 +441,28 @@ Raw value checksum per iteration: 1_063_626_011
 Calibrated value scaled checksum per iteration: 70_028_121_122
 ```
 
+Last verified cache-wide replay-shape validation command:
+
+```powershell
+dotnet run --no-build -c Release --project src/Presentation/RadarPulse.Cli.csproj -- archive validate replay-shape --cache data/nexrad --radar KTLX --parallelism 24 --decompressor radarpulse
+```
+
+Result on the current cache:
+
+```text
+Examined files: 244
+Skipped files: 24
+Compared files: 220
+Failed files: 0
+Replay-shaped events: 8_513_587_200
+Valid events: 1_369_194_138
+Valid event share: 16.082%
+Reserved events: 0
+Unsupported events: 0
+Record valid-share spread top file: KTLX20260504_032003_V06, record 51 8.592% -> record 13 50.437%
+Sweep valid-share spread top file: KTLX20260504_032003_V06, sweep 11 9.187% -> sweep 2 44.909%
+```
+
 Last verified normal command for milestone 001:
 
 ```powershell
@@ -547,11 +583,14 @@ constant and moment data blocks.
 - `src/Infrastructure/Archive/ArchiveTwoMessageSummaryBuilder.cs`
 - `src/Domain/Archive/ArchiveTwoGateMomentEvent.cs`
 - `src/Domain/Archive/ArchiveTwoReplayShapeBenchmarkResult.cs`
+- `src/Domain/Archive/ArchiveTwoReplayShapeValidationResult.cs`
 - `src/Infrastructure/Archive/IArchiveTwoMessageConsumer.cs`
+- `src/Infrastructure/Archive/ArchiveTwoGateMomentChronologyChecksum.cs`
 - `src/Infrastructure/Archive/ArchiveTwoGateMomentEventProjector.cs`
 - `src/Infrastructure/Archive/NexradArchiveDecompressionBenchmark.cs`
 - `src/Infrastructure/Archive/NexradArchiveParseBenchmark.cs`
 - `src/Infrastructure/Archive/NexradArchiveReplayShapeBenchmark.cs`
+- `src/Infrastructure/Archive/NexradArchiveReplayShapeValidator.cs`
 - `src/Infrastructure/Archive/NexradArchiveDecompressionValidator.cs`
 - `src/Infrastructure/Archive/NexradArchiveFileInspector.cs`
 - `src/Infrastructure/Archive/ReusableArchiveBZip2Decompressor.cs`
@@ -564,10 +603,8 @@ constant and moment data blocks.
 
 The next milestone 002 implementation slice should be considered done when:
 
-- Replay-shape projection can be summarized across the cached KTLX corpus, not
-  only one file.
-- The report exposes unevenness in calibrated-event flow by sweep, record, or
-  another explicit replay time bucket.
 - The next publisher-facing API consumes the ordered record merge instead of
   letting worker completion order reach the downstream pipeline.
+- Optional next analysis can add time/radial buckets on top of the current
+  compressed-record and sweep unevenness report.
 

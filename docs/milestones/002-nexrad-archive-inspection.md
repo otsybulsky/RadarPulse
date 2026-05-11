@@ -44,6 +44,8 @@ optional raw 8/16-bit Type 31 moment value decode benchmark
 optional calibrated Type 31 moment value decode benchmark with sentinel/status counts
 first reusable Type 31 gate-moment event shape
 parallel replay-shape benchmark with source-order-preserving event projection
+cache-wide replay-shape validation with sequential/parallel chronology comparison
+calibrated-data unevenness report by compressed record and sweep
 CLI output for file kind, size, archive filename, version, extension, radar id, volume time, compressed record count, compressed bytes, BZip2 signature count, decompressed record count, and decompressed bytes
 unit tests with small synthetic fixtures
 ```
@@ -53,7 +55,7 @@ Not yet implemented:
 ```text
 downstream event publishing
 ordered parallel replay merge
-cache-wide replay-shape unevenness report
+radial/time-bucket unevenness report
 ```
 
 ## Intended Usage
@@ -340,6 +342,26 @@ chronology checksum:
 
 ```text
 chronology checksum per iteration: 5_257_350_734_454_804_390
+```
+
+The cache-wide replay-shape validation command compares sequential projection
+against parallel replay-shape projection and reports unevenness in valid
+calibrated-event flow:
+
+```text
+command: archive validate replay-shape --cache data/nexrad --radar KTLX --parallelism 24 --decompressor radarpulse
+
+examined files: 244
+skipped files: 24
+compared files: 220
+failed files: 0
+replay-shaped events: 8_513_587_200
+valid events: 1_369_194_138
+valid event share: 16.082%
+reserved events: 0
+unsupported events: 0
+largest record spread: KTLX20260504_032003_V06, record 51 8.592% valid -> record 13 50.437% valid
+largest sweep spread: KTLX20260504_032003_V06, sweep 11 9.187% valid -> sweep 2 44.909% valid
 ```
 
 The validation command compares `radarpulse` against SharpZipLib per compressed

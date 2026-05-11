@@ -98,7 +98,9 @@ optional raw 8/16-bit moment value decode benchmark implemented
 optional calibrated Type 31 moment value decode benchmark implemented with sentinel/status counts
 first Type 31 gate-moment event shape implemented
 parallel replay-shape benchmark implemented with source-order-preserving projection
-cache-wide inspection not implemented
+cache-wide replay-shape validation implemented
+calibrated-data unevenness report by compressed record and sweep implemented
+cache-wide inspection command not implemented
 ```
 
 ## Performance Target
@@ -271,6 +273,25 @@ run on the current KTLX smoke file:
 ```text
 chronology checksum per iteration: 5_257_350_734_454_804_390
 ```
+
+Cache-wide replay-shape validation on the local KTLX cache:
+
+```text
+command: archive validate replay-shape --cache data/nexrad --radar KTLX --parallelism 24 --decompressor radarpulse
+
+examined files: 244
+skipped files: 24
+compared files: 220
+failed files: 0
+replay-shaped events: 8_513_587_200
+valid events: 1_369_194_138
+valid event share: 16.082%
+```
+
+The largest observed valid-event share spread by compressed record was in
+`KTLX20260504_032003_V06`, from 8.592% valid in record 51 to 50.437% valid in
+record 13. The largest observed sweep spread was also in that file, from 9.187%
+valid in sweep 11 to 44.909% valid in sweep 2.
 
 ## Decoder Workflow
 

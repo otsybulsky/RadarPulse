@@ -76,6 +76,9 @@ static string FormatUnsignedNumber(ulong value) => value.ToString("N0").Replace(
 
 static string FormatDecimal(double value) => value.ToString("N2", CultureInfo.InvariantCulture).Replace(',', '_');
 
+static string FormatPercent(double value) =>
+    (value * 100d).ToString("0.###", CultureInfo.InvariantCulture) + "%";
+
 static double MegabytesPerSecond(long bytes, TimeSpan elapsed) =>
     elapsed.TotalSeconds <= 0
         ? 0
@@ -157,6 +160,7 @@ static int PrintUsage()
     Console.WriteLine("  radarpulse archive benchmark parse --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress] [--decode-moments] [--decode-calibrated-moments]");
     Console.WriteLine("  radarpulse archive benchmark replay-shape --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse archive validate decompress (--file path | --cache data/nexrad [--radar KTLX] [--max-files n])");
+    Console.WriteLine("  radarpulse archive validate replay-shape (--file path | --cache data/nexrad [--radar KTLX] [--max-files n]) [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     return 2;
 }
 
@@ -379,6 +383,7 @@ static int ValidateArchive(string[] args)
     return args[0] switch
     {
         "decompress" => ValidateArchiveDecompression(args[1..]),
+        "replay-shape" => ValidateArchiveReplayShape(args[1..]),
         _ => PrintUsage()
     };
 }
@@ -417,6 +422,98 @@ static int ValidateArchiveDecompression(string[] args)
     }
 
     return result.Succeeded ? 0 : 1;
+}
+
+static int ValidateArchiveReplayShape(string[] args)
+{
+    var options = ArchiveValidateReplayShapeOptions.Parse(args);
+    var validator = new NexradArchiveReplayShapeValidator(ArchiveBZip2Decompressors.Create(options.Decompressor));
+    var result = options.FilePath is not null
+        ? validator.ValidateFile(options.FilePath, options.Parallelism, CancellationToken.None)
+        : validator.ValidateCache(
+            options.CachePath ?? throw new InvalidOperationException("--cache is required when --file is not provided."),
+            options.RadarId,
+            options.MaxFiles,
+            options.Parallelism,
+            CancellationToken.None);
+
+    Console.WriteLine($"Decompressor: {result.Decompressor}");
+    Console.WriteLine($"Parallelism: {FormatNumber(result.DegreeOfParallelism)}");
+    Console.WriteLine("Chronology verification: required");
+    Console.WriteLine($"Examined files: {FormatNumber(result.ExaminedFileCount)}");
+    Console.WriteLine($"Skipped files: {FormatNumber(result.SkippedFileCount)}");
+    Console.WriteLine($"Compared files: {FormatNumber(result.ComparedFileCount)}");
+    Console.WriteLine($"Failed files: {FormatNumber(result.FailedFileCount)}");
+    Console.WriteLine($"Compressed records: {FormatNumber(result.TotalCompressedRecordCount)}");
+    Console.WriteLine($"Compressed bytes: {FormatNumber(result.TotalCompressedBytes)}");
+    Console.WriteLine($"Decompressed bytes: {FormatNumber(result.TotalDecompressedBytes)}");
+    Console.WriteLine($"Replay-shaped events: {FormatNumber(result.TotalEvents)}");
+    Console.WriteLine($"Valid events: {FormatNumber(result.TotalValidEvents)}");
+    Console.WriteLine($"Valid event share: {FormatPercent(result.ValidEventShare)}");
+    Console.WriteLine($"Below-threshold events: {FormatNumber(result.TotalBelowThresholdEvents)}");
+    Console.WriteLine($"Range-folded events: {FormatNumber(result.TotalRangeFoldedEvents)}");
+    Console.WriteLine($"CFP filter-not-applied events: {FormatNumber(result.TotalClutterFilterNotAppliedEvents)}");
+    Console.WriteLine($"CFP point-clutter-filter events: {FormatNumber(result.TotalPointClutterFilterAppliedEvents)}");
+    Console.WriteLine($"CFP dual-pol-filtered events: {FormatNumber(result.TotalDualPolarizationFilteredEvents)}");
+    Console.WriteLine($"Reserved events: {FormatNumber(result.TotalReservedEvents)}");
+    Console.WriteLine($"Unsupported events: {FormatNumber(result.TotalUnsupportedEvents)}");
+
+    PrintReplayShapeUnevenness("Record valid-share spread", result.Files, file => file.RecordUnevenness);
+    PrintReplayShapeUnevenness("Sweep valid-share spread", result.Files, file => file.SweepUnevenness);
+
+    foreach (var file in result.Files.Where(file => !file.Succeeded))
+    {
+        Console.WriteLine($"Failure: {file.FilePath}");
+        Console.WriteLine($"Diagnostic: {file.Diagnostic}");
+    }
+
+    if (result.ComparedFileCount == 0)
+    {
+        Console.WriteLine("Diagnostic: no Archive Two base-data files were selected for replay-shape validation.");
+    }
+
+    return result.Succeeded ? 0 : 1;
+}
+
+static void PrintReplayShapeUnevenness(
+    string label,
+    IReadOnlyList<ArchiveTwoReplayShapeValidationFileResult> files,
+    Func<ArchiveTwoReplayShapeValidationFileResult, ArchiveTwoReplayShapeUnevennessSummary> selectUnevenness)
+{
+    var rows = files
+        .Where(file => file.Succeeded)
+        .Select(file => new
+        {
+            File = file,
+            Unevenness = selectUnevenness(file),
+            Spread = selectUnevenness(file).MaximumValidShareBucket.ValidEventShare -
+                selectUnevenness(file).MinimumValidShareBucket.ValidEventShare
+        })
+        .Where(row => row.Unevenness.BucketCount > 0)
+        .OrderByDescending(row => row.Spread)
+        .ThenBy(row => row.File.FilePath, StringComparer.Ordinal)
+        .Take(5)
+        .ToArray();
+
+    if (rows.Length == 0)
+    {
+        return;
+    }
+
+    Console.WriteLine($"{label}:");
+    foreach (var row in rows)
+    {
+        var min = row.Unevenness.MinimumValidShareBucket;
+        var max = row.Unevenness.MaximumValidShareBucket;
+        Console.WriteLine(
+            $"  {Path.GetFileName(row.File.FilePath)}: " +
+            $"{FormatNumber(row.Unevenness.BucketCount)} {row.Unevenness.BucketKind}s, " +
+            $"min {row.Unevenness.BucketKind} {FormatNumber(min.BucketNumber)} " +
+            $"{FormatPercent(min.ValidEventShare)} ({FormatNumber(min.ValidEvents)}/{FormatNumber(min.Events)}), " +
+            $"max {row.Unevenness.BucketKind} {FormatNumber(max.BucketNumber)} " +
+            $"{FormatPercent(max.ValidEventShare)} ({FormatNumber(max.ValidEvents)}/{FormatNumber(max.Events)}), " +
+            $"spread {FormatPercent(row.Spread)}");
+    }
 }
 
 static async Task<int> InspectArchiveAsync(string[] args)
@@ -923,9 +1020,6 @@ internal sealed record ArchiveBenchmarkReplayShapeOptions(
                 case "--parallelism":
                     parallelism = int.Parse(RequireValue(args, ref i, "--parallelism"));
                     break;
-                case "--verify-chronology":
-                    // Chronology verification is mandatory for replay-shape.
-                    break;
                 case "--decompressor":
                     decompressor = RequireValue(args, ref i, "--decompressor");
                     break;
@@ -1026,6 +1120,93 @@ internal sealed record ArchiveValidateDecompressionOptions(
         }
 
         return new ArchiveValidateDecompressionOptions(filePath, cachePath, radarId, maxFiles);
+    }
+
+    private static string RequireValue(string[] args, ref int index, string option)
+    {
+        if (index + 1 >= args.Length)
+        {
+            throw new ArgumentException($"{option} requires a value.");
+        }
+
+        index++;
+        return args[index];
+    }
+}
+
+internal sealed record ArchiveValidateReplayShapeOptions(
+    string? FilePath,
+    string? CachePath,
+    string? RadarId,
+    int MaxFiles,
+    int Parallelism,
+    string Decompressor)
+{
+    public static ArchiveValidateReplayShapeOptions Parse(string[] args)
+    {
+        string? filePath = null;
+        string? cachePath = null;
+        string? radarId = null;
+        var maxFiles = int.MaxValue;
+        var parallelism = Math.Max(1, Environment.ProcessorCount);
+        var decompressor = ArchiveBZip2Decompressors.DefaultName;
+
+        for (var i = 0; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--file":
+                    filePath = RequireValue(args, ref i, "--file");
+                    break;
+                case "--cache":
+                    cachePath = RequireValue(args, ref i, "--cache");
+                    break;
+                case "--radar":
+                    radarId = HistoricalArchiveRequest.NormalizeRadarId(RequireValue(args, ref i, "--radar"));
+                    break;
+                case "--max-files":
+                    maxFiles = int.Parse(RequireValue(args, ref i, "--max-files"));
+                    break;
+                case "--parallelism":
+                    parallelism = int.Parse(RequireValue(args, ref i, "--parallelism"));
+                    break;
+                case "--decompressor":
+                    decompressor = RequireValue(args, ref i, "--decompressor");
+                    break;
+                default:
+                    throw new ArgumentException($"Unknown option: {args[i]}");
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(filePath) == string.IsNullOrWhiteSpace(cachePath))
+        {
+            throw new InvalidOperationException("Provide exactly one of --file or --cache.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(filePath) && radarId is not null)
+        {
+            throw new InvalidOperationException("--radar can only be used with --cache.");
+        }
+
+        if (maxFiles <= 0)
+        {
+            throw new InvalidOperationException("--max-files must be greater than zero.");
+        }
+
+        if (parallelism <= 0)
+        {
+            throw new InvalidOperationException("--parallelism must be greater than zero.");
+        }
+
+        ArchiveBZip2Decompressors.Create(decompressor);
+
+        return new ArchiveValidateReplayShapeOptions(
+            filePath,
+            cachePath,
+            radarId,
+            maxFiles,
+            parallelism,
+            decompressor);
     }
 
     private static string RequireValue(string[] args, ref int index, string option)
