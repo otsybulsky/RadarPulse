@@ -80,12 +80,17 @@ Completed in the first milestone 002 implementation slice:
 - Type 31 generic moment descriptors now summarize per-moment gate count range,
   word size, first-gate range, gate spacing, scale, and offset. CLI output
   documents the calibration formula `value=(raw-offset)/scale`.
+- `archive benchmark parse` supports `--decode-calibrated-moments`. This mode
+  reads raw 8/16-bit moment values, preserves Message Type 31 sentinel/status
+  semantics, applies per-block scale/offset only to valid samples, and reports
+  calibrated value counts, min/max, and a scaled checksum.
 - `archive benchmark parse --file ... [--iterations n]
   [--warmup-iterations n] [--parallelism n]
-  [--decompressor radarpulse|sharpziplib|sharpcompress] [--decode-moments]`
+  [--decompressor radarpulse|sharpziplib|sharpcompress] [--decode-moments]
+  [--decode-calibrated-moments]`
   measures decompress+message-scan+minimal-Type31 throughput in estimated
   gate-moment events/s, and optionally reads actual 8/16-bit moment gate
-  values with a checksum.
+  values or calibrated moment values with checksums.
 - The inspection path also uses the shared decompressor abstraction and pooled
   compressed-payload/output buffers.
 - CLI output for size, kind, archive filename, version, extension number, radar
@@ -131,6 +136,11 @@ Achieved:
 - The current KTLX smoke file reports stable descriptor metadata such as
   `REF scale=2 offset=66`, `VEL scale=2 offset=129`, `ZDR scale=32 offset=418`,
   and 0.25 km gate spacing for the observed moments.
+- Calibrated decoding on the current KTLX smoke file reports 5_523_459 valid
+  calibrated values per volume, 27_316_941 below-threshold values, 1_355
+  range-folded values, 5_794_484 CFP filter-not-applied values, 65_871 CFP
+  point-clutter-filter values, 56_930 CFP dual-pol-filtered values, no reserved
+  or unsupported values, and a calibrated range of `-31.5..359.649`.
 - The parse benchmark now gives a first measured answer against the 20M
   events/s target for decompression plus minimal parsing.
 - With `--decode-moments`, the same KTLX file decodes all 38_759_040 raw
@@ -139,9 +149,9 @@ Achieved:
 Not achieved yet:
 
 - No real event stream is generated yet.
-- Moment sample values are read as raw 8/16-bit values and the required
-  per-moment scale/offset metadata is summarized, but calibrated sample output
-  is not generated yet.
+- Moment sample values can be read as raw 8/16-bit values or calibrated with
+  sentinel/status preservation in benchmark mode, but no reusable event stream
+  API publishes calibrated samples yet.
 - The parser benchmark still does not publish downstream engine events.
 
 ## Documentation
@@ -163,7 +173,7 @@ dotnet test RadarPulse.sln --no-restore
 Result:
 
 ```text
-52 passed, 3 skipped
+53 passed, 3 skipped
 ```
 
 Manual CLI smoke tests:
@@ -322,6 +332,38 @@ Allocated bytes / decoded value: 0.03
 The sequential Release decoded benchmark on the same file and backend measured
 about 96_122_482 decoded gate-moment values/s with `--parallelism 1`.
 
+Last verified calibrated moment benchmark command:
+
+```powershell
+dotnet run --no-build -c Release --project src/Presentation/RadarPulse.Cli.csproj -- archive benchmark parse --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 --iterations 10 --warmup-iterations 1 --parallelism 24 --decompressor radarpulse --decode-calibrated-moments
+```
+
+Result on the current development machine:
+
+```text
+Decode calibrated moment values: True
+Decoded gate-moment values per iteration: 38_759_040
+Calibrated gate-moment values per iteration: 5_523_459
+Below-threshold gate-moment values per iteration: 27_316_941
+Range-folded gate-moment values per iteration: 1_355
+CFP filter-not-applied values per iteration: 5_794_484
+CFP point-clutter-filter values per iteration: 65_871
+CFP dual-pol-filtered values per iteration: 56_930
+Reserved gate-moment values per iteration: 0
+Unsupported calibrated gate-moment values per iteration: 0
+Calibrated gate-moment value scaled checksum per iteration: 70_028_121_122
+Calibrated value range per iteration: -31.5..359.649
+Elapsed ms: 1_152.26
+Estimated gate-moment events/s: 336_374_607.71
+Decoded gate-moment values/s: 336_374_607.71
+Calibrated gate-moment values/s: 47_935_948.73
+Allocated bytes / calibrated value: 0.66
+```
+
+The sequential Release calibrated benchmark on the same file and backend
+measured about 10_851_453 valid calibrated values/s, while still reading all
+raw gate-moment values at about 76_146_475 decoded values/s.
+
 Last verified normal command for milestone 001:
 
 ```powershell
@@ -454,9 +496,9 @@ constant and moment data blocks.
 
 The next milestone 002 implementation slice should be considered done when:
 
-- Calibrated value decoding applies per-block scale/offset while preserving the
-  raw-value sentinel semantics needed by Message Type 31.
-- The replay event shape is proposed separately from inspection summaries.
-- Tests cover calibrated-value handling or event-shape fields with small
-  fixtures.
+- The replay event shape is proposed separately from inspection summaries and
+  carries raw value, decoded status, optional calibrated value, range, and
+  source-order fields.
+- Tests cover the event-shape projection with small fixtures before wiring a
+  publisher.
 

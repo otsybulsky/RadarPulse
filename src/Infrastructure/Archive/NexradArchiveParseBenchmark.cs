@@ -27,6 +27,7 @@ public sealed class NexradArchiveParseBenchmark
             degreeOfParallelism,
             decompressorName,
             decodeMomentValues: false,
+            decodeCalibratedMomentValues: false,
             cancellationToken);
 
     public ArchiveTwoParseBenchmarkResult Measure(
@@ -36,6 +37,25 @@ public sealed class NexradArchiveParseBenchmark
         int degreeOfParallelism,
         string decompressorName,
         bool decodeMomentValues,
+        CancellationToken cancellationToken) =>
+        Measure(
+            filePath,
+            iterations,
+            warmupIterations,
+            degreeOfParallelism,
+            decompressorName,
+            decodeMomentValues,
+            decodeCalibratedMomentValues: false,
+            cancellationToken);
+
+    public ArchiveTwoParseBenchmarkResult Measure(
+        string filePath,
+        int iterations,
+        int warmupIterations,
+        int degreeOfParallelism,
+        string decompressorName,
+        bool decodeMomentValues,
+        bool decodeCalibratedMomentValues,
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
@@ -62,7 +82,11 @@ public sealed class NexradArchiveParseBenchmark
         }
 
         ValidateArchiveTwoSignature(fileInfo);
-        var workers = CreateWorkers(decompressor, degreeOfParallelism, decodeMomentValues);
+        var workers = CreateWorkers(
+            decompressor,
+            degreeOfParallelism,
+            decodeMomentValues || decodeCalibratedMomentValues,
+            decodeCalibratedMomentValues);
         try
         {
             for (var warmupIteration = 0; warmupIteration < warmupIterations; warmupIteration++)
@@ -97,7 +121,8 @@ public sealed class NexradArchiveParseBenchmark
                 iterations,
                 warmupIterations,
                 degreeOfParallelism,
-                decodeMomentValues,
+                decodeMomentValues || decodeCalibratedMomentValues,
+                decodeCalibratedMomentValues,
                 fileInfo.Length,
                 measurement.CompressedRecordCount,
                 measurement.CompressedBytes,
@@ -107,6 +132,17 @@ public sealed class NexradArchiveParseBenchmark
                 measurement.EstimatedGateMomentEvents,
                 measurement.DecodedGateMomentValues,
                 measurement.DecodedGateMomentValueChecksum,
+                measurement.CalibratedGateMomentValues,
+                measurement.BelowThresholdGateMomentValues,
+                measurement.RangeFoldedGateMomentValues,
+                measurement.ClutterFilterNotAppliedGateMomentValues,
+                measurement.PointClutterFilterAppliedGateMomentValues,
+                measurement.DualPolarizationFilteredGateMomentValues,
+                measurement.ReservedGateMomentValues,
+                measurement.UnsupportedCalibratedGateMomentValues,
+                measurement.CalibratedGateMomentValueScaledChecksum,
+                measurement.MinimumCalibratedGateMomentValue,
+                measurement.MaximumCalibratedGateMomentValue,
                 stopwatch.Elapsed,
                 allocatedBytes);
         }
@@ -318,12 +354,16 @@ public sealed class NexradArchiveParseBenchmark
     private static IReadOnlyList<ArchiveTwoParseBenchmarkWorker> CreateWorkers(
         IArchiveBZip2Decompressor decompressor,
         int degreeOfParallelism,
-        bool decodeMomentValues)
+        bool decodeMomentValues,
+        bool decodeCalibratedMomentValues)
     {
         var workers = new ArchiveTwoParseBenchmarkWorker[degreeOfParallelism];
         for (var i = 0; i < workers.Length; i++)
         {
-            workers[i] = new ArchiveTwoParseBenchmarkWorker(decompressor.CreateSession(), decodeMomentValues);
+            workers[i] = new ArchiveTwoParseBenchmarkWorker(
+                decompressor.CreateSession(),
+                decodeMomentValues,
+                decodeCalibratedMomentValues);
         }
 
         return workers;
@@ -399,7 +439,18 @@ public sealed class NexradArchiveParseBenchmark
         int Type31RadialCount,
         long EstimatedGateMomentEvents,
         long DecodedGateMomentValues,
-        ulong DecodedGateMomentValueChecksum)
+        ulong DecodedGateMomentValueChecksum,
+        long CalibratedGateMomentValues,
+        long BelowThresholdGateMomentValues,
+        long RangeFoldedGateMomentValues,
+        long ClutterFilterNotAppliedGateMomentValues,
+        long PointClutterFilterAppliedGateMomentValues,
+        long DualPolarizationFilteredGateMomentValues,
+        long ReservedGateMomentValues,
+        long UnsupportedCalibratedGateMomentValues,
+        long CalibratedGateMomentValueScaledChecksum,
+        double MinimumCalibratedGateMomentValue,
+        double MaximumCalibratedGateMomentValue)
     {
         public static ArchiveTwoParseIterationMeasurement operator +(
             ArchiveTwoParseIterationMeasurement left,
@@ -415,8 +466,53 @@ public sealed class NexradArchiveParseBenchmark
                     left.Type31RadialCount + right.Type31RadialCount,
                     left.EstimatedGateMomentEvents + right.EstimatedGateMomentEvents,
                     left.DecodedGateMomentValues + right.DecodedGateMomentValues,
-                    left.DecodedGateMomentValueChecksum + right.DecodedGateMomentValueChecksum);
+                    left.DecodedGateMomentValueChecksum + right.DecodedGateMomentValueChecksum,
+                    left.CalibratedGateMomentValues + right.CalibratedGateMomentValues,
+                    left.BelowThresholdGateMomentValues + right.BelowThresholdGateMomentValues,
+                    left.RangeFoldedGateMomentValues + right.RangeFoldedGateMomentValues,
+                    left.ClutterFilterNotAppliedGateMomentValues + right.ClutterFilterNotAppliedGateMomentValues,
+                    left.PointClutterFilterAppliedGateMomentValues + right.PointClutterFilterAppliedGateMomentValues,
+                    left.DualPolarizationFilteredGateMomentValues + right.DualPolarizationFilteredGateMomentValues,
+                    left.ReservedGateMomentValues + right.ReservedGateMomentValues,
+                    left.UnsupportedCalibratedGateMomentValues + right.UnsupportedCalibratedGateMomentValues,
+                    left.CalibratedGateMomentValueScaledChecksum + right.CalibratedGateMomentValueScaledChecksum,
+                    CombineMinimumCalibratedMomentValue(left, right),
+                    CombineMaximumCalibratedMomentValue(left, right));
             }
+        }
+
+        private static double CombineMinimumCalibratedMomentValue(
+            ArchiveTwoParseIterationMeasurement left,
+            ArchiveTwoParseIterationMeasurement right)
+        {
+            if (left.CalibratedGateMomentValues == 0)
+            {
+                return right.MinimumCalibratedGateMomentValue;
+            }
+
+            if (right.CalibratedGateMomentValues == 0)
+            {
+                return left.MinimumCalibratedGateMomentValue;
+            }
+
+            return Math.Min(left.MinimumCalibratedGateMomentValue, right.MinimumCalibratedGateMomentValue);
+        }
+
+        private static double CombineMaximumCalibratedMomentValue(
+            ArchiveTwoParseIterationMeasurement left,
+            ArchiveTwoParseIterationMeasurement right)
+        {
+            if (left.CalibratedGateMomentValues == 0)
+            {
+                return right.MaximumCalibratedGateMomentValue;
+            }
+
+            if (right.CalibratedGateMomentValues == 0)
+            {
+                return left.MaximumCalibratedGateMomentValue;
+            }
+
+            return Math.Max(left.MaximumCalibratedGateMomentValue, right.MaximumCalibratedGateMomentValue);
         }
     }
 
@@ -428,13 +524,15 @@ public sealed class NexradArchiveParseBenchmark
 
         public ArchiveTwoParseBenchmarkWorker(
             IArchiveBZip2DecompressionSession decompressionSession,
-            bool decodeMomentValues)
+            bool decodeMomentValues,
+            bool decodeCalibratedMomentValues)
         {
             DecompressionSession = decompressionSession;
             OutputBuffer = ArrayPool<byte>.Shared.Rent(OutputBufferSize);
             messageSummaryBuilder = new ArchiveTwoMessageSummaryBuilder(
                 decodeMomentValues,
-                collectSweepSummaries: false);
+                collectSweepSummaries: false,
+                decodeCalibratedMomentValues);
             messageScanner = new ArchiveTwoMessageStreamScanner(messageSummaryBuilder);
         }
 
@@ -461,7 +559,18 @@ public sealed class NexradArchiveParseBenchmark
                 Type31RadialCount: messageSummaryBuilder.Type31RadialCount,
                 EstimatedGateMomentEvents: messageSummaryBuilder.EstimatedGateMomentEventCount,
                 DecodedGateMomentValues: messageSummaryBuilder.DecodedGateMomentValueCount,
-                DecodedGateMomentValueChecksum: messageSummaryBuilder.DecodedGateMomentValueChecksum);
+                DecodedGateMomentValueChecksum: messageSummaryBuilder.DecodedGateMomentValueChecksum,
+                CalibratedGateMomentValues: messageSummaryBuilder.CalibratedGateMomentValueCount,
+                BelowThresholdGateMomentValues: messageSummaryBuilder.BelowThresholdGateMomentValueCount,
+                RangeFoldedGateMomentValues: messageSummaryBuilder.RangeFoldedGateMomentValueCount,
+                ClutterFilterNotAppliedGateMomentValues: messageSummaryBuilder.ClutterFilterNotAppliedGateMomentValueCount,
+                PointClutterFilterAppliedGateMomentValues: messageSummaryBuilder.PointClutterFilterAppliedGateMomentValueCount,
+                DualPolarizationFilteredGateMomentValues: messageSummaryBuilder.DualPolarizationFilteredGateMomentValueCount,
+                ReservedGateMomentValues: messageSummaryBuilder.ReservedGateMomentValueCount,
+                UnsupportedCalibratedGateMomentValues: messageSummaryBuilder.UnsupportedCalibratedGateMomentValueCount,
+                CalibratedGateMomentValueScaledChecksum: messageSummaryBuilder.CalibratedGateMomentValueScaledChecksum,
+                MinimumCalibratedGateMomentValue: messageSummaryBuilder.MinimumCalibratedGateMomentValue,
+                MaximumCalibratedGateMomentValue: messageSummaryBuilder.MaximumCalibratedGateMomentValue);
         }
 
         public byte[] EnsureCompressedPayloadBuffer(int requiredLength)

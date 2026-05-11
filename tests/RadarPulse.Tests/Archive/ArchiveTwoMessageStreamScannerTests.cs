@@ -188,6 +188,31 @@ public sealed class ArchiveTwoMessageStreamScannerTests
     }
 
     [Fact]
+    public void DecodesCalibratedMomentValuesAndStatusCodes()
+    {
+        var builder = new ArchiveTwoMessageSummaryBuilder(decodeCalibratedMomentValues: true);
+        var scanner = new ArchiveTwoMessageStreamScanner(builder);
+
+        scanner.Append(BuildMessage(31, BuildEightBitType31Payload("REF", [0, 1, 2, 66, 68], scale: 2f, offset: 66f)));
+        scanner.Append(BuildMessage(31, BuildEightBitType31Payload("CFP", [0, 1, 2, 3, 7, 8, 10], scale: 1f, offset: 8f)));
+        scanner.Complete();
+
+        Assert.Equal(12, builder.DecodedGateMomentValueCount);
+        Assert.Equal((ulong)(0 + 1 + 2 + 66 + 68 + 0 + 1 + 2 + 3 + 7 + 8 + 10), builder.DecodedGateMomentValueChecksum);
+        Assert.Equal(5, builder.CalibratedGateMomentValueCount);
+        Assert.Equal(1, builder.BelowThresholdGateMomentValueCount);
+        Assert.Equal(1, builder.RangeFoldedGateMomentValueCount);
+        Assert.Equal(1, builder.ClutterFilterNotAppliedGateMomentValueCount);
+        Assert.Equal(1, builder.PointClutterFilterAppliedGateMomentValueCount);
+        Assert.Equal(1, builder.DualPolarizationFilteredGateMomentValueCount);
+        Assert.Equal(2, builder.ReservedGateMomentValueCount);
+        Assert.Equal(0, builder.UnsupportedCalibratedGateMomentValueCount);
+        Assert.Equal(-29_000, builder.CalibratedGateMomentValueScaledChecksum);
+        Assert.Equal(-32, builder.MinimumCalibratedGateMomentValue);
+        Assert.Equal(2, builder.MaximumCalibratedGateMomentValue);
+    }
+
+    [Fact]
     public void IgnoresShortNonMessageTail()
     {
         var builder = new ArchiveTwoMessageSummaryBuilder();
@@ -244,9 +269,19 @@ public sealed class ArchiveTwoMessageStreamScannerTests
         return payload;
     }
 
-    private static byte[] BuildEightBitType31Payload(string momentName, byte[] values)
+    private static byte[] BuildEightBitType31Payload(
+        string momentName,
+        byte[] values,
+        float scale = 2f,
+        float offset = 66f)
     {
-        var payload = BuildType31Payload(momentName, checked((ushort)values.Length), wordSizeBits: 8, values.Length);
+        var payload = BuildType31Payload(
+            momentName,
+            checked((ushort)values.Length),
+            wordSizeBits: 8,
+            values.Length,
+            scale: scale,
+            offset: offset);
         values.CopyTo(payload.AsSpan(100));
         return payload;
     }

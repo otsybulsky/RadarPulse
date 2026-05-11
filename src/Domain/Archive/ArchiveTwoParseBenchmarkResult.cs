@@ -7,6 +7,7 @@ public sealed record ArchiveTwoParseBenchmarkResult(
     int WarmupIterations,
     int DegreeOfParallelism,
     bool DecodeMomentValues,
+    bool DecodeCalibratedMomentValues,
     long FileSizeBytes,
     int CompressedRecordsPerIteration,
     long CompressedBytesPerIteration,
@@ -16,6 +17,17 @@ public sealed record ArchiveTwoParseBenchmarkResult(
     long EstimatedGateMomentEventsPerIteration,
     long DecodedGateMomentValuesPerIteration,
     ulong DecodedGateMomentValueChecksumPerIteration,
+    long CalibratedGateMomentValuesPerIteration,
+    long BelowThresholdGateMomentValuesPerIteration,
+    long RangeFoldedGateMomentValuesPerIteration,
+    long ClutterFilterNotAppliedGateMomentValuesPerIteration,
+    long PointClutterFilterAppliedGateMomentValuesPerIteration,
+    long DualPolarizationFilteredGateMomentValuesPerIteration,
+    long ReservedGateMomentValuesPerIteration,
+    long UnsupportedCalibratedGateMomentValuesPerIteration,
+    long CalibratedGateMomentValueScaledChecksumPerIteration,
+    double MinimumCalibratedGateMomentValuePerIteration,
+    double MaximumCalibratedGateMomentValuePerIteration,
     TimeSpan Elapsed,
     long AllocatedBytes)
 {
@@ -32,4 +44,20 @@ public sealed record ArchiveTwoParseBenchmarkResult(
     public long TotalEstimatedGateMomentEvents => EstimatedGateMomentEventsPerIteration * Iterations;
 
     public long TotalDecodedGateMomentValues => DecodedGateMomentValuesPerIteration * Iterations;
+
+    public long TotalCalibratedGateMomentValues => CalibratedGateMomentValuesPerIteration * Iterations;
+
+    public long TotalBelowThresholdGateMomentValues => BelowThresholdGateMomentValuesPerIteration * Iterations;
+
+    public long TotalRangeFoldedGateMomentValues => RangeFoldedGateMomentValuesPerIteration * Iterations;
+
+    public long TotalClutterFilterNotAppliedGateMomentValues => ClutterFilterNotAppliedGateMomentValuesPerIteration * Iterations;
+
+    public long TotalPointClutterFilterAppliedGateMomentValues => PointClutterFilterAppliedGateMomentValuesPerIteration * Iterations;
+
+    public long TotalDualPolarizationFilteredGateMomentValues => DualPolarizationFilteredGateMomentValuesPerIteration * Iterations;
+
+    public long TotalReservedGateMomentValues => ReservedGateMomentValuesPerIteration * Iterations;
+
+    public long TotalUnsupportedCalibratedGateMomentValues => UnsupportedCalibratedGateMomentValuesPerIteration * Iterations;
 }

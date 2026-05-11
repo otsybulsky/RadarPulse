@@ -154,7 +154,7 @@ static int PrintUsage()
     Console.WriteLine("  radarpulse archive download --manifest data/manifests/2026-05-04.json --output data/nexrad [--radar KTLX] [--max-files n] [--max-bytes n] [--concurrency n]");
     Console.WriteLine("  radarpulse archive inspect --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06");
     Console.WriteLine("  radarpulse archive benchmark decompress --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
-    Console.WriteLine("  radarpulse archive benchmark parse --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress] [--decode-moments]");
+    Console.WriteLine("  radarpulse archive benchmark parse --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress] [--decode-moments] [--decode-calibrated-moments]");
     Console.WriteLine("  radarpulse archive validate decompress (--file path | --cache data/nexrad [--radar KTLX] [--max-files n])");
     return 2;
 }
@@ -217,6 +217,7 @@ static int BenchmarkArchiveParse(string[] args)
         options.Parallelism,
         options.Decompressor,
         options.DecodeMomentValues,
+        options.DecodeCalibratedMomentValues,
         CancellationToken.None);
 
     Console.WriteLine($"File: {result.FilePath}");
@@ -225,6 +226,7 @@ static int BenchmarkArchiveParse(string[] args)
     Console.WriteLine($"Warmup iterations: {FormatNumber(result.WarmupIterations)}");
     Console.WriteLine($"Parallelism: {FormatNumber(result.DegreeOfParallelism)}");
     Console.WriteLine($"Decode moment values: {result.DecodeMomentValues}");
+    Console.WriteLine($"Decode calibrated moment values: {result.DecodeCalibratedMomentValues}");
     Console.WriteLine($"File size bytes: {FormatNumber(result.FileSizeBytes)}");
     Console.WriteLine($"Compressed records per iteration: {FormatNumber(result.CompressedRecordsPerIteration)}");
     Console.WriteLine($"Compressed bytes per iteration: {FormatNumber(result.CompressedBytesPerIteration)}");
@@ -238,6 +240,20 @@ static int BenchmarkArchiveParse(string[] args)
         Console.WriteLine($"Decoded gate-moment value checksum per iteration: {FormatUnsignedNumber(result.DecodedGateMomentValueChecksumPerIteration)}");
     }
 
+    if (result.DecodeCalibratedMomentValues)
+    {
+        Console.WriteLine($"Calibrated gate-moment values per iteration: {FormatNumber(result.CalibratedGateMomentValuesPerIteration)}");
+        Console.WriteLine($"Below-threshold gate-moment values per iteration: {FormatNumber(result.BelowThresholdGateMomentValuesPerIteration)}");
+        Console.WriteLine($"Range-folded gate-moment values per iteration: {FormatNumber(result.RangeFoldedGateMomentValuesPerIteration)}");
+        Console.WriteLine($"CFP filter-not-applied values per iteration: {FormatNumber(result.ClutterFilterNotAppliedGateMomentValuesPerIteration)}");
+        Console.WriteLine($"CFP point-clutter-filter values per iteration: {FormatNumber(result.PointClutterFilterAppliedGateMomentValuesPerIteration)}");
+        Console.WriteLine($"CFP dual-pol-filtered values per iteration: {FormatNumber(result.DualPolarizationFilteredGateMomentValuesPerIteration)}");
+        Console.WriteLine($"Reserved gate-moment values per iteration: {FormatNumber(result.ReservedGateMomentValuesPerIteration)}");
+        Console.WriteLine($"Unsupported calibrated gate-moment values per iteration: {FormatNumber(result.UnsupportedCalibratedGateMomentValuesPerIteration)}");
+        Console.WriteLine($"Calibrated gate-moment value scaled checksum per iteration: {FormatNumber(result.CalibratedGateMomentValueScaledChecksumPerIteration)}");
+        Console.WriteLine($"Calibrated value range per iteration: {FormatCompactDouble(result.MinimumCalibratedGateMomentValuePerIteration)}..{FormatCompactDouble(result.MaximumCalibratedGateMomentValuePerIteration)}");
+    }
+
     Console.WriteLine($"Total compressed records: {FormatNumber(result.TotalCompressedRecords)}");
     Console.WriteLine($"Total compressed bytes: {FormatNumber(result.TotalCompressedBytes)}");
     Console.WriteLine($"Total decompressed bytes: {FormatNumber(result.TotalDecompressedBytes)}");
@@ -247,6 +263,18 @@ static int BenchmarkArchiveParse(string[] args)
     if (result.DecodeMomentValues)
     {
         Console.WriteLine($"Total decoded gate-moment values: {FormatNumber(result.TotalDecodedGateMomentValues)}");
+    }
+
+    if (result.DecodeCalibratedMomentValues)
+    {
+        Console.WriteLine($"Total calibrated gate-moment values: {FormatNumber(result.TotalCalibratedGateMomentValues)}");
+        Console.WriteLine($"Total below-threshold gate-moment values: {FormatNumber(result.TotalBelowThresholdGateMomentValues)}");
+        Console.WriteLine($"Total range-folded gate-moment values: {FormatNumber(result.TotalRangeFoldedGateMomentValues)}");
+        Console.WriteLine($"Total CFP filter-not-applied values: {FormatNumber(result.TotalClutterFilterNotAppliedGateMomentValues)}");
+        Console.WriteLine($"Total CFP point-clutter-filter values: {FormatNumber(result.TotalPointClutterFilterAppliedGateMomentValues)}");
+        Console.WriteLine($"Total CFP dual-pol-filtered values: {FormatNumber(result.TotalDualPolarizationFilteredGateMomentValues)}");
+        Console.WriteLine($"Total reserved gate-moment values: {FormatNumber(result.TotalReservedGateMomentValues)}");
+        Console.WriteLine($"Total unsupported calibrated gate-moment values: {FormatNumber(result.TotalUnsupportedCalibratedGateMomentValues)}");
     }
 
     Console.WriteLine($"Elapsed ms: {FormatDecimal(result.Elapsed.TotalMilliseconds)}");
@@ -260,12 +288,22 @@ static int BenchmarkArchiveParse(string[] args)
         Console.WriteLine($"Decoded gate-moment values/s: {FormatDecimal(PerSecond(result.TotalDecodedGateMomentValues, result.Elapsed))}");
     }
 
+    if (result.DecodeCalibratedMomentValues)
+    {
+        Console.WriteLine($"Calibrated gate-moment values/s: {FormatDecimal(PerSecond(result.TotalCalibratedGateMomentValues, result.Elapsed))}");
+    }
+
     Console.WriteLine($"Allocated bytes: {FormatNumber(result.AllocatedBytes)}");
     Console.WriteLine($"Allocated bytes / message: {FormatDecimal(result.AllocatedBytes / Math.Max((double)result.TotalMessages, 1d))}");
     Console.WriteLine($"Allocated bytes / estimated event: {FormatDecimal(result.AllocatedBytes / Math.Max((double)result.TotalEstimatedGateMomentEvents, 1d))}");
     if (result.DecodeMomentValues)
     {
         Console.WriteLine($"Allocated bytes / decoded value: {FormatDecimal(result.AllocatedBytes / Math.Max((double)result.TotalDecodedGateMomentValues, 1d))}");
+    }
+
+    if (result.DecodeCalibratedMomentValues)
+    {
+        Console.WriteLine($"Allocated bytes / calibrated value: {FormatDecimal(result.AllocatedBytes / Math.Max((double)result.TotalCalibratedGateMomentValues, 1d))}");
     }
 
     return 0;
@@ -452,6 +490,9 @@ static string FormatFloatRange(float minimum, float maximum) =>
         : $"{FormatCompactFloat(minimum)}-{FormatCompactFloat(maximum)}";
 
 static string FormatCompactFloat(float value) =>
+    value.ToString("0.###", CultureInfo.InvariantCulture);
+
+static string FormatCompactDouble(double value) =>
     value.ToString("0.###", CultureInfo.InvariantCulture);
 
 static string FormatCutSectorRange(int minimum, int maximum) =>
@@ -705,7 +746,8 @@ internal sealed record ArchiveBenchmarkParseOptions(
     int WarmupIterations,
     int Parallelism,
     string Decompressor,
-    bool DecodeMomentValues)
+    bool DecodeMomentValues,
+    bool DecodeCalibratedMomentValues)
 {
     public static ArchiveBenchmarkParseOptions Parse(string[] args)
     {
@@ -715,6 +757,7 @@ internal sealed record ArchiveBenchmarkParseOptions(
         var parallelism = 1;
         var decompressor = ArchiveBZip2Decompressors.DefaultName;
         var decodeMomentValues = false;
+        var decodeCalibratedMomentValues = false;
         for (var i = 0; i < args.Length; i++)
         {
             switch (args[i])
@@ -736,6 +779,10 @@ internal sealed record ArchiveBenchmarkParseOptions(
                     break;
                 case "--decode-moments":
                     decodeMomentValues = true;
+                    break;
+                case "--decode-calibrated-moments":
+                    decodeMomentValues = true;
+                    decodeCalibratedMomentValues = true;
                     break;
                 default:
                     throw new ArgumentException($"Unknown option: {args[i]}");
@@ -764,7 +811,14 @@ internal sealed record ArchiveBenchmarkParseOptions(
 
         ArchiveBZip2Decompressors.Create(decompressor);
 
-        return new ArchiveBenchmarkParseOptions(filePath, iterations, warmupIterations, parallelism, decompressor, decodeMomentValues);
+        return new ArchiveBenchmarkParseOptions(
+            filePath,
+            iterations,
+            warmupIterations,
+            parallelism,
+            decompressor,
+            decodeMomentValues,
+            decodeCalibratedMomentValues);
     }
 
     private static string RequireValue(string[] args, ref int index, string option)

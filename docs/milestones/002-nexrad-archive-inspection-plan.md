@@ -95,6 +95,7 @@ explicit compressed-record/message/radial source order in inspection summaries i
 Type 31 generic moment descriptor metadata implemented for gate count range, word size, first-gate range, gate spacing, scale, and offset
 parse throughput benchmark implemented
 optional raw 8/16-bit moment value decode benchmark implemented
+optional calibrated Type 31 moment value decode benchmark implemented with sentinel/status counts
 cache-wide inspection not implemented
 ```
 
@@ -220,8 +221,21 @@ radarpulse parse --decode-moments, parallelism 24: about 659_912_891 decoded gat
 ```
 
 These are raw encoded moment samples. The inspection summary now reports the
-per-moment scale and offset needed for calibration, but calibrated sample output
-is still deferred.
+per-moment scale and offset needed for calibration, and the optional calibrated
+benchmark applies those fields to valid samples while preserving Message Type 31
+sentinel/status counts.
+
+On the same KTLX file, calibrated Release benchmark smoke results were:
+
+```text
+radarpulse parse --decode-calibrated-moments, parallelism 1:
+  about 76_146_475 decoded raw values/s
+  about 10_851_454 valid calibrated values/s
+
+radarpulse parse --decode-calibrated-moments, parallelism 24:
+  about 336_374_608 decoded raw values/s
+  about 47_935_949 valid calibrated values/s
+```
 
 The validation path compares `radarpulse` against SharpZipLib per compressed
 record using streaming hashes. The current local KTLX validation sample compared

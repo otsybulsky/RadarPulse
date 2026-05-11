@@ -22,6 +22,7 @@ public sealed class ArchiveTwoMessageSummaryBuilder
 
     private readonly bool decodeMomentValues;
     private readonly bool collectSweepSummaries;
+    private readonly bool decodeCalibratedMomentValues;
     private readonly Dictionary<int, int> messageTypeCounts = new();
     private readonly Dictionary<string, MomentAccumulator> moments = new(StringComparer.Ordinal);
     private readonly List<SweepAccumulator> sweeps = new();
@@ -30,6 +31,17 @@ public sealed class ArchiveTwoMessageSummaryBuilder
     private long estimatedGateMomentEvents;
     private long decodedGateMomentValues;
     private ulong decodedGateMomentValueChecksum;
+    private long calibratedGateMomentValues;
+    private long belowThresholdGateMomentValues;
+    private long rangeFoldedGateMomentValues;
+    private long clutterFilterNotAppliedGateMomentValues;
+    private long pointClutterFilterAppliedGateMomentValues;
+    private long dualPolarizationFilteredGateMomentValues;
+    private long reservedGateMomentValues;
+    private long unsupportedCalibratedGateMomentValues;
+    private long calibratedGateMomentValueScaledChecksum;
+    private double minimumCalibratedGateMomentValue;
+    private double maximumCalibratedGateMomentValue;
     private int volumeConstantBlockCount;
     private int elevationConstantBlockCount;
     private int radialConstantBlockCount;
@@ -37,10 +49,12 @@ public sealed class ArchiveTwoMessageSummaryBuilder
 
     public ArchiveTwoMessageSummaryBuilder(
         bool decodeMomentValues = false,
-        bool collectSweepSummaries = true)
+        bool collectSweepSummaries = true,
+        bool decodeCalibratedMomentValues = false)
     {
-        this.decodeMomentValues = decodeMomentValues;
+        this.decodeMomentValues = decodeMomentValues || decodeCalibratedMomentValues;
         this.collectSweepSummaries = collectSweepSummaries;
+        this.decodeCalibratedMomentValues = decodeCalibratedMomentValues;
     }
 
     public int MessageCount => messageCount;
@@ -53,6 +67,28 @@ public sealed class ArchiveTwoMessageSummaryBuilder
 
     public ulong DecodedGateMomentValueChecksum => decodedGateMomentValueChecksum;
 
+    public long CalibratedGateMomentValueCount => calibratedGateMomentValues;
+
+    public long BelowThresholdGateMomentValueCount => belowThresholdGateMomentValues;
+
+    public long RangeFoldedGateMomentValueCount => rangeFoldedGateMomentValues;
+
+    public long ClutterFilterNotAppliedGateMomentValueCount => clutterFilterNotAppliedGateMomentValues;
+
+    public long PointClutterFilterAppliedGateMomentValueCount => pointClutterFilterAppliedGateMomentValues;
+
+    public long DualPolarizationFilteredGateMomentValueCount => dualPolarizationFilteredGateMomentValues;
+
+    public long ReservedGateMomentValueCount => reservedGateMomentValues;
+
+    public long UnsupportedCalibratedGateMomentValueCount => unsupportedCalibratedGateMomentValues;
+
+    public long CalibratedGateMomentValueScaledChecksum => calibratedGateMomentValueScaledChecksum;
+
+    public double MinimumCalibratedGateMomentValue => minimumCalibratedGateMomentValue;
+
+    public double MaximumCalibratedGateMomentValue => maximumCalibratedGateMomentValue;
+
     public void Reset()
     {
         messageTypeCounts.Clear();
@@ -62,6 +98,17 @@ public sealed class ArchiveTwoMessageSummaryBuilder
         estimatedGateMomentEvents = 0;
         decodedGateMomentValues = 0;
         decodedGateMomentValueChecksum = 0;
+        calibratedGateMomentValues = 0;
+        belowThresholdGateMomentValues = 0;
+        rangeFoldedGateMomentValues = 0;
+        clutterFilterNotAppliedGateMomentValues = 0;
+        pointClutterFilterAppliedGateMomentValues = 0;
+        dualPolarizationFilteredGateMomentValues = 0;
+        reservedGateMomentValues = 0;
+        unsupportedCalibratedGateMomentValues = 0;
+        calibratedGateMomentValueScaledChecksum = 0;
+        minimumCalibratedGateMomentValue = 0;
+        maximumCalibratedGateMomentValue = 0;
         volumeConstantBlockCount = 0;
         elevationConstantBlockCount = 0;
         radialConstantBlockCount = 0;
@@ -288,7 +335,7 @@ public sealed class ArchiveTwoMessageSummaryBuilder
         estimatedGateMomentEvents += metadata.GateCount;
         if (decodeMomentValues)
         {
-            DecodeMomentValues(block, metadata.GateCount);
+            DecodeMomentValues(name, block, metadata);
         }
     }
 
@@ -307,41 +354,52 @@ public sealed class ArchiveTwoMessageSummaryBuilder
     private static float ReadSingleBigEndian(ReadOnlySpan<byte> buffer) =>
         BitConverter.Int32BitsToSingle(BinaryPrimitives.ReadInt32BigEndian(buffer));
 
-    private void DecodeMomentValues(ReadOnlySpan<byte> block, int gateCount)
+    private void DecodeMomentValues(
+        string momentName,
+        ReadOnlySpan<byte> block,
+        Type31MomentMetadata metadata)
     {
-        var wordSizeBits = block[GenericMomentWordSizeOffset];
-        switch (wordSizeBits)
+        switch (metadata.WordSizeBits)
         {
             case 8:
-                DecodeEightBitMomentValues(block[GenericMomentDataOffset..], gateCount);
+                DecodeEightBitMomentValues(momentName, block[GenericMomentDataOffset..], metadata);
                 break;
             case 16:
-                DecodeSixteenBitMomentValues(block[GenericMomentDataOffset..], gateCount);
+                DecodeSixteenBitMomentValues(momentName, block[GenericMomentDataOffset..], metadata);
                 break;
         }
     }
 
-    private void DecodeEightBitMomentValues(ReadOnlySpan<byte> data, int gateCount)
+    private void DecodeEightBitMomentValues(
+        string momentName,
+        ReadOnlySpan<byte> data,
+        Type31MomentMetadata metadata)
     {
-        if (data.Length < gateCount)
+        if (data.Length < metadata.GateCount)
         {
             return;
         }
 
-        for (var i = 0; i < gateCount; i++)
+        for (var i = 0; i < metadata.GateCount; i++)
         {
+            var rawValue = data[i];
             unchecked
             {
-                decodedGateMomentValueChecksum += data[i];
+                decodedGateMomentValueChecksum += rawValue;
             }
+
+            AcceptCalibratedMomentValue(momentName, rawValue, metadata);
         }
 
-        decodedGateMomentValues += gateCount;
+        decodedGateMomentValues += metadata.GateCount;
     }
 
-    private void DecodeSixteenBitMomentValues(ReadOnlySpan<byte> data, int gateCount)
+    private void DecodeSixteenBitMomentValues(
+        string momentName,
+        ReadOnlySpan<byte> data,
+        Type31MomentMetadata metadata)
     {
-        var requiredBytes = checked(gateCount * sizeof(ushort));
+        var requiredBytes = checked(metadata.GateCount * sizeof(ushort));
         if (data.Length < requiredBytes)
         {
             return;
@@ -349,14 +407,95 @@ public sealed class ArchiveTwoMessageSummaryBuilder
 
         for (var i = 0; i < requiredBytes; i += sizeof(ushort))
         {
+            var rawValue = BinaryPrimitives.ReadUInt16BigEndian(data.Slice(i, sizeof(ushort)));
             unchecked
             {
-                decodedGateMomentValueChecksum += BinaryPrimitives.ReadUInt16BigEndian(data.Slice(i, sizeof(ushort)));
+                decodedGateMomentValueChecksum += rawValue;
+            }
+
+            AcceptCalibratedMomentValue(momentName, rawValue, metadata);
+        }
+
+        decodedGateMomentValues += metadata.GateCount;
+    }
+
+    private void AcceptCalibratedMomentValue(
+        string momentName,
+        int rawValue,
+        Type31MomentMetadata metadata)
+    {
+        if (!decodeCalibratedMomentValues)
+        {
+            return;
+        }
+
+        if (IsClutterFilterPowerRemovedMoment(momentName))
+        {
+            switch (rawValue)
+            {
+                case 0:
+                    clutterFilterNotAppliedGateMomentValues++;
+                    return;
+                case 1:
+                    pointClutterFilterAppliedGateMomentValues++;
+                    return;
+                case 2:
+                    dualPolarizationFilteredGateMomentValues++;
+                    return;
+            }
+
+            if (rawValue < 8)
+            {
+                reservedGateMomentValues++;
+                return;
+            }
+        }
+        else
+        {
+            switch (rawValue)
+            {
+                case 0:
+                    belowThresholdGateMomentValues++;
+                    return;
+                case 1:
+                    rangeFoldedGateMomentValues++;
+                    return;
             }
         }
 
-        decodedGateMomentValues += gateCount;
+        if (metadata.Scale == 0 || !float.IsFinite(metadata.Scale))
+        {
+            unsupportedCalibratedGateMomentValues++;
+            return;
+        }
+
+        var calibratedValue = (rawValue - metadata.Offset) / metadata.Scale;
+        if (!double.IsFinite(calibratedValue))
+        {
+            unsupportedCalibratedGateMomentValues++;
+            return;
+        }
+
+        if (calibratedGateMomentValues == 0)
+        {
+            minimumCalibratedGateMomentValue = calibratedValue;
+            maximumCalibratedGateMomentValue = calibratedValue;
+        }
+        else
+        {
+            minimumCalibratedGateMomentValue = Math.Min(minimumCalibratedGateMomentValue, calibratedValue);
+            maximumCalibratedGateMomentValue = Math.Max(maximumCalibratedGateMomentValue, calibratedValue);
+        }
+
+        calibratedGateMomentValues++;
+        checked
+        {
+            calibratedGateMomentValueScaledChecksum += (long)Math.Round(calibratedValue * 1_000d, MidpointRounding.AwayFromZero);
+        }
     }
+
+    private static bool IsClutterFilterPowerRemovedMoment(string momentName) =>
+        string.Equals(momentName, "CFP", StringComparison.Ordinal);
 
     private sealed class MomentAccumulator
     {

@@ -41,6 +41,7 @@ Type 31 sweep/elevation/radial sequencing summaries with source order
 Type 31 generic moment descriptor metadata for gate count range, word size, first-gate range, gate spacing, scale, and offset
 parse throughput benchmark for decompress+message-scan+minimal-Type31
 optional raw 8/16-bit Type 31 moment value decode benchmark
+optional calibrated Type 31 moment value decode benchmark with sentinel/status counts
 CLI output for file kind, size, archive filename, version, extension, radar id, volume time, compressed record count, compressed bytes, BZip2 signature count, decompressed record count, and decompressed bytes
 unit tests with small synthetic fixtures
 ```
@@ -48,7 +49,7 @@ unit tests with small synthetic fixtures
 Not yet implemented:
 
 ```text
-calibrated moment sample output
+reusable calibrated moment event stream
 ordered event publishing
 ```
 
@@ -285,8 +286,27 @@ allocated bytes / decoded value: 0.03
 
 The same decoded path with `--parallelism 1` measured about 96_122_482 decoded
 gate-moment values/s. These values are raw encoded moment samples. The parser
-now summarizes the per-moment scale and offset required for calibration, but it
-does not yet publish calibrated meteorological values.
+now summarizes the per-moment scale and offset required for calibration, and the
+`--decode-calibrated-moments` benchmark applies those fields to valid samples
+while preserving below-threshold, range-folded, CFP status, reserved, and
+unsupported counts.
+
+On the same KTLX file, calibrated Release benchmark smoke results were:
+
+```text
+radarpulse parse --decode-calibrated-moments, parallelism 1:
+  about 76_146_475 decoded raw values/s
+  about 10_851_454 valid calibrated values/s
+
+radarpulse parse --decode-calibrated-moments, parallelism 24:
+  about 336_374_608 decoded raw values/s
+  about 47_935_949 valid calibrated values/s
+```
+
+The calibrated count is lower than the raw decoded count because Message Type 31
+uses raw sentinel/status codes. On the current KTLX file, one volume contains
+5_523_459 valid calibrated samples, 27_316_941 below-threshold samples,
+1_355 range-folded samples, and CFP status counts for the remaining CFP gates.
 
 The validation command compares `radarpulse` against SharpZipLib per compressed
 record using streaming hashes. On the local KTLX corpus sample it compared 20
@@ -299,7 +319,7 @@ Milestone 002 should not promise:
 
 ```text
 rendered radar imagery
-full moment value calibration
+reusable calibrated event stream
 geospatial projection
 event detection
 benchmark-ready replay
