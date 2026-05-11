@@ -58,7 +58,13 @@ public sealed record ArchiveTwoSweepSummary(
 
 public readonly record struct ArchiveTwoMessageSource(
     int CompressedRecordSequenceNumber,
-    int MessageSequenceNumberInRecord);
+    int MessageSequenceNumberInRecord,
+    DateOnly MessageDate,
+    TimeSpan MessageTime)
+{
+    public DateTimeOffset MessageTimestamp =>
+        new DateTimeOffset(MessageDate.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero).Add(MessageTime);
+}
 
 public readonly record struct ArchiveTwoRadialSourceOrder(
     int CompressedRecordSequenceNumber,

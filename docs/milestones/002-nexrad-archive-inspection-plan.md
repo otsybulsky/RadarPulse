@@ -99,8 +99,8 @@ optional calibrated Type 31 moment value decode benchmark implemented with senti
 first Type 31 gate-moment event shape implemented
 parallel replay-shape benchmark implemented with source-order-preserving projection
 cache-wide replay-shape validation implemented
-calibrated-data unevenness report by compressed record and sweep implemented
-cache-wide inspection command not implemented
+calibrated-data unevenness report by compressed record, sweep, radial, and minute implemented
+cache-wide inspection command implemented
 ```
 
 ## Performance Target
@@ -241,6 +241,27 @@ radarpulse parse --decode-calibrated-moments, parallelism 24:
   about 47_935_949 valid calibrated values/s
 ```
 
+A later Release rerun after closing the milestone used shorter benchmark
+windows and measured the same `KTLX20260504_000245_V06` file with
+`--parallelism 24`:
+
+```text
+decompression: 910.77 decompressed MB/s
+minimal parse: 501_164_693 estimated gate-moment events/s
+calibrated parse: 670_226_077 decoded values/s, 95_512_331 valid calibrated values/s
+replay-shape: 230_347_912 replay-shaped events/s, 32_826_335 valid events/s
+```
+
+Calibrated parse is expected to be faster than replay-shape. It reads and
+classifies values, calibrates valid samples, and updates counters/checksums.
+Replay-shape additionally constructs the publisher-facing event shape for every
+gate, carries radar/volume/message time and source-order identity, computes the
+order-sensitive chronology checksum, and pays for the parallel radial-transition
+prepass plus ordered aggregation. Therefore calibrated parse measures value
+decode throughput, while replay-shape measures ordered event preparation
+throughput. The slower replay-shape path still stays roughly 11.5x above the
+20M events/s target on this file.
+
 The validation path compares `radarpulse` against SharpZipLib per compressed
 record using streaming hashes. The current local KTLX validation sample compared
 20 Archive Two files, 1_100 compressed records, and 1_014_836_480 decompressed
@@ -370,9 +391,10 @@ Candidate command after cache selection exists:
 radarpulse archive inspect --cache data/nexrad --date 2026-05-04 --radar KTLX --max-files 1
 ```
 
-The command should report unsupported file kinds without failing the whole
-inspection run, unless the user explicitly selects one file and that file cannot
-be parsed.
+The cache inspection command reports aggregate file-kind, compression, message,
+and Type 31 counts across selected cache files. Unsupported file kinds are
+classified without failing the whole inspection run, unless the user explicitly
+selects one file and that file cannot be parsed.
 
 ## Code Boundaries
 
@@ -434,6 +456,7 @@ Milestone 002 is complete when:
 RadarPulse can inspect one cached Archive Two base-data file
 the reader handles internal BZip2 records correctly
 the command prints stable volume/sweep/radial/moment metadata
+the cache inspection command summarizes selected cache files
 MDM and unknown binary files are classified without accidental base-data parsing
 behavior is covered by focused tests
 documentation describes the supported file kinds and limitations

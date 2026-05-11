@@ -133,6 +133,8 @@ public sealed class NexradArchiveReplayShapeValidator
                 parallelMetrics,
                 sequential.RecordUnevenness,
                 sequential.SweepUnevenness,
+                sequential.RadialUnevenness,
+                sequential.TimeBucketUnevenness,
                 diagnostic);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -144,6 +146,8 @@ public sealed class NexradArchiveReplayShapeValidator
                 emptyMetrics,
                 ArchiveTwoReplayShapeUnevennessSummary.Empty("record"),
                 ArchiveTwoReplayShapeUnevennessSummary.Empty("sweep"),
+                ArchiveTwoReplayShapeUnevennessSummary.Empty("radial"),
+                ArchiveTwoReplayShapeUnevennessSummary.Empty("minute"),
                 ex.Message);
         }
     }
@@ -311,12 +315,16 @@ public sealed class NexradArchiveReplayShapeValidator
     private sealed record ArchiveTwoReplayShapeAnalysis(
         ArchiveTwoReplayShapeValidationMetrics Metrics,
         ArchiveTwoReplayShapeUnevennessSummary RecordUnevenness,
-        ArchiveTwoReplayShapeUnevennessSummary SweepUnevenness);
+        ArchiveTwoReplayShapeUnevennessSummary SweepUnevenness,
+        ArchiveTwoReplayShapeUnevennessSummary RadialUnevenness,
+        ArchiveTwoReplayShapeUnevennessSummary TimeBucketUnevenness);
 
     private sealed class ArchiveTwoReplayShapeFlowAccumulator
     {
         private readonly Dictionary<int, BucketAccumulator> recordBuckets = new();
         private readonly Dictionary<int, BucketAccumulator> sweepBuckets = new();
+        private readonly Dictionary<int, BucketAccumulator> radialBuckets = new();
+        private readonly Dictionary<int, BucketAccumulator> timeBucketBuckets = new();
         private long events;
         private long validEvents;
         private long belowThresholdEvents;
@@ -352,6 +360,8 @@ public sealed class NexradArchiveReplayShapeValidator
             chronologyChecksum = ArchiveTwoGateMomentChronologyChecksum.Append(chronologyChecksum, gateMomentEvent);
             AcceptBucket(recordBuckets, gateMomentEvent.SourceOrder.CompressedRecordSequenceNumber, gateMomentEvent);
             AcceptBucket(sweepBuckets, gateMomentEvent.SweepSequenceNumber, gateMomentEvent);
+            AcceptBucket(radialBuckets, gateMomentEvent.RadialSequenceNumber, gateMomentEvent);
+            AcceptBucket(timeBucketBuckets, GetMinuteOfDay(gateMomentEvent.MessageTimestamp), gateMomentEvent);
 
             switch (gateMomentEvent.Status)
             {
@@ -410,8 +420,13 @@ public sealed class NexradArchiveReplayShapeValidator
             return new ArchiveTwoReplayShapeAnalysis(
                 metrics,
                 BuildUnevenness("record", recordBuckets.Values),
-                BuildUnevenness("sweep", sweepBuckets.Values));
+                BuildUnevenness("sweep", sweepBuckets.Values),
+                BuildUnevenness("radial", radialBuckets.Values),
+                BuildUnevenness("minute", timeBucketBuckets.Values));
         }
+
+        private static int GetMinuteOfDay(DateTimeOffset timestamp) =>
+            timestamp.Hour * 60 + timestamp.Minute;
 
         private static void AcceptBucket(
             Dictionary<int, BucketAccumulator> buckets,

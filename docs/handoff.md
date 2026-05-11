@@ -111,7 +111,12 @@ Completed in the first milestone 002 implementation slice:
   KTLX] [--max-files n]) [--parallelism n]
   [--decompressor radarpulse|sharpziplib|sharpcompress]` compares sequential
   ordered projection against parallel replay-shape projection and reports
-  calibrated-data unevenness by compressed record and sweep.
+  calibrated-data unevenness by compressed record, sweep, radial, and minute.
+- `archive inspect (--file path | --cache data/nexrad [--date yyyy-MM-dd]
+  [--radar KTLX] [--max-files n])` can inspect a single file or aggregate a
+  selected cache slice without failing on MDM/unknown files.
+- Archive Two volume/framing helpers are centralized in `ArchiveTwoFileReader`
+  instead of duplicated across inspector, benchmarks, and validators.
 - The inspection path also uses the shared decompressor abstraction and pooled
   compressed-payload/output buffers.
 - CLI output for size, kind, archive filename, version, extension number, radar
@@ -177,10 +182,25 @@ Achieved:
   while record 13 had 50.437%. The largest sweep spread was also in
   `KTLX20260504_032003_V06`: sweep 11 had 9.187% valid events while sweep 2 had
   44.909%.
+- Replay-shape validation also reports radial and minute-bucket valid-share
+  spreads using message timestamps from the RDA/RPG message header.
+- Cache inspection can aggregate selected local cache files and report file-kind,
+  compressed-record, decompressed-byte, message, Type 31 radial, and estimated
+  gate-moment totals.
 - The parse benchmark now gives a first measured answer against the 20M
   events/s target for decompression plus minimal parsing.
 - With `--decode-moments`, the same KTLX file decodes all 38_759_040 raw
   gate-moment values per iteration and measures above the 20M values/s target.
+- The latest Release performance rerun measured 910.77 decompressed MB/s,
+  501_164_693 minimal-parse estimated events/s, 670_226_077 calibrated-parse
+  decoded values/s, and 230_347_912 replay-shaped events/s on
+  `KTLX20260504_000245_V06` with `radarpulse` and `--parallelism 24`.
+- Calibrated parse is faster than replay-shape because it reads/classifies
+  values and updates counters/checksums, while replay-shape also builds the
+  publisher-facing event shape, carries source-order/time identity, computes
+  order-sensitive chronology, and pays for the parallel projector prepass plus
+  ordered aggregation. The slower replay-shape path still remains roughly 11.5x
+  above the 20M events/s target on this file.
 
 Not achieved yet:
 
@@ -207,7 +227,7 @@ dotnet test RadarPulse.sln --no-restore
 Result:
 
 ```text
-54 passed, 3 skipped
+55 passed, 3 skipped
 ```
 
 Manual CLI smoke tests:
@@ -215,6 +235,7 @@ Manual CLI smoke tests:
 ```powershell
 dotnet run --project src/Presentation/RadarPulse.Cli.csproj -- archive inspect --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06
 dotnet run --project src/Presentation/RadarPulse.Cli.csproj -- archive inspect --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_005834_V06_MDM
+dotnet run --project src/Presentation/RadarPulse.Cli.csproj -- archive inspect --cache data/nexrad --date 2026-05-04 --radar KTLX --max-files 2
 ```
 
 The first command classified the file as `Archive Two base data` and parsed
@@ -225,7 +246,10 @@ compressed bytes, 55 records with BZip2 signatures, 55 decompressed records,
 6_480 Type 31 radials, 38_759_040 estimated gate-moment events, 6_480 each of
 `VOL`/`ELV`/`RAD` constant blocks, 12 sweep summaries, and descriptor metadata
 for all observed moments. The second command classified the `_MDM` file as
-`MDM or compressed stream`.
+`MDM or compressed stream`. The cache inspect smoke examined 2 KTLX files,
+classified both as Archive Two base data, and aggregated 110 compressed records,
+101_483_648 decompressed bytes, 12_992 messages, 12_960 Type 31 radials, and
+77_518_080 estimated gate-moment events.
 
 Last verified decompression validation command:
 
@@ -369,7 +393,7 @@ about 96_122_482 decoded gate-moment values/s with `--parallelism 1`.
 Last verified calibrated moment benchmark command:
 
 ```powershell
-dotnet run --no-build -c Release --project src/Presentation/RadarPulse.Cli.csproj -- archive benchmark parse --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 --iterations 10 --warmup-iterations 1 --parallelism 24 --decompressor radarpulse --decode-calibrated-moments
+dotnet run --no-build -c Release --project src/Presentation/RadarPulse.Cli.csproj -- archive benchmark parse --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 --iterations 10 --warmup-iterations 2 --parallelism 24 --decompressor radarpulse --decode-calibrated-moments
 ```
 
 Result on the current development machine:
@@ -387,10 +411,10 @@ Reserved gate-moment values per iteration: 0
 Unsupported calibrated gate-moment values per iteration: 0
 Calibrated gate-moment value scaled checksum per iteration: 70_028_121_122
 Calibrated value range per iteration: -31.5..359.649
-Elapsed ms: 1_152.26
-Estimated gate-moment events/s: 336_374_607.71
-Decoded gate-moment values/s: 336_374_607.71
-Calibrated gate-moment values/s: 47_935_948.73
+Elapsed ms: 578.30
+Estimated gate-moment events/s: 670_226_077.21
+Decoded gate-moment values/s: 670_226_077.21
+Calibrated gate-moment values/s: 95_512_331.01
 Allocated bytes / calibrated value: 0.66
 ```
 
@@ -401,7 +425,7 @@ raw gate-moment values at about 76_146_475 decoded values/s.
 Last verified replay-shape benchmark command:
 
 ```powershell
-dotnet run --no-build -c Release --project src/Presentation/RadarPulse.Cli.csproj -- archive benchmark replay-shape --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 --iterations 3 --warmup-iterations 1 --parallelism 24 --decompressor radarpulse
+dotnet run --no-build -c Release --project src/Presentation/RadarPulse.Cli.csproj -- archive benchmark replay-shape --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 --iterations 5 --warmup-iterations 1 --parallelism 24 --decompressor radarpulse
 ```
 
 Result on the current development machine:
@@ -421,10 +445,16 @@ Calibrated value scaled checksum per iteration: 70_028_121_122
 Chronology checksum per iteration: 5_257_350_734_454_804_390
 Calibrated value range per iteration: -31.5..359.649
 Range km per iteration: 2.125..459.875
-Replay-shaped events/s: 258_930_679.77
-Valid events/s: 36_899_597.97
-Allocated bytes / event: 0.08
+Replay-shaped events/s: 230_347_912.41
+Valid events/s: 32_826_335.48
+Allocated bytes / event: 0.07
 ```
+
+The calibrated parse benchmark is intentionally cheaper than replay-shape:
+calibrated parse reads/classifies values and updates aggregate counters, while
+replay-shape constructs full ordered event records and computes chronology.
+The current replay-shape result is still roughly 11.5x above the 20M events/s
+target.
 
 Last verified sequential chronology smoke command:
 
@@ -441,7 +471,24 @@ Raw value checksum per iteration: 1_063_626_011
 Calibrated value scaled checksum per iteration: 70_028_121_122
 ```
 
-Last verified cache-wide replay-shape validation command:
+Latest replay-shape validation smoke command:
+
+```powershell
+dotnet run --no-build -c Release --project src/Presentation/RadarPulse.Cli.csproj -- archive validate replay-shape --cache data/nexrad --radar KTLX --max-files 1 --parallelism 24 --decompressor radarpulse
+```
+
+Result:
+
+```text
+Compared files: 1
+Failed files: 0
+Record valid-share spread: 21.858%
+Sweep valid-share spread: 18.336%
+Radial valid-share spread: 27.012%
+Minute valid-share spread: 14.757%
+```
+
+Previously verified full cache-wide replay-shape validation command:
 
 ```powershell
 dotnet run --no-build -c Release --project src/Presentation/RadarPulse.Cli.csproj -- archive validate replay-shape --cache data/nexrad --radar KTLX --parallelism 24 --decompressor radarpulse
@@ -579,9 +626,11 @@ constant and moment data blocks.
 - `src/Infrastructure/Archive/ArchiveBZip2Decompressors.cs`
 - `src/Infrastructure/Archive/HistoricalArchiveDownloader.cs`
 - `src/Infrastructure/Archive/IArchiveBZip2Decompressor.cs`
+- `src/Infrastructure/Archive/ArchiveTwoFileReader.cs`
 - `src/Infrastructure/Archive/ArchiveTwoMessageStreamScanner.cs`
 - `src/Infrastructure/Archive/ArchiveTwoMessageSummaryBuilder.cs`
 - `src/Domain/Archive/ArchiveTwoGateMomentEvent.cs`
+- `src/Domain/Archive/NexradArchiveCacheInspection.cs`
 - `src/Domain/Archive/ArchiveTwoReplayShapeBenchmarkResult.cs`
 - `src/Domain/Archive/ArchiveTwoReplayShapeValidationResult.cs`
 - `src/Infrastructure/Archive/IArchiveTwoMessageConsumer.cs`
@@ -591,6 +640,7 @@ constant and moment data blocks.
 - `src/Infrastructure/Archive/NexradArchiveParseBenchmark.cs`
 - `src/Infrastructure/Archive/NexradArchiveReplayShapeBenchmark.cs`
 - `src/Infrastructure/Archive/NexradArchiveReplayShapeValidator.cs`
+- `src/Infrastructure/Archive/NexradArchiveCacheInspector.cs`
 - `src/Infrastructure/Archive/NexradArchiveDecompressionValidator.cs`
 - `src/Infrastructure/Archive/NexradArchiveFileInspector.cs`
 - `src/Infrastructure/Archive/ReusableArchiveBZip2Decompressor.cs`
@@ -601,10 +651,12 @@ constant and moment data blocks.
 
 ## Done Criteria For Next Slice
 
-The next milestone 002 implementation slice should be considered done when:
+Milestone 002 is now functionally complete for archive inspection/decoder
+foundation purposes. The next slice should move into the downstream replay
+milestone and should be considered done when:
 
 - The next publisher-facing API consumes the ordered record merge instead of
   letting worker completion order reach the downstream pipeline.
-- Optional next analysis can add time/radial buckets on top of the current
-  compressed-record and sweep unevenness report.
+- Parser/replay outputs are wired into the downstream event pipeline rather than
+  only benchmarked and validated inside the archive layer.
 

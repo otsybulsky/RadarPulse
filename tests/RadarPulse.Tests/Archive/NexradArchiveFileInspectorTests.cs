@@ -187,6 +187,47 @@ public sealed class NexradArchiveFileInspectorTests
         }
     }
 
+    [Fact]
+    public async Task CacheInspectionAggregatesMatchingFilesWithoutFailingOnMdm()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "RadarPulse.Tests", Guid.NewGuid().ToString("N"));
+        var cacheDirectory = Path.Combine(root, "level2", "2026", "05", "04", "KTLX");
+        Directory.CreateDirectory(cacheDirectory);
+        var compressedPayload = ValidBZip2MetadataPayload();
+        File.WriteAllBytes(
+            Path.Combine(cacheDirectory, "KTLX20260504_000245_V06"),
+            BuildArchiveTwoHeader()
+                .Concat(BuildCompressedRecord(compressedPayload.Length, compressedPayload))
+                .ToArray());
+        File.WriteAllBytes(
+            Path.Combine(cacheDirectory, "KTLX20260504_005834_V06_MDM"),
+            [0x00, 0x0A, 0x57, 0x0F]);
+
+        try
+        {
+            var inspection = await new NexradArchiveCacheInspector().InspectAsync(
+                root,
+                new DateOnly(2026, 5, 4),
+                "KTLX",
+                maxFiles: 10,
+                CancellationToken.None);
+
+            Assert.Equal(2, inspection.ExaminedFileCount);
+            Assert.Equal(1, inspection.ArchiveTwoBaseDataFileCount);
+            Assert.Equal(1, inspection.MdmOrCompressedStreamFileCount);
+            Assert.Equal(0, inspection.UnknownFileCount);
+            Assert.Equal(1, inspection.TotalCompressedRecordCount);
+            Assert.Equal(compressedPayload.Length, inspection.TotalCompressedBytes);
+            Assert.Equal(1, inspection.TotalRecordsWithBZip2Signature);
+            Assert.Equal(1, inspection.TotalDecompressedRecordCount);
+            Assert.Equal(8, inspection.TotalDecompressedBytes);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static byte[] BuildArchiveTwoHeader()
     {
         var header = new byte[24];

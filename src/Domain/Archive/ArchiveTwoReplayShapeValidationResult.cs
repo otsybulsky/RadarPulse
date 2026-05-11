@@ -49,6 +49,8 @@ public sealed record ArchiveTwoReplayShapeValidationFileResult(
     ArchiveTwoReplayShapeValidationMetrics Parallel,
     ArchiveTwoReplayShapeUnevennessSummary RecordUnevenness,
     ArchiveTwoReplayShapeUnevennessSummary SweepUnevenness,
+    ArchiveTwoReplayShapeUnevennessSummary RadialUnevenness,
+    ArchiveTwoReplayShapeUnevennessSummary TimeBucketUnevenness,
     string? Diagnostic)
 {
     public bool Succeeded => Diagnostic is null;

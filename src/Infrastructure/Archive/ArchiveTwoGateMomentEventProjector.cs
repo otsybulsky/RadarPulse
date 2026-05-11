@@ -97,7 +97,7 @@ public sealed class ArchiveTwoGateMomentEventProjector : IArchiveTwoMessageConsu
                 continue;
             }
 
-            ProjectMomentBlock(block, sweepSequenceNumber, radial.ElevationNumber, sourceOrder);
+            ProjectMomentBlock(block, sweepSequenceNumber, radial.ElevationNumber, source.MessageTimestamp, sourceOrder);
         }
     }
 
@@ -158,6 +158,7 @@ public sealed class ArchiveTwoGateMomentEventProjector : IArchiveTwoMessageConsu
         ReadOnlySpan<byte> block,
         int sweepSequenceNumber,
         int elevationNumber,
+        DateTimeOffset messageTimestamp,
         ArchiveTwoRadialSourceOrder sourceOrder)
     {
         var momentName = ReadDataBlockName(block);
@@ -170,10 +171,10 @@ public sealed class ArchiveTwoGateMomentEventProjector : IArchiveTwoMessageConsu
         switch (metadata.WordSizeBits)
         {
             case 8:
-                ProjectEightBitMomentBlock(block[GenericMomentDataOffset..], momentName, metadata, sweepSequenceNumber, elevationNumber, sourceOrder);
+                ProjectEightBitMomentBlock(block[GenericMomentDataOffset..], momentName, metadata, sweepSequenceNumber, elevationNumber, messageTimestamp, sourceOrder);
                 break;
             case 16:
-                ProjectSixteenBitMomentBlock(block[GenericMomentDataOffset..], momentName, metadata, sweepSequenceNumber, elevationNumber, sourceOrder);
+                ProjectSixteenBitMomentBlock(block[GenericMomentDataOffset..], momentName, metadata, sweepSequenceNumber, elevationNumber, messageTimestamp, sourceOrder);
                 break;
         }
     }
@@ -184,6 +185,7 @@ public sealed class ArchiveTwoGateMomentEventProjector : IArchiveTwoMessageConsu
         Type31MomentMetadata metadata,
         int sweepSequenceNumber,
         int elevationNumber,
+        DateTimeOffset messageTimestamp,
         ArchiveTwoRadialSourceOrder sourceOrder)
     {
         if (data.Length < metadata.GateCount)
@@ -200,6 +202,7 @@ public sealed class ArchiveTwoGateMomentEventProjector : IArchiveTwoMessageConsu
                 metadata,
                 sweepSequenceNumber,
                 elevationNumber,
+                messageTimestamp,
                 sourceOrder);
         }
     }
@@ -210,6 +213,7 @@ public sealed class ArchiveTwoGateMomentEventProjector : IArchiveTwoMessageConsu
         Type31MomentMetadata metadata,
         int sweepSequenceNumber,
         int elevationNumber,
+        DateTimeOffset messageTimestamp,
         ArchiveTwoRadialSourceOrder sourceOrder)
     {
         var requiredBytes = checked(metadata.GateCount * sizeof(ushort));
@@ -227,6 +231,7 @@ public sealed class ArchiveTwoGateMomentEventProjector : IArchiveTwoMessageConsu
                 metadata,
                 sweepSequenceNumber,
                 elevationNumber,
+                messageTimestamp,
                 sourceOrder);
         }
     }
@@ -238,6 +243,7 @@ public sealed class ArchiveTwoGateMomentEventProjector : IArchiveTwoMessageConsu
         Type31MomentMetadata metadata,
         int sweepSequenceNumber,
         int elevationNumber,
+        DateTimeOffset messageTimestamp,
         ArchiveTwoRadialSourceOrder sourceOrder)
     {
         var status = ClassifyMomentValue(momentName, rawValue, metadata);
@@ -247,6 +253,7 @@ public sealed class ArchiveTwoGateMomentEventProjector : IArchiveTwoMessageConsu
         acceptEvent(new ArchiveTwoGateMomentEvent(
             RadarId,
             VolumeTimestamp,
+            messageTimestamp,
             sweepSequenceNumber,
             elevationNumber,
             sourceOrder.Type31RadialSequenceNumber,

@@ -91,7 +91,11 @@ public sealed class ArchiveTwoMessageStreamScanner
             sourceMessageSequenceNumber++;
             messageConsumer.AcceptMessage(
                 pendingBuffer.AsSpan(0, messageBytes),
-                new ArchiveTwoMessageSource(sourceRecordSequenceNumber, sourceMessageSequenceNumber));
+                new ArchiveTwoMessageSource(
+                    sourceRecordSequenceNumber,
+                    sourceMessageSequenceNumber,
+                    ReadMessageDate(pendingBuffer.AsSpan(0, MessageHeaderLength)),
+                    ReadMessageTime(pendingBuffer.AsSpan(0, MessageHeaderLength))));
             Consume(messageBytes);
         }
     }
@@ -162,6 +166,15 @@ public sealed class ArchiveTwoMessageStreamScanner
 
         return messageBytes >= MessageHeaderLength && messageBytes <= MaximumMessageBytes;
     }
+
+    private static DateOnly ReadMessageDate(ReadOnlySpan<byte> messageHeader) =>
+        DateOnly.FromDayNumber(
+            new DateOnly(1970, 1, 1).DayNumber +
+            BinaryPrimitives.ReadUInt16BigEndian(messageHeader.Slice(6, 2)) -
+            1);
+
+    private static TimeSpan ReadMessageTime(ReadOnlySpan<byte> messageHeader) =>
+        TimeSpan.FromMilliseconds(BinaryPrimitives.ReadUInt32BigEndian(messageHeader.Slice(8, 4)));
 
     private static bool IsIgnorablePadding(ReadOnlySpan<byte> bytes)
     {

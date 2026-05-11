@@ -45,7 +45,8 @@ optional calibrated Type 31 moment value decode benchmark with sentinel/status c
 first reusable Type 31 gate-moment event shape
 parallel replay-shape benchmark with source-order-preserving event projection
 cache-wide replay-shape validation with sequential/parallel chronology comparison
-calibrated-data unevenness report by compressed record and sweep
+calibrated-data unevenness report by compressed record, sweep, radial, and minute
+cache-wide archive inspection command
 CLI output for file kind, size, archive filename, version, extension, radar id, volume time, compressed record count, compressed bytes, BZip2 signature count, decompressed record count, and decompressed bytes
 unit tests with small synthetic fixtures
 ```
@@ -55,7 +56,6 @@ Not yet implemented:
 ```text
 downstream event publishing
 ordered parallel replay merge
-radial/time-bucket unevenness report
 ```
 
 ## Intended Usage
@@ -64,6 +64,12 @@ Inspect one cached file:
 
 ```text
 dotnet run --project src/Presentation/RadarPulse.Cli.csproj -- archive inspect --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06
+```
+
+Inspect a cache selection:
+
+```text
+dotnet run --project src/Presentation/RadarPulse.Cli.csproj -- archive inspect --cache data/nexrad --date 2026-05-04 --radar KTLX --max-files 2
 ```
 
 Expected summary shape:
@@ -313,6 +319,29 @@ uses raw sentinel/status codes. On the current KTLX file, one volume contains
 5_523_459 valid calibrated samples, 27_316_941 below-threshold samples,
 1_355 range-folded samples, and CFP status counts for the remaining CFP gates.
 
+A later Release rerun after closing the milestone used shorter benchmark
+windows and measured the same `KTLX20260504_000245_V06` file with
+`--parallelism 24`:
+
+```text
+decompression: 910.77 decompressed MB/s
+minimal parse: 501_164_693 estimated gate-moment events/s
+calibrated parse: 670_226_077 decoded values/s, 95_512_331 valid calibrated values/s
+replay-shape: 230_347_912 replay-shaped events/s, 32_826_335 valid events/s
+```
+
+The calibrated parse number is higher than replay-shape because it only reads
+raw gate values, classifies sentinel/status values, calibrates valid samples,
+and accumulates counters/checksums. Replay-shape additionally constructs the
+publisher-facing event shape for every gate, carries radar/volume/message time,
+sweep/elevation/radial/gate identity, range, moment name, status, source order,
+and computes an order-sensitive chronology checksum. Its parallel path also pays
+for the Type 31 radial-transition prepass, per-record starting projector states,
+and ordered aggregation. This is the expected comparison: calibrated parse
+measures value decoding, while replay-shape measures ordered event preparation.
+Even the slower replay-shape path remains roughly 11.5x above the 20M events/s
+milestone target on this file.
+
 The first replay-shape benchmark projects Type 31 gate moments into an ordered
 event struct with radar id, volume timestamp, sweep/elevation/radial/gate
 identity, range, moment name, raw value, decoded status, optional calibrated
@@ -346,7 +375,7 @@ chronology checksum per iteration: 5_257_350_734_454_804_390
 
 The cache-wide replay-shape validation command compares sequential projection
 against parallel replay-shape projection and reports unevenness in valid
-calibrated-event flow:
+calibrated-event flow by compressed record, sweep, radial, and minute bucket:
 
 ```text
 command: archive validate replay-shape --cache data/nexrad --radar KTLX --parallelism 24 --decompressor radarpulse

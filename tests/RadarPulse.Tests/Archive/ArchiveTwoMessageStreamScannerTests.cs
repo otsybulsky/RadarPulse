@@ -235,6 +235,7 @@ public sealed class ArchiveTwoMessageStreamScannerTests
             below =>
             {
                 Assert.Equal("KTLX", below.RadarId);
+                Assert.Equal(new DateTimeOffset(2026, 5, 4, 0, 2, 44, 18, TimeSpan.Zero), below.MessageTimestamp);
                 Assert.Equal(ArchiveTwoGateMomentStatus.BelowThreshold, below.Status);
                 Assert.Null(below.CalibratedValue);
                 Assert.Equal(0, below.GateIndex);

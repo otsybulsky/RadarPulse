@@ -156,6 +156,7 @@ static int PrintUsage()
     Console.WriteLine("  radarpulse archive download --date yyyy-MM-dd --all-radars --output data/nexrad [--concurrency n]");
     Console.WriteLine("  radarpulse archive download --manifest data/manifests/2026-05-04.json --output data/nexrad [--radar KTLX] [--max-files n] [--max-bytes n] [--concurrency n]");
     Console.WriteLine("  radarpulse archive inspect --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06");
+    Console.WriteLine("  radarpulse archive inspect --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]");
     Console.WriteLine("  radarpulse archive benchmark decompress --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse archive benchmark parse --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress] [--decode-moments] [--decode-calibrated-moments]");
     Console.WriteLine("  radarpulse archive benchmark replay-shape --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
@@ -460,6 +461,8 @@ static int ValidateArchiveReplayShape(string[] args)
 
     PrintReplayShapeUnevenness("Record valid-share spread", result.Files, file => file.RecordUnevenness);
     PrintReplayShapeUnevenness("Sweep valid-share spread", result.Files, file => file.SweepUnevenness);
+    PrintReplayShapeUnevenness("Radial valid-share spread", result.Files, file => file.RadialUnevenness);
+    PrintReplayShapeUnevenness("Minute valid-share spread", result.Files, file => file.TimeBucketUnevenness);
 
     foreach (var file in result.Files.Where(file => !file.Succeeded))
     {
@@ -519,8 +522,25 @@ static void PrintReplayShapeUnevenness(
 static async Task<int> InspectArchiveAsync(string[] args)
 {
     var options = ArchiveInspectOptions.Parse(args);
-    var inspection = await new NexradArchiveFileInspector().InspectAsync(options.FilePath, CancellationToken.None);
+    if (options.FilePath is not null)
+    {
+        var inspection = await new NexradArchiveFileInspector().InspectAsync(options.FilePath, CancellationToken.None);
+        PrintArchiveFileInspection(inspection);
+        return 0;
+    }
 
+    var cacheInspection = await new NexradArchiveCacheInspector().InspectAsync(
+        options.CachePath ?? throw new InvalidOperationException("--cache is required when --file is not provided."),
+        options.Date,
+        options.RadarId,
+        options.MaxFiles,
+        CancellationToken.None);
+    PrintArchiveCacheInspection(cacheInspection);
+    return 0;
+}
+
+static void PrintArchiveFileInspection(NexradArchiveFileInspection inspection)
+{
     Console.WriteLine($"File: {inspection.FilePath}");
     Console.WriteLine($"Size bytes: {FormatNumber(inspection.SizeBytes)}");
     Console.WriteLine($"Kind: {FormatNexradArchiveFileKind(inspection.FileKind)}");
@@ -602,9 +622,64 @@ static async Task<int> InspectArchiveAsync(string[] args)
     {
         Console.WriteLine($"Diagnostic: {inspection.Diagnostic}");
     }
-
-    return 0;
 }
+
+static void PrintArchiveCacheInspection(NexradArchiveCacheInspection inspection)
+{
+    Console.WriteLine($"Cache: {inspection.CachePath}");
+    if (inspection.Date is { } date)
+    {
+        Console.WriteLine($"Date: {date:yyyy-MM-dd}");
+    }
+
+    if (inspection.RadarId is not null)
+    {
+        Console.WriteLine($"Radar: {inspection.RadarId}");
+    }
+
+    Console.WriteLine($"Examined files: {FormatNumber(inspection.ExaminedFileCount)}");
+    Console.WriteLine($"Archive Two base-data files: {FormatNumber(inspection.ArchiveTwoBaseDataFileCount)}");
+    Console.WriteLine($"MDM/compressed-stream files: {FormatNumber(inspection.MdmOrCompressedStreamFileCount)}");
+    Console.WriteLine($"Unknown files: {FormatNumber(inspection.UnknownFileCount)}");
+    Console.WriteLine($"Files with diagnostics: {FormatNumber(inspection.DiagnosticFileCount)}");
+    Console.WriteLine($"Size bytes: {FormatNumber(inspection.TotalSizeBytes)}");
+    Console.WriteLine($"Compressed records: {FormatNumber(inspection.TotalCompressedRecordCount)}");
+    Console.WriteLine($"Compressed bytes: {FormatNumber(inspection.TotalCompressedBytes)}");
+    Console.WriteLine($"Records with BZip2 signature: {FormatNumber(inspection.TotalRecordsWithBZip2Signature)}");
+    Console.WriteLine($"Decompressed records: {FormatNumber(inspection.TotalDecompressedRecordCount)}");
+    Console.WriteLine($"Decompressed bytes: {FormatNumber(inspection.TotalDecompressedBytes)}");
+    Console.WriteLine($"Messages: {FormatNumber(inspection.TotalMessages)}");
+    Console.WriteLine($"Type 31 radials: {FormatNumber(inspection.TotalType31Radials)}");
+    Console.WriteLine($"Estimated gate-moment events: {FormatNumber(inspection.TotalEstimatedGateMomentEvents)}");
+
+    if (inspection.Files.Count == 0)
+    {
+        Console.WriteLine("Diagnostic: no files matched the cache inspection filters.");
+        return;
+    }
+
+    Console.WriteLine("Files:");
+    foreach (var file in inspection.Files)
+    {
+        var compressedRecordCount = file.CompressedRecords.Count;
+        var decompressedBytes = file.CompressedRecords.Sum(record => record.DecompressedSizeBytes ?? 0L);
+        var messageCount = file.MessageSummary?.MessageCount ?? 0;
+        var type31RadialCount = file.MessageSummary?.Type31.RadialCount ?? 0;
+        var diagnostic = HasInspectionDiagnostic(file) ? ", diagnostic=yes" : string.Empty;
+        Console.WriteLine(
+            $"  {Path.GetFileName(file.FilePath)}: " +
+            $"{FormatNexradArchiveFileKind(file.FileKind)}, " +
+            $"records={FormatNumber(compressedRecordCount)}, " +
+            $"decompressed={FormatNumber(decompressedBytes)}, " +
+            $"messages={FormatNumber(messageCount)}, " +
+            $"type31 radials={FormatNumber(type31RadialCount)}" +
+            diagnostic);
+    }
+}
+
+static bool HasInspectionDiagnostic(NexradArchiveFileInspection inspection) =>
+    !string.IsNullOrWhiteSpace(inspection.Diagnostic) ||
+    inspection.CompressedRecords.Any(record => !string.IsNullOrWhiteSpace(record.DecompressionDiagnostic));
 
 static string FormatNexradArchiveFileKind(NexradArchiveFileKind fileClass) =>
     fileClass switch
@@ -785,11 +860,20 @@ internal sealed record ArchiveOptions(
     }
 }
 
-internal sealed record ArchiveInspectOptions(string FilePath)
+internal sealed record ArchiveInspectOptions(
+    string? FilePath,
+    string? CachePath,
+    DateOnly? Date,
+    string? RadarId,
+    int MaxFiles)
 {
     public static ArchiveInspectOptions Parse(string[] args)
     {
         string? filePath = null;
+        string? cachePath = null;
+        DateOnly? date = null;
+        string? radarId = null;
+        var maxFiles = 20;
         for (var i = 0; i < args.Length; i++)
         {
             switch (args[i])
@@ -797,17 +881,40 @@ internal sealed record ArchiveInspectOptions(string FilePath)
                 case "--file":
                     filePath = RequireValue(args, ref i, "--file");
                     break;
+                case "--cache":
+                    cachePath = RequireValue(args, ref i, "--cache");
+                    break;
+                case "--date":
+                    date = DateOnly.Parse(RequireValue(args, ref i, "--date"));
+                    break;
+                case "--radar":
+                    radarId = HistoricalArchiveRequest.NormalizeRadarId(RequireValue(args, ref i, "--radar"));
+                    break;
+                case "--max-files":
+                    maxFiles = int.Parse(RequireValue(args, ref i, "--max-files"));
+                    break;
                 default:
                     throw new ArgumentException($"Unknown option: {args[i]}");
             }
         }
 
-        if (string.IsNullOrWhiteSpace(filePath))
+        if (string.IsNullOrWhiteSpace(filePath) == string.IsNullOrWhiteSpace(cachePath))
         {
-            throw new InvalidOperationException("--file is required.");
+            throw new InvalidOperationException("Provide exactly one of --file or --cache.");
         }
 
-        return new ArchiveInspectOptions(filePath);
+        if (!string.IsNullOrWhiteSpace(filePath) &&
+            (date is not null || radarId is not null))
+        {
+            throw new InvalidOperationException("--date and --radar can only be used with --cache.");
+        }
+
+        if (maxFiles <= 0)
+        {
+            throw new InvalidOperationException("--max-files must be greater than zero.");
+        }
+
+        return new ArchiveInspectOptions(filePath, cachePath, date, radarId, maxFiles);
     }
 
     private static string RequireValue(string[] args, ref int index, string option)

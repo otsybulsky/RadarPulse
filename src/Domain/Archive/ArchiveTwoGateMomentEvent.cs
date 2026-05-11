@@ -3,6 +3,7 @@ namespace RadarPulse.Domain.Archive;
 public readonly record struct ArchiveTwoGateMomentEvent(
     string RadarId,
     DateTimeOffset VolumeTimestamp,
+    DateTimeOffset MessageTimestamp,
     int SweepSequenceNumber,
     int ElevationNumber,
     int RadialSequenceNumber,
