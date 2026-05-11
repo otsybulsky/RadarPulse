@@ -71,6 +71,12 @@ Completed in the first milestone 002 implementation slice:
   for generic moment data blocks.
 - `archive inspect --file` reports message counts by type, Type 31 radial
   counts, estimated gate-moment events, and moment gate/radial totals.
+- `archive inspect --file` reports Type 31 `VOL`/`ELV`/`RAD` constant block
+  counts and sweep summaries from radial status, elevation number, cut sector,
+  elevation angle, moment membership, and source order.
+- Type 31 sweep summaries carry explicit source order as compressed record,
+  message-in-record, and Type 31 radial sequence positions for future ordered
+  replay publishing.
 - `archive benchmark parse --file ... [--iterations n]
   [--warmup-iterations n] [--parallelism n]
   [--decompressor radarpulse|sharpziplib|sharpcompress] [--decode-moments]`
@@ -116,6 +122,9 @@ Achieved:
   byte-shift false positives in real KTLX records.
 - The current KTLX smoke file reports 6_496 messages, including 6_480 Type 31
   radials, and 38_759_040 estimated gate-moment events.
+- The current KTLX smoke file reports 12 Type 31 sweeps, 6_480 `VOL`,
+  6_480 `ELV`, and 6_480 `RAD` constant blocks, with sweep source ranges
+  ordered by compressed record/message/radial position.
 - The parse benchmark now gives a first measured answer against the 20M
   events/s target for decompression plus minimal parsing.
 - With `--decode-moments`, the same KTLX file decodes all 38_759_040 raw
@@ -125,7 +134,6 @@ Not achieved yet:
 
 - No real event stream is generated yet.
 - Moment sample values are read as raw 8/16-bit values, but not calibrated yet.
-- Sweep/elevation grouping is not summarized yet.
 - The parser benchmark still does not publish downstream engine events.
 
 ## Documentation
@@ -147,7 +155,7 @@ dotnet test RadarPulse.sln --no-restore
 Result:
 
 ```text
-50 passed, 3 skipped
+51 passed, 3 skipped
 ```
 
 Manual CLI smoke tests:
@@ -162,8 +170,9 @@ The first command classified the file as `Archive Two base data` and parsed
 `2026-05-04T00:02:45.042Z`. It also found 55 compressed records, 5_406_610
 compressed bytes, 55 records with BZip2 signatures, 55 decompressed records,
 50_741_824 decompressed bytes, zero decompression diagnostics, 6_496 messages,
-6_480 Type 31 radials, and 38_759_040 estimated gate-moment events. The second
-command classified the `_MDM` file as `MDM or compressed stream`.
+6_480 Type 31 radials, 38_759_040 estimated gate-moment events, 6_480 each of
+`VOL`/`ELV`/`RAD` constant blocks, and 12 sweep summaries. The second command
+classified the `_MDM` file as `MDM or compressed stream`.
 
 Last verified decompression validation command:
 
@@ -436,9 +445,9 @@ constant and moment data blocks.
 
 The next milestone 002 implementation slice should be considered done when:
 
-- Type 31 sweep/elevation/radial sequencing is summarized from `VOL`/`ELV`/`RAD`
-  constant blocks and radial status.
-- Message order is represented explicitly enough for a future ordered replay
-  publisher.
-- Tests cover the next Type 31 metadata fields with small fixtures.
+- Moment value calibration design is documented against per-moment scale/offset
+  fields before implementing calibrated output.
+- The replay event shape is proposed separately from inspection summaries.
+- Tests cover any new calibrated-value or event-shape fields with small
+  fixtures.
 

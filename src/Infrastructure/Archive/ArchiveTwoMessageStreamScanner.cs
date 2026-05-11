@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Infrastructure.Archive;
 
@@ -11,15 +12,19 @@ public sealed class ArchiveTwoMessageStreamScanner
     private readonly ArchiveTwoMessageSummaryBuilder summaryBuilder;
     private byte[] pendingBuffer = new byte[RetainedSearchBytes];
     private int pendingLength;
+    private int sourceRecordSequenceNumber;
+    private int sourceMessageSequenceNumber;
 
     public ArchiveTwoMessageStreamScanner(ArchiveTwoMessageSummaryBuilder summaryBuilder)
     {
         this.summaryBuilder = summaryBuilder ?? throw new ArgumentNullException(nameof(summaryBuilder));
     }
 
-    public void Reset()
+    public void Reset(int sourceRecordSequenceNumber = 0)
     {
         pendingLength = 0;
+        this.sourceRecordSequenceNumber = sourceRecordSequenceNumber;
+        sourceMessageSequenceNumber = 0;
     }
 
     public void Append(ReadOnlySpan<byte> chunk)
@@ -83,7 +88,10 @@ public sealed class ArchiveTwoMessageStreamScanner
                 return;
             }
 
-            summaryBuilder.AcceptMessage(pendingBuffer.AsSpan(0, messageBytes));
+            sourceMessageSequenceNumber++;
+            summaryBuilder.AcceptMessage(
+                pendingBuffer.AsSpan(0, messageBytes),
+                new ArchiveTwoMessageSource(sourceRecordSequenceNumber, sourceMessageSequenceNumber));
             Consume(messageBytes);
         }
     }

@@ -36,6 +36,8 @@ differential decompression validation against SharpZipLib
 streaming RDA/RPG message header scanning
 minimal Message Type 31 moment metadata parsing
 message counts, Type 31 radial counts, and estimated gate-moment event counts
+Type 31 VOL/ELV/RAD constant block counts
+Type 31 sweep/elevation/radial sequencing summaries with source order
 parse throughput benchmark for decompress+message-scan+minimal-Type31
 optional raw 8/16-bit Type 31 moment value decode benchmark
 CLI output for file kind, size, archive filename, version, extension, radar id, volume time, compressed record count, compressed bytes, BZip2 signature count, decompressed record count, and decompressed bytes
@@ -45,7 +47,6 @@ unit tests with small synthetic fixtures
 Not yet implemented:
 
 ```text
-sweep/radial/moment summaries
 moment sample calibration
 ordered event publishing
 ```
@@ -93,7 +94,10 @@ Messages: 6_496
 Message types: 2=4, 3=1, 5=1, 15=5, 18=4, 31=6_480, 32=1
 Type 31 radials: 6_480
 Estimated gate-moment events: 38_759_040
+Type 31 constant blocks: VOL=6_480, ELV=6_480, RAD=6_480
 Moments: CFP=6_219_360 gates/4_320 radials, PHI=4_749_120 gates/4_320 radials, REF=8_794_080 gates/6_480 radials, RHO=4_749_120 gates/4_320 radials, SW=4_749_120 gates/4_320 radials, VEL=4_749_120 gates/4_320 radials, ZDR=4_749_120 gates/4_320 radials
+Sweeps: 12
+Sweep 1: elevation=1, cutSector=1, radials=720, angle=0.44-0.46 deg avg=0.44 deg, status=start volume (3)->end elevation (2), source=2/1/1->7/120/720, moments=CFP,PHI,REF,RHO,ZDR
 ```
 
 Inspect a small cache selection after cache selectors are added:

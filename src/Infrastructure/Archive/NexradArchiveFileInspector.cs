@@ -196,6 +196,7 @@ public sealed class NexradArchiveFileInspector
                         messageScanner,
                         compressedPayloadBuffer,
                         compressedSizeBytes,
+                        records.Count + 1,
                         outputBuffer)
                     : (DecompressedSizeBytes: (long?)null, Diagnostic: "Compressed payload does not start with a BZip2 signature.");
 
@@ -248,11 +249,12 @@ public sealed class NexradArchiveFileInspector
         ArchiveTwoMessageStreamScanner messageScanner,
         byte[] compressedPayload,
         int compressedSizeBytes,
+        int sourceRecordSequenceNumber,
         byte[] outputBuffer)
     {
         try
         {
-            messageScanner.Reset();
+            messageScanner.Reset(sourceRecordSequenceNumber);
             var decompressedBytes = decompressionSession.Decompress(
                 compressedPayload,
                 compressedSizeBytes,

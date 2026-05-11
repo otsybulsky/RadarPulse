@@ -89,10 +89,12 @@ streaming/chunk decompression callback implemented
 differential decompression validation against SharpZipLib implemented
 streaming message header scanning implemented
 minimal Message Type 31 moment metadata parsing implemented
+Type 31 VOL/ELV/RAD constant block counts implemented
+Type 31 sweep/elevation/radial sequencing summaries implemented
+explicit compressed-record/message/radial source order in inspection summaries implemented
 parse throughput benchmark implemented
 optional raw 8/16-bit moment value decode benchmark implemented
 cache-wide inspection not implemented
-sweep/elevation summary not implemented
 ```
 
 ## Performance Target

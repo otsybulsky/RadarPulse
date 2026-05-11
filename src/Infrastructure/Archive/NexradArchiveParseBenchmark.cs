@@ -432,7 +432,9 @@ public sealed class NexradArchiveParseBenchmark
         {
             DecompressionSession = decompressionSession;
             OutputBuffer = ArrayPool<byte>.Shared.Rent(OutputBufferSize);
-            messageSummaryBuilder = new ArchiveTwoMessageSummaryBuilder(decodeMomentValues);
+            messageSummaryBuilder = new ArchiveTwoMessageSummaryBuilder(
+                decodeMomentValues,
+                collectSweepSummaries: false);
             messageScanner = new ArchiveTwoMessageStreamScanner(messageSummaryBuilder);
         }
 

@@ -365,11 +365,38 @@ static async Task<int> InspectArchiveAsync(string[] args)
         Console.WriteLine("Message types: " + string.Join(", ", messages.MessageTypes.Select(type => $"{type.MessageType}={FormatNumber(type.Count)}")));
         Console.WriteLine($"Type 31 radials: {FormatNumber(messages.Type31.RadialCount)}");
         Console.WriteLine($"Estimated gate-moment events: {FormatNumber(messages.Type31.EstimatedGateMomentEventCount)}");
+        if (messages.Type31.ConstantBlocks is { VolumeCount: > 0 } or { ElevationCount: > 0 } or { RadialCount: > 0 })
+        {
+            Console.WriteLine(
+                "Type 31 constant blocks: " +
+                $"VOL={FormatNumber(messages.Type31.ConstantBlocks.VolumeCount)}, " +
+                $"ELV={FormatNumber(messages.Type31.ConstantBlocks.ElevationCount)}, " +
+                $"RAD={FormatNumber(messages.Type31.ConstantBlocks.RadialCount)}");
+        }
+
         if (messages.Type31.Moments.Count > 0)
         {
             Console.WriteLine("Moments: " + string.Join(
                 ", ",
                 messages.Type31.Moments.Select(moment => $"{moment.Name}={FormatNumber(moment.GateCount)} gates/{FormatNumber(moment.RadialCount)} radials")));
+        }
+
+        if (messages.Type31.Sweeps.Count > 0)
+        {
+            Console.WriteLine($"Sweeps: {FormatNumber(messages.Type31.Sweeps.Count)}");
+            foreach (var sweep in messages.Type31.Sweeps)
+            {
+                Console.WriteLine(
+                    $"Sweep {FormatNumber(sweep.SequenceNumber)}: " +
+                    $"elevation={FormatNumber(sweep.ElevationNumber)}, " +
+                    $"cutSector={FormatCutSectorRange(sweep.MinimumCutSectorNumber, sweep.MaximumCutSectorNumber)}, " +
+                    $"radials={FormatNumber(sweep.RadialCount)}, " +
+                    $"angle={FormatDegrees(sweep.MinimumElevationAngleDegrees)}-{FormatDegrees(sweep.MaximumElevationAngleDegrees)} deg " +
+                    $"avg={FormatDegrees(sweep.AverageElevationAngleDegrees)} deg, " +
+                    $"status={FormatRadialStatus(sweep.StartRadialStatus)}->{FormatRadialStatus(sweep.EndRadialStatus)}, " +
+                    $"source={FormatSourceOrder(sweep.FirstRadial)}->{FormatSourceOrder(sweep.LastRadial)}, " +
+                    $"moments={FormatMomentNames(sweep.Moments)}");
+            }
         }
     }
 
@@ -387,6 +414,36 @@ static string FormatNexradArchiveFileKind(NexradArchiveFileKind fileClass) =>
         NexradArchiveFileKind.ArchiveTwoBaseData => "Archive Two base data",
         NexradArchiveFileKind.MdmOrCompressedStream => "MDM or compressed stream",
         _ => "Unknown"
+    };
+
+static string FormatDegrees(float value) =>
+    value.ToString("0.00", CultureInfo.InvariantCulture);
+
+static string FormatSourceOrder(ArchiveTwoRadialSourceOrder sourceOrder) =>
+    $"{FormatNumber(sourceOrder.CompressedRecordSequenceNumber)}/" +
+    $"{FormatNumber(sourceOrder.MessageSequenceNumberInRecord)}/" +
+    $"{FormatNumber(sourceOrder.Type31RadialSequenceNumber)}";
+
+static string FormatMomentNames(IReadOnlyList<string> moments) =>
+    moments.Count == 0
+        ? "none"
+        : string.Join(",", moments);
+
+static string FormatCutSectorRange(int minimum, int maximum) =>
+    minimum == maximum
+        ? FormatNumber(minimum)
+        : $"{FormatNumber(minimum)}-{FormatNumber(maximum)}";
+
+static string FormatRadialStatus(int status) =>
+    status switch
+    {
+        0 or 80 => $"start elevation ({status})",
+        1 or 81 => $"intermediate ({status})",
+        2 or 82 => $"end elevation ({status})",
+        3 or 83 => $"start volume ({status})",
+        4 or 84 => $"end volume ({status})",
+        5 or 85 => $"start last elevation ({status})",
+        _ => status.ToString(CultureInfo.InvariantCulture)
     };
 
 static async Task<HistoricalArchiveManifest> LoadManifestForDownloadAsync(
