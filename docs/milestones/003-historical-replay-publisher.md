@@ -1,13 +1,13 @@
 # Milestone 003: Historical Replay Publisher Foundation
 
-RadarPulse will turn the completed Archive Two inspection/decoder foundation
-into a publisher-facing historical replay input path.
+RadarPulse turned the completed Archive Two inspection/decoder foundation into
+a publisher-facing historical replay input path.
 
 ## Current Status
 
-The publisher foundation, reusable steady-state benchmark session,
-cache-selection replay smoke path, and cache-wide publisher benchmark are
-implemented.
+Milestone 003 is complete. The publisher foundation, reusable steady-state
+benchmark session, cache-selection replay smoke path, and cache-wide publisher
+benchmark are implemented.
 
 Implemented:
 
@@ -52,10 +52,11 @@ sequential/parallel replay-shape validation with chronology checksum
 cache-wide replay-shape validation on the local KTLX corpus
 ```
 
-Not yet implemented:
+Deferred beyond milestone 003:
 
 ```text
-older replay-shape benchmark/validator reuse of the production replay source
+older replay-shape benchmark/validator reuse of the production replay source,
+  if it still meaningfully reduces duplication
 downstream event engine integration
 ```
 
@@ -126,7 +127,7 @@ published in cache path order.
 
 ## Replay Contract
 
-Milestone 003 should expose a clear event publishing boundary:
+Milestone 003 exposes a clear event publishing boundary:
 
 ```text
 Archive Two file reader
@@ -327,8 +328,8 @@ valid events/s: 49_962_649.20
 allocated bytes / event: 0.06
 ```
 
-Milestone 003 should preserve the same design pressure, but the first acceptance
-gate is correctness:
+Milestone 003 preserved the same design pressure, but the acceptance gate was
+correctness:
 
 ```text
 explicit publisher contract
@@ -343,7 +344,7 @@ throughput, not full downstream engine throughput.
 
 ## Limitations
 
-Milestone 003 should not promise:
+Milestone 003 does not promise:
 
 ```text
 rendered radar imagery
@@ -356,8 +357,7 @@ live ingestion
 automatic archive download during replay
 ```
 
-Those belong to later milestones after the publisher-facing replay boundary is
-stable.
+Those belong to later work after the publisher-facing replay boundary.
 
 ## Done Criteria
 
@@ -374,7 +374,7 @@ focused tests cover ordering, status totals, diagnostics, and cancellation
 documentation describes the replay contract and remaining limitations
 ```
 
-Current partial completion:
+Completion summary:
 
 ```text
 explicit replay publisher API implemented
@@ -386,5 +386,5 @@ internal replay-publish benchmark implemented
 reusable steady-state replay publish session implemented
 cache-selection replay implemented
 cache-wide replay-publish benchmark implemented
-older replay-shape benchmark/validator reuse of the production replay source remains pending
+milestone 003 done criteria met
 ```

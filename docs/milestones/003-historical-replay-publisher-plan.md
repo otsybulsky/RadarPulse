@@ -15,6 +15,11 @@ This milestone does not implement the full downstream event engine, event
 detection, partitioning strategy, live ingestion, user-facing visualization, or
 production replay operations.
 
+Completion status: milestone 003 is complete. The implementation proved the
+single-file and cache-selected publisher path, ordered parallel replay,
+counting/checksum validation, CLI smoke commands, and replay-publish
+benchmarks.
+
 ## Starting Point
 
 Milestone 002 completed the archive inspection and decoder foundation.
@@ -38,16 +43,16 @@ order-sensitive chronology checksum
 cache-wide sequential/parallel replay-shape validation
 ```
 
-The current replay-shape implementation is validated and fast enough for the
-initial target, but it is still exposed primarily through benchmark and
-validation commands:
+At milestone start, replay-shape implementation was validated and fast enough
+for the initial target, but it was still exposed primarily through benchmark
+and validation commands:
 
 ```text
 archive benchmark replay-shape
 archive validate replay-shape
 ```
 
-The next step is to extract a production-facing replay source/publisher path so
+Milestone 003 extracted the production-facing replay source/publisher path so
 future downstream pipeline work can consume the same ordered event stream.
 
 ## Ordering Contract
@@ -373,8 +378,8 @@ separate cache-wide replay measurement from single-file smoke commands
 profile Parallel/ConcurrentStack scheduling only after metadata allocation is understood
 ```
 
-This follow-up is not required to prove the milestone 003 publisher boundary,
-but it should happen before treating publisher replay as a long-running
+This follow-up is not required to prove the milestone 003 publisher boundary.
+It can be revisited before treating publisher replay as a long-running
 production profile.
 
 ## Code Boundaries
@@ -420,3 +425,7 @@ the CLI can smoke-test the publisher path
 focused tests cover ordering, totals, diagnostics, and cancellation
 documentation describes the supported replay contract and limitations
 ```
+
+Completion note: these criteria are met by the implemented single-file replay
+publisher, ordered parallel replay path, cache-selection replay, reusable
+publish session, replay-publish benchmarks, focused tests, and documentation.

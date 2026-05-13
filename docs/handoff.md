@@ -1,16 +1,15 @@
-# Handoff: Milestone 003 Historical Replay Publisher Foundation
+# Handoff: Milestone 003 Complete
 
 ## Current Goal
 
-Continue milestone 003: turn the completed NEXRAD Archive Two decoder and
-replay-shape projection foundation into a publisher-facing historical replay
-input path. Sequential single-file publishing, ordered parallel publishing, and
-a reusable count-only replay publish session for steady-state benchmarking are
-implemented. Cache-selection replay is now wired through the same reusable
-session, and the replay-publish benchmark now supports cache-wide measurement.
-The next slice should decide whether to migrate the older replay-shape
-benchmark/validator toward the production replay source or close milestone 003
-as a publisher foundation.
+Milestone 003 is complete. RadarPulse now has a publisher-facing historical
+replay input path over Archive Two gate-moment events, including sequential
+single-file publishing, ordered parallel publishing, cache-selection replay, a
+reusable count-only replay publish session, and replay-publish benchmarks for
+single files and cache selections.
+
+No milestone 004 documentation has been created in this handoff. The next
+milestone is intentionally left undefined.
 
 ## Milestone Status
 
@@ -18,6 +17,7 @@ Done:
 
 - `001` historical archive loader is complete.
 - `002` NEXRAD archive inspection/decoder foundation is complete.
+- `003` historical replay publisher foundation is complete.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -29,21 +29,20 @@ Done:
 - Standard unit tests and opt-in live AWS integration tests covered the loader
   milestone at handoff time.
 
-Planned next:
+Next work:
 
-- Decide the next `003` slice: migrate the older replay-shape
-  benchmark/validator reuse to the production replay publisher path, or close
-  milestone 003 as a publisher foundation.
-- Preserve the ordered parallel projection rule in any next reuse/migration:
+- Do not create or modify milestone 004 documentation until the next milestone
+  scope is explicitly selected.
+- Preserve the ordered parallel projection rule in any future replay work:
   workers may decompress/project records concurrently, but publication must be
   merged by original source order, not worker completion order.
 - Keep the order-sensitive chronology checksum as the validation gate for
   sequential/parallel equivalence.
-- If performance work continues before cache replay, focus on record descriptor
-  and metadata storage reuse, not worker/decompressor-session setup; the
-  reusable session removed that setup churn from the internal benchmark.
+- If performance work continues, focus on record descriptor and metadata
+  storage reuse, not worker/decompressor-session setup; the reusable session
+  removed that setup churn from the internal benchmark.
 - Avoid promising a full downstream event engine, partitioning, live ingestion,
-  durable broker integration, or visualization in milestone 003.
+  durable broker integration, or visualization as part of milestone 003.
 
 Completed in milestone 003 so far:
 
@@ -166,13 +165,12 @@ Completed in milestone 002:
 
 ## Current Achievement Summary
 
-The handoff state is a completed milestone 002 NEXRAD Archive Two decoder
-foundation plus a partially implemented milestone 003 publisher-facing replay
-foundation. Milestone 003 currently supports sequential single-file replay
-publishing, ordered parallel replay publishing, and a reusable steady-state
-count-only replay session used by the internal benchmark and cache-selection
-replay. The internal replay-publish benchmark also supports cache-wide
-measurement.
+The handoff state is a completed milestone 003 publisher-facing replay
+foundation on top of the completed milestone 002 NEXRAD Archive Two decoder
+foundation. Milestone 003 supports sequential single-file replay publishing,
+ordered parallel replay publishing, cache-selection replay, and a reusable
+steady-state count-only replay session used by the internal benchmarks. The
+internal replay-publish benchmark also supports cache-wide measurement.
 
 Achieved:
 
@@ -259,12 +257,13 @@ Achieved:
   ordered aggregation. The slower replay-shape path still remains roughly 11.5x
   above the 20M events/s target on this file.
 
-Not achieved yet:
+Deferred beyond milestone 003:
 
 - No downstream event publisher is implemented yet.
 - The parser/replay benchmarks still do not publish downstream engine events.
 - The existing replay-shape benchmark/validator still have their own parallel
-  projection loops instead of reusing the new production replay publisher path.
+  projection loops instead of reusing the new production replay publisher path;
+  this is not required for milestone 003 closure.
 
 ## Documentation
 
@@ -593,8 +592,8 @@ sharpziplib   24           643.11      789.01             855.22     2_511_390_7
 ```
 
 Parallel decompression improves byte throughput substantially on the current
-machine. The next parser slice must preserve file/message order when publishing
-data: worker completion order is not a valid stream order.
+machine. Future parser/replay work must preserve file/message order when
+publishing data: worker completion order is not a valid stream order.
 
 Last verified parse benchmark command:
 
@@ -921,9 +920,9 @@ constant and moment data blocks.
 - `src/Infrastructure/Archive/SharpZipLibArchiveBZip2Decompressor.cs`
 - `tests/RadarPulse.Tests/Archive/*`
 
-## Done Criteria For Next Slice
+## Milestone 003 Done Criteria
 
-Milestone 003 should be considered done when:
+Milestone 003 is complete:
 
 - RadarPulse exposes an explicit replay publisher API for
   `ArchiveTwoGateMomentEvent`. (Implemented.)
