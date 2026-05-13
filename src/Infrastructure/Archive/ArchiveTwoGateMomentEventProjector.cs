@@ -20,7 +20,7 @@ public sealed class ArchiveTwoGateMomentEventProjector : IArchiveTwoMessageConsu
     private const int GenericMomentScaleOffset = 20;
     private const int GenericMomentOffsetOffset = 24;
 
-    private readonly Action<ArchiveTwoGateMomentEvent> acceptEvent;
+    private Action<ArchiveTwoGateMomentEvent> acceptEvent = _ => { };
     private int radialSequenceNumber;
     private int currentSweepSequenceNumber;
     private int currentSweepElevationNumber;
@@ -32,14 +32,12 @@ public sealed class ArchiveTwoGateMomentEventProjector : IArchiveTwoMessageConsu
         Action<ArchiveTwoGateMomentEvent> acceptEvent)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(radarId);
-        RadarId = radarId;
-        VolumeTimestamp = volumeTimestamp;
-        this.acceptEvent = acceptEvent ?? throw new ArgumentNullException(nameof(acceptEvent));
+        Reset(radarId, volumeTimestamp, acceptEvent, default);
     }
 
-    public string RadarId { get; }
+    public string RadarId { get; private set; } = string.Empty;
 
-    public DateTimeOffset VolumeTimestamp { get; }
+    public DateTimeOffset VolumeTimestamp { get; private set; }
 
     public void Reset() => Reset(default);
 
@@ -49,6 +47,19 @@ public sealed class ArchiveTwoGateMomentEventProjector : IArchiveTwoMessageConsu
         currentSweepSequenceNumber = state.CurrentSweepSequenceNumber;
         currentSweepElevationNumber = state.CurrentSweepElevationNumber;
         currentSweepRadialCount = state.CurrentSweepRadialCount;
+    }
+
+    internal void Reset(
+        string radarId,
+        DateTimeOffset volumeTimestamp,
+        Action<ArchiveTwoGateMomentEvent> acceptEvent,
+        ArchiveTwoGateMomentProjectorState state)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(radarId);
+        RadarId = radarId;
+        VolumeTimestamp = volumeTimestamp;
+        this.acceptEvent = acceptEvent ?? throw new ArgumentNullException(nameof(acceptEvent));
+        Reset(state);
     }
 
     public void AcceptMessage(ReadOnlySpan<byte> message, ArchiveTwoMessageSource source)

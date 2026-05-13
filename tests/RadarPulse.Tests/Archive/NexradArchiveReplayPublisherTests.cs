@@ -165,6 +165,62 @@ public sealed class NexradArchiveReplayPublisherTests
     }
 
     [Fact]
+    public void ReplayPublishSessionMatchesPublisherTotalsAcrossRepeatedParallelRuns()
+    {
+        var firstRecordBytes = BuildMessage(31, BuildEightBitType31Payload("REF", [0, 1, 66, 68], scale: 2f, offset: 66f));
+        var secondRecordBytes = BuildMessage(31, BuildEightBitType31Payload("VEL", [129, 131], scale: 2f, offset: 129f));
+        var compressedPayload1 = BuildFakeBZip2Payload(1);
+        var compressedPayload2 = BuildFakeBZip2Payload(2);
+        var path = WriteTempFile(
+            "KTLX20260504_000245_V06",
+            BuildArchiveTwoHeader()
+                .Concat(BuildCompressedRecord(compressedPayload1.Length, compressedPayload1))
+                .Concat(BuildCompressedRecord(compressedPayload2.Length, compressedPayload2))
+                .ToArray());
+        var decompressor = new FakeArchiveBZip2Decompressor(new Dictionary<byte, byte[]>
+        {
+            [1] = firstRecordBytes,
+            [2] = secondRecordBytes
+        });
+        var replayPublisher = new NexradArchiveReplayPublisher(decompressor);
+
+        try
+        {
+            var expected = replayPublisher.PublishFile(
+                path,
+                ArchiveReplayPublishOptions.Sequential,
+                CancellationToken.None);
+
+            using var session = new NexradArchiveReplayPublishSession(decompressor, degreeOfParallelism: 2);
+            var first = session.PublishFile(path, CancellationToken.None);
+            var second = session.PublishFile(path, CancellationToken.None);
+
+            Assert.Equal(2, first.DegreeOfParallelism);
+            Assert.Equal(2, second.DegreeOfParallelism);
+            AssertPublishResultsMatch(expected, first);
+            AssertPublishResultsMatch(expected, second);
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(path)!, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ReplayPublishSessionRejectsUseAfterDispose()
+    {
+        var session = new NexradArchiveReplayPublishSession(
+            new FakeArchiveBZip2Decompressor(new Dictionary<byte, byte[]>()),
+            degreeOfParallelism: 1);
+
+        session.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(
+            () => session.PublishFile("archive", CancellationToken.None));
+        session.Dispose();
+    }
+
+    [Fact]
     public void PublishFileParallelDrainsCustomPublisherInSourceOrder()
     {
         var firstRecordBytes = BuildMessage(31, BuildEightBitType31Payload("REF", [66, 68], scale: 2f, offset: 66f));
@@ -438,6 +494,30 @@ public sealed class NexradArchiveReplayPublisherTests
 
     private static void WriteScaledKilometers(Span<byte> destination, float kilometers) =>
         BinaryPrimitives.WriteUInt16BigEndian(destination, checked((ushort)MathF.Round(kilometers * 1_000f)));
+
+    private static void AssertPublishResultsMatch(
+        ArchiveReplayPublishResult expected,
+        ArchiveReplayPublishResult actual)
+    {
+        Assert.Equal(expected.FilePath, actual.FilePath);
+        Assert.Equal(expected.Decompressor, actual.Decompressor);
+        Assert.Equal(expected.FileSizeBytes, actual.FileSizeBytes);
+        Assert.Equal(expected.CompressedRecordCount, actual.CompressedRecordCount);
+        Assert.Equal(expected.CompressedBytes, actual.CompressedBytes);
+        Assert.Equal(expected.DecompressedBytes, actual.DecompressedBytes);
+        Assert.Equal(expected.PublishedEvents, actual.PublishedEvents);
+        Assert.Equal(expected.ValidEvents, actual.ValidEvents);
+        Assert.Equal(expected.BelowThresholdEvents, actual.BelowThresholdEvents);
+        Assert.Equal(expected.RangeFoldedEvents, actual.RangeFoldedEvents);
+        Assert.Equal(expected.ClutterFilterNotAppliedEvents, actual.ClutterFilterNotAppliedEvents);
+        Assert.Equal(expected.PointClutterFilterAppliedEvents, actual.PointClutterFilterAppliedEvents);
+        Assert.Equal(expected.DualPolarizationFilteredEvents, actual.DualPolarizationFilteredEvents);
+        Assert.Equal(expected.ReservedEvents, actual.ReservedEvents);
+        Assert.Equal(expected.UnsupportedEvents, actual.UnsupportedEvents);
+        Assert.Equal(expected.RawValueChecksum, actual.RawValueChecksum);
+        Assert.Equal(expected.CalibratedValueScaledChecksum, actual.CalibratedValueScaledChecksum);
+        Assert.Equal(expected.ChronologyChecksum, actual.ChronologyChecksum);
+    }
 
     private static string WriteTempFile(string fileName, byte[] contents)
     {

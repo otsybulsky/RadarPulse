@@ -1,4 +1,3 @@
-using RadarPulse.Application.Archive;
 using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Infrastructure.Archive;
@@ -56,12 +55,11 @@ public sealed class NexradArchiveReplayPublishBenchmark
             throw new FileNotFoundException("NEXRAD archive file was not found.", filePath);
         }
 
-        var publisher = new NexradArchiveReplayPublisher(decompressor);
-        var options = new ArchiveReplayPublishOptions(degreeOfParallelism);
+        using var session = new NexradArchiveReplayPublishSession(decompressor, degreeOfParallelism);
         for (var warmupIteration = 0; warmupIteration < warmupIterations; warmupIteration++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            publisher.PublishFile(fileInfo.FullName, options, cancellationToken);
+            session.PublishFile(fileInfo.FullName, cancellationToken);
         }
 
         var allocatedBytesBefore = GC.GetTotalAllocatedBytes(precise: true);
@@ -71,7 +69,7 @@ public sealed class NexradArchiveReplayPublishBenchmark
         for (var iteration = 0; iteration < iterations; iteration++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var iterationResult = publisher.PublishFile(fileInfo.FullName, options, cancellationToken);
+            var iterationResult = session.PublishFile(fileInfo.FullName, cancellationToken);
             if (expectedIteration is null)
             {
                 expectedIteration = iterationResult;

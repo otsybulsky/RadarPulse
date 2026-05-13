@@ -28,6 +28,22 @@ internal sealed class ArchiveReplayEventAccumulator
 
     public ulong ChronologyChecksum { get; private set; }
 
+    public void Reset()
+    {
+        PublishedEvents = 0;
+        ValidEvents = 0;
+        BelowThresholdEvents = 0;
+        RangeFoldedEvents = 0;
+        ClutterFilterNotAppliedEvents = 0;
+        PointClutterFilterAppliedEvents = 0;
+        DualPolarizationFilteredEvents = 0;
+        ReservedEvents = 0;
+        UnsupportedEvents = 0;
+        RawValueChecksum = 0;
+        CalibratedValueScaledChecksum = 0;
+        ChronologyChecksum = 0;
+    }
+
     public void AcceptEvent(ArchiveTwoGateMomentEvent gateMomentEvent)
     {
         PublishedEvents++;

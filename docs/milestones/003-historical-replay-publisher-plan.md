@@ -109,6 +109,7 @@ single-file sequential replay is implemented
 archive replay --file ... is implemented for --parallelism n
 archive benchmark replay-publish --file ... is implemented
 ordered parallel publishing is implemented
+reusable count-only replay publish session is implemented for steady-state benchmarking
 ```
 
 ## Proposed API Shape
@@ -244,11 +245,12 @@ keep validator focused on sequential/parallel equivalence
 ```
 
 The first publisher-path benchmark is implemented as
-`archive benchmark replay-publish`. It calls the production replay publisher API
-inside the timed section and validates stable counts/checksums across
-iterations. Full migration of the older `replay-shape` benchmark/validator can
-happen later if it still reduces duplication without weakening the existing
-comparison gates.
+`archive benchmark replay-publish`. It now uses a reusable
+`NexradArchiveReplayPublishSession` inside the timed section, keeps workers and
+decompressor sessions alive across warmup/measured iterations, and validates
+stable counts/checksums across iterations. Full migration of the older
+`replay-shape` benchmark/validator can happen later if it still reduces
+duplication without weakening the existing comparison gates.
 
 ## Test Plan
 
@@ -305,16 +307,16 @@ Allocation pressure still matters. The implementation should preserve the
 existing buffer-pooling and reusable decompressor-session approach where it does
 not make the publisher boundary unclear.
 
-After the first internal `archive benchmark replay-publish` smoke, throughput
-is acceptable for milestone 003 but allocation pressure should be improved
-before cache-wide replay. The next performance-oriented design should add a
-reusable replay session or runner:
+After the reusable-session `archive benchmark replay-publish` smoke, throughput
+is acceptable for milestone 003 and setup allocation pressure is no longer the
+dominant concern in the benchmark. Remaining performance follow-up should be
+driven by cache-wide replay needs and allocation profiling:
 
 ```text
-create replay workers once and reuse them across files/iterations
-keep decompressor sessions alive between files/iterations
 reuse record descriptor, metadata, result, and event buffers where practical
-separate steady-state replay measurement from setup-heavy per-file API calls
+keep one replay session alive across cache-wide file batches
+separate cache-wide replay measurement from single-file smoke commands
+profile Parallel/ConcurrentStack scheduling only after metadata allocation is understood
 ```
 
 This follow-up is not required to prove the milestone 003 publisher boundary,

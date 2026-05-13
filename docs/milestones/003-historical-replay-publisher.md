@@ -5,7 +5,8 @@ into a publisher-facing historical replay input path.
 
 ## Current Status
 
-The first sequential replay publisher slice is implemented.
+The publisher foundation and first reusable steady-state benchmark session are
+implemented.
 
 Implemented:
 
@@ -19,8 +20,9 @@ ArchiveReplayPublishResult
 ArchiveReplayCountingPublisher
 NexradArchiveReplayPublisher sequential single-file replay path
 NexradArchiveReplayPublisher ordered parallel replay path
+NexradArchiveReplayPublishSession reusable count-only replay runner
 archive replay --file ... CLI smoke command
-archive benchmark replay-publish --file ... CLI benchmark command
+archive benchmark replay-publish --file ... CLI steady-state benchmark command
 focused unit tests with synthetic Archive Two framing and fake decompression
 ```
 
@@ -48,7 +50,7 @@ cache-wide replay-shape validation on the local KTLX corpus
 Not yet implemented:
 
 ```text
-benchmark/validator reuse of the production replay source
+older replay-shape benchmark/validator reuse of the production replay source
 cache-selection replay command
 downstream event engine integration
 ```
@@ -209,61 +211,63 @@ parallelism 24: 248_026_584.81 replay-shaped events/s
 ```
 
 The internal publisher-path benchmark command removes per-command process
-startup from the timed section and validates iteration consistency:
+startup from the timed section and validates iteration consistency. It now uses
+`NexradArchiveReplayPublishSession`, so replay workers, decompressor sessions,
+projectors, accumulators, and compressed/output buffers are created once and
+reused across warmup and measured iterations:
 
 ```text
 command: archive benchmark replay-publish --iterations 5 --warmup-iterations 1 --decompressor radarpulse
 
 parallelism 1:
-  48_758_357.06 published events/s
-  allocated bytes / event: 0.18
+  51_754_463.69 published events/s
+  allocated bytes / event: 0.06
 
 parallelism 24:
-  359_407_930.32 published events/s
-  allocated bytes / event: 3.38
+  362_695_693.02 published events/s
+  allocated bytes / event: 0.07
+  chronology checksum per iteration: 5_257_350_734_454_804_390
 ```
 
-The publisher benchmark measures the production replay API call, including
-per-file worker/decompressor-session setup in each iteration. This makes it a
-more direct API-path benchmark than the CLI smoke command, but not identical to
-the older `replay-shape` benchmark, which keeps benchmark workers outside the
-timed iteration window.
+The publisher benchmark measures steady-state count-only replay. It is still a
+more direct publisher-path benchmark than the CLI smoke command, but it is no
+longer a setup-heavy per-file API benchmark. The public one-shot
+`NexradArchiveReplayPublisher` API remains available for simple single-file
+calls.
 
 Current assessment:
 
 ```text
 sequential publisher throughput is acceptable for milestone 003 because it is
-  above the initial 20M events/s target through the production publisher API
+  above the initial 20M events/s target through the publisher path
 
 parallel publisher throughput is strong for milestone 003 and confirms that the
   ordered merge can preserve chronology while exceeding the target by a wide
   margin on the current KTLX smoke file
 
-parallel allocation pressure needs follow-up before cache-wide or long-running
-  replay work; 3.38 allocated bytes/event is acceptable for this foundation
-  slice but should not be treated as the target production profile
+parallel allocation pressure from per-iteration worker/session setup has been
+  removed from the benchmark profile; remaining allocations are small enough for
+  this foundation slice but should still be watched before long-running
+  cache-wide replay
 ```
 
-Likely allocation contributors in the current publisher benchmark:
+Likely remaining allocation contributors in the current publisher benchmark:
 
 ```text
-worker and decompressor-session setup per benchmark iteration
 per-file record descriptor and metadata arrays
-per-record accumulator/result objects
+per-record metadata radial arrays
 Task/Parallel scheduling infrastructure
 per-record event buffers in the custom publisher path
 ```
 
-The next performance-oriented slice should introduce a reusable replay session
-or runner before cache-wide replay:
+Potential later performance follow-up before treating replay as a long-running
+production profile:
 
 ```text
-NexradArchiveReplayPublishSession or similar reusable runner
-workers created once and reused across files/iterations
-decompressor sessions kept alive between files/iterations
-record/result arrays or buffers reused where practical
-benchmark mode that measures steady-state replay separately from setup-heavy
-  per-file API calls
+reuse or pool record descriptor and metadata-radial storage where practical
+add a cache-wide replay benchmark mode that keeps one session across files
+profile whether Parallel/ConcurrentStack scheduling is visible after metadata
+  allocation is reduced
 ```
 
 Milestone 003 should preserve the same design pressure, but the first acceptance
@@ -321,5 +325,6 @@ CLI smoke command implemented for --parallelism n
 tests cover source order, status totals, sequential/parallel equivalence, ordered custom-publisher drain, diagnostics, invalid parallelism, and cancellation
 ordered parallel publish implemented
 internal replay-publish benchmark implemented
-benchmark/validator reuse of the production replay source remains pending
+reusable steady-state replay publish session implemented
+older replay-shape benchmark/validator reuse of the production replay source remains pending
 ```

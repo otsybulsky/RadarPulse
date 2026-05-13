@@ -4,11 +4,11 @@
 
 Continue milestone 003: turn the completed NEXRAD Archive Two decoder and
 replay-shape projection foundation into a publisher-facing historical replay
-input path. Sequential single-file publishing and the first ordered parallel
-publisher path are implemented; the next slice should decide whether to migrate
-the existing replay-shape benchmark/validator to reuse the production replay
-source or move into cache-selection replay. An internal publisher-path benchmark
-is now available as `archive benchmark replay-publish`.
+input path. Sequential single-file publishing, ordered parallel publishing, and
+a reusable count-only replay publish session for steady-state benchmarking are
+implemented. The next slice should decide whether to move into cache-selection
+replay or migrate the older replay-shape benchmark/validator toward the
+production replay source.
 
 ## Milestone Status
 
@@ -29,13 +29,17 @@ Done:
 
 Planned next:
 
-- Decide the next `003` slice: migrate benchmark/validator reuse to the
-  production replay publisher path, or add cache-selection replay.
+- Decide the next `003` slice: add cache-selection replay, or migrate the older
+  replay-shape benchmark/validator reuse to the production replay publisher
+  path.
 - Preserve the ordered parallel projection rule in any next reuse/migration:
   workers may decompress/project records concurrently, but publication must be
   merged by original source order, not worker completion order.
 - Keep the order-sensitive chronology checksum as the validation gate for
   sequential/parallel equivalence.
+- If performance work continues before cache replay, focus on record descriptor
+  and metadata storage reuse, not worker/decompressor-session setup; the
+  reusable session removed that setup churn from the internal benchmark.
 - Avoid promising a full downstream event engine, partitioning, live ingestion,
   durable broker integration, or visualization in milestone 003.
 
@@ -50,6 +54,7 @@ Completed in milestone 003 so far:
 - `ArchiveReplayCountingPublisher`.
 - `NexradArchiveReplayPublisher` sequential single-file replay path.
 - `NexradArchiveReplayPublisher` ordered parallel replay path.
+- `NexradArchiveReplayPublishSession` reusable count-only replay runner.
 - `archive replay --file ... [--parallelism n]
   [--decompressor radarpulse|sharpziplib|sharpcompress]`.
 - `archive benchmark replay-publish --file ... [--iterations n]
@@ -58,7 +63,8 @@ Completed in milestone 003 so far:
 - Focused unit tests for source-order publication, counters/checksums,
   sequential/parallel equivalence, custom publisher ordered drain, non-Archive
   Two diagnostics, invalid parallelism, cancellation, and replay-publish
-  benchmark iteration consistency.
+  benchmark iteration consistency, repeated reusable-session parity, and
+  reusable-session disposal behavior.
 
 Completed in milestone 002:
 
@@ -151,8 +157,8 @@ Completed in milestone 002:
 The handoff state is a completed milestone 002 NEXRAD Archive Two decoder
 foundation plus a partially implemented milestone 003 publisher-facing replay
 foundation. Milestone 003 currently supports sequential single-file replay
-publishing and ordered parallel replay publishing through an explicit API and
-CLI smoke command.
+publishing, ordered parallel replay publishing, and a reusable steady-state
+count-only replay session used by the internal benchmark.
 
 Achieved:
 
@@ -256,7 +262,7 @@ dotnet test RadarPulse.sln --no-restore
 Result:
 
 ```text
-62 passed, 3 skipped
+64 passed, 3 skipped
 ```
 
 The skipped tests are the opt-in live AWS integration tests and opt-in local
@@ -327,53 +333,53 @@ Result:
 ```text
 parallelism 1:
 Published events per iteration: 38_759_040
-Published events/s: 48_758_357.06
-Allocated bytes / event: 0.18
+Published events/s: 51_754_463.69
+Allocated bytes / event: 0.06
 
 parallelism 24:
 Published events per iteration: 38_759_040
-Published events/s: 359_407_930.32
-Allocated bytes / event: 3.38
+Published events/s: 362_695_693.02
+Allocated bytes / event: 0.07
 Chronology checksum per iteration: 5_257_350_734_454_804_390
 ```
 
-This benchmark calls the production replay publisher API inside the timed loop,
-so it removes per-command process startup while still measuring per-file
-publisher setup work. The older `replay-shape` benchmark keeps benchmark
-workers outside its timed iteration window, so allocation and throughput numbers
-are not one-to-one.
+This benchmark now uses `NexradArchiveReplayPublishSession` inside the timed
+loop. It removes per-command process startup and also reuses replay workers,
+decompressor sessions, projectors, accumulators, and compressed/output buffers
+across warmup and measured iterations. The older `replay-shape` benchmark keeps
+its own benchmark workers outside its timed iteration window, so allocation and
+throughput numbers are not one-to-one.
 
 Current milestone 003 performance assessment:
 
 - Sequential publisher throughput is acceptable for the milestone because
-  `48_758_357.06` published events/s is above the initial 20M events/s target
-  through the production publisher API.
+  `51_754_463.69` published events/s is above the initial 20M events/s target
+  through the publisher path.
 - Parallel publisher throughput is strong for the milestone because
-  `359_407_930.32` published events/s confirms the ordered merge can preserve
+  `362_695_693.02` published events/s confirms the ordered merge can preserve
   chronology while exceeding the target by a wide margin on the current KTLX
   smoke file.
-- Parallel allocation pressure needs follow-up before cache-wide or long-running
-  replay work. The current `3.38` allocated bytes/event is acceptable for this
-  foundation slice, but should not be treated as the target production profile.
+- Worker/decompressor-session setup allocation is no longer visible as a major
+  benchmark cost. Parallel allocation pressure is now about `0.07` bytes/event
+  on the current smoke file; remaining allocation work should be driven by
+  cache-wide replay profiling.
 
-Likely allocation contributors in the current publisher benchmark:
+Likely remaining allocation contributors in the current publisher benchmark:
 
 ```text
-worker and decompressor-session setup per benchmark iteration
 per-file record descriptor and metadata arrays
-per-record accumulator/result objects
+per-record metadata radial arrays
 Task/Parallel scheduling infrastructure
 per-record event buffers in the custom publisher path
 ```
 
-Recommended next performance slice before cache-wide replay:
+Potential later performance slice before treating replay as long-running
+production profile:
 
 ```text
-NexradArchiveReplayPublishSession or similar reusable runner
-workers created once and reused across files/iterations
-decompressor sessions kept alive between files/iterations
-record/result arrays or buffers reused where practical
-benchmark mode that measures steady-state replay separately from setup-heavy per-file API calls
+reuse or pool record descriptor and metadata-radial storage where practical
+add a cache-wide replay benchmark mode that keeps one session across files
+profile whether Parallel/ConcurrentStack scheduling is visible after metadata allocation is reduced
 ```
 
 Earlier milestone 003 planning slice changed documentation only.
@@ -801,6 +807,7 @@ constant and moment data blocks.
 - `src/Infrastructure/Archive/ArchiveReplayEventAccumulator.cs`
 - `src/Infrastructure/Archive/ArchiveReplayCountingPublisher.cs`
 - `src/Infrastructure/Archive/NexradArchiveReplayPublisher.cs`
+- `src/Infrastructure/Archive/NexradArchiveReplayPublishSession.cs`
 - `src/Infrastructure/Archive/NexradArchiveReplayPublishBenchmark.cs`
 - `src/Infrastructure/Archive/ArchiveTwoGateMomentChronologyChecksum.cs`
 - `src/Infrastructure/Archive/ArchiveTwoGateMomentEventProjector.cs`
@@ -822,17 +829,18 @@ constant and moment data blocks.
 Milestone 003 should be considered done when:
 
 - RadarPulse exposes an explicit replay publisher API for
-  `ArchiveTwoGateMomentEvent`. (Implemented for sequential replay.)
+  `ArchiveTwoGateMomentEvent`. (Implemented.)
 - One cached Archive Two file can publish ordered events through that API.
-  (Implemented for sequential replay.)
+  (Implemented for sequential and parallel replay.)
 - A counting/checksum publisher can verify status totals, raw checksum,
   calibrated checksum, and chronology checksum. (Implemented.)
 - The production-facing parallel replay path publishes through an ordered merge
-  rather than worker completion order.
+  rather than worker completion order. (Implemented.)
 - Sequential and parallel replay over the same file produce identical counts
-  and chronology checksums.
+  and chronology checksums. (Implemented.)
 - The CLI can smoke-test the publisher path. (Implemented for
   `--parallelism n`.)
 - Focused tests cover ordering, totals, diagnostics, and cancellation.
-  (Implemented for the sequential path.)
+  (Implemented for sequential, parallel, custom-publisher, benchmark, and
+  reusable-session paths.)
 
