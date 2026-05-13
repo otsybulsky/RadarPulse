@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Collections.Concurrent;
 using System.Runtime.ExceptionServices;
 using Microsoft.Win32.SafeHandles;
+using RadarPulse.Application.Archive;
 using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Infrastructure.Archive;
@@ -56,6 +57,75 @@ public sealed class NexradArchiveReplayPublishSession : IDisposable
         return DegreeOfParallelism == 1
             ? PublishFileSequential(fileInfo, cancellationToken)
             : PublishFileParallel(fileInfo, cancellationToken);
+    }
+
+    public ArchiveReplayCachePublishResult PublishCache(
+        string cachePath,
+        DateOnly? date,
+        string? radarId,
+        int maxFiles,
+        CancellationToken cancellationToken)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        ArgumentException.ThrowIfNullOrWhiteSpace(cachePath);
+        if (maxFiles <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxFiles), "Max files must be greater than zero.");
+        }
+
+        var directoryInfo = new DirectoryInfo(cachePath);
+        if (!directoryInfo.Exists)
+        {
+            throw new DirectoryNotFoundException($"NEXRAD cache directory was not found: {cachePath}");
+        }
+
+        var normalizedRadarId = string.IsNullOrWhiteSpace(radarId)
+            ? null
+            : HistoricalArchiveRequest.NormalizeRadarId(radarId);
+        var files = new List<ArchiveReplayPublishResult>();
+        var examinedFiles = 0;
+        var skippedFiles = 0;
+        var chronologyChecksum = 0UL;
+
+        foreach (var fileInfo in directoryInfo.EnumerateFiles("*", SearchOption.AllDirectories).OrderBy(file => file.FullName))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (examinedFiles >= maxFiles)
+            {
+                break;
+            }
+
+            if (!MatchesRadar(fileInfo, normalizedRadarId) ||
+                !MatchesDate(fileInfo, date))
+            {
+                continue;
+            }
+
+            examinedFiles++;
+            if (!ArchiveTwoFileReader.IsArchiveTwoBaseData(fileInfo))
+            {
+                skippedFiles++;
+                continue;
+            }
+
+            var result = PublishFile(fileInfo.FullName, cancellationToken);
+            files.Add(result);
+            chronologyChecksum = ArchiveTwoGateMomentChronologyChecksum.Combine(
+                chronologyChecksum,
+                result.ChronologyChecksum,
+                result.PublishedEvents);
+        }
+
+        return new ArchiveReplayCachePublishResult(
+            directoryInfo.FullName,
+            date,
+            normalizedRadarId,
+            decompressor.Name,
+            DegreeOfParallelism,
+            examinedFiles,
+            skippedFiles,
+            files,
+            chronologyChecksum);
     }
 
     private ArchiveReplayPublishResult PublishFileSequential(
@@ -300,6 +370,72 @@ public sealed class NexradArchiveReplayPublishSession : IDisposable
         {
             ExceptionDispatchInfo.Capture(innerException).Throw();
         }
+    }
+
+    private static bool MatchesRadar(FileInfo fileInfo, string? radarId)
+    {
+        if (radarId is null)
+        {
+            return true;
+        }
+
+        return fileInfo.Name.StartsWith(radarId, StringComparison.OrdinalIgnoreCase) ||
+            fileInfo.DirectoryName?.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                .Any(segment => string.Equals(segment, radarId, StringComparison.OrdinalIgnoreCase)) == true;
+    }
+
+    private static bool MatchesDate(FileInfo fileInfo, DateOnly? date)
+    {
+        if (date is null)
+        {
+            return true;
+        }
+
+        return TryReadDateFromFileName(fileInfo.Name, out var fileNameDate) && fileNameDate == date ||
+            PathContainsDate(fileInfo.FullName, date.Value);
+    }
+
+    private static bool TryReadDateFromFileName(string fileName, out DateOnly date)
+    {
+        date = default;
+        if (fileName.Length < 12)
+        {
+            return false;
+        }
+
+        var dateText = fileName.AsSpan(4, 8);
+        if (!int.TryParse(dateText[..4], out var year) ||
+            !int.TryParse(dateText.Slice(4, 2), out var month) ||
+            !int.TryParse(dateText.Slice(6, 2), out var day))
+        {
+            return false;
+        }
+
+        try
+        {
+            date = new DateOnly(year, month, day);
+            return true;
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return false;
+        }
+    }
+
+    private static bool PathContainsDate(string path, DateOnly date)
+    {
+        var segments = path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        for (var i = 0; i <= segments.Length - 3; i++)
+        {
+            if (string.Equals(segments[i], date.Year.ToString("0000"), StringComparison.Ordinal) &&
+                string.Equals(segments[i + 1], date.Month.ToString("00"), StringComparison.Ordinal) &&
+                string.Equals(segments[i + 2], date.Day.ToString("00"), StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public void Dispose()

@@ -90,23 +90,25 @@ decompressor backend
 cancellation token
 ```
 
-Later milestone 003 slices may add cache selection:
+Cache selection is now implemented for the publisher smoke path:
 
 ```text
-cache directory
-date
-radar id
-max files
+cache directory - implemented
+date - implemented
+radar id - implemented
+max files - implemented
 ```
 
-The first implementation should focus on one file until the publisher API and
-ordered merge behavior are proven.
+The first implementation focused on one file until the publisher API and
+ordered merge behavior were proven. The cache-selection slice now reuses the
+same session across selected files.
 
 Current implementation note:
 
 ```text
 single-file sequential replay is implemented
 archive replay --file ... is implemented for --parallelism n
+archive replay --cache ... is implemented for date/radar/max-files selection
 archive benchmark replay-publish --file ... is implemented
 ordered parallel publishing is implemented
 reusable count-only replay publish session is implemented for steady-state benchmarking
@@ -131,8 +133,18 @@ ArchiveReplayPublishResult
   calibrated checksum
   chronology checksum
 
+ArchiveReplayCachePublishResult
+  selected cache metadata
+  examined/skipped/published file counts
+  aggregate publish totals
+  aggregate chronology checksum in selected file order
+
 NexradArchiveReplayPublisher
   PublishFile(filePath, publisher, options, cancellationToken)
+
+NexradArchiveReplayPublishSession
+  PublishFile(filePath, cancellationToken)
+  PublishCache(cachePath, date, radarId, maxFiles, cancellationToken)
 ```
 
 The exact names can change to fit the codebase, but the boundary should be
@@ -178,6 +190,16 @@ Chronology checksum: ...
 
 The command should be a smoke/validation command for the publisher path, not a
 claim of production replay operations.
+
+Cache-selection smoke command:
+
+```text
+dotnet run --project src/Presentation/RadarPulse.Cli.csproj -- archive replay --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]
+```
+
+Expected cache output includes examined files, skipped files, published files,
+aggregate status totals, raw/calibrated checksums, and an aggregate chronology
+checksum. `--max-files` limits selected cache files after date/radar filtering.
 
 ## Implementation Slices
 
@@ -231,9 +253,19 @@ Step 5: wire CLI smoke command.
 
 ```text
 archive replay --file ... - implemented
+archive replay --cache ... - implemented
 default decompressor: radarpulse
 default parallelism: 1
 clear diagnostics for non-Archive Two files
+```
+
+Step 5b: add cache-selection replay.
+
+```text
+reuse one NexradArchiveReplayPublishSession across selected files - implemented
+filter by cache path/date/radar/max files - implemented
+skip non-Archive Two files without publishing them - implemented
+aggregate file publish results in selected cache order - implemented
 ```
 
 Step 6: migrate benchmark/validation where practical.
@@ -265,6 +297,8 @@ parallel publish does not expose worker completion order
 non-Archive Two files return clear diagnostics
 unsupported or malformed records fail without partial success claims
 cancellation stops replay and releases pooled buffers
+cache replay applies date/radar/max-files selection
+cache replay skips non-Archive Two files and aggregates base-data totals
 ```
 
 Fixture strategy:
@@ -282,6 +316,7 @@ Manual smoke:
 dotnet test RadarPulse.sln --no-restore
 dotnet run --no-restore --project src/Presentation/RadarPulse.Cli.csproj -- archive replay --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 --parallelism 1 --decompressor radarpulse
 dotnet run --no-restore --project src/Presentation/RadarPulse.Cli.csproj -- archive replay --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 --parallelism 24 --decompressor radarpulse
+dotnet run --no-restore --project src/Presentation/RadarPulse.Cli.csproj -- archive replay --cache data/nexrad --date 2026-05-04 --radar KTLX --max-files 2 --parallelism 24 --decompressor radarpulse
 ```
 
 The sequential and parallel smoke commands should report the same event counts,
@@ -334,6 +369,7 @@ sequential replay source
 ordered parallel replay source
 counting/checksum publisher
 CLI smoke command
+cache-selection smoke command
 focused tests
 documentation updates
 ```

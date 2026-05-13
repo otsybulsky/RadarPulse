@@ -6,9 +6,10 @@ Continue milestone 003: turn the completed NEXRAD Archive Two decoder and
 replay-shape projection foundation into a publisher-facing historical replay
 input path. Sequential single-file publishing, ordered parallel publishing, and
 a reusable count-only replay publish session for steady-state benchmarking are
-implemented. The next slice should decide whether to move into cache-selection
-replay or migrate the older replay-shape benchmark/validator toward the
-production replay source.
+implemented. Cache-selection replay is now wired through the same reusable
+session. The next slice should decide whether to migrate the older replay-shape
+benchmark/validator toward the production replay source or add a cache-wide
+publisher benchmark/validation profile.
 
 ## Milestone Status
 
@@ -29,9 +30,9 @@ Done:
 
 Planned next:
 
-- Decide the next `003` slice: add cache-selection replay, or migrate the older
-  replay-shape benchmark/validator reuse to the production replay publisher
-  path.
+- Decide the next `003` slice: migrate the older replay-shape
+  benchmark/validator reuse to the production replay publisher path, or add a
+  cache-wide publisher benchmark/validation profile.
 - Preserve the ordered parallel projection rule in any next reuse/migration:
   workers may decompress/project records concurrently, but publication must be
   merged by original source order, not worker completion order.
@@ -51,11 +52,15 @@ Completed in milestone 003 so far:
 - `IArchiveReplayEventPublisher`.
 - `ArchiveReplayPublishOptions`.
 - `ArchiveReplayPublishResult`.
+- `ArchiveReplayCachePublishResult`.
 - `ArchiveReplayCountingPublisher`.
 - `NexradArchiveReplayPublisher` sequential single-file replay path.
 - `NexradArchiveReplayPublisher` ordered parallel replay path.
 - `NexradArchiveReplayPublishSession` reusable count-only replay runner.
 - `archive replay --file ... [--parallelism n]
+  [--decompressor radarpulse|sharpziplib|sharpcompress]`.
+- `archive replay --cache ... [--date yyyy-MM-dd] [--radar KTLX]
+  [--max-files n] [--parallelism n]
   [--decompressor radarpulse|sharpziplib|sharpcompress]`.
 - `archive benchmark replay-publish --file ... [--iterations n]
   [--warmup-iterations n] [--parallelism n]
@@ -64,7 +69,8 @@ Completed in milestone 003 so far:
   sequential/parallel equivalence, custom publisher ordered drain, non-Archive
   Two diagnostics, invalid parallelism, cancellation, and replay-publish
   benchmark iteration consistency, repeated reusable-session parity, and
-  reusable-session disposal behavior.
+  reusable-session disposal behavior, plus cache replay selection/skip
+  aggregation.
 
 Completed in milestone 002:
 
@@ -158,7 +164,8 @@ The handoff state is a completed milestone 002 NEXRAD Archive Two decoder
 foundation plus a partially implemented milestone 003 publisher-facing replay
 foundation. Milestone 003 currently supports sequential single-file replay
 publishing, ordered parallel replay publishing, and a reusable steady-state
-count-only replay session used by the internal benchmark.
+count-only replay session used by the internal benchmark and cache-selection
+replay.
 
 Achieved:
 
@@ -219,6 +226,14 @@ Achieved:
 - Cache inspection can aggregate selected local cache files and report file-kind,
   compressed-record, decompressed-byte, message, Type 31 radial, and estimated
   gate-moment totals.
+- Cache-selection replay can publish a selected cache slice with
+  `archive replay --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX]
+  [--max-files n]`, reusing one replay publish session across files, skipping
+  non-Archive Two files, and aggregating status totals and checksums in selected
+  cache order.
+- Full local KTLX cache replay for `2026-05-04` examined 244 files, skipped 24
+  non-base-data files, published 220 Archive Two files, and reported
+  8_513_587_200 published events with 1_369_194_138 valid events.
 - The parse benchmark now gives a first measured answer against the 20M
   events/s target for decompression plus minimal parsing.
 - With `--decode-moments`, the same KTLX file decodes all 38_759_040 raw
@@ -262,7 +277,7 @@ dotnet test RadarPulse.sln --no-restore
 Result:
 
 ```text
-64 passed, 3 skipped
+65 passed, 3 skipped
 ```
 
 The skipped tests are the opt-in live AWS integration tests and opt-in local
@@ -305,6 +320,63 @@ Measured published events/s: 65_453_053.24
 
 This is an external CLI smoke measurement after a Release build, so it includes
 process startup overhead.
+
+Latest milestone 003 cache replay smoke command:
+
+```powershell
+dotnet .\src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll archive replay --cache data\nexrad --date 2026-05-04 --radar KTLX --max-files 2 --parallelism 24 --decompressor radarpulse
+```
+
+Result:
+
+```text
+Examined files: 2
+Skipped files: 0
+Published files: 2
+Compressed records: 110
+Compressed bytes: 10_848_033
+Decompressed bytes: 101_483_648
+Published events: 77_518_080
+Valid events: 11_076_025
+Raw value checksum: 2_135_395_556
+Calibrated value scaled checksum: 140_796_164_125
+Chronology checksum: 10_768_380_537_427_882_607
+Chronology verification: required
+```
+
+The exact throughput is not measured by this smoke command; use
+`archive benchmark replay-publish` for single-file steady-state performance.
+
+Latest milestone 003 full cache replay smoke command:
+
+```powershell
+dotnet .\src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll archive replay --cache data\nexrad --date 2026-05-04 --radar KTLX --max-files 1000000 --parallelism 24 --decompressor radarpulse
+```
+
+Result:
+
+```text
+Examined files: 244
+Skipped files: 24
+Published files: 220
+File size bytes: 1_330_687_937
+Compressed records: 12_087
+Compressed bytes: 1_330_634_309
+Decompressed bytes: 11_145_331_584
+Published events: 8_513_587_200
+Valid events: 1_369_194_138
+Valid event share: 16.082%
+Below-threshold events: 5_841_331_993
+Range-folded events: 842_331
+CFP filter-not-applied events: 1_277_128_201
+CFP point-clutter-filter events: 14_296_674
+CFP dual-pol-filtered events: 10_793_863
+Reserved events: 0
+Unsupported events: 0
+Raw value checksum: 266_648_133_947
+Calibrated value scaled checksum: 21_398_534_126_880
+Chronology checksum: 9_060_754_844_693_896_318
+```
 
 Latest milestone 003 replay-shape comparison commands:
 
@@ -800,6 +872,7 @@ constant and moment data blocks.
 - `src/Domain/Archive/ArchiveTwoReplayShapeBenchmarkResult.cs`
 - `src/Domain/Archive/ArchiveTwoReplayShapeValidationResult.cs`
 - `src/Domain/Archive/ArchiveReplayPublishResult.cs`
+- `src/Domain/Archive/ArchiveReplayCachePublishResult.cs`
 - `src/Domain/Archive/ArchiveReplayPublishBenchmarkResult.cs`
 - `src/Infrastructure/Archive/IArchiveTwoMessageConsumer.cs`
 - `src/Application/Archive/IArchiveReplayEventPublisher.cs`
@@ -839,8 +912,8 @@ Milestone 003 should be considered done when:
 - Sequential and parallel replay over the same file produce identical counts
   and chronology checksums. (Implemented.)
 - The CLI can smoke-test the publisher path. (Implemented for
-  `--parallelism n`.)
+  `--file`, `--cache`, and `--parallelism n`.)
 - Focused tests cover ordering, totals, diagnostics, and cancellation.
   (Implemented for sequential, parallel, custom-publisher, benchmark, and
-  reusable-session paths.)
+  reusable-session/cache-selection paths.)
 

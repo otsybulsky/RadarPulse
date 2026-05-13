@@ -5,8 +5,8 @@ into a publisher-facing historical replay input path.
 
 ## Current Status
 
-The publisher foundation and first reusable steady-state benchmark session are
-implemented.
+The publisher foundation, first reusable steady-state benchmark session, and
+cache-selection replay smoke path are implemented.
 
 Implemented:
 
@@ -17,11 +17,13 @@ handoff update pointing from completed milestone 002 into milestone 003
 IArchiveReplayEventPublisher contract
 ArchiveReplayPublishOptions
 ArchiveReplayPublishResult
+ArchiveReplayCachePublishResult
 ArchiveReplayCountingPublisher
 NexradArchiveReplayPublisher sequential single-file replay path
 NexradArchiveReplayPublisher ordered parallel replay path
 NexradArchiveReplayPublishSession reusable count-only replay runner
 archive replay --file ... CLI smoke command
+archive replay --cache ... CLI cache-selection smoke command
 archive benchmark replay-publish --file ... CLI steady-state benchmark command
 focused unit tests with synthetic Archive Two framing and fake decompression
 ```
@@ -51,7 +53,6 @@ Not yet implemented:
 
 ```text
 older replay-shape benchmark/validator reuse of the production replay source
-cache-selection replay command
 downstream event engine integration
 ```
 
@@ -89,6 +90,36 @@ Chronology checksum: 5_257_350_734_454_804_390
 The exact output can change during implementation. The important behavior is
 that the command exercises the real publisher-facing replay path, not a
 benchmark-only projection loop.
+
+Cache-selection replay uses the reusable session across the selected files:
+
+```text
+dotnet run --project src/Presentation/RadarPulse.Cli.csproj -- archive replay --cache data/nexrad --date 2026-05-04 --radar KTLX --max-files 2 --parallelism 24 --decompressor radarpulse
+```
+
+Expected cache summary shape:
+
+```text
+Cache: data/nexrad
+Date: 2026-05-04
+Radar: KTLX
+Decompressor: radarpulse
+Parallelism: 24
+Chronology verification: required
+Examined files: ...
+Skipped files: ...
+Published files: ...
+Compressed records: ...
+Published events: ...
+Valid events: ...
+Raw value checksum: ...
+Calibrated value scaled checksum: ...
+Chronology checksum: ...
+```
+
+`--max-files` limits selected cache files after date/radar filtering. MDM and
+unknown files count as examined and skipped; Archive Two base-data files are
+published in cache path order.
 
 ## Replay Contract
 
@@ -172,6 +203,12 @@ worker completion order does not reach the publisher.
 The first implementation should avoid a large event buffer for a full volume
 when possible. If the parallel path needs buffering, prefer bounded per-record
 buffers or per-record result objects that are drained in original record order.
+
+The cache replay path is deliberately count-only for this milestone. It reuses
+`NexradArchiveReplayPublishSession` across files, aggregates
+`ArchiveReplayPublishResult` values, and combines file chronology checksums in
+selected cache order. The one-shot `NexradArchiveReplayPublisher` remains the
+simple single-file API.
 
 ## Performance Notes
 
@@ -309,6 +346,7 @@ Milestone 003 is complete when:
 ```text
 RadarPulse has an explicit replay publisher API for ArchiveTwoGateMomentEvent
 one cached Archive Two file can publish ordered events through that API
+selected cached Archive Two files can publish ordered events through that API
 the CLI can smoke-test the publisher path
 parallel replay preserves source order through an ordered merge
 sequential and parallel replay produce identical chronology checksums
@@ -321,10 +359,11 @@ Current partial completion:
 ```text
 explicit replay publisher API implemented
 single-file sequential publisher path implemented
-CLI smoke command implemented for --parallelism n
-tests cover source order, status totals, sequential/parallel equivalence, ordered custom-publisher drain, diagnostics, invalid parallelism, and cancellation
+CLI smoke command implemented for --file/--cache with --parallelism n
+tests cover source order, status totals, sequential/parallel equivalence, ordered custom-publisher drain, diagnostics, invalid parallelism, cancellation, reusable session, and cache selection
 ordered parallel publish implemented
 internal replay-publish benchmark implemented
 reusable steady-state replay publish session implemented
+cache-selection replay implemented
 older replay-shape benchmark/validator reuse of the production replay source remains pending
 ```
