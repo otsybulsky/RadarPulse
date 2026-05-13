@@ -102,6 +102,14 @@ max files
 The first implementation should focus on one file until the publisher API and
 ordered merge behavior are proven.
 
+Current implementation note:
+
+```text
+single-file sequential replay is implemented
+archive replay --file ... is implemented for --parallelism 1
+ordered parallel publishing is intentionally still pending
+```
+
 ## Proposed API Shape
 
 Candidate domain/application-facing concepts:
@@ -174,16 +182,16 @@ claim of production replay operations.
 Step 1: introduce publisher-facing contracts.
 
 ```text
-event publisher interface
-publisher options
-publish result model
-counting/checksum publisher
+event publisher interface - implemented
+publisher options - implemented
+publish result model - implemented
+counting/checksum publisher - implemented
 ```
 
 Step 2: extract reusable replay projection from benchmark-only code.
 
 ```text
-single-file replay source
+single-file sequential replay source - implemented
 shared worker/session helper if useful
 reuse ArchiveTwoGateMomentEventProjector
 reuse ArchiveTwoMessageStreamScanner
@@ -193,12 +201,12 @@ reuse ArchiveTwoFileReader record descriptors
 Step 3: implement sequential publish.
 
 ```text
-read volume header
-scan compressed records in file order
-decompress each record
-project Type 31 gate-moment events
-publish each event through the publisher contract
-return deterministic totals/checksums
+read volume header - implemented
+scan compressed records in file order - implemented
+decompress each record - implemented
+project Type 31 gate-moment events - implemented
+publish each event through the publisher contract - implemented
+return deterministic totals/checksums - implemented
 ```
 
 Step 4: implement ordered parallel publish.
@@ -219,9 +227,9 @@ source order.
 Step 5: wire CLI smoke command.
 
 ```text
-archive replay --file ...
+archive replay --file ... - implemented
 default decompressor: radarpulse
-default parallelism: 1 or Environment.ProcessorCount, decided during implementation
+default parallelism: 1
 clear diagnostics for non-Archive Two files
 ```
 

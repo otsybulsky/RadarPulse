@@ -5,7 +5,7 @@ into a publisher-facing historical replay input path.
 
 ## Current Status
 
-Planning started. No runtime implementation has been added yet.
+The first sequential replay publisher slice is implemented.
 
 Implemented:
 
@@ -13,6 +13,13 @@ Implemented:
 milestone 003 plan document
 milestone 003 status document
 handoff update pointing from completed milestone 002 into milestone 003
+IArchiveReplayEventPublisher contract
+ArchiveReplayPublishOptions
+ArchiveReplayPublishResult
+ArchiveReplayCountingPublisher
+NexradArchiveReplayPublisher sequential single-file replay path
+archive replay --file ... CLI smoke command
+focused unit tests with synthetic Archive Two framing and fake decompression
 ```
 
 Available from previous milestones:
@@ -39,23 +46,25 @@ cache-wide replay-shape validation on the local KTLX corpus
 Not yet implemented:
 
 ```text
-publisher-facing replay API
-counting/checksum replay publisher
-single-file replay publish command
 production-facing ordered parallel replay source
 benchmark/validator reuse of the production replay source
+cache-selection replay command
 downstream event engine integration
 ```
 
 ## Intended Usage
 
-The intended first smoke command is:
+The implemented first smoke command is:
 
 ```text
 dotnet run --project src/Presentation/RadarPulse.Cli.csproj -- archive replay --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 --parallelism 1 --decompressor radarpulse
 ```
 
-Parallel smoke after the ordered merge is implemented:
+Parallel smoke is intentionally not enabled yet. Until the ordered parallel
+publisher path is implemented, values above `--parallelism 1` fail with a clear
+diagnostic.
+
+Future parallel smoke after the ordered merge is implemented:
 
 ```text
 dotnet run --project src/Presentation/RadarPulse.Cli.csproj -- archive replay --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 --parallelism 24 --decompressor radarpulse
@@ -110,9 +119,8 @@ optional calibrated value
 source order
 ```
 
-The first concrete publisher should count events, status classes, checksums,
-and chronology. It is a validation publisher, not the final downstream event
-engine.
+The first concrete publisher counts events, status classes, checksums, and
+chronology. It is a validation publisher, not the final downstream event engine.
 
 ## Ordering Rules
 
@@ -156,8 +164,9 @@ aggregate results by original compressed record index
 combine order-sensitive chronology checksums
 ```
 
-Milestone 003 should extract this into a reusable replay source instead of
-leaving it embedded in `NexradArchiveReplayShapeBenchmark`.
+The sequential path now has a reusable replay publisher source. Milestone 003
+still needs to extract/adapt the ordered parallel mechanics instead of leaving
+them embedded in `NexradArchiveReplayShapeBenchmark`.
 
 The first implementation should avoid a large event buffer for a full volume
 when possible. If the parallel path needs buffering, prefer bounded per-record
@@ -169,6 +178,27 @@ The latest milestone 002 Release smoke reported about
 230_347_912 replay-shaped events/s on `KTLX20260504_000245_V06` with
 `radarpulse` and `--parallelism 24`. This is roughly 11.5x above the initial
 20M events/s target for replay-shaped event preparation on that file.
+
+The first milestone 003 sequential publisher smoke used the same file and
+measured the `archive replay` command with an external PowerShell
+`Measure-Command` timer after a Release build:
+
+```text
+published events: 38_759_040
+valid events: 5_523_459
+chronology checksum: 5_257_350_734_454_804_390
+measured elapsed ms: 1_046.73
+measured published events/s: 37_028_544.31
+```
+
+This external measurement includes CLI process startup and should be treated as
+a smoke measurement, not a stable benchmark. For comparison, the existing
+in-process replay-shape benchmark on the same Release build measured:
+
+```text
+parallelism 1:  50_671_150.52 replay-shaped events/s
+parallelism 24: 248_026_584.81 replay-shaped events/s
+```
 
 Milestone 003 should preserve the same design pressure, but the first acceptance
 gate is correctness:
@@ -214,4 +244,14 @@ parallel replay preserves source order through an ordered merge
 sequential and parallel replay produce identical chronology checksums
 focused tests cover ordering, status totals, diagnostics, and cancellation
 documentation describes the replay contract and remaining limitations
+```
+
+Current partial completion:
+
+```text
+explicit replay publisher API implemented
+single-file sequential publisher path implemented
+CLI smoke command implemented for --parallelism 1
+tests cover source order, status totals, diagnostics, unsupported parallelism, and cancellation
+ordered parallel publish remains the next implementation slice
 ```
