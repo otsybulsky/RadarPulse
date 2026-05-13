@@ -106,8 +106,9 @@ Current implementation note:
 
 ```text
 single-file sequential replay is implemented
-archive replay --file ... is implemented for --parallelism 1
-ordered parallel publishing is intentionally still pending
+archive replay --file ... is implemented for --parallelism n
+archive benchmark replay-publish --file ... is implemented
+ordered parallel publishing is implemented
 ```
 
 ## Proposed API Shape
@@ -220,9 +221,10 @@ publish/aggregate in original record order
 verify chronology checksum matches sequential behavior
 ```
 
-The parallel path should avoid publishing from worker callbacks directly unless
-the callback writes into a per-record ordered buffer that is later drained in
-source order.
+The parallel path does not publish from worker callbacks directly. The count-only
+publisher path combines per-record accumulators in source order; the custom
+publisher path writes into per-record buffers and drains those buffers in source
+order.
 
 Step 5: wire CLI smoke command.
 
@@ -241,9 +243,12 @@ reuse the production replay source for projection and ordering semantics
 keep validator focused on sequential/parallel equivalence
 ```
 
-This migration can happen in the same milestone after the first publisher path
-is stable. It does not need to be forced into the first implementation commit if
-that would make the slice too large.
+The first publisher-path benchmark is implemented as
+`archive benchmark replay-publish`. It calls the production replay publisher API
+inside the timed section and validates stable counts/checksums across
+iterations. Full migration of the older `replay-shape` benchmark/validator can
+happen later if it still reduces duplication without weakening the existing
+comparison gates.
 
 ## Test Plan
 
@@ -299,6 +304,22 @@ not production replay capacity
 Allocation pressure still matters. The implementation should preserve the
 existing buffer-pooling and reusable decompressor-session approach where it does
 not make the publisher boundary unclear.
+
+After the first internal `archive benchmark replay-publish` smoke, throughput
+is acceptable for milestone 003 but allocation pressure should be improved
+before cache-wide replay. The next performance-oriented design should add a
+reusable replay session or runner:
+
+```text
+create replay workers once and reuse them across files/iterations
+keep decompressor sessions alive between files/iterations
+reuse record descriptor, metadata, result, and event buffers where practical
+separate steady-state replay measurement from setup-heavy per-file API calls
+```
+
+This follow-up is not required to prove the milestone 003 publisher boundary,
+but it should happen before treating publisher replay as a long-running
+production profile.
 
 ## Code Boundaries
 

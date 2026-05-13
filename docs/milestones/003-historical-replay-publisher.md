@@ -18,7 +18,9 @@ ArchiveReplayPublishOptions
 ArchiveReplayPublishResult
 ArchiveReplayCountingPublisher
 NexradArchiveReplayPublisher sequential single-file replay path
+NexradArchiveReplayPublisher ordered parallel replay path
 archive replay --file ... CLI smoke command
+archive benchmark replay-publish --file ... CLI benchmark command
 focused unit tests with synthetic Archive Two framing and fake decompression
 ```
 
@@ -46,7 +48,6 @@ cache-wide replay-shape validation on the local KTLX corpus
 Not yet implemented:
 
 ```text
-production-facing ordered parallel replay source
 benchmark/validator reuse of the production replay source
 cache-selection replay command
 downstream event engine integration
@@ -60,11 +61,7 @@ The implemented first smoke command is:
 dotnet run --project src/Presentation/RadarPulse.Cli.csproj -- archive replay --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 --parallelism 1 --decompressor radarpulse
 ```
 
-Parallel smoke is intentionally not enabled yet. Until the ordered parallel
-publisher path is implemented, values above `--parallelism 1` fail with a clear
-diagnostic.
-
-Future parallel smoke after the ordered merge is implemented:
+Parallel smoke after the ordered merge:
 
 ```text
 dotnet run --project src/Presentation/RadarPulse.Cli.csproj -- archive replay --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 --parallelism 24 --decompressor radarpulse
@@ -164,9 +161,11 @@ aggregate results by original compressed record index
 combine order-sensitive chronology checksums
 ```
 
-The sequential path now has a reusable replay publisher source. Milestone 003
-still needs to extract/adapt the ordered parallel mechanics instead of leaving
-them embedded in `NexradArchiveReplayShapeBenchmark`.
+The sequential path now has a reusable replay publisher source, and the first
+ordered parallel publisher path is implemented. The count-only replay overload
+uses per-record accumulators and combines them in source order. The custom
+publisher overload uses per-record buffers and drains them in source order so
+worker completion order does not reach the publisher.
 
 The first implementation should avoid a large event buffer for a full volume
 when possible. If the parallel path needs buffering, prefer bounded per-record
@@ -179,25 +178,92 @@ The latest milestone 002 Release smoke reported about
 `radarpulse` and `--parallelism 24`. This is roughly 11.5x above the initial
 20M events/s target for replay-shaped event preparation on that file.
 
-The first milestone 003 sequential publisher smoke used the same file and
-measured the `archive replay` command with an external PowerShell
-`Measure-Command` timer after a Release build:
+The first milestone 003 publisher smoke used the same file and measured the
+`archive replay` command with an external PowerShell `Measure-Command` timer
+after a Release build:
 
 ```text
+parallelism 1:
 published events: 38_759_040
 valid events: 5_523_459
 chronology checksum: 5_257_350_734_454_804_390
-measured elapsed ms: 1_046.73
-measured published events/s: 37_028_544.31
+measured elapsed ms: 1_222.83
+measured published events/s: 31_696_112.78
+
+parallelism 24:
+published events: 38_759_040
+valid events: 5_523_459
+chronology checksum: 5_257_350_734_454_804_390
+measured elapsed ms: 592.17
+measured published events/s: 65_453_053.24
 ```
 
 This external measurement includes CLI process startup and should be treated as
-a smoke measurement, not a stable benchmark. For comparison, the existing
-in-process replay-shape benchmark on the same Release build measured:
+a smoke measurement, not a stable benchmark. The parallel publisher path reports
+the same chronology checksum as the sequential path. For comparison, the
+existing in-process replay-shape benchmark on the same Release build measured:
 
 ```text
 parallelism 1:  50_671_150.52 replay-shaped events/s
 parallelism 24: 248_026_584.81 replay-shaped events/s
+```
+
+The internal publisher-path benchmark command removes per-command process
+startup from the timed section and validates iteration consistency:
+
+```text
+command: archive benchmark replay-publish --iterations 5 --warmup-iterations 1 --decompressor radarpulse
+
+parallelism 1:
+  48_758_357.06 published events/s
+  allocated bytes / event: 0.18
+
+parallelism 24:
+  359_407_930.32 published events/s
+  allocated bytes / event: 3.38
+```
+
+The publisher benchmark measures the production replay API call, including
+per-file worker/decompressor-session setup in each iteration. This makes it a
+more direct API-path benchmark than the CLI smoke command, but not identical to
+the older `replay-shape` benchmark, which keeps benchmark workers outside the
+timed iteration window.
+
+Current assessment:
+
+```text
+sequential publisher throughput is acceptable for milestone 003 because it is
+  above the initial 20M events/s target through the production publisher API
+
+parallel publisher throughput is strong for milestone 003 and confirms that the
+  ordered merge can preserve chronology while exceeding the target by a wide
+  margin on the current KTLX smoke file
+
+parallel allocation pressure needs follow-up before cache-wide or long-running
+  replay work; 3.38 allocated bytes/event is acceptable for this foundation
+  slice but should not be treated as the target production profile
+```
+
+Likely allocation contributors in the current publisher benchmark:
+
+```text
+worker and decompressor-session setup per benchmark iteration
+per-file record descriptor and metadata arrays
+per-record accumulator/result objects
+Task/Parallel scheduling infrastructure
+per-record event buffers in the custom publisher path
+```
+
+The next performance-oriented slice should introduce a reusable replay session
+or runner before cache-wide replay:
+
+```text
+NexradArchiveReplayPublishSession or similar reusable runner
+workers created once and reused across files/iterations
+decompressor sessions kept alive between files/iterations
+record/result arrays or buffers reused where practical
+benchmark mode that measures steady-state replay separately from setup-heavy
+  per-file API calls
 ```
 
 Milestone 003 should preserve the same design pressure, but the first acceptance
@@ -251,7 +317,9 @@ Current partial completion:
 ```text
 explicit replay publisher API implemented
 single-file sequential publisher path implemented
-CLI smoke command implemented for --parallelism 1
-tests cover source order, status totals, diagnostics, unsupported parallelism, and cancellation
-ordered parallel publish remains the next implementation slice
+CLI smoke command implemented for --parallelism n
+tests cover source order, status totals, sequential/parallel equivalence, ordered custom-publisher drain, diagnostics, invalid parallelism, and cancellation
+ordered parallel publish implemented
+internal replay-publish benchmark implemented
+benchmark/validator reuse of the production replay source remains pending
 ```

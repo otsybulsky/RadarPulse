@@ -118,28 +118,176 @@ public sealed class NexradArchiveReplayPublisherTests
     }
 
     [Fact]
-    public void PublishFileRejectsParallelismUntilOrderedParallelPublisherIsImplemented()
+    public void PublishFileParallelCountingMatchesSequentialTotals()
     {
-        var compressedPayload = BuildFakeBZip2Payload(1);
+        var firstRecordBytes = BuildMessage(31, BuildEightBitType31Payload("REF", [0, 1, 66, 68], scale: 2f, offset: 66f));
+        var secondRecordBytes = BuildMessage(31, BuildEightBitType31Payload("CFP", [0, 1, 2, 8], scale: 1f, offset: 8f));
+        var compressedPayload1 = BuildFakeBZip2Payload(1);
+        var compressedPayload2 = BuildFakeBZip2Payload(2);
         var path = WriteTempFile(
             "KTLX20260504_000245_V06",
             BuildArchiveTwoHeader()
-                .Concat(BuildCompressedRecord(compressedPayload.Length, compressedPayload))
+                .Concat(BuildCompressedRecord(compressedPayload1.Length, compressedPayload1))
+                .Concat(BuildCompressedRecord(compressedPayload2.Length, compressedPayload2))
                 .ToArray());
         var replayPublisher = new NexradArchiveReplayPublisher(new FakeArchiveBZip2Decompressor(new Dictionary<byte, byte[]>
         {
-            [1] = BuildMessage(31, BuildEightBitType31Payload("REF", [66]))
+            [1] = firstRecordBytes,
+            [2] = secondRecordBytes
         }));
 
         try
         {
-            var exception = Assert.Throws<InvalidOperationException>(
-                () => replayPublisher.PublishFile(
-                    path,
-                    new ArchiveReplayPublishOptions(2),
+            var sequential = replayPublisher.PublishFile(
+                path,
+                ArchiveReplayPublishOptions.Sequential,
+                CancellationToken.None);
+            var parallel = replayPublisher.PublishFile(
+                path,
+                new ArchiveReplayPublishOptions(2),
+                CancellationToken.None);
+
+            Assert.Equal(sequential.PublishedEvents, parallel.PublishedEvents);
+            Assert.Equal(sequential.ValidEvents, parallel.ValidEvents);
+            Assert.Equal(sequential.BelowThresholdEvents, parallel.BelowThresholdEvents);
+            Assert.Equal(sequential.RangeFoldedEvents, parallel.RangeFoldedEvents);
+            Assert.Equal(sequential.ClutterFilterNotAppliedEvents, parallel.ClutterFilterNotAppliedEvents);
+            Assert.Equal(sequential.PointClutterFilterAppliedEvents, parallel.PointClutterFilterAppliedEvents);
+            Assert.Equal(sequential.DualPolarizationFilteredEvents, parallel.DualPolarizationFilteredEvents);
+            Assert.Equal(sequential.RawValueChecksum, parallel.RawValueChecksum);
+            Assert.Equal(sequential.CalibratedValueScaledChecksum, parallel.CalibratedValueScaledChecksum);
+            Assert.Equal(sequential.ChronologyChecksum, parallel.ChronologyChecksum);
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(path)!, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void PublishFileParallelDrainsCustomPublisherInSourceOrder()
+    {
+        var firstRecordBytes = BuildMessage(31, BuildEightBitType31Payload("REF", [66, 68], scale: 2f, offset: 66f));
+        var secondRecordBytes = BuildMessage(31, BuildEightBitType31Payload("VEL", [129, 131], scale: 2f, offset: 129f));
+        var compressedPayload1 = BuildFakeBZip2Payload(1);
+        var compressedPayload2 = BuildFakeBZip2Payload(2);
+        var path = WriteTempFile(
+            "KTLX20260504_000245_V06",
+            BuildArchiveTwoHeader()
+                .Concat(BuildCompressedRecord(compressedPayload1.Length, compressedPayload1))
+                .Concat(BuildCompressedRecord(compressedPayload2.Length, compressedPayload2))
+                .ToArray());
+        var capture = new CapturingReplayPublisher();
+        var replayPublisher = new NexradArchiveReplayPublisher(new FakeArchiveBZip2Decompressor(
+            new Dictionary<byte, byte[]>
+            {
+                [1] = firstRecordBytes,
+                [2] = secondRecordBytes
+            },
+            new Dictionary<byte, int>
+            {
+                [1] = 40,
+                [2] = 0
+            }));
+
+        try
+        {
+            var result = replayPublisher.PublishFile(
+                path,
+                capture,
+                new ArchiveReplayPublishOptions(2),
+                CancellationToken.None);
+
+            Assert.Equal(4, result.PublishedEvents);
+            Assert.Collection(
+                capture.Events,
+                first =>
+                {
+                    Assert.Equal(new ArchiveTwoRadialSourceOrder(1, 1, 1), first.SourceOrder);
+                    Assert.Equal("REF", first.MomentName);
+                    Assert.Equal(0, first.GateIndex);
+                },
+                second =>
+                {
+                    Assert.Equal(new ArchiveTwoRadialSourceOrder(1, 1, 1), second.SourceOrder);
+                    Assert.Equal("REF", second.MomentName);
+                    Assert.Equal(1, second.GateIndex);
+                },
+                third =>
+                {
+                    Assert.Equal(new ArchiveTwoRadialSourceOrder(2, 1, 2), third.SourceOrder);
+                    Assert.Equal("VEL", third.MomentName);
+                    Assert.Equal(0, third.GateIndex);
+                },
+                fourth =>
+                {
+                    Assert.Equal(new ArchiveTwoRadialSourceOrder(2, 1, 2), fourth.SourceOrder);
+                    Assert.Equal("VEL", fourth.MomentName);
+                    Assert.Equal(1, fourth.GateIndex);
+                });
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(path)!, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void PublishFileRejectsInvalidParallelism()
+    {
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(
+            () => new NexradArchiveReplayPublisher(new FakeArchiveBZip2Decompressor(new Dictionary<byte, byte[]>()))
+                .PublishFile(
+                    "archive",
+                    new ArchiveReplayPublishOptions(0),
                     CancellationToken.None));
 
-            Assert.Contains("Parallel replay publishing is not implemented", exception.Message);
+        Assert.Contains("Degree of parallelism", exception.Message);
+    }
+
+    [Fact]
+    public void ReplayPublishBenchmarkMeasuresStableParallelPublisherIterations()
+    {
+        var firstRecordBytes = BuildMessage(31, BuildEightBitType31Payload("REF", [66, 68], scale: 2f, offset: 66f));
+        var secondRecordBytes = BuildMessage(31, BuildEightBitType31Payload("VEL", [129, 131], scale: 2f, offset: 129f));
+        var compressedPayload1 = BuildFakeBZip2Payload(1);
+        var compressedPayload2 = BuildFakeBZip2Payload(2);
+        var path = WriteTempFile(
+            "KTLX20260504_000245_V06",
+            BuildArchiveTwoHeader()
+                .Concat(BuildCompressedRecord(compressedPayload1.Length, compressedPayload1))
+                .Concat(BuildCompressedRecord(compressedPayload2.Length, compressedPayload2))
+                .ToArray());
+
+        try
+        {
+            var result = new NexradArchiveReplayPublishBenchmark(new FakeArchiveBZip2Decompressor(new Dictionary<byte, byte[]>
+                {
+                    [1] = firstRecordBytes,
+                    [2] = secondRecordBytes
+                }))
+                .Measure(
+                    path,
+                    iterations: 2,
+                    warmupIterations: 1,
+                    degreeOfParallelism: 2,
+                    CancellationToken.None);
+
+            Assert.Equal("fake", result.Decompressor);
+            Assert.Equal(2, result.Iterations);
+            Assert.Equal(1, result.WarmupIterations);
+            Assert.Equal(2, result.DegreeOfParallelism);
+            Assert.Equal(2, result.CompressedRecordsPerIteration);
+            Assert.Equal(compressedPayload1.Length + compressedPayload2.Length, result.CompressedBytesPerIteration);
+            Assert.Equal(firstRecordBytes.Length + secondRecordBytes.Length, result.DecompressedBytesPerIteration);
+            Assert.Equal(4, result.PublishedEventsPerIteration);
+            Assert.Equal(4, result.ValidEventsPerIteration);
+            Assert.Equal(8, result.TotalPublishedEvents);
+            Assert.Equal(8, result.TotalValidEvents);
+            Assert.Equal(394, result.RawValueChecksumPerIteration);
+            Assert.Equal(2_000, result.CalibratedValueScaledChecksumPerIteration);
+            Assert.True(result.Elapsed > TimeSpan.Zero);
+            Assert.True(result.AllocatedBytes > 0);
         }
         finally
         {
@@ -317,14 +465,20 @@ public sealed class NexradArchiveReplayPublisherTests
     {
         private readonly IReadOnlyDictionary<byte, byte[]> decompressedRecords;
 
-        public FakeArchiveBZip2Decompressor(IReadOnlyDictionary<byte, byte[]> decompressedRecords)
+        private readonly IReadOnlyDictionary<byte, int> delayMillisecondsByRecord;
+
+        public FakeArchiveBZip2Decompressor(
+            IReadOnlyDictionary<byte, byte[]> decompressedRecords,
+            IReadOnlyDictionary<byte, int>? delayMillisecondsByRecord = null)
         {
             this.decompressedRecords = decompressedRecords;
+            this.delayMillisecondsByRecord = delayMillisecondsByRecord ?? new Dictionary<byte, int>();
         }
 
         public string Name => "fake";
 
-        public IArchiveBZip2DecompressionSession CreateSession() => new Session(decompressedRecords);
+        public IArchiveBZip2DecompressionSession CreateSession() =>
+            new Session(decompressedRecords, delayMillisecondsByRecord);
 
         public long Decompress(
             byte[] compressedPayload,
@@ -339,10 +493,14 @@ public sealed class NexradArchiveReplayPublisherTests
         private sealed class Session : IArchiveBZip2DecompressionSession
         {
             private readonly IReadOnlyDictionary<byte, byte[]> decompressedRecords;
+            private readonly IReadOnlyDictionary<byte, int> delayMillisecondsByRecord;
 
-            public Session(IReadOnlyDictionary<byte, byte[]> decompressedRecords)
+            public Session(
+                IReadOnlyDictionary<byte, byte[]> decompressedRecords,
+                IReadOnlyDictionary<byte, int> delayMillisecondsByRecord)
             {
                 this.decompressedRecords = decompressedRecords;
+                this.delayMillisecondsByRecord = delayMillisecondsByRecord;
             }
 
             public long Decompress(
@@ -380,7 +538,14 @@ public sealed class NexradArchiveReplayPublisherTests
                     throw new InvalidDataException("Fake compressed payload does not start with BZh.");
                 }
 
-                return decompressedRecords[compressedPayload[3]];
+                var recordKey = compressedPayload[3];
+                if (delayMillisecondsByRecord.TryGetValue(recordKey, out var delayMilliseconds) &&
+                    delayMilliseconds > 0)
+                {
+                    Thread.Sleep(delayMilliseconds);
+                }
+
+                return decompressedRecords[recordKey];
             }
         }
     }

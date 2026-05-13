@@ -158,10 +158,11 @@ static int PrintUsage()
     Console.WriteLine("  radarpulse archive download --manifest data/manifests/2026-05-04.json --output data/nexrad [--radar KTLX] [--max-files n] [--max-bytes n] [--concurrency n]");
     Console.WriteLine("  radarpulse archive inspect --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06");
     Console.WriteLine("  radarpulse archive inspect --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]");
-    Console.WriteLine("  radarpulse archive replay --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 [--parallelism 1] [--decompressor radarpulse|sharpziplib|sharpcompress]");
+    Console.WriteLine("  radarpulse archive replay --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse archive benchmark decompress --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse archive benchmark parse --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress] [--decode-moments] [--decode-calibrated-moments]");
     Console.WriteLine("  radarpulse archive benchmark replay-shape --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
+    Console.WriteLine("  radarpulse archive benchmark replay-publish --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse archive validate decompress (--file path | --cache data/nexrad [--radar KTLX] [--max-files n])");
     Console.WriteLine("  radarpulse archive validate replay-shape (--file path | --cache data/nexrad [--radar KTLX] [--max-files n]) [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     return 2;
@@ -212,6 +213,7 @@ static int BenchmarkArchive(string[] args)
         "decompress" => BenchmarkArchiveDecompression(args[1..]),
         "parse" => BenchmarkArchiveParse(args[1..]),
         "replay-shape" => BenchmarkArchiveReplayShape(args[1..]),
+        "replay-publish" => BenchmarkArchiveReplayPublish(args[1..]),
         _ => PrintUsage()
     };
 }
@@ -405,6 +407,62 @@ static int BenchmarkArchiveReplayShape(string[] args)
     Console.WriteLine($"Valid events/s: {FormatDecimal(PerSecond(result.TotalValidEvents, result.Elapsed))}");
     Console.WriteLine($"Allocated bytes: {FormatNumber(result.AllocatedBytes)}");
     Console.WriteLine($"Allocated bytes / event: {FormatDecimal(result.AllocatedBytes / Math.Max((double)result.TotalEvents, 1d))}");
+    Console.WriteLine($"Allocated bytes / valid event: {FormatDecimal(result.AllocatedBytes / Math.Max((double)result.TotalValidEvents, 1d))}");
+    return 0;
+}
+
+static int BenchmarkArchiveReplayPublish(string[] args)
+{
+    var options = ArchiveBenchmarkReplayPublishOptions.Parse(args);
+    var result = new NexradArchiveReplayPublishBenchmark().Measure(
+        options.FilePath,
+        options.Iterations,
+        options.WarmupIterations,
+        options.Parallelism,
+        options.Decompressor,
+        CancellationToken.None);
+
+    Console.WriteLine($"File: {result.FilePath}");
+    Console.WriteLine($"Decompressor: {result.Decompressor}");
+    Console.WriteLine($"Iterations: {FormatNumber(result.Iterations)}");
+    Console.WriteLine($"Warmup iterations: {FormatNumber(result.WarmupIterations)}");
+    Console.WriteLine($"Parallelism: {FormatNumber(result.DegreeOfParallelism)}");
+    Console.WriteLine("Chronology verification: required");
+    Console.WriteLine($"File size bytes: {FormatNumber(result.FileSizeBytes)}");
+    Console.WriteLine($"Compressed records per iteration: {FormatNumber(result.CompressedRecordsPerIteration)}");
+    Console.WriteLine($"Compressed bytes per iteration: {FormatNumber(result.CompressedBytesPerIteration)}");
+    Console.WriteLine($"Decompressed bytes per iteration: {FormatNumber(result.DecompressedBytesPerIteration)}");
+    Console.WriteLine($"Published events per iteration: {FormatNumber(result.PublishedEventsPerIteration)}");
+    Console.WriteLine($"Valid events per iteration: {FormatNumber(result.ValidEventsPerIteration)}");
+    Console.WriteLine($"Below-threshold events per iteration: {FormatNumber(result.BelowThresholdEventsPerIteration)}");
+    Console.WriteLine($"Range-folded events per iteration: {FormatNumber(result.RangeFoldedEventsPerIteration)}");
+    Console.WriteLine($"CFP filter-not-applied events per iteration: {FormatNumber(result.ClutterFilterNotAppliedEventsPerIteration)}");
+    Console.WriteLine($"CFP point-clutter-filter events per iteration: {FormatNumber(result.PointClutterFilterAppliedEventsPerIteration)}");
+    Console.WriteLine($"CFP dual-pol-filtered events per iteration: {FormatNumber(result.DualPolarizationFilteredEventsPerIteration)}");
+    Console.WriteLine($"Reserved events per iteration: {FormatNumber(result.ReservedEventsPerIteration)}");
+    Console.WriteLine($"Unsupported events per iteration: {FormatNumber(result.UnsupportedEventsPerIteration)}");
+    Console.WriteLine($"Raw value checksum per iteration: {FormatNumber(result.RawValueChecksumPerIteration)}");
+    Console.WriteLine($"Calibrated value scaled checksum per iteration: {FormatNumber(result.CalibratedValueScaledChecksumPerIteration)}");
+    Console.WriteLine($"Chronology checksum per iteration: {FormatUnsignedNumber(result.ChronologyChecksumPerIteration)}");
+    Console.WriteLine($"Total compressed records: {FormatNumber(result.TotalCompressedRecords)}");
+    Console.WriteLine($"Total compressed bytes: {FormatNumber(result.TotalCompressedBytes)}");
+    Console.WriteLine($"Total decompressed bytes: {FormatNumber(result.TotalDecompressedBytes)}");
+    Console.WriteLine($"Total published events: {FormatNumber(result.TotalPublishedEvents)}");
+    Console.WriteLine($"Total valid events: {FormatNumber(result.TotalValidEvents)}");
+    Console.WriteLine($"Total below-threshold events: {FormatNumber(result.TotalBelowThresholdEvents)}");
+    Console.WriteLine($"Total range-folded events: {FormatNumber(result.TotalRangeFoldedEvents)}");
+    Console.WriteLine($"Total CFP filter-not-applied events: {FormatNumber(result.TotalClutterFilterNotAppliedEvents)}");
+    Console.WriteLine($"Total CFP point-clutter-filter events: {FormatNumber(result.TotalPointClutterFilterAppliedEvents)}");
+    Console.WriteLine($"Total CFP dual-pol-filtered events: {FormatNumber(result.TotalDualPolarizationFilteredEvents)}");
+    Console.WriteLine($"Total reserved events: {FormatNumber(result.TotalReservedEvents)}");
+    Console.WriteLine($"Total unsupported events: {FormatNumber(result.TotalUnsupportedEvents)}");
+    Console.WriteLine($"Elapsed ms: {FormatDecimal(result.Elapsed.TotalMilliseconds)}");
+    Console.WriteLine($"Compressed MB/s: {FormatDecimal(MegabytesPerSecond(result.TotalCompressedBytes, result.Elapsed))}");
+    Console.WriteLine($"Decompressed MB/s: {FormatDecimal(MegabytesPerSecond(result.TotalDecompressedBytes, result.Elapsed))}");
+    Console.WriteLine($"Published events/s: {FormatDecimal(PerSecond(result.TotalPublishedEvents, result.Elapsed))}");
+    Console.WriteLine($"Valid events/s: {FormatDecimal(PerSecond(result.TotalValidEvents, result.Elapsed))}");
+    Console.WriteLine($"Allocated bytes: {FormatNumber(result.AllocatedBytes)}");
+    Console.WriteLine($"Allocated bytes / event: {FormatDecimal(result.AllocatedBytes / Math.Max((double)result.TotalPublishedEvents, 1d))}");
     Console.WriteLine($"Allocated bytes / valid event: {FormatDecimal(result.AllocatedBytes / Math.Max((double)result.TotalValidEvents, 1d))}");
     return 0;
 }
@@ -1193,6 +1251,86 @@ internal sealed record ArchiveBenchmarkReplayShapeOptions(
         ArchiveBZip2Decompressors.Create(decompressor);
 
         return new ArchiveBenchmarkReplayShapeOptions(
+            filePath,
+            iterations,
+            warmupIterations,
+            parallelism,
+            decompressor);
+    }
+
+    private static string RequireValue(string[] args, ref int index, string option)
+    {
+        if (index + 1 >= args.Length)
+        {
+            throw new ArgumentException($"{option} requires a value.");
+        }
+
+        index++;
+        return args[index];
+    }
+}
+
+internal sealed record ArchiveBenchmarkReplayPublishOptions(
+    string FilePath,
+    int Iterations,
+    int WarmupIterations,
+    int Parallelism,
+    string Decompressor)
+{
+    public static ArchiveBenchmarkReplayPublishOptions Parse(string[] args)
+    {
+        string? filePath = null;
+        var iterations = 3;
+        var warmupIterations = 1;
+        var parallelism = 1;
+        var decompressor = ArchiveBZip2Decompressors.DefaultName;
+        for (var i = 0; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--file":
+                    filePath = RequireValue(args, ref i, "--file");
+                    break;
+                case "--iterations":
+                    iterations = int.Parse(RequireValue(args, ref i, "--iterations"));
+                    break;
+                case "--warmup-iterations":
+                    warmupIterations = int.Parse(RequireValue(args, ref i, "--warmup-iterations"));
+                    break;
+                case "--parallelism":
+                    parallelism = int.Parse(RequireValue(args, ref i, "--parallelism"));
+                    break;
+                case "--decompressor":
+                    decompressor = RequireValue(args, ref i, "--decompressor");
+                    break;
+                default:
+                    throw new ArgumentException($"Unknown option: {args[i]}");
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            throw new InvalidOperationException("--file is required.");
+        }
+
+        if (iterations <= 0)
+        {
+            throw new InvalidOperationException("--iterations must be greater than zero.");
+        }
+
+        if (warmupIterations < 0)
+        {
+            throw new InvalidOperationException("--warmup-iterations cannot be negative.");
+        }
+
+        if (parallelism <= 0)
+        {
+            throw new InvalidOperationException("--parallelism must be greater than zero.");
+        }
+
+        ArchiveBZip2Decompressors.Create(decompressor);
+
+        return new ArchiveBenchmarkReplayPublishOptions(
             filePath,
             iterations,
             warmupIterations,

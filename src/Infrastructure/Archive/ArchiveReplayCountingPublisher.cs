@@ -6,18 +6,7 @@ namespace RadarPulse.Infrastructure.Archive;
 public sealed class ArchiveReplayCountingPublisher : IArchiveReplayEventPublisher
 {
     private readonly IArchiveReplayEventPublisher? innerPublisher;
-    private long publishedEvents;
-    private long validEvents;
-    private long belowThresholdEvents;
-    private long rangeFoldedEvents;
-    private long clutterFilterNotAppliedEvents;
-    private long pointClutterFilterAppliedEvents;
-    private long dualPolarizationFilteredEvents;
-    private long reservedEvents;
-    private long unsupportedEvents;
-    private long rawValueChecksum;
-    private long calibratedValueScaledChecksum;
-    private ulong chronologyChecksum;
+    private readonly ArchiveReplayEventAccumulator accumulator = new();
 
     public ArchiveReplayCountingPublisher()
     {
@@ -28,35 +17,35 @@ public sealed class ArchiveReplayCountingPublisher : IArchiveReplayEventPublishe
         this.innerPublisher = innerPublisher ?? throw new ArgumentNullException(nameof(innerPublisher));
     }
 
-    public long PublishedEvents => publishedEvents;
+    public long PublishedEvents => accumulator.PublishedEvents;
 
-    public long ValidEvents => validEvents;
+    public long ValidEvents => accumulator.ValidEvents;
 
-    public long BelowThresholdEvents => belowThresholdEvents;
+    public long BelowThresholdEvents => accumulator.BelowThresholdEvents;
 
-    public long RangeFoldedEvents => rangeFoldedEvents;
+    public long RangeFoldedEvents => accumulator.RangeFoldedEvents;
 
-    public long ClutterFilterNotAppliedEvents => clutterFilterNotAppliedEvents;
+    public long ClutterFilterNotAppliedEvents => accumulator.ClutterFilterNotAppliedEvents;
 
-    public long PointClutterFilterAppliedEvents => pointClutterFilterAppliedEvents;
+    public long PointClutterFilterAppliedEvents => accumulator.PointClutterFilterAppliedEvents;
 
-    public long DualPolarizationFilteredEvents => dualPolarizationFilteredEvents;
+    public long DualPolarizationFilteredEvents => accumulator.DualPolarizationFilteredEvents;
 
-    public long ReservedEvents => reservedEvents;
+    public long ReservedEvents => accumulator.ReservedEvents;
 
-    public long UnsupportedEvents => unsupportedEvents;
+    public long UnsupportedEvents => accumulator.UnsupportedEvents;
 
-    public long RawValueChecksum => rawValueChecksum;
+    public long RawValueChecksum => accumulator.RawValueChecksum;
 
-    public long CalibratedValueScaledChecksum => calibratedValueScaledChecksum;
+    public long CalibratedValueScaledChecksum => accumulator.CalibratedValueScaledChecksum;
 
-    public ulong ChronologyChecksum => chronologyChecksum;
+    public ulong ChronologyChecksum => accumulator.ChronologyChecksum;
 
     public void Publish(ArchiveTwoGateMomentEvent gateMomentEvent, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         innerPublisher?.Publish(gateMomentEvent, cancellationToken);
-        AcceptPublishedEvent(gateMomentEvent);
+        accumulator.AcceptEvent(gateMomentEvent);
     }
 
     public ArchiveReplayPublishResult BuildResult(
@@ -67,66 +56,12 @@ public sealed class ArchiveReplayCountingPublisher : IArchiveReplayEventPublishe
         int compressedRecordCount,
         long compressedBytes,
         long decompressedBytes) =>
-        new(
+        accumulator.BuildResult(
             filePath,
             decompressor,
             degreeOfParallelism,
             fileSizeBytes,
             compressedRecordCount,
             compressedBytes,
-            decompressedBytes,
-            publishedEvents,
-            validEvents,
-            belowThresholdEvents,
-            rangeFoldedEvents,
-            clutterFilterNotAppliedEvents,
-            pointClutterFilterAppliedEvents,
-            dualPolarizationFilteredEvents,
-            reservedEvents,
-            unsupportedEvents,
-            rawValueChecksum,
-            calibratedValueScaledChecksum,
-            chronologyChecksum);
-
-    private void AcceptPublishedEvent(ArchiveTwoGateMomentEvent gateMomentEvent)
-    {
-        publishedEvents++;
-        rawValueChecksum += gateMomentEvent.RawValue;
-        chronologyChecksum = ArchiveTwoGateMomentChronologyChecksum.Append(chronologyChecksum, gateMomentEvent);
-
-        switch (gateMomentEvent.Status)
-        {
-            case ArchiveTwoGateMomentStatus.Valid:
-                validEvents++;
-                checked
-                {
-                    calibratedValueScaledChecksum += (long)Math.Round(
-                        gateMomentEvent.CalibratedValue!.Value * 1_000d,
-                        MidpointRounding.AwayFromZero);
-                }
-
-                break;
-            case ArchiveTwoGateMomentStatus.BelowThreshold:
-                belowThresholdEvents++;
-                break;
-            case ArchiveTwoGateMomentStatus.RangeFolded:
-                rangeFoldedEvents++;
-                break;
-            case ArchiveTwoGateMomentStatus.ClutterFilterNotApplied:
-                clutterFilterNotAppliedEvents++;
-                break;
-            case ArchiveTwoGateMomentStatus.PointClutterFilterApplied:
-                pointClutterFilterAppliedEvents++;
-                break;
-            case ArchiveTwoGateMomentStatus.DualPolarizationFiltered:
-                dualPolarizationFilteredEvents++;
-                break;
-            case ArchiveTwoGateMomentStatus.Reserved:
-                reservedEvents++;
-                break;
-            case ArchiveTwoGateMomentStatus.Unsupported:
-                unsupportedEvents++;
-                break;
-        }
-    }
+            decompressedBytes);
 }
