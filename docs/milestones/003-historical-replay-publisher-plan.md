@@ -110,6 +110,7 @@ single-file sequential replay is implemented
 archive replay --file ... is implemented for --parallelism n
 archive replay --cache ... is implemented for date/radar/max-files selection
 archive benchmark replay-publish --file ... is implemented
+archive benchmark replay-publish --cache ... is implemented
 ordered parallel publishing is implemented
 reusable count-only replay publish session is implemented for steady-state benchmarking
 ```
@@ -138,6 +139,11 @@ ArchiveReplayCachePublishResult
   examined/skipped/published file counts
   aggregate publish totals
   aggregate chronology checksum in selected file order
+
+ArchiveReplayPublishCacheBenchmarkResult
+  cache benchmark selection metadata
+  per-iteration cache publish totals
+  elapsed time and allocation totals
 
 NexradArchiveReplayPublisher
   PublishFile(filePath, publisher, options, cancellationToken)
@@ -284,6 +290,17 @@ stable counts/checksums across iterations. Full migration of the older
 `replay-shape` benchmark/validator can happen later if it still reduces
 duplication without weakening the existing comparison gates.
 
+The same benchmark command also supports cache selection:
+
+```text
+archive benchmark replay-publish --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]
+```
+
+The cache benchmark uses one replay publish session per benchmark run and
+reuses it across warmup/measured cache iterations. It reports
+examined/skipped/published file counts, aggregate replay totals, throughput,
+and allocated bytes/event.
+
 ## Test Plan
 
 Unit tests:
@@ -299,6 +316,7 @@ unsupported or malformed records fail without partial success claims
 cancellation stops replay and releases pooled buffers
 cache replay applies date/radar/max-files selection
 cache replay skips non-Archive Two files and aggregates base-data totals
+cache benchmark validates stable aggregate totals/checksums across iterations
 ```
 
 Fixture strategy:
@@ -317,6 +335,7 @@ dotnet test RadarPulse.sln --no-restore
 dotnet run --no-restore --project src/Presentation/RadarPulse.Cli.csproj -- archive replay --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 --parallelism 1 --decompressor radarpulse
 dotnet run --no-restore --project src/Presentation/RadarPulse.Cli.csproj -- archive replay --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 --parallelism 24 --decompressor radarpulse
 dotnet run --no-restore --project src/Presentation/RadarPulse.Cli.csproj -- archive replay --cache data/nexrad --date 2026-05-04 --radar KTLX --max-files 2 --parallelism 24 --decompressor radarpulse
+dotnet run --no-restore --project src/Presentation/RadarPulse.Cli.csproj -- archive benchmark replay-publish --cache data/nexrad --date 2026-05-04 --radar KTLX --max-files 2 --iterations 2 --warmup-iterations 1 --parallelism 24 --decompressor radarpulse
 ```
 
 The sequential and parallel smoke commands should report the same event counts,
@@ -370,6 +389,7 @@ ordered parallel replay source
 counting/checksum publisher
 CLI smoke command
 cache-selection smoke command
+cache-wide publisher benchmark
 focused tests
 documentation updates
 ```

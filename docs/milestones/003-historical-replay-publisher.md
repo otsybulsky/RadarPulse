@@ -5,8 +5,9 @@ into a publisher-facing historical replay input path.
 
 ## Current Status
 
-The publisher foundation, first reusable steady-state benchmark session, and
-cache-selection replay smoke path are implemented.
+The publisher foundation, reusable steady-state benchmark session,
+cache-selection replay smoke path, and cache-wide publisher benchmark are
+implemented.
 
 Implemented:
 
@@ -18,6 +19,7 @@ IArchiveReplayEventPublisher contract
 ArchiveReplayPublishOptions
 ArchiveReplayPublishResult
 ArchiveReplayCachePublishResult
+ArchiveReplayPublishCacheBenchmarkResult
 ArchiveReplayCountingPublisher
 NexradArchiveReplayPublisher sequential single-file replay path
 NexradArchiveReplayPublisher ordered parallel replay path
@@ -25,6 +27,7 @@ NexradArchiveReplayPublishSession reusable count-only replay runner
 archive replay --file ... CLI smoke command
 archive replay --cache ... CLI cache-selection smoke command
 archive benchmark replay-publish --file ... CLI steady-state benchmark command
+archive benchmark replay-publish --cache ... CLI cache-wide benchmark command
 focused unit tests with synthetic Archive Two framing and fake decompression
 ```
 
@@ -302,9 +305,26 @@ production profile:
 
 ```text
 reuse or pool record descriptor and metadata-radial storage where practical
-add a cache-wide replay benchmark mode that keeps one session across files
 profile whether Parallel/ConcurrentStack scheduling is visible after metadata
   allocation is reduced
+```
+
+The cache-wide publisher benchmark uses the same reusable session across each
+selected cache iteration and validates stable aggregate totals/checksums across
+iterations. On the local KTLX cache for `2026-05-04`, the Release benchmark:
+
+```text
+command: archive benchmark replay-publish --cache data/nexrad --date 2026-05-04 --radar KTLX --max-files 1000000 --iterations 2 --warmup-iterations 0 --parallelism 24 --decompressor radarpulse
+
+examined files per iteration: 244
+skipped files per iteration: 24
+published files per iteration: 220
+published events per iteration: 8_513_587_200
+valid events per iteration: 1_369_194_138
+chronology checksum per iteration: 9_060_754_844_693_896_318
+published events/s: 310_665_492.15
+valid events/s: 49_962_649.20
+allocated bytes / event: 0.06
 ```
 
 Milestone 003 should preserve the same design pressure, but the first acceptance
@@ -365,5 +385,6 @@ ordered parallel publish implemented
 internal replay-publish benchmark implemented
 reusable steady-state replay publish session implemented
 cache-selection replay implemented
+cache-wide replay-publish benchmark implemented
 older replay-shape benchmark/validator reuse of the production replay source remains pending
 ```

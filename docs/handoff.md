@@ -7,9 +7,10 @@ replay-shape projection foundation into a publisher-facing historical replay
 input path. Sequential single-file publishing, ordered parallel publishing, and
 a reusable count-only replay publish session for steady-state benchmarking are
 implemented. Cache-selection replay is now wired through the same reusable
-session. The next slice should decide whether to migrate the older replay-shape
-benchmark/validator toward the production replay source or add a cache-wide
-publisher benchmark/validation profile.
+session, and the replay-publish benchmark now supports cache-wide measurement.
+The next slice should decide whether to migrate the older replay-shape
+benchmark/validator toward the production replay source or close milestone 003
+as a publisher foundation.
 
 ## Milestone Status
 
@@ -31,8 +32,8 @@ Done:
 Planned next:
 
 - Decide the next `003` slice: migrate the older replay-shape
-  benchmark/validator reuse to the production replay publisher path, or add a
-  cache-wide publisher benchmark/validation profile.
+  benchmark/validator reuse to the production replay publisher path, or close
+  milestone 003 as a publisher foundation.
 - Preserve the ordered parallel projection rule in any next reuse/migration:
   workers may decompress/project records concurrently, but publication must be
   merged by original source order, not worker completion order.
@@ -53,6 +54,7 @@ Completed in milestone 003 so far:
 - `ArchiveReplayPublishOptions`.
 - `ArchiveReplayPublishResult`.
 - `ArchiveReplayCachePublishResult`.
+- `ArchiveReplayPublishCacheBenchmarkResult`.
 - `ArchiveReplayCountingPublisher`.
 - `NexradArchiveReplayPublisher` sequential single-file replay path.
 - `NexradArchiveReplayPublisher` ordered parallel replay path.
@@ -65,12 +67,16 @@ Completed in milestone 003 so far:
 - `archive benchmark replay-publish --file ... [--iterations n]
   [--warmup-iterations n] [--parallelism n]
   [--decompressor radarpulse|sharpziplib|sharpcompress]`.
+- `archive benchmark replay-publish --cache ... [--date yyyy-MM-dd]
+  [--radar KTLX] [--max-files n] [--iterations n]
+  [--warmup-iterations n] [--parallelism n]
+  [--decompressor radarpulse|sharpziplib|sharpcompress]`.
 - Focused unit tests for source-order publication, counters/checksums,
   sequential/parallel equivalence, custom publisher ordered drain, non-Archive
   Two diagnostics, invalid parallelism, cancellation, and replay-publish
   benchmark iteration consistency, repeated reusable-session parity, and
   reusable-session disposal behavior, plus cache replay selection/skip
-  aggregation.
+  aggregation and cache replay-publish benchmark iteration consistency.
 
 Completed in milestone 002:
 
@@ -165,7 +171,8 @@ foundation plus a partially implemented milestone 003 publisher-facing replay
 foundation. Milestone 003 currently supports sequential single-file replay
 publishing, ordered parallel replay publishing, and a reusable steady-state
 count-only replay session used by the internal benchmark and cache-selection
-replay.
+replay. The internal replay-publish benchmark also supports cache-wide
+measurement.
 
 Achieved:
 
@@ -234,6 +241,9 @@ Achieved:
 - Full local KTLX cache replay for `2026-05-04` examined 244 files, skipped 24
   non-base-data files, published 220 Archive Two files, and reported
   8_513_587_200 published events with 1_369_194_138 valid events.
+- Full local KTLX cache replay-publish benchmark for `2026-05-04` validated two
+  full cache iterations with the same chronology checksum and measured
+  310_665_492.15 published events/s with 0.06 allocated bytes/event.
 - The parse benchmark now gives a first measured answer against the 20M
   events/s target for decompression plus minimal parsing.
 - With `--decode-moments`, the same KTLX file decodes all 38_759_040 raw
@@ -277,7 +287,7 @@ dotnet test RadarPulse.sln --no-restore
 Result:
 
 ```text
-65 passed, 3 skipped
+66 passed, 3 skipped
 ```
 
 The skipped tests are the opt-in live AWS integration tests and opt-in local
@@ -398,6 +408,7 @@ Latest milestone 003 internal publisher benchmark commands:
 ```powershell
 dotnet .\src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll archive benchmark replay-publish --file data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_000245_V06 --iterations 5 --warmup-iterations 1 --parallelism 1 --decompressor radarpulse
 dotnet .\src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll archive benchmark replay-publish --file data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_000245_V06 --iterations 5 --warmup-iterations 1 --parallelism 24 --decompressor radarpulse
+dotnet .\src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll archive benchmark replay-publish --cache data\nexrad --date 2026-05-04 --radar KTLX --max-files 1000000 --iterations 2 --warmup-iterations 0 --parallelism 24 --decompressor radarpulse
 ```
 
 Result:
@@ -413,6 +424,18 @@ Published events per iteration: 38_759_040
 Published events/s: 362_695_693.02
 Allocated bytes / event: 0.07
 Chronology checksum per iteration: 5_257_350_734_454_804_390
+
+cache KTLX 2026-05-04, parallelism 24:
+Iterations: 2
+Examined files per iteration: 244
+Skipped files per iteration: 24
+Published files per iteration: 220
+Published events per iteration: 8_513_587_200
+Valid events per iteration: 1_369_194_138
+Chronology checksum per iteration: 9_060_754_844_693_896_318
+Published events/s: 310_665_492.15
+Valid events/s: 49_962_649.20
+Allocated bytes / event: 0.06
 ```
 
 This benchmark now uses `NexradArchiveReplayPublishSession` inside the timed
@@ -450,7 +473,7 @@ production profile:
 
 ```text
 reuse or pool record descriptor and metadata-radial storage where practical
-add a cache-wide replay benchmark mode that keeps one session across files
+compare cache benchmark allocation before/after metadata storage reuse
 profile whether Parallel/ConcurrentStack scheduling is visible after metadata allocation is reduced
 ```
 
@@ -874,6 +897,7 @@ constant and moment data blocks.
 - `src/Domain/Archive/ArchiveReplayPublishResult.cs`
 - `src/Domain/Archive/ArchiveReplayCachePublishResult.cs`
 - `src/Domain/Archive/ArchiveReplayPublishBenchmarkResult.cs`
+- `src/Domain/Archive/ArchiveReplayPublishCacheBenchmarkResult.cs`
 - `src/Infrastructure/Archive/IArchiveTwoMessageConsumer.cs`
 - `src/Application/Archive/IArchiveReplayEventPublisher.cs`
 - `src/Application/Archive/ArchiveReplayPublishOptions.cs`
@@ -913,6 +937,8 @@ Milestone 003 should be considered done when:
   and chronology checksums. (Implemented.)
 - The CLI can smoke-test the publisher path. (Implemented for
   `--file`, `--cache`, and `--parallelism n`.)
+- The CLI can benchmark cache-wide replay-publish throughput and allocations.
+  (Implemented for `archive benchmark replay-publish --cache`.)
 - Focused tests cover ordering, totals, diagnostics, and cancellation.
   (Implemented for sequential, parallel, custom-publisher, benchmark, and
   reusable-session/cache-selection paths.)
