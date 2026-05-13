@@ -1,16 +1,17 @@
-# Handoff: Milestone 002 NEXRAD Archive Inspection
+# Handoff: Milestone 003 Historical Replay Publisher Foundation
 
 ## Current Goal
 
-Plan and start milestone 002: consume cached NOAA NEXRAD archive files from the
-milestone 001 archive loader and build a replay-oriented inspection/decoding
-foundation.
+Plan and start milestone 003: turn the completed NEXRAD Archive Two decoder and
+replay-shape projection foundation into a publisher-facing historical replay
+input path.
 
 ## Milestone Status
 
 Done:
 
 - `001` historical archive loader is complete.
+- `002` NEXRAD archive inspection/decoder foundation is complete.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -24,20 +25,27 @@ Done:
 
 Planned next:
 
-- `002` NEXRAD archive inspection/decoding milestone.
-- Continue from completed file classification, 24-byte Archive Two volume header
-  parsing, compressed record boundary parsing, and per-record BZip2
-  decompression summaries.
-- Continue from completed serial/parallel and decoder-comparison
-  decompression throughput benchmarks before expanding message parsing.
-- Design decompression and parsing as the future historical replay input path,
-  with an eventual target of feeding up to 20 million events per second into the
-  downstream pipeline.
-- Classify `_MDM` files separately before attempting base-data parsing.
-- Use ROC ICD 2620010J for the Archive Two container and ROC ICD 2620002Y for
-  RDA/RPG message payloads, especially Message Type 31.
+- `003` historical replay publisher foundation milestone.
+- Extract the milestone 002 replay-shape path from benchmark/validator-only
+  usage into an explicit publisher-facing replay API.
+- Add a first concrete counting/checksum publisher so one cached Archive Two
+  file can publish ordered `ArchiveTwoGateMomentEvent` values through the real
+  replay contract.
+- Preserve the existing ordered parallel projection rule: workers may
+  decompress/project records concurrently, but publication must be merged by
+  original source order, not worker completion order.
+- Keep the order-sensitive chronology checksum as the validation gate for
+  sequential/parallel equivalence.
+- Avoid promising a full downstream event engine, partitioning, live ingestion,
+  durable broker integration, or visualization in milestone 003.
 
-Completed in the first milestone 002 implementation slice:
+Completed in the first milestone 003 planning slice:
+
+- `docs/milestones/003-historical-replay-publisher-plan.md`.
+- `docs/milestones/003-historical-replay-publisher.md`.
+- `docs/handoff.md` updated to point at milestone 003.
+
+Completed in milestone 002:
 
 - `archive inspect --file`.
 - Archive Two base-data classification for files starting with `AR2V`.
@@ -125,8 +133,10 @@ Completed in the first milestone 002 implementation slice:
 
 ## Current Achievement Summary
 
-The current milestone 002 state is a working NEXRAD Archive Two decoder
-foundation, not yet a proven 20M events/s replay pipeline.
+The handoff state is a completed milestone 002 NEXRAD Archive Two decoder
+foundation plus a planned milestone 003 publisher-facing replay foundation.
+Milestone 003 has documentation only so far; no runtime replay publisher API has
+been implemented yet.
 
 Achieved:
 
@@ -204,8 +214,9 @@ Achieved:
 
 Not achieved yet:
 
-- No downstream event publisher or ordered parallel merge is implemented yet.
-- No downstream event publisher is wired to the ordered record merge yet.
+- No downstream event publisher is implemented yet.
+- No production replay publisher path is wired to the ordered parallel record
+  merge yet.
 - The parser/replay benchmarks still do not publish downstream engine events.
 
 ## Documentation
@@ -214,9 +225,14 @@ Not achieved yet:
 - `docs/milestones/001-historical-loader.md`
 - `docs/milestones/002-nexrad-archive-inspection-plan.md`
 - `docs/milestones/002-nexrad-archive-inspection.md`
+- `docs/milestones/003-historical-replay-publisher-plan.md`
+- `docs/milestones/003-historical-replay-publisher.md`
 - `docs/handoff.md`
 
 ## Verification
+
+Milestone 003 planning slice changed documentation only. No runtime code was
+changed in this slice.
 
 Last verified normal command after the current milestone 002 slice:
 
@@ -651,12 +667,17 @@ constant and moment data blocks.
 
 ## Done Criteria For Next Slice
 
-Milestone 002 is now functionally complete for archive inspection/decoder
-foundation purposes. The next slice should move into the downstream replay
-milestone and should be considered done when:
+Milestone 003 should be considered done when:
 
-- The next publisher-facing API consumes the ordered record merge instead of
-  letting worker completion order reach the downstream pipeline.
-- Parser/replay outputs are wired into the downstream event pipeline rather than
-  only benchmarked and validated inside the archive layer.
+- RadarPulse exposes an explicit replay publisher API for
+  `ArchiveTwoGateMomentEvent`.
+- One cached Archive Two file can publish ordered events through that API.
+- A counting/checksum publisher can verify status totals, raw checksum,
+  calibrated checksum, and chronology checksum.
+- The production-facing parallel replay path publishes through an ordered merge
+  rather than worker completion order.
+- Sequential and parallel replay over the same file produce identical counts
+  and chronology checksums.
+- The CLI can smoke-test the publisher path.
+- Focused tests cover ordering, totals, diagnostics, and cancellation.
 
