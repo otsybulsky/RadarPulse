@@ -33,6 +33,8 @@ Done:
 - `004` slice 8 single-file sequential replay integration is implemented.
 - `004` slice 9 batch validation and checksum metrics are implemented.
 - `004` ordered-parallel batch replay parity is implemented.
+- `004` normalized batch stream CLI smoke command is implemented.
+- `004` normalized batch stream benchmark command is implemented.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -50,8 +52,11 @@ Next work:
   `docs/milestones/004-processing-core-input-contract-plan.md`.
 - Preserve milestone 003 replay/publisher behavior while adding the new
   normalized batch stream.
-- Continue milestone 004 with focused CLI/benchmark smoke commands for the
-  normalized batch stream.
+- Continue milestone 004 with normalized stream cache selection or allocation
+  reduction work.
+- Treat the current `archive benchmark stream` numbers as full replay
+  construction throughput, not as the future processing-core throughput over
+  already-built `RadarEventBatch` values.
 - Preserve the slice 1 cache-conscious stream event constraint:
   `RadarStreamEvent` is a 64-byte unmanaged value type with no reference
   fields.
@@ -247,6 +252,38 @@ Completed in milestone 004 implementation so far:
   same synthetic file, including event sequence, payload bytes, batch metrics,
   dictionary snapshot checksum, validator result, and moment-id registration
   order under an intentionally delayed first record.
+- `archive stream --file ... [--parallelism n]
+  [--decompressor radarpulse|sharpziplib|sharpcompress]` is implemented as the
+  first manual CLI smoke command for the normalized `RadarEventBatch` stream.
+- The stream command prints stream schema, dictionary version,
+  source-universe version, logical source count, compressed/decompressed byte
+  counts, batch count, event count, payload bytes, payload value count,
+  raw-value checksum, radar/moment dictionary entry counts, and dictionary
+  mapping checksum.
+- `ArchiveRadarEventBatchStreamBenchmarkResult` and
+  `NexradArchiveRadarEventBatchStreamBenchmark` add a repeatable benchmark for
+  the normalized batch stream.
+- `archive benchmark stream --file ... [--iterations n]
+  [--warmup-iterations n] [--parallelism n]
+  [--decompressor radarpulse|sharpziplib|sharpcompress]` reports per-iteration
+  stream counters, total throughput, `Stream events/s`, `Payload values/s`,
+  allocation totals, and allocation ratios per stream event and payload value.
+- The benchmark verifies that every measured iteration produces the same stream
+  versions, counts, raw-value checksum, and dictionary mapping checksum.
+- Focused benchmark tests cover stable iteration totals over a synthetic Archive
+  Two file.
+- The first benchmark result is intentionally conservative: it measures Archive
+  Two replay into the normalized batch stream, including BZip2 decompression,
+  message scanning, Type 31 parsing, identity normalization, source-id
+  calculation, batch event construction, batch-owned payload copying, counting,
+  and checksum work.
+- The gap between earlier decoder-level throughput and the normalized stream
+  benchmark is currently attributed to payload copying, ordered-drain
+  serialization after parallel decompression, extra decompressed-record
+  buffering in the parallel path, and high allocation pressure.
+- The next optimization target is allocation and buffer churn reduction in the
+  stream replay path before interpreting benchmark numbers as a ceiling for the
+  future hot processing core.
 
 Completed in milestone 003 so far:
 
@@ -483,16 +520,57 @@ Deferred beyond milestone 003:
 
 ## Verification
 
-Latest milestone 004 ordered-parallel batch replay verification:
+Latest milestone 004 normalized stream benchmark verification:
 
 ```powershell
-dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+dotnet test RadarPulse.sln --no-restore
+dotnet build src\Presentation\RadarPulse.Cli.csproj --no-restore
+dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore
+dotnet run --no-build --project src\Presentation\RadarPulse.Cli.csproj -- archive stream --file data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_002334_V06 --parallelism 1 --decompressor radarpulse
+dotnet run --no-build --project src\Presentation\RadarPulse.Cli.csproj -- archive stream --file data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_002334_V06 --parallelism 4 --decompressor radarpulse
+dotnet run --no-build -c Release --project src\Presentation\RadarPulse.Cli.csproj -- archive benchmark stream --file data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_002334_V06 --iterations 3 --warmup-iterations 1 --parallelism 1 --decompressor radarpulse
+dotnet run --no-build -c Release --project src\Presentation\RadarPulse.Cli.csproj -- archive benchmark stream --file data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_002334_V06 --iterations 3 --warmup-iterations 1 --parallelism 24 --decompressor radarpulse
 ```
 
 Result:
 
 ```text
-138 passed, 3 skipped
+tests: 139 passed, 3 skipped
+debug build: 0 warnings, 0 errors
+release build: 0 warnings, 0 errors
+
+parallelism 1 and 4 both produced:
+Stream schema version: 1
+Dictionary version: 9
+Source-universe version: 1
+Logical sources: 23_040
+Compressed records: 55
+Compressed bytes: 5_500_904
+Decompressed bytes: 50_741_824
+Batches: 1
+Events: 32_400
+Payload bytes: 48_257_280
+Payload values: 38_759_040
+Raw value checksum: 1_091_828_328
+Radar dictionary entries: 1
+Moment dictionary entries: 7
+Dictionary mapping checksum: 15_566_013_436_132_944_234
+
+Release benchmark stream, parallelism 1:
+Stream events per iteration: 32_400
+Payload values per iteration: 38_759_040
+Elapsed ms: 1_378.04
+Stream events/s: 70_535.12
+Payload values/s: 84_378_808.41
+Allocated bytes / payload value: 5.06
+
+Release benchmark stream, parallelism 24:
+Stream events per iteration: 32_400
+Payload values per iteration: 38_759_040
+Elapsed ms: 831.22
+Stream events/s: 116_935.96
+Payload values/s: 139_886_591.37
+Allocated bytes / payload value: 8.44
 ```
 
 The skipped tests are the opt-in live AWS integration tests and opt-in local
@@ -1135,9 +1213,11 @@ constant and moment data blocks.
 - `src/Application/Archive/ArchiveRadarEventBatchPublishOptions.cs`
 - `src/Application/Archive/IArchiveRadarEventBatchPublisher.cs`
 - `src/Domain/Archive/ArchiveRadarEventBatchPublishResult.cs`
+- `src/Domain/Archive/ArchiveRadarEventBatchStreamBenchmarkResult.cs`
 - `src/Infrastructure/Archive/ArchiveRadarEventBatchCountingPublisher.cs`
 - `src/Infrastructure/Archive/ArchiveTwoRadarEventBatchProjector.cs`
 - `src/Infrastructure/Archive/NexradArchiveRadarEventBatchPublisher.cs`
+- `src/Infrastructure/Archive/NexradArchiveRadarEventBatchStreamBenchmark.cs`
 - `tests/RadarPulse.Tests/Archive/NexradArchiveRadarEventBatchPublisherTests.cs`
 - `tests/RadarPulse.Tests/Streaming/RadarEventBatchBuilderTests.cs`
 - `tests/RadarPulse.Tests/Streaming/RadarEventBatchValidatorTests.cs`

@@ -295,6 +295,65 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
                 degreeOfParallelism: 0));
     }
 
+    [Fact]
+    public void StreamBenchmarkMeasuresConsistentIterations()
+    {
+        var firstRecordBytes = BuildMessage(31, BuildEightBitType31Payload("REF", [1, 2, 3], scale: 2f, offset: 66f));
+        var secondRecordBytes = BuildMessage(31, BuildSixteenBitType31Payload("VEL", [129, 131], scale: 2f, offset: 129f));
+        var compressedPayload1 = BuildFakeBZip2Payload(1);
+        var compressedPayload2 = BuildFakeBZip2Payload(2);
+        var path = WriteTempFile(
+            "KTLX20260504_000245_V06",
+            BuildArchiveTwoHeader()
+                .Concat(BuildCompressedRecord(compressedPayload1.Length, compressedPayload1))
+                .Concat(BuildCompressedRecord(compressedPayload2.Length, compressedPayload2))
+                .ToArray());
+        var benchmark = new NexradArchiveRadarEventBatchStreamBenchmark(new FakeArchiveBZip2Decompressor(new Dictionary<byte, byte[]>
+        {
+            [1] = firstRecordBytes,
+            [2] = secondRecordBytes
+        }));
+
+        try
+        {
+            var result = benchmark.Measure(
+                path,
+                iterations: 2,
+                warmupIterations: 1,
+                degreeOfParallelism: 2,
+                CancellationToken.None);
+
+            Assert.Equal(path, result.FilePath);
+            Assert.Equal("fake", result.Decompressor);
+            Assert.Equal(2, result.Iterations);
+            Assert.Equal(1, result.WarmupIterations);
+            Assert.Equal(2, result.DegreeOfParallelism);
+            Assert.Equal(StreamSchemaVersion.Current, result.StreamSchemaVersion);
+            Assert.Equal(new DictionaryVersion(4), result.DictionaryVersion);
+            Assert.Equal(SourceUniverseVersion.Initial, result.SourceUniverseVersion);
+            Assert.Equal(2, result.CompressedRecordsPerIteration);
+            Assert.Equal(compressedPayload1.Length + compressedPayload2.Length, result.CompressedBytesPerIteration);
+            Assert.Equal(firstRecordBytes.Length + secondRecordBytes.Length, result.DecompressedBytesPerIteration);
+            Assert.Equal(1, result.BatchesPerIteration);
+            Assert.Equal(2, result.EventsPerIteration);
+            Assert.Equal(7, result.PayloadBytesPerIteration);
+            Assert.Equal(5, result.PayloadValuesPerIteration);
+            Assert.Equal(266, result.RawValueChecksumPerIteration);
+            Assert.Equal(1, result.RadarDictionaryEntries);
+            Assert.Equal(2, result.MomentDictionaryEntries);
+            Assert.NotEqual(0UL, result.DictionaryMappingChecksum);
+            Assert.Equal(4, result.TotalCompressedRecords);
+            Assert.Equal(4, result.TotalEvents);
+            Assert.Equal(10, result.TotalPayloadValues);
+            Assert.True(result.Elapsed > TimeSpan.Zero);
+            Assert.True(result.AllocatedBytes > 0);
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(path)!, recursive: true);
+        }
+    }
+
     private static byte[] BuildArchiveTwoHeader()
     {
         var header = new byte[24];
