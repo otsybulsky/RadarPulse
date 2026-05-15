@@ -24,6 +24,7 @@ Done:
 - `004` processing-core input contract architecture is scoped.
 - `004` processing-core input contract implementation plan is drafted.
 - `004` slice 1 contract types and version constants are implemented.
+- `004` slice 2 append-only dense identity catalog is implemented.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -41,7 +42,7 @@ Next work:
   `docs/milestones/004-processing-core-input-contract-plan.md`.
 - Preserve milestone 003 replay/publisher behavior while adding the new
   normalized batch stream.
-- Continue milestone 004 with slice 2: append-only dense identity catalogs.
+- Continue milestone 004 with slice 3: catalog versioning and persistence.
 - Preserve the slice 1 cache-conscious stream event constraint:
   `RadarStreamEvent` is a 64-byte unmanaged value type with no reference
   fields.
@@ -89,6 +90,20 @@ Completed in milestone 004 implementation so far:
   storage and rejects mismatched gate-count/word-size payload lengths.
 - Focused streaming contract tests cover event layout, version metadata,
   payload range validation, and version value validation.
+- `DenseIdentityCatalog` implements append-only dense text-to-id mappings for
+  small stream identity dimensions.
+- `DenseIdentityCatalog` exposes `string`, `ReadOnlySpan<char>`, and
+  `ReadOnlySpan<byte>` lookup views over the same canonical entries.
+- Existing catalog ids remain stable; new valid unknown identities append under
+  a serialized registration gate.
+- Reverse lookup is backed by a dense id-indexed array, so assigned ids satisfy
+  `0 <= id < Count`.
+- Invalid identity text is not registered. The initial canonical policy accepts
+  only non-empty `A-Z`, `0-9`, and underscore text within the configured maximum
+  length.
+- Focused dense-catalog tests cover lookup-view equivalence, dense append-only
+  ids, reverse lookup, invalid identity rejection, concurrent duplicate
+  registration, concurrent distinct registration, and partial-entry visibility.
 
 Completed in milestone 003 so far:
 
@@ -325,7 +340,7 @@ Deferred beyond milestone 003:
 
 ## Verification
 
-Latest milestone 004 slice 1 verification:
+Latest milestone 004 slice 2 verification:
 
 ```powershell
 dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
@@ -334,7 +349,7 @@ dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
 Result:
 
 ```text
-72 passed, 3 skipped
+85 passed, 3 skipped
 ```
 
 The skipped tests are the opt-in live AWS integration tests and opt-in local
@@ -944,6 +959,7 @@ constant and moment data blocks.
 
 - `docs/milestones/004-processing-core-input-contract.md`
 - `docs/milestones/004-processing-core-input-contract-plan.md`
+- `src/Domain/Streaming/DenseIdentityCatalog.cs`
 - `src/Domain/Streaming/RadarEventBatch.cs`
 - `src/Domain/Streaming/RadarStreamEvent.cs`
 - `src/Domain/Streaming/StreamSchemaVersion.cs`
@@ -951,6 +967,7 @@ constant and moment data blocks.
 - `src/Domain/Streaming/SourceUniverseVersion.cs`
 - `src/Domain/Streaming/RadarStreamWordSize.cs`
 - `src/Domain/Streaming/RadarStreamStatusModel.cs`
+- `tests/RadarPulse.Tests/Streaming/DenseIdentityCatalogTests.cs`
 - `tests/RadarPulse.Tests/Streaming/RadarStreamContractTests.cs`
 - `src/Presentation/Program.cs`
 - `src/Application/Archive/IHistoricalArchiveClient.cs`
