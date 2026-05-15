@@ -59,11 +59,11 @@ public sealed class NexradArchiveRadarEventBatchStreamBenchmark
 
         var sourceUniverse = ArchiveRadarEventBatchPublishOptions.DefaultSingleRadar.SourceUniverse;
         var options = new ArchiveRadarEventBatchPublishOptions(sourceUniverse, degreeOfParallelism);
-        var publisher = new NexradArchiveRadarEventBatchPublisher(decompressor);
+        using var session = new NexradArchiveRadarEventBatchPublishSession(decompressor, options);
         for (var warmupIteration = 0; warmupIteration < warmupIterations; warmupIteration++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            publisher.PublishFile(fileInfo.FullName, options, cancellationToken);
+            session.PublishFile(fileInfo.FullName, cancellationToken);
         }
 
         var allocatedBytesBefore = GC.GetTotalAllocatedBytes(precise: true);
@@ -74,7 +74,7 @@ public sealed class NexradArchiveRadarEventBatchStreamBenchmark
         for (var iteration = 0; iteration < iterations; iteration++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var iterationResult = publisher.PublishFile(fileInfo.FullName, options, cancellationToken);
+            var iterationResult = session.PublishFile(fileInfo.FullName, cancellationToken);
             var dictionaryMetrics = RadarStreamDictionarySnapshotMetrics.Compute(iterationResult.DictionarySnapshot);
             if (expectedIteration is null)
             {
@@ -179,7 +179,7 @@ public sealed class NexradArchiveRadarEventBatchStreamBenchmark
             : HistoricalArchiveRequest.NormalizeRadarId(radarId);
         var sourceUniverse = ArchiveRadarEventBatchPublishOptions.DefaultSingleRadar.SourceUniverse;
         var options = new ArchiveRadarEventBatchPublishOptions(sourceUniverse, degreeOfParallelism);
-        var publisher = new NexradArchiveRadarEventBatchPublisher(decompressor);
+        using var session = new NexradArchiveRadarEventBatchPublishSession(decompressor, options);
         for (var warmupIteration = 0; warmupIteration < warmupIterations; warmupIteration++)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -188,8 +188,7 @@ public sealed class NexradArchiveRadarEventBatchStreamBenchmark
                 date,
                 normalizedRadarId,
                 maxFiles,
-                publisher,
-                options,
+                session,
                 cancellationToken);
         }
 
@@ -205,8 +204,7 @@ public sealed class NexradArchiveRadarEventBatchStreamBenchmark
                 date,
                 normalizedRadarId,
                 maxFiles,
-                publisher,
-                options,
+                session,
                 cancellationToken);
             if (expectedIteration is null)
             {
@@ -272,8 +270,7 @@ public sealed class NexradArchiveRadarEventBatchStreamBenchmark
         DateOnly? date,
         string? radarId,
         int maxFiles,
-        NexradArchiveRadarEventBatchPublisher publisher,
-        ArchiveRadarEventBatchPublishOptions options,
+        NexradArchiveRadarEventBatchPublishSession session,
         CancellationToken cancellationToken)
     {
         var totals = new CacheIterationTotals(
@@ -301,7 +298,7 @@ public sealed class NexradArchiveRadarEventBatchStreamBenchmark
                 continue;
             }
 
-            var result = publisher.PublishFile(fileInfo.FullName, options, cancellationToken);
+            var result = session.PublishFile(fileInfo.FullName, cancellationToken);
             totals.Add(result);
         }
 

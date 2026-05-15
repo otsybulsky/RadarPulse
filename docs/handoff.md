@@ -42,6 +42,8 @@ Done:
   for builder-owned normalized stream batches.
 - `004` normalized batch stream cache benchmark command is implemented and
   verified against the full local cache.
+- `004` reusable normalized batch publish session is implemented for stream
+  benchmarks.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -321,6 +323,10 @@ Completed in milestone 004 implementation so far:
   source-universe version, source-universe strides, and volume timestamp ticks
   as projector-local fields. The cached identity path no longer reads the
   normalizer's volatile dictionary version for every stream event.
+- `NexradArchiveRadarEventBatchPublishSession` now gives stream benchmarks a
+  reusable file-publish context. It reuses decompression workers, worker-owned
+  buffers, the available-worker stack, and the in-flight task dictionary across
+  repeated single-file and cache-wide benchmark runs.
 
 Completed in milestone 003 so far:
 
@@ -574,7 +580,7 @@ dotnet run --no-build -c Release --project src\Presentation\RadarPulse.Cli.cspro
 Result:
 
 ```text
-tests: 140 passed, 3 skipped
+tests: 142 passed, 3 skipped
 debug build: 0 warnings, 0 errors
 release build: 0 warnings, 0 errors
 
@@ -611,15 +617,15 @@ Stream events/s: 271_822.42
 Payload values/s: 325_172_098.27
 Allocated bytes / payload value: 4.51
 
-Release benchmark stream after projector-local hot-path caches, parallelism 24, longer 5-iteration check:
+Release benchmark stream after reusable publish session, parallelism 24, longer 5-iteration check:
 Stream events per iteration: 32_400
 Payload values per iteration: 38_759_040
-Elapsed ms: 390.54
-Stream events/s: 414_805.91
-Payload values/s: 496_218_480.83
-Allocated bytes / payload value: 4.39
+Elapsed ms: 373.53
+Stream events/s: 433_695.23
+Payload values/s: 518_815_144.64
+Allocated bytes / payload value: 1.55
 
-Release benchmark stream cache-wide after projector-local hot-path caches, parallelism 24:
+Release benchmark stream cache-wide after reusable publish session, parallelism 24:
 Examined files per iteration: 244
 Skipped files per iteration: 24
 Published files per iteration: 220
@@ -627,10 +633,10 @@ Compressed records per iteration: 12_087
 Decompressed bytes per iteration: 11_145_331_584
 Stream events per iteration: 7_114_560
 Payload values per iteration: 8_513_587_200
-Elapsed ms: 17_779.37
-Stream events/s: 400_158.13
-Payload values/s: 478_846_352.92
-Allocated bytes / payload value: 4.68
+Elapsed ms: 16_740.99
+Stream events/s: 424_978.49
+Payload values/s: 508_547_458.18
+Allocated bytes / payload value: 1.86
 ```
 
 The skipped tests are the opt-in live AWS integration tests and opt-in local
@@ -1277,6 +1283,7 @@ constant and moment data blocks.
 - `src/Domain/Archive/ArchiveRadarEventBatchStreamBenchmarkResult.cs`
 - `src/Infrastructure/Archive/ArchiveRadarEventBatchCountingPublisher.cs`
 - `src/Infrastructure/Archive/ArchiveTwoRadarEventBatchProjector.cs`
+- `src/Infrastructure/Archive/NexradArchiveRadarEventBatchPublishSession.cs`
 - `src/Infrastructure/Archive/NexradArchiveRadarEventBatchPublisher.cs`
 - `src/Infrastructure/Archive/NexradArchiveRadarEventBatchStreamBenchmark.cs`
 - `tests/RadarPulse.Tests/Archive/NexradArchiveRadarEventBatchPublisherTests.cs`

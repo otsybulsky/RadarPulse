@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Text;
 using RadarPulse.Application.Archive;
+using RadarPulse.Domain.Archive;
 using RadarPulse.Domain.Streaming;
 using RadarPulse.Infrastructure.Archive;
 
@@ -279,6 +280,60 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
             Assert.Equal("REF", firstMoment);
             Assert.Equal("CFP", secondMoment);
             Assert.Equal("VEL", thirdMoment);
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(path)!, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void PublishSessionMatchesPublisherTotalsAcrossRepeatedParallelRuns()
+    {
+        var firstRecordBytes = BuildMessage(31, BuildEightBitType31Payload("REF", [1, 2, 3], scale: 2f, offset: 66f));
+        var secondRecordBytes = BuildMessage(31, BuildEightBitType31Payload("CFP", [0, 1, 8], scale: 1f, offset: 8f));
+        var thirdRecordBytes = BuildMessage(31, BuildSixteenBitType31Payload("VEL", [129, 131], scale: 2f, offset: 129f));
+        var compressedPayload1 = BuildFakeBZip2Payload(1);
+        var compressedPayload2 = BuildFakeBZip2Payload(2);
+        var compressedPayload3 = BuildFakeBZip2Payload(3);
+        var path = WriteTempFile(
+            "KTLX20260504_000245_V06",
+            BuildArchiveTwoHeader()
+                .Concat(BuildCompressedRecord(compressedPayload1.Length, compressedPayload1))
+                .Concat(BuildCompressedRecord(compressedPayload2.Length, compressedPayload2))
+                .Concat(BuildCompressedRecord(compressedPayload3.Length, compressedPayload3))
+                .ToArray());
+        var decompressor = new FakeArchiveBZip2Decompressor(
+            new Dictionary<byte, byte[]>
+            {
+                [1] = firstRecordBytes,
+                [2] = secondRecordBytes,
+                [3] = thirdRecordBytes
+            },
+            new Dictionary<byte, int>
+            {
+                [1] = 50
+            });
+        var options = new ArchiveRadarEventBatchPublishOptions(
+            ArchiveRadarEventBatchPublishOptions.DefaultSingleRadar.SourceUniverse,
+            degreeOfParallelism: 2);
+
+        try
+        {
+            var expected = new NexradArchiveRadarEventBatchPublisher(decompressor)
+                .PublishFile(path, options, CancellationToken.None);
+            using var session = new NexradArchiveRadarEventBatchPublishSession(decompressor, options);
+            var first = session.PublishFile(path, CancellationToken.None);
+            var second = session.PublishFile(path, CancellationToken.None);
+
+            AssertArchiveRadarEventBatchPublishTotalsEqual(expected, first);
+            AssertArchiveRadarEventBatchPublishTotalsEqual(expected, second);
+            Assert.Equal(
+                RadarStreamDictionarySnapshotMetrics.Compute(expected.DictionarySnapshot),
+                RadarStreamDictionarySnapshotMetrics.Compute(first.DictionarySnapshot));
+            Assert.Equal(
+                RadarStreamDictionarySnapshotMetrics.Compute(expected.DictionarySnapshot),
+                RadarStreamDictionarySnapshotMetrics.Compute(second.DictionarySnapshot));
         }
         finally
         {
@@ -572,6 +627,27 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
             cancellationToken.ThrowIfCancellationRequested();
             batches.Add(batch);
         }
+    }
+
+    private static void AssertArchiveRadarEventBatchPublishTotalsEqual(
+        ArchiveRadarEventBatchPublishResult expected,
+        ArchiveRadarEventBatchPublishResult actual)
+    {
+        Assert.Equal(expected.FilePath, actual.FilePath);
+        Assert.Equal(expected.Decompressor, actual.Decompressor);
+        Assert.Equal(expected.DegreeOfParallelism, actual.DegreeOfParallelism);
+        Assert.Equal(expected.FileSizeBytes, actual.FileSizeBytes);
+        Assert.Equal(expected.CompressedRecordCount, actual.CompressedRecordCount);
+        Assert.Equal(expected.CompressedBytes, actual.CompressedBytes);
+        Assert.Equal(expected.DecompressedBytes, actual.DecompressedBytes);
+        Assert.Equal(expected.StreamSchemaVersion, actual.StreamSchemaVersion);
+        Assert.Equal(expected.DictionaryVersion, actual.DictionaryVersion);
+        Assert.Equal(expected.SourceUniverseVersion, actual.SourceUniverseVersion);
+        Assert.Equal(expected.BatchCount, actual.BatchCount);
+        Assert.Equal(expected.EventCount, actual.EventCount);
+        Assert.Equal(expected.PayloadBytes, actual.PayloadBytes);
+        Assert.Equal(expected.PayloadValueCount, actual.PayloadValueCount);
+        Assert.Equal(expected.RawValueChecksum, actual.RawValueChecksum);
     }
 
     private sealed class FakeArchiveBZip2Decompressor : IArchiveBZip2Decompressor
