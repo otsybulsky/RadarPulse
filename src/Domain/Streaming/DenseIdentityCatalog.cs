@@ -11,6 +11,7 @@ public sealed class DenseIdentityCatalog
     private const int Utf8BucketLoadFactor = 4;
     private const int MinUtf8BucketCount = 64;
 
+    private readonly DenseIdentityCanonicalizationPolicy canonicalizationPolicy;
     private readonly ConcurrentDictionary<string, int> textToId;
     private readonly ConcurrentDictionary<string, int>.AlternateLookup<ReadOnlySpan<char>> textSpanLookup;
     private readonly Utf8Bucket?[] utf8Buckets;
@@ -23,21 +24,25 @@ public sealed class DenseIdentityCatalog
         string name,
         int initialCapacity = DefaultInitialCapacity,
         int maximumTextLength = 32)
+        : this(name, DenseIdentityCanonicalizationPolicy.CompactIdentifier(maximumTextLength), initialCapacity)
+    {
+    }
+
+    public DenseIdentityCatalog(
+        string name,
+        DenseIdentityCanonicalizationPolicy canonicalizationPolicy,
+        int initialCapacity = DefaultInitialCapacity)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(canonicalizationPolicy);
 
         if (initialCapacity <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(initialCapacity));
         }
 
-        if (maximumTextLength <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(maximumTextLength));
-        }
-
         Name = name;
-        MaximumTextLength = maximumTextLength;
+        this.canonicalizationPolicy = canonicalizationPolicy;
         textToId = new ConcurrentDictionary<string, int>(
             concurrencyLevel: Environment.ProcessorCount,
             capacity: initialCapacity,
@@ -55,12 +60,16 @@ public sealed class DenseIdentityCatalog
 
     public DictionaryVersion CurrentVersion => new(Volatile.Read(ref version));
 
-    public int MaximumTextLength { get; }
+    public DenseIdentityCanonicalizationPolicy CanonicalizationPolicy => canonicalizationPolicy;
+
+    public int MinimumTextLength => canonicalizationPolicy.MinimumLength;
+
+    public int MaximumTextLength => canonicalizationPolicy.MaximumLength;
 
     public bool TryGetId(string text, out int id)
     {
         ArgumentNullException.ThrowIfNull(text);
-        if (!IsCanonical(text.AsSpan()))
+        if (!canonicalizationPolicy.IsCanonical(text.AsSpan()))
         {
             id = default;
             return false;
@@ -71,7 +80,7 @@ public sealed class DenseIdentityCatalog
 
     public bool TryGetId(ReadOnlySpan<char> text, out int id)
     {
-        if (!IsCanonical(text))
+        if (!canonicalizationPolicy.IsCanonical(text))
         {
             id = default;
             return false;
@@ -82,7 +91,7 @@ public sealed class DenseIdentityCatalog
 
     public bool TryGetId(ReadOnlySpan<byte> utf8Text, out int id)
     {
-        if (!IsCanonicalUtf8(utf8Text))
+        if (!canonicalizationPolicy.IsCanonical(utf8Text))
         {
             id = default;
             return false;
@@ -139,6 +148,18 @@ public sealed class DenseIdentityCatalog
 
         return Register(utf8Text);
     }
+
+    public DenseIdentityValidationResult Validate(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        return Validate(text.AsSpan());
+    }
+
+    public DenseIdentityValidationResult Validate(ReadOnlySpan<char> text) =>
+        canonicalizationPolicy.Validate(text);
+
+    public DenseIdentityValidationResult Validate(ReadOnlySpan<byte> utf8Text) =>
+        canonicalizationPolicy.Validate(utf8Text);
 
     public DenseIdentityCatalogSnapshot CreateSnapshot() => CreateSnapshot(CurrentVersion);
 
@@ -294,64 +315,25 @@ public sealed class DenseIdentityCatalog
 
     private void EnsureCanonical(ReadOnlySpan<char> text)
     {
-        if (IsCanonical(text))
+        var validation = canonicalizationPolicy.Validate(text);
+        if (validation.IsValid)
         {
             return;
         }
 
-        throw new ArgumentException(
-            $"Identity text for catalog '{Name}' must be 1..{MaximumTextLength} characters and contain only A-Z, 0-9, or underscore.");
+        throw new ArgumentException(canonicalizationPolicy.CreateErrorMessage(Name, validation));
     }
 
     private void EnsureCanonicalUtf8(ReadOnlySpan<byte> text)
     {
-        if (IsCanonicalUtf8(text))
+        var validation = canonicalizationPolicy.Validate(text);
+        if (validation.IsValid)
         {
             return;
         }
 
-        throw new ArgumentException(
-            $"UTF-8 identity text for catalog '{Name}' must be 1..{MaximumTextLength} bytes and contain only A-Z, 0-9, or underscore.");
+        throw new ArgumentException(canonicalizationPolicy.CreateErrorMessage(Name, validation));
     }
-
-    private bool IsCanonical(ReadOnlySpan<char> text)
-    {
-        if (text.IsEmpty || text.Length > MaximumTextLength)
-        {
-            return false;
-        }
-
-        for (var i = 0; i < text.Length; i++)
-        {
-            if (!IsCanonicalAscii(text[i]))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private bool IsCanonicalUtf8(ReadOnlySpan<byte> text)
-    {
-        if (text.IsEmpty || text.Length > MaximumTextLength)
-        {
-            return false;
-        }
-
-        for (var i = 0; i < text.Length; i++)
-        {
-            if (!IsCanonicalAscii(text[i]))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private static bool IsCanonicalAscii(int value) =>
-        value is >= 'A' and <= 'Z' or >= '0' and <= '9' or '_';
 
     private static uint GetUtf8Hash(ReadOnlySpan<byte> value)
     {
