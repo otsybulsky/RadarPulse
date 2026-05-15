@@ -87,6 +87,7 @@ Completed in milestone 004 planning:
 
 - `docs/milestones/004-processing-core-input-contract.md`.
 - `docs/milestones/004-processing-core-input-contract-plan.md`.
+- `docs/milestones/004-processing-core-input-contract-decision-trace.md`.
 - Milestone 004 scope narrowed to the normalized processing-core input contract,
   not downstream processing algorithms or distribution.
 - Dense identity catalogs are specified as persistent append-only catalogs with
