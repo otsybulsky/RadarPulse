@@ -1,5 +1,9 @@
 # Milestone 001: Historical NEXRAD Loader Plan
 
+Status: complete.
+
+The milestone closeout is recorded in `001-historical-loader-closeout.md`.
+
 ## Goal
 
 Milestone 001 is a historical NOAA NEXRAD Level II data loader.

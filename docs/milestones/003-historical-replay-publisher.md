@@ -1,7 +1,12 @@
 # Milestone 003: Historical Replay Publisher Foundation
 
+Status: complete.
+
 RadarPulse turned the completed Archive Two inspection/decoder foundation into
 a publisher-facing historical replay input path.
+
+The milestone closeout is recorded in
+`003-historical-replay-publisher-closeout.md`.
 
 ## Current Status
 

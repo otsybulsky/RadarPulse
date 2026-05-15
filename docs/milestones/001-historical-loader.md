@@ -1,8 +1,12 @@
 # Milestone 001: Historical NEXRAD Loader
 
+Status: complete.
+
 RadarPulse implements a manifest-first historical NOAA NEXRAD Level II loader,
 including archive discovery and deterministic cache download. This is milestone
 001.
+
+The milestone closeout is recorded in `001-historical-loader-closeout.md`.
 
 ## Current Status
 

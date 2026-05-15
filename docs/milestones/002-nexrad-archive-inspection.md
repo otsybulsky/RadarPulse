@@ -1,11 +1,18 @@
 # Milestone 002: NEXRAD Archive Inspection
 
-RadarPulse will add a replay-oriented inspection layer for cached NOAA NEXRAD
+Status: complete.
+
+RadarPulse added a replay-oriented inspection layer for cached NOAA NEXRAD
 archive files downloaded by milestone 001.
+
+The milestone closeout is recorded in
+`002-nexrad-archive-inspection-closeout.md`.
 
 ## Current Status
 
-Initial file classification and single-file CLI inspection are implemented.
+Milestone 002 is complete. File classification, single-file inspection,
+cache-wide inspection, decoder benchmarks, replay-shape projection, and
+cache-wide validation are implemented.
 
 The first cached KTLX base-data files look like Archive Two volumes: they start
 with an `AR2V` header and contain internal BZip2-compressed records. These files
@@ -51,11 +58,11 @@ CLI output for file kind, size, archive filename, version, extension, radar id, 
 unit tests with small synthetic fixtures
 ```
 
-Not yet implemented:
+Deferred beyond milestone 002:
 
 ```text
 downstream event publishing
-ordered parallel replay merge
+publisher-facing ordered parallel replay merge
 ```
 
 ## Intended Usage

@@ -1,5 +1,10 @@
 # Milestone 002: NEXRAD Archive Inspection Plan
 
+Status: complete.
+
+The milestone closeout is recorded in
+`002-nexrad-archive-inspection-closeout.md`.
+
 ## Goal
 
 Milestone 002 consumes cached NOAA NEXRAD archive files from milestone 001 and

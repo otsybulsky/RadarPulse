@@ -1,5 +1,10 @@
 # Milestone 003: Historical Replay Publisher Foundation Plan
 
+Status: complete.
+
+The milestone closeout is recorded in
+`003-historical-replay-publisher-closeout.md`.
+
 ## Goal
 
 Milestone 003 turns the milestone 002 Archive Two decoder and replay-shape

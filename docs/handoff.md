@@ -574,12 +574,15 @@ Deferred beyond milestone 003:
 - `docs/milestones/001-historical-loader-plan.md`
 - `docs/milestones/001-historical-loader.md`
 - `docs/milestones/001-historical-loader-decision-trace.md`
+- `docs/milestones/001-historical-loader-closeout.md`
 - `docs/milestones/002-nexrad-archive-inspection-plan.md`
 - `docs/milestones/002-nexrad-archive-inspection.md`
 - `docs/milestones/002-nexrad-archive-inspection-decision-trace.md`
+- `docs/milestones/002-nexrad-archive-inspection-closeout.md`
 - `docs/milestones/003-historical-replay-publisher-plan.md`
 - `docs/milestones/003-historical-replay-publisher.md`
 - `docs/milestones/003-historical-replay-publisher-decision-trace.md`
+- `docs/milestones/003-historical-replay-publisher-closeout.md`
 - `docs/milestones/004-processing-core-input-contract.md`
 - `docs/milestones/004-processing-core-input-contract-plan.md`
 - `docs/milestones/004-processing-core-input-contract-decision-trace.md`
