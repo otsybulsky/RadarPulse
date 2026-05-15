@@ -1,0 +1,209 @@
+using System.Buffers.Binary;
+using System.Text;
+using RadarPulse.Domain.Archive;
+using RadarPulse.Domain.Streaming;
+
+namespace RadarPulse.Infrastructure.Archive;
+
+internal sealed class ArchiveTwoRadarEventBatchProjector : IArchiveTwoMessageConsumer
+{
+    private const int MessageHeaderLength = 16;
+    private const int Type31DataHeaderMinimumLength = 72;
+    private const int Type31DataBlockPointerOffset = 32;
+    private const int Type31DataBlockPointerLength = 4;
+    private const int Type31MaximumDataBlockPointers = 10;
+    private const int GenericMomentDescriptorLength = 28;
+    private const int GenericMomentDataOffset = 28;
+    private const int GenericMomentGateCountOffset = 8;
+    private const int GenericMomentWordSizeOffset = 19;
+    private const int GenericMomentScaleOffset = 20;
+    private const int GenericMomentOffsetOffset = 24;
+
+    private readonly RadarStreamIdentityNormalizer identityNormalizer;
+    private readonly RadarEventBatchBuilder batchBuilder = new();
+    private int radialSequenceNumber;
+
+    public ArchiveTwoRadarEventBatchProjector(
+        string radarId,
+        DateTimeOffset volumeTimestamp,
+        RadarSourceUniverse sourceUniverse)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(radarId);
+        ArgumentNullException.ThrowIfNull(sourceUniverse);
+
+        RadarId = radarId;
+        VolumeTimestamp = volumeTimestamp;
+        identityNormalizer = new RadarStreamIdentityNormalizer(sourceUniverse);
+    }
+
+    public string RadarId { get; }
+
+    public DateTimeOffset VolumeTimestamp { get; }
+
+    public RadarStreamDictionarySnapshot DictionarySnapshot =>
+        identityNormalizer.CreateDictionarySnapshot(batchBuilder.DictionaryVersion);
+
+    public RadarEventBatch BuildBatch() => batchBuilder.Build();
+
+    public void AcceptMessage(ReadOnlySpan<byte> message, ArchiveTwoMessageSource source)
+    {
+        if (message.Length < MessageHeaderLength || message[3] != 31)
+        {
+            return;
+        }
+
+        ParseType31(message[MessageHeaderLength..], source);
+    }
+
+    private void ParseType31(ReadOnlySpan<byte> payload, ArchiveTwoMessageSource source)
+    {
+        if (payload.Length < Type31DataHeaderMinimumLength)
+        {
+            return;
+        }
+
+        var radialLength = BinaryPrimitives.ReadUInt16BigEndian(payload.Slice(18, 2));
+        var parseLength = Math.Min(payload.Length, radialLength > 0 ? radialLength : payload.Length);
+        var parsePayload = payload[..parseLength];
+        radialSequenceNumber++;
+
+        var elevationSlot = Math.Max(parsePayload[22] - 1, 0);
+        var azimuthBucket = GetAzimuthBucket(radialSequenceNumber);
+        var blockCount = BinaryPrimitives.ReadUInt16BigEndian(parsePayload.Slice(30, 2));
+        var pointerCount = Math.Min(
+            Math.Min((int)blockCount, Type31MaximumDataBlockPointers),
+            (parsePayload.Length - Type31DataBlockPointerOffset) / Type31DataBlockPointerLength);
+
+        for (var i = 0; i < pointerCount; i++)
+        {
+            var pointer = BinaryPrimitives.ReadInt32BigEndian(
+                parsePayload.Slice(Type31DataBlockPointerOffset + i * Type31DataBlockPointerLength, Type31DataBlockPointerLength));
+            if (pointer <= 0 || pointer >= parsePayload.Length)
+            {
+                continue;
+            }
+
+            var block = parsePayload[pointer..];
+            if (block.Length < GenericMomentDescriptorLength || block[0] != (byte)'D')
+            {
+                continue;
+            }
+
+            AcceptMomentBlock(block, source, elevationSlot, azimuthBucket);
+        }
+    }
+
+    private int GetAzimuthBucket(int radialSequence)
+    {
+        // First integration uses deterministic radial order buckets. A later
+        // parser slice can swap in decoded azimuth angle without changing the
+        // stream contract or SourceId arithmetic.
+        return (radialSequence - 1) % identityNormalizer.SourceUniverse.AzimuthBucketCount;
+    }
+
+    private void AcceptMomentBlock(
+        ReadOnlySpan<byte> block,
+        ArchiveTwoMessageSource source,
+        int elevationSlot,
+        int azimuthBucket)
+    {
+        var momentName = ReadDataBlockName(block);
+        if (momentName.Length == 0)
+        {
+            return;
+        }
+
+        var metadata = ReadMomentMetadata(block);
+        var wordSize = metadata.WordSizeBits switch
+        {
+            8 => RadarStreamWordSize.EightBit,
+            16 => RadarStreamWordSize.SixteenBit,
+            _ => default
+        };
+        if (wordSize == 0)
+        {
+            return;
+        }
+
+        var bytesPerGate = wordSize == RadarStreamWordSize.EightBit ? 1 : sizeof(ushort);
+        var requiredBytes = checked(metadata.GateCount * bytesPerGate);
+        var data = block[GenericMomentDataOffset..];
+        if (data.Length < requiredBytes)
+        {
+            return;
+        }
+
+        var rangeBandCount = identityNormalizer.SourceUniverse.RangeBandCount;
+        for (var rangeBand = 0; rangeBand < rangeBandCount; rangeBand++)
+        {
+            var startGate = rangeBand * metadata.GateCount / rangeBandCount;
+            var endGate = (rangeBand + 1) * metadata.GateCount / rangeBandCount;
+            if (endGate <= startGate)
+            {
+                continue;
+            }
+
+            if (startGate > ushort.MaxValue || endGate - startGate > ushort.MaxValue)
+            {
+                throw new InvalidDataException("Type 31 moment gate run exceeds the stream event range.");
+            }
+
+            var identity = ResolveIdentity(momentName, elevationSlot, azimuthBucket, rangeBand);
+            var payloadOffset = startGate * bytesPerGate;
+            var payloadLength = (endGate - startGate) * bytesPerGate;
+            batchBuilder.AddEvent(
+                identity,
+                VolumeTimestamp.UtcTicks,
+                source.MessageTimestamp.UtcTicks,
+                source.CompressedRecordSequenceNumber,
+                source.MessageSequenceNumberInRecord,
+                radialSequenceNumber,
+                checked((ushort)startGate),
+                checked((ushort)(endGate - startGate)),
+                wordSize,
+                metadata.Scale,
+                metadata.Offset,
+                RadarStreamStatusModel.ArchiveTwoMoment,
+                data.Slice(payloadOffset, payloadLength));
+        }
+    }
+
+    private RadarStreamIdentity ResolveIdentity(
+        string momentName,
+        int elevationSlot,
+        int azimuthBucket,
+        int rangeBand)
+    {
+        var result = identityNormalizer.TryNormalize(
+            RadarId,
+            momentName,
+            elevationSlot,
+            azimuthBucket,
+            rangeBand);
+        if (result.IsResolved)
+        {
+            return result.Identity;
+        }
+
+        throw new InvalidDataException($"Failed to normalize radar stream identity: {result.Error}.");
+    }
+
+    private static string ReadDataBlockName(ReadOnlySpan<byte> block) =>
+        Encoding.ASCII.GetString(block.Slice(1, 3)).TrimEnd('\0', ' ');
+
+    private static Type31MomentMetadata ReadMomentMetadata(ReadOnlySpan<byte> block) =>
+        new(
+            BinaryPrimitives.ReadUInt16BigEndian(block.Slice(GenericMomentGateCountOffset, 2)),
+            block[GenericMomentWordSizeOffset],
+            ReadSingleBigEndian(block.Slice(GenericMomentScaleOffset, 4)),
+            ReadSingleBigEndian(block.Slice(GenericMomentOffsetOffset, 4)));
+
+    private static float ReadSingleBigEndian(ReadOnlySpan<byte> buffer) =>
+        BitConverter.Int32BitsToSingle(BinaryPrimitives.ReadInt32BigEndian(buffer));
+
+    private readonly record struct Type31MomentMetadata(
+        int GateCount,
+        int WordSizeBits,
+        float Scale,
+        float Offset);
+}

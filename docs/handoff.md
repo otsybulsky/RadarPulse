@@ -30,6 +30,7 @@ Done:
 - `004` slice 5 source universe definition is implemented.
 - `004` slice 6 identity normalizer is implemented.
 - `004` slice 7 batch builder and payload storage is implemented.
+- `004` slice 8 single-file sequential replay integration is implemented.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -47,7 +48,7 @@ Next work:
   `docs/milestones/004-processing-core-input-contract-plan.md`.
 - Preserve milestone 003 replay/publisher behavior while adding the new
   normalized batch stream.
-- Continue milestone 004 with slice 8: replay integration.
+- Continue milestone 004 with slice 9: validation and checksums.
 - Preserve the slice 1 cache-conscious stream event constraint:
   `RadarStreamEvent` is a 64-byte unmanaged value type with no reference
   fields.
@@ -190,6 +191,26 @@ Completed in milestone 004 implementation so far:
   build snapshots, empty build behavior, invalid payload rejection without
   mutation, source-universe version mismatch rejection, and invalid identity
   version rejection.
+- `IArchiveRadarEventBatchPublisher` defines the first batch-stream publisher
+  boundary without replacing the milestone 003 semantic replay publisher.
+- `NexradArchiveRadarEventBatchPublisher` implements sequential single-file
+  Archive Two replay into normalized `RadarEventBatch` output.
+- `ArchiveTwoRadarEventBatchProjector` parses Type 31 moment blocks directly
+  into gate-run stream events, preserving raw 8-bit and 16-bit moment payload
+  bytes, word size, scale, offset, source order, and batch-owned payload
+  storage.
+- The first replay integration publishes one batch per file. It uses the
+  identity normalizer and batch builder, and emits numeric `RadarOrdinal`,
+  `MomentId`, and `SourceId` values instead of text.
+- The default batch replay source universe is a one-radar demonstration layout:
+  32 elevation slots x 720 azimuth buckets x 1 range band = 23,040 logical
+  sources.
+- `ArchiveRadarEventBatchCountingPublisher` records batch count, stream-event
+  count, payload bytes, payload value count, raw-value checksum, and visible
+  stream/dictionary/source-universe versions.
+- Focused replay-integration tests cover sequential single-file batch replay,
+  dictionary snapshot visibility, raw payload bytes, 16-bit raw-value checksum,
+  and splitting one moment block into range-band gate-run events.
 
 Completed in milestone 003 so far:
 
@@ -426,7 +447,7 @@ Deferred beyond milestone 003:
 
 ## Verification
 
-Latest milestone 004 slice 7 verification:
+Latest milestone 004 slice 8 verification:
 
 ```powershell
 dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
@@ -435,7 +456,7 @@ dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
 Result:
 
 ```text
-123 passed, 3 skipped
+126 passed, 3 skipped
 ```
 
 The skipped tests are the opt-in live AWS integration tests and opt-in local
@@ -1069,6 +1090,13 @@ constant and moment data blocks.
 - `src/Domain/Streaming/SourceUniverseVersion.cs`
 - `src/Domain/Streaming/RadarStreamWordSize.cs`
 - `src/Domain/Streaming/RadarStreamStatusModel.cs`
+- `src/Application/Archive/ArchiveRadarEventBatchPublishOptions.cs`
+- `src/Application/Archive/IArchiveRadarEventBatchPublisher.cs`
+- `src/Domain/Archive/ArchiveRadarEventBatchPublishResult.cs`
+- `src/Infrastructure/Archive/ArchiveRadarEventBatchCountingPublisher.cs`
+- `src/Infrastructure/Archive/ArchiveTwoRadarEventBatchProjector.cs`
+- `src/Infrastructure/Archive/NexradArchiveRadarEventBatchPublisher.cs`
+- `tests/RadarPulse.Tests/Archive/NexradArchiveRadarEventBatchPublisherTests.cs`
 - `tests/RadarPulse.Tests/Streaming/RadarEventBatchBuilderTests.cs`
 - `tests/RadarPulse.Tests/Streaming/DenseIdentityCanonicalizationPolicyTests.cs`
 - `tests/RadarPulse.Tests/Streaming/DenseIdentityCatalogTests.cs`
