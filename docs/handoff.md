@@ -27,6 +27,7 @@ Done:
 - `004` slice 2 append-only dense identity catalog is implemented.
 - `004` slice 3 dictionary version snapshots and deltas are implemented.
 - `004` slice 4 canonicalization and error policy is implemented.
+- `004` slice 5 source universe definition is implemented.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -44,7 +45,7 @@ Next work:
   `docs/milestones/004-processing-core-input-contract-plan.md`.
 - Preserve milestone 003 replay/publisher behavior while adding the new
   normalized batch stream.
-- Continue milestone 004 with slice 5: source universe definition.
+- Continue milestone 004 with slice 6: identity normalizer.
 - Preserve the slice 1 cache-conscious stream event constraint:
   `RadarStreamEvent` is a 64-byte unmanaged value type with no reference
   fields.
@@ -135,6 +136,21 @@ Completed in milestone 004 implementation so far:
 - Focused canonicalization tests cover radar and moment policy differences,
   no-trim/no-case-fold behavior, validation diagnostics, UTF-8 byte validation,
   and exception messages containing catalog, dimension, and reason.
+- `RadarSourceKey` defines the dense source tuple:
+  `RadarOrdinal x ElevationSlot x AzimuthBucket x RangeBand`.
+- `RadarSourceUniverse` defines source-universe metadata and arithmetic:
+  version, dimension counts, per-dimension source strides, source count,
+  `RadarSourceKey -> SourceId`, and `SourceId -> RadarSourceKey`.
+- `SourceId` values are dense in `0 <= SourceId < SourceCount`, and every radar
+  ordinal owns a contiguous source-id block.
+- Adding a new radar ordinal with the same per-radar dimensions keeps existing
+  radar-zero source IDs stable and starts the new radar at the next contiguous
+  block.
+- Source-universe layout compatibility is explicit: the same
+  `SourceUniverseVersion` can be reused only for the same source layout.
+- Focused source-universe tests cover count/stride calculation, dense id space,
+  tuple/id round-trip, radar block boundaries, stable existing blocks when a
+  radar is added, invalid dimension rejection, and version/layout compatibility.
 
 Completed in milestone 003 so far:
 
@@ -371,7 +387,7 @@ Deferred beyond milestone 003:
 
 ## Verification
 
-Latest milestone 004 slice 4 verification:
+Latest milestone 004 slice 5 verification:
 
 ```powershell
 dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
@@ -380,7 +396,7 @@ dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
 Result:
 
 ```text
-98 passed, 3 skipped
+106 passed, 3 skipped
 ```
 
 The skipped tests are the opt-in live AWS integration tests and opt-in local
@@ -1000,6 +1016,8 @@ constant and moment data blocks.
 - `src/Domain/Streaming/DenseIdentityValidationInputKind.cs`
 - `src/Domain/Streaming/DenseIdentityValidationResult.cs`
 - `src/Domain/Streaming/RadarEventBatch.cs`
+- `src/Domain/Streaming/RadarSourceKey.cs`
+- `src/Domain/Streaming/RadarSourceUniverse.cs`
 - `src/Domain/Streaming/RadarStreamEvent.cs`
 - `src/Domain/Streaming/StreamSchemaVersion.cs`
 - `src/Domain/Streaming/DictionaryVersion.cs`
@@ -1009,6 +1027,7 @@ constant and moment data blocks.
 - `tests/RadarPulse.Tests/Streaming/DenseIdentityCanonicalizationPolicyTests.cs`
 - `tests/RadarPulse.Tests/Streaming/DenseIdentityCatalogTests.cs`
 - `tests/RadarPulse.Tests/Streaming/DenseIdentityCatalogVersioningTests.cs`
+- `tests/RadarPulse.Tests/Streaming/RadarSourceUniverseTests.cs`
 - `tests/RadarPulse.Tests/Streaming/RadarStreamContractTests.cs`
 - `src/Presentation/Program.cs`
 - `src/Application/Archive/IHistoricalArchiveClient.cs`
