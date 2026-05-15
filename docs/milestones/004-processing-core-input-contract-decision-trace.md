@@ -179,6 +179,35 @@ end-to-end processing latency.
 Review explanation: "I deliberately finished the contract before the engine, so
 later work starts from a stable and benchmarked input surface."
 
+### Performance Decisions
+
+Decision: optimize around the comparable payload-value metric, a 64-byte
+unmanaged event record, dense IDs, cached hot-path identity dimensions,
+pre-sized buffers, no-copy batch finalization, cached payload metrics, reusable
+publish sessions, and explicit leased batch delivery.
+
+Why chosen: `Stream events/s` is not comparable to earlier per-gate publisher
+numbers because one `RadarStreamEvent` can reference many raw values. The real
+throughput target is payload values/s, while allocation pressure is dominated
+by event/payload buffer ownership.
+
+Alternatives: compare against `Stream events/s`, allocate owned arrays for every
+batch, keep text lookup in each event, scan payload again for metrics, or hide
+pooled buffer lifetime from consumers.
+
+Rejected because: those options misstate throughput, add avoidable allocation,
+put string/dictionary work in the hot path, duplicate payload scans, or make
+buffer retention unsafe.
+
+Trade-offs/debt: leased batches require consumers to obey synchronous callback
+lifetime rules. Cache-wide allocation is reduced but not zero; remaining cost is
+outside normalized batch buffers.
+
+Review explanation: "I optimized the metric that actually maps to the old
+event denominator: raw payload values per second. The result kept the stream
+contract deterministic while raising throughput above 500M values/s and cutting
+cache-wide allocation to 0.20 bytes/value."
+
 ## 3. Remaining Risks And Debt
 
 - Cache-wide allocation is much lower but not zero. Likely remaining sources:

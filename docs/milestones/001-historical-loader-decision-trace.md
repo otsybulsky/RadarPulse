@@ -139,6 +139,29 @@ Trade-offs/debt: live behavior is not checked on every test run.
 Review explanation: "The core logic is unit-tested locally, and live archive
 behavior is validated only when explicitly requested."
 
+### Performance Decisions
+
+Decision: optimize the loader around bounded network/disk work rather than CPU
+throughput: manifest limits, byte limits, concurrency control, skip/redownload
+rules, metadata validation, temporary writes, and free-space preflight.
+
+Why chosen: the performance risk in this milestone is accidental or repeated
+large IO, not per-record computation. Avoiding unnecessary downloads is more
+valuable than micro-optimizing manifest parsing.
+
+Alternatives: always redownload selected files, use unbounded download
+parallelism, or postpone cache validation until replay.
+
+Rejected because: they waste bandwidth and disk, increase failure blast radius,
+and push data-integrity cost into later milestones.
+
+Trade-offs/debt: the loader does not benchmark raw S3 throughput, and sidecar
+metadata adds small extra IO per file.
+
+Review explanation: "For the loader, performance meant controlling expensive
+network and disk work: download only what is needed, skip what is already valid,
+and fail early when disk capacity is insufficient."
+
 ## 3. Remaining Risks And Debt
 
 - The loader depends on public AWS archive availability and layout.

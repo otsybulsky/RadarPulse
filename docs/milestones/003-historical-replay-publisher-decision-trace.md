@@ -149,6 +149,31 @@ verification surface.
 Review explanation: "I used an order-sensitive checksum so parallel replay is
 validated for ordering, not just totals."
 
+### Performance Decisions
+
+Decision: measure publisher-path performance with an in-process reusable
+session and count-only publisher, while preserving the one-shot publisher API
+for simple use.
+
+Why chosen: external CLI timing and per-iteration setup made throughput numbers
+noisy. Reusing workers, decompressor sessions, projectors, accumulators, and
+buffers made the benchmark describe steady-state replay publishing.
+
+Alternatives: keep only process-level smoke timings, benchmark only the older
+replay-shape loop, or push every event through a custom downstream sink.
+
+Rejected because: process timing includes startup/setup cost, replay-shape does
+not prove the publisher boundary, and arbitrary sinks would measure downstream
+behavior rather than replay publication.
+
+Trade-offs/debt: count-only throughput is not full engine throughput. Remaining
+allocation sources include descriptor/metadata arrays, scheduling overhead, and
+custom-publisher per-record buffers.
+
+Review explanation: "I separated smoke commands from steady-state benchmarks,
+which let me prove the publisher path itself could exceed 300M events/s without
+claiming that number as downstream engine throughput."
+
 ## 3. Remaining Risks And Debt
 
 - `ArchiveTwoGateMomentEvent` is a semantic publisher-facing shape, not the

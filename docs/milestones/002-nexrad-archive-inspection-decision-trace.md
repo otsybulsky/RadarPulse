@@ -152,6 +152,31 @@ the production publisher path.
 Review explanation: "Replay-shape was a measured bridge between binary parsing
 and the later publisher milestone."
 
+### Performance Decisions
+
+Decision: make decompression and parsing benchmarkable from the inspection
+milestone, with selectable backends, pooled buffers, reusable decompressor
+workspace, streaming callbacks, and ordered parallel record processing.
+
+Why chosen: historical replay was expected to feed a high-throughput pipeline,
+so the decoder foundation had to expose byte throughput, event-denominator
+throughput, and allocation pressure before the publisher existed.
+
+Alternatives: implement only inspection correctness first, rely on third-party
+decompressors without a reusable backend, or delay benchmarks until publisher
+work.
+
+Rejected because: late benchmarking would hide expensive parser decisions, and
+stream-based third-party decompression showed high per-record allocation.
+
+Trade-offs/debt: benchmark and replay-shape paths added extra code before the
+final publisher API. The benefit was an early performance baseline and clear
+evidence that ordered parsing could exceed the 20M events/s target.
+
+Review explanation: "I treated performance as part of the decoder contract:
+every parser layer had to be measurable, allocation-aware, and compatible with
+ordered parallel replay."
+
 ## 3. Remaining Risks And Debt
 
 - The parser covers the Archive Two and Type 31 structure needed for replay,
