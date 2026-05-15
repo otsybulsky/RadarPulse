@@ -36,6 +36,8 @@ Done:
 - `004` normalized batch stream CLI smoke command is implemented.
 - `004` normalized batch stream benchmark command is implemented.
 - `004` first parallel stream buffer-churn reduction pass is implemented.
+- `004` stream identity-cache and batch pre-sizing optimization pass is
+  implemented.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -53,8 +55,8 @@ Next work:
   `docs/milestones/004-processing-core-input-contract-plan.md`.
 - Preserve milestone 003 replay/publisher behavior while adding the new
   normalized batch stream.
-- Continue milestone 004 with normalized stream cache selection or allocation
-  reduction work.
+- Continue milestone 004 with normalized stream cache selection or the next
+  allocation reduction pass.
 - Treat the current `archive benchmark stream` numbers as full replay
   construction throughput, not as the future processing-core throughput over
   already-built `RadarEventBatch` values.
@@ -292,6 +294,13 @@ Completed in milestone 004 implementation so far:
   not remove the main allocation sources. The next optimization targets are
   reusable stream publish sessions, batch-builder payload/event buffer reuse,
   and reducing string allocations in Type 31 moment-name extraction.
+- The next stream optimization pass removed per-block Type 31 moment-name
+  string allocation by reading the 3-byte moment name as a byte span, caches
+  radar/moment dimensions per moment code after the first ordered dictionary
+  normalization, uses source-universe stride arithmetic in the cached path, and
+  pre-sizes archive stream event/payload buffers from compressed file size and
+  compressed record count. This keeps deterministic dictionary registration on
+  the ordered scan path while avoiding most builder resize churn.
 
 Completed in milestone 003 so far:
 
@@ -538,6 +547,7 @@ dotnet run --no-build --project src\Presentation\RadarPulse.Cli.csproj -- archiv
 dotnet run --no-build --project src\Presentation\RadarPulse.Cli.csproj -- archive stream --file data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_002334_V06 --parallelism 4 --decompressor radarpulse
 dotnet run --no-build -c Release --project src\Presentation\RadarPulse.Cli.csproj -- archive benchmark stream --file data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_002334_V06 --iterations 3 --warmup-iterations 1 --parallelism 1 --decompressor radarpulse
 dotnet run --no-build -c Release --project src\Presentation\RadarPulse.Cli.csproj -- archive benchmark stream --file data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_002334_V06 --iterations 3 --warmup-iterations 1 --parallelism 24 --decompressor radarpulse
+dotnet run --no-build -c Release --project src\Presentation\RadarPulse.Cli.csproj -- archive benchmark stream --file data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_002334_V06 --iterations 5 --warmup-iterations 2 --parallelism 24 --decompressor radarpulse
 ```
 
 Result:
@@ -564,21 +574,29 @@ Radar dictionary entries: 1
 Moment dictionary entries: 7
 Dictionary mapping checksum: 15_566_013_436_132_944_234
 
-Release benchmark stream after worker-owned decompressed buffers, parallelism 1:
+Release benchmark stream after identity-cache and batch pre-sizing pass, parallelism 1:
 Stream events per iteration: 32_400
 Payload values per iteration: 38_759_040
-Elapsed ms: 1_376.78
-Stream events/s: 70_599.43
-Payload values/s: 84_455_741.97
-Allocated bytes / payload value: 5.06
+Elapsed ms: 1_282.80
+Stream events/s: 75_771.76
+Payload values/s: 90_643_232.09
+Allocated bytes / payload value: 2.91
 
-Release benchmark stream after worker-owned decompressed buffers, parallelism 24:
+Release benchmark stream after identity-cache and batch pre-sizing pass, parallelism 24:
 Stream events per iteration: 32_400
 Payload values per iteration: 38_759_040
-Elapsed ms: 509.99
-Stream events/s: 190_591.86
-Payload values/s: 227_998_689.39
-Allocated bytes / payload value: 8.13
+Elapsed ms: 384.14
+Stream events/s: 253_035.32
+Payload values/s: 302_697_715.73
+Allocated bytes / payload value: 5.80
+
+Release benchmark stream after identity-cache and batch pre-sizing pass, parallelism 24, longer 5-iteration check:
+Stream events per iteration: 32_400
+Payload values per iteration: 38_759_040
+Elapsed ms: 433.34
+Stream events/s: 373_837.38
+Payload values/s: 447_209_200.09
+Allocated bytes / payload value: 5.69
 ```
 
 The skipped tests are the opt-in live AWS integration tests and opt-in local

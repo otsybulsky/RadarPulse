@@ -9,6 +9,13 @@ namespace RadarPulse.Infrastructure.Archive;
 public sealed class NexradArchiveRadarEventBatchPublisher
 {
     private const int OutputBufferSize = 81920;
+    private const int DefaultInitialEventCapacity = 256;
+    private const int DefaultInitialPayloadCapacity = 4096;
+    private const int EstimatedPayloadBytesPerCompressedByte = 10;
+    private const int EstimatedPayloadBytesPerStreamEvent = 1536;
+    private const int EstimatedEventsPerCompressedRecord = 640;
+    private const int MaxInitialPayloadCapacity = 128 * 1024 * 1024;
+    private const int MaxInitialEventCapacity = 1_000_000;
 
     private readonly IArchiveBZip2Decompressor decompressor;
 
@@ -62,10 +69,16 @@ public sealed class NexradArchiveRadarEventBatchPublisher
         var volumeHeader = ArchiveTwoFileReader.ReadVolumeHeader(fileInfo);
         var countingPublisher = publisher as ArchiveRadarEventBatchCountingPublisher ??
             new ArchiveRadarEventBatchCountingPublisher(publisher);
+        var initialPayloadCapacity = EstimateInitialPayloadCapacity(fileInfo);
         var projector = new ArchiveTwoRadarEventBatchProjector(
             volumeHeader.RadarId,
             volumeHeader.VolumeTimestamp,
-            options.SourceUniverse);
+            options.SourceUniverse,
+            EstimateInitialEventCapacity(
+                compressedRecordCount: null,
+                options.SourceUniverse.RangeBandCount,
+                initialPayloadCapacity),
+            initialPayloadCapacity);
         var scanner = new ArchiveTwoMessageStreamScanner(projector);
         var decompressionSession = decompressor.CreateSession();
         var outputBuffer = ArrayPool<byte>.Shared.Rent(OutputBufferSize);
@@ -144,10 +157,16 @@ public sealed class NexradArchiveRadarEventBatchPublisher
         var records = ArchiveTwoFileReader.ReadCompressedRecordDescriptors(fileInfo, cancellationToken);
         var countingPublisher = publisher as ArchiveRadarEventBatchCountingPublisher ??
             new ArchiveRadarEventBatchCountingPublisher(publisher);
+        var initialPayloadCapacity = EstimateInitialPayloadCapacity(fileInfo);
         var projector = new ArchiveTwoRadarEventBatchProjector(
             volumeHeader.RadarId,
             volumeHeader.VolumeTimestamp,
-            options.SourceUniverse);
+            options.SourceUniverse,
+            EstimateInitialEventCapacity(
+                records.Count,
+                options.SourceUniverse.RangeBandCount,
+                initialPayloadCapacity),
+            initialPayloadCapacity);
         var scanner = new ArchiveTwoMessageStreamScanner(projector);
         var workers = CreateWorkers(options.DegreeOfParallelism);
         var compressedRecordCount = 0;
@@ -248,6 +267,36 @@ public sealed class NexradArchiveRadarEventBatchPublisher
         }
 
         return workers;
+    }
+
+    private static int EstimateInitialPayloadCapacity(FileInfo fileInfo)
+    {
+        var estimated = fileInfo.Length * EstimatedPayloadBytesPerCompressedByte;
+        if (estimated <= 0)
+        {
+            return DefaultInitialPayloadCapacity;
+        }
+
+        estimated = Math.Max(estimated, DefaultInitialPayloadCapacity);
+        return checked((int)Math.Min(estimated, MaxInitialPayloadCapacity));
+    }
+
+    private static int EstimateInitialEventCapacity(
+        int? compressedRecordCount,
+        int rangeBandCount,
+        int initialPayloadCapacity)
+    {
+        long estimated = Math.Max(
+            DefaultInitialEventCapacity,
+            initialPayloadCapacity / EstimatedPayloadBytesPerStreamEvent);
+        if (compressedRecordCount is { } recordCount)
+        {
+            estimated = Math.Max(
+                estimated,
+                (long)recordCount * Math.Max(rangeBandCount, 1) * EstimatedEventsPerCompressedRecord);
+        }
+
+        return checked((int)Math.Min(estimated, MaxInitialEventCapacity));
     }
 
     private static void ScheduleDecompressedRecord(

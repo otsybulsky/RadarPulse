@@ -18,22 +18,32 @@ internal sealed class ArchiveTwoRadarEventBatchProjector : IArchiveTwoMessageCon
     private const int GenericMomentWordSizeOffset = 19;
     private const int GenericMomentScaleOffset = 20;
     private const int GenericMomentOffsetOffset = 24;
+    private const int DefaultInitialEventCapacity = 256;
+    private const int DefaultInitialPayloadCapacity = 4096;
 
+    private readonly RadarSourceUniverse sourceUniverse;
     private readonly RadarStreamIdentityNormalizer identityNormalizer;
-    private readonly RadarEventBatchBuilder batchBuilder = new();
+    private readonly byte[] radarIdUtf8;
+    private readonly Dictionary<int, CachedIdentityDimensions> identityCacheByMomentCode = new();
+    private readonly RadarEventBatchBuilder batchBuilder;
     private int radialSequenceNumber;
 
     public ArchiveTwoRadarEventBatchProjector(
         string radarId,
         DateTimeOffset volumeTimestamp,
-        RadarSourceUniverse sourceUniverse)
+        RadarSourceUniverse sourceUniverse,
+        int initialEventCapacity = DefaultInitialEventCapacity,
+        int initialPayloadCapacity = DefaultInitialPayloadCapacity)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(radarId);
         ArgumentNullException.ThrowIfNull(sourceUniverse);
 
         RadarId = radarId;
         VolumeTimestamp = volumeTimestamp;
+        this.sourceUniverse = sourceUniverse;
+        radarIdUtf8 = Encoding.ASCII.GetBytes(radarId);
         identityNormalizer = new RadarStreamIdentityNormalizer(sourceUniverse);
+        batchBuilder = new RadarEventBatchBuilder(initialEventCapacity, initialPayloadCapacity);
     }
 
     public string RadarId { get; }
@@ -98,7 +108,7 @@ internal sealed class ArchiveTwoRadarEventBatchProjector : IArchiveTwoMessageCon
         // First integration uses deterministic radial order buckets. A later
         // parser slice can swap in decoded azimuth angle without changing the
         // stream contract or SourceId arithmetic.
-        return (radialSequence - 1) % identityNormalizer.SourceUniverse.AzimuthBucketCount;
+        return (radialSequence - 1) % sourceUniverse.AzimuthBucketCount;
     }
 
     private void AcceptMomentBlock(
@@ -107,7 +117,7 @@ internal sealed class ArchiveTwoRadarEventBatchProjector : IArchiveTwoMessageCon
         int elevationSlot,
         int azimuthBucket)
     {
-        var momentName = ReadDataBlockName(block);
+        var momentName = ReadDataBlockNameUtf8(block);
         if (momentName.Length == 0)
         {
             return;
@@ -133,7 +143,7 @@ internal sealed class ArchiveTwoRadarEventBatchProjector : IArchiveTwoMessageCon
             return;
         }
 
-        var rangeBandCount = identityNormalizer.SourceUniverse.RangeBandCount;
+        var rangeBandCount = sourceUniverse.RangeBandCount;
         for (var rangeBand = 0; rangeBand < rangeBandCount; rangeBand++)
         {
             var startGate = rangeBand * metadata.GateCount / rangeBandCount;
@@ -169,27 +179,125 @@ internal sealed class ArchiveTwoRadarEventBatchProjector : IArchiveTwoMessageCon
     }
 
     private RadarStreamIdentity ResolveIdentity(
-        string momentName,
+        ReadOnlySpan<byte> momentNameUtf8,
+        int elevationSlot,
+        int azimuthBucket,
+        int rangeBand)
+    {
+        var momentCode = GetMomentCode(momentNameUtf8);
+        if (!identityCacheByMomentCode.TryGetValue(momentCode, out var dimensions))
+        {
+            return ResolveIdentityAndCacheDimensions(
+                momentCode,
+                momentNameUtf8,
+                elevationSlot,
+                azimuthBucket,
+                rangeBand);
+        }
+
+        return CreateIdentityFromCachedDimensions(
+            dimensions,
+            elevationSlot,
+            azimuthBucket,
+            rangeBand);
+    }
+
+    private RadarStreamIdentity ResolveIdentityAndCacheDimensions(
+        int momentCode,
+        ReadOnlySpan<byte> momentNameUtf8,
         int elevationSlot,
         int azimuthBucket,
         int rangeBand)
     {
         var result = identityNormalizer.TryNormalize(
-            RadarId,
-            momentName,
+            radarIdUtf8,
+            momentNameUtf8,
             elevationSlot,
             azimuthBucket,
             rangeBand);
         if (result.IsResolved)
         {
+            CacheIdentityDimensions(momentCode, result.Identity);
             return result.Identity;
         }
 
         throw new InvalidDataException($"Failed to normalize radar stream identity: {result.Error}.");
     }
 
-    private static string ReadDataBlockName(ReadOnlySpan<byte> block) =>
-        Encoding.ASCII.GetString(block.Slice(1, 3)).TrimEnd('\0', ' ');
+    private void CacheIdentityDimensions(int momentCode, RadarStreamIdentity identity)
+    {
+        if (identityCacheByMomentCode.ContainsKey(momentCode))
+        {
+            return;
+        }
+
+        identityCacheByMomentCode.Add(
+            momentCode,
+            new CachedIdentityDimensions(
+                identity.RadarOrdinal,
+                identity.MomentId,
+                sourceUniverse.GetRadarSourceBlockStart(identity.RadarOrdinal)));
+    }
+
+    private RadarStreamIdentity CreateIdentityFromCachedDimensions(
+        CachedIdentityDimensions dimensions,
+        int elevationSlot,
+        int azimuthBucket,
+        int rangeBand)
+    {
+        if ((uint)elevationSlot >= (uint)sourceUniverse.ElevationSlotCount ||
+            (uint)azimuthBucket >= (uint)sourceUniverse.AzimuthBucketCount ||
+            (uint)rangeBand >= (uint)sourceUniverse.RangeBandCount)
+        {
+            throw new InvalidDataException("Radar stream source dimensions are outside the source universe.");
+        }
+
+        if (elevationSlot > ushort.MaxValue ||
+            azimuthBucket > ushort.MaxValue ||
+            rangeBand > ushort.MaxValue)
+        {
+            throw new InvalidDataException("Radar stream source dimensions exceed the stream event range.");
+        }
+
+        var sourceId =
+            dimensions.RadarSourceBlockStart +
+            (elevationSlot * sourceUniverse.SourcesPerElevationSlot) +
+            (azimuthBucket * sourceUniverse.SourcesPerAzimuthBucket) +
+            rangeBand;
+
+        return new RadarStreamIdentity(
+            sourceId,
+            dimensions.RadarOrdinal,
+            dimensions.MomentId,
+            checked((ushort)elevationSlot),
+            checked((ushort)azimuthBucket),
+            checked((ushort)rangeBand),
+            identityNormalizer.CurrentDictionaryVersion,
+            identityNormalizer.SourceUniverseVersion);
+    }
+
+    private static int GetMomentCode(ReadOnlySpan<byte> momentNameUtf8)
+    {
+        var code = momentNameUtf8.Length << 24;
+        for (var i = 0; i < momentNameUtf8.Length; i++)
+        {
+            code |= momentNameUtf8[i] << (i * 8);
+        }
+
+        return code;
+    }
+
+    private static ReadOnlySpan<byte> ReadDataBlockNameUtf8(ReadOnlySpan<byte> block)
+    {
+        var name = block.Slice(1, 3);
+        var length = name.Length;
+        while (length > 0 && name[length - 1] is 0 or (byte)' ')
+        {
+            length--;
+        }
+
+        return name[..length];
+    }
 
     private static Type31MomentMetadata ReadMomentMetadata(ReadOnlySpan<byte> block) =>
         new(
@@ -206,4 +314,9 @@ internal sealed class ArchiveTwoRadarEventBatchProjector : IArchiveTwoMessageCon
         int WordSizeBits,
         float Scale,
         float Offset);
+
+    private readonly record struct CachedIdentityDimensions(
+        ushort RadarOrdinal,
+        ushort MomentId,
+        int RadarSourceBlockStart);
 }
