@@ -475,6 +475,36 @@ payload values/s
 The benchmark should measure the normalized stream path, not downstream
 processing algorithms.
 
+## Achieved Throughput Baseline
+
+The current milestone 004 normalized stream benchmark has exceeded the earlier
+milestone 003 count-only `replay-publish` baseline on the comparable payload
+metric.
+
+The comparison must use milestone 004 `Payload values/s`, not `Stream events/s`.
+One `RadarStreamEvent` is a compact record that can reference a payload range
+containing many raw values, while milestone 003 `Published events/s` counted
+those raw values directly.
+
+```text
+single file, parallelism 24:
+  milestone 003 replay-publish: 362_695_693.02 published events/s
+  milestone 004 normalized stream: 518_815_144.64 payload values/s
+  result: +43.1%
+
+cache-wide KTLX corpus, parallelism 24:
+  milestone 003 replay-publish: 310_665_492.15 published events/s
+  milestone 004 normalized stream: 508_547_458.18 payload values/s
+  result: +63.7%
+```
+
+The current normalized stream path does more work than the count-only publisher
+path: it constructs `RadarEventBatch` values, emits 64-byte `RadarStreamEvent`
+records, normalizes dense identities, maps source-universe IDs, exposes stream
+versions, and owns batch payload storage. The remaining performance target is
+therefore allocation reduction, not recovery of the 300M+ payload throughput
+level.
+
 ## Completion Criteria
 
 Milestone 004 is complete when:

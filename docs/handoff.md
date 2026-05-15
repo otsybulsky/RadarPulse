@@ -44,6 +44,8 @@ Done:
   verified against the full local cache.
 - `004` reusable normalized batch publish session is implemented for stream
   benchmarks.
+- `004` normalized stream throughput now exceeds the milestone 003 count-only
+  replay-publish baseline on the comparable payload-value metric.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -638,6 +640,39 @@ Stream events/s: 424_978.49
 Payload values/s: 508_547_458.18
 Allocated bytes / payload value: 1.86
 ```
+
+Milestone 004 throughput achievement versus the milestone 003 count-only
+`replay-publish` baseline:
+
+```text
+Comparable metric:
+  milestone 003 Published events/s == milestone 004 Payload values/s
+  milestone 004 Stream events/s is not comparable because one stream event
+  references a payload range that can contain many raw values.
+
+single file, parallelism 24:
+  milestone 003 replay-publish: 362_695_693.02 published events/s
+  milestone 004 normalized stream: 518_815_144.64 payload values/s
+  delta: +156_119_451.62 values/s, +43.1%
+
+cache-wide KTLX corpus, parallelism 24:
+  milestone 003 replay-publish: 310_665_492.15 published events/s
+  milestone 004 normalized stream: 508_547_458.18 payload values/s
+  delta: +197_881_966.03 values/s, +63.7%
+
+allocation tradeoff:
+  milestone 003 single-file: 0.07 allocated bytes/event
+  milestone 004 single-file: 1.55 allocated bytes/payload value
+  milestone 003 cache-wide: 0.06 allocated bytes/event
+  milestone 004 cache-wide: 1.86 allocated bytes/payload value
+```
+
+Assessment: milestone 004 has recovered and exceeded the earlier 300M+
+throughput level while doing more structural work: normalized batch creation,
+dense identity normalization, source-universe mapping, version visibility, and
+batch-owned payload storage. Remaining performance work should focus on reducing
+normalized stream allocation cost without weakening the deterministic batch
+contract.
 
 The skipped tests are the opt-in live AWS integration tests and opt-in local
 corpus validation test.
