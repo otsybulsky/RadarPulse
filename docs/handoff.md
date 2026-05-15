@@ -31,6 +31,7 @@ Done:
 - `004` slice 6 identity normalizer is implemented.
 - `004` slice 7 batch builder and payload storage is implemented.
 - `004` slice 8 single-file sequential replay integration is implemented.
+- `004` slice 9 batch validation and checksum metrics are implemented.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -48,7 +49,8 @@ Next work:
   `docs/milestones/004-processing-core-input-contract-plan.md`.
 - Preserve milestone 003 replay/publisher behavior while adding the new
   normalized batch stream.
-- Continue milestone 004 with slice 9: validation and checksums.
+- Continue milestone 004 with ordered-parallel batch replay parity and the
+  focused CLI/benchmark smoke commands.
 - Preserve the slice 1 cache-conscious stream event constraint:
   `RadarStreamEvent` is a 64-byte unmanaged value type with no reference
   fields.
@@ -211,6 +213,26 @@ Completed in milestone 004 implementation so far:
 - Focused replay-integration tests cover sequential single-file batch replay,
   dictionary snapshot visibility, raw payload bytes, 16-bit raw-value checksum,
   and splitting one moment block into range-band gate-run events.
+- `RadarEventBatchMetrics` computes deterministic per-batch event count,
+  payload byte count, payload value count, raw-value checksum, and structural
+  metadata checksum over batch headers and event metadata.
+- `RadarStreamDictionarySnapshotMetrics` computes stable externally visible
+  dictionary snapshot counts and mapping checksum for versioned radar/moment
+  catalog snapshots.
+- `RadarEventBatchValidator` validates the processing-core input contract
+  outside the hot path: supported stream schema version, source-universe version
+  match, optional dictionary snapshot version match, non-decreasing batch
+  chronology, contiguous payload references, no unreferenced payload tail,
+  source-id/source-dimension agreement, dictionary-id visibility, and optional
+  expected metrics/checksum match.
+- `ArchiveRadarEventBatchCountingPublisher` now uses `RadarEventBatchMetrics`
+  for payload value counts and raw-value checksum, keeping replay counters and
+  validation checksums on one shared interpretation.
+- Focused validator tests cover valid metrics, out-of-order chronology,
+  source-id range errors, source-id/source-dimension mismatch, non-contiguous
+  payload references, unreferenced payload tails, dictionary version mismatch,
+  invisible dictionary IDs, expected metrics mismatch, and stable dictionary
+  snapshot mapping checksums.
 
 Completed in milestone 003 so far:
 
@@ -447,7 +469,7 @@ Deferred beyond milestone 003:
 
 ## Verification
 
-Latest milestone 004 slice 8 verification:
+Latest milestone 004 slice 9 verification:
 
 ```powershell
 dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
@@ -456,7 +478,7 @@ dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
 Result:
 
 ```text
-126 passed, 3 skipped
+136 passed, 3 skipped
 ```
 
 The skipped tests are the opt-in live AWS integration tests and opt-in local
@@ -1077,9 +1099,15 @@ constant and moment data blocks.
 - `src/Domain/Streaming/DenseIdentityValidationResult.cs`
 - `src/Domain/Streaming/RadarEventBatch.cs`
 - `src/Domain/Streaming/RadarEventBatchBuilder.cs`
+- `src/Domain/Streaming/RadarEventBatchMetrics.cs`
+- `src/Domain/Streaming/RadarEventBatchValidationError.cs`
+- `src/Domain/Streaming/RadarEventBatchValidationResult.cs`
+- `src/Domain/Streaming/RadarEventBatchValidator.cs`
 - `src/Domain/Streaming/RadarSourceKey.cs`
 - `src/Domain/Streaming/RadarSourceUniverse.cs`
+- `src/Domain/Streaming/RadarStreamChecksum.cs`
 - `src/Domain/Streaming/RadarStreamDictionarySnapshot.cs`
+- `src/Domain/Streaming/RadarStreamDictionarySnapshotMetrics.cs`
 - `src/Domain/Streaming/RadarStreamEvent.cs`
 - `src/Domain/Streaming/RadarStreamIdentity.cs`
 - `src/Domain/Streaming/RadarStreamIdentityNormalizationError.cs`
@@ -1098,6 +1126,7 @@ constant and moment data blocks.
 - `src/Infrastructure/Archive/NexradArchiveRadarEventBatchPublisher.cs`
 - `tests/RadarPulse.Tests/Archive/NexradArchiveRadarEventBatchPublisherTests.cs`
 - `tests/RadarPulse.Tests/Streaming/RadarEventBatchBuilderTests.cs`
+- `tests/RadarPulse.Tests/Streaming/RadarEventBatchValidatorTests.cs`
 - `tests/RadarPulse.Tests/Streaming/DenseIdentityCanonicalizationPolicyTests.cs`
 - `tests/RadarPulse.Tests/Streaming/DenseIdentityCatalogTests.cs`
 - `tests/RadarPulse.Tests/Streaming/DenseIdentityCatalogVersioningTests.cs`

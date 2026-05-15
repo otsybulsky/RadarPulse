@@ -40,11 +40,12 @@ public sealed class ArchiveRadarEventBatchCountingPublisher : IArchiveRadarEvent
 
         innerPublisher?.Publish(batch, cancellationToken);
 
+        var metrics = RadarEventBatchMetrics.Compute(batch);
         BatchCount++;
-        EventCount += batch.EventCount;
-        PayloadBytes += batch.PayloadLength;
-        PayloadValueCount += CountPayloadValues(batch.Events.Span);
-        RawValueChecksum += SumRawValues(batch);
+        EventCount += metrics.EventCount;
+        PayloadBytes += metrics.PayloadBytes;
+        PayloadValueCount += metrics.PayloadValueCount;
+        RawValueChecksum += metrics.RawValueChecksum;
         StreamSchemaVersion = batch.StreamSchemaVersion;
         DictionaryVersion = batch.DictionaryVersion;
         SourceUniverseVersion = batch.SourceUniverseVersion;
@@ -76,46 +77,4 @@ public sealed class ArchiveRadarEventBatchCountingPublisher : IArchiveRadarEvent
             PayloadValueCount,
             RawValueChecksum,
             dictionarySnapshot);
-
-    private static long CountPayloadValues(ReadOnlySpan<RadarStreamEvent> events)
-    {
-        long count = 0;
-        for (var i = 0; i < events.Length; i++)
-        {
-            count += events[i].GateCount;
-        }
-
-        return count;
-    }
-
-    private static long SumRawValues(RadarEventBatch batch)
-    {
-        long checksum = 0;
-        var payload = batch.Payload.Span;
-        var events = batch.Events.Span;
-        for (var i = 0; i < events.Length; i++)
-        {
-            var streamEvent = events[i];
-            var eventPayload = payload.Slice(streamEvent.PayloadOffset, streamEvent.PayloadLength);
-            switch (streamEvent.WordSize)
-            {
-                case RadarStreamWordSize.EightBit:
-                    for (var valueIndex = 0; valueIndex < eventPayload.Length; valueIndex++)
-                    {
-                        checksum += eventPayload[valueIndex];
-                    }
-
-                    break;
-                case RadarStreamWordSize.SixteenBit:
-                    for (var valueIndex = 0; valueIndex < eventPayload.Length; valueIndex += sizeof(ushort))
-                    {
-                        checksum += (eventPayload[valueIndex] << 8) | eventPayload[valueIndex + 1];
-                    }
-
-                    break;
-            }
-        }
-
-        return checksum;
-    }
 }
