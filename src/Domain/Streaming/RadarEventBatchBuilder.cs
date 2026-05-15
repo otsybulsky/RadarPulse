@@ -6,9 +6,12 @@ public sealed class RadarEventBatchBuilder
     private const int DefaultPayloadCapacity = 4096;
 
     private readonly StreamSchemaVersion streamSchemaVersion;
-    private readonly List<RadarStreamEvent> events;
+    private RadarStreamEvent[] eventBuffer;
+    private int eventCount;
     private byte[] payloadBuffer;
     private int payloadLength;
+    private long payloadValueCount;
+    private long rawValueChecksum;
     private DictionaryVersion dictionaryVersion = DictionaryVersion.Initial;
     private SourceUniverseVersion sourceUniverseVersion = SourceUniverseVersion.Initial;
     private bool hasSourceUniverseVersion;
@@ -41,11 +44,11 @@ public sealed class RadarEventBatchBuilder
         }
 
         this.streamSchemaVersion = streamSchemaVersion;
-        events = new List<RadarStreamEvent>(initialEventCapacity);
+        eventBuffer = initialEventCapacity == 0 ? [] : new RadarStreamEvent[initialEventCapacity];
         payloadBuffer = initialPayloadCapacity == 0 ? [] : new byte[initialPayloadCapacity];
     }
 
-    public int EventCount => events.Count;
+    public int EventCount => eventCount;
 
     public int PayloadLength => payloadLength;
 
@@ -94,10 +97,14 @@ public sealed class RadarEventBatchBuilder
             payload.Length);
 
         EnsureSourceUniverseVersion(identity.SourceUniverseVersion);
+        EnsureEventCapacity();
         EnsurePayloadCapacity(payload.Length);
         payload.CopyTo(payloadBuffer.AsSpan(payloadOffset));
         payloadLength = checked(payloadLength + payload.Length);
-        events.Add(streamEvent);
+        payloadValueCount += gateCount;
+        rawValueChecksum += SumRawValues(wordSize, payload);
+        eventBuffer[eventCount] = streamEvent;
+        eventCount++;
 
         if (identity.DictionaryVersion.Value > dictionaryVersion.Value)
         {
@@ -109,9 +116,9 @@ public sealed class RadarEventBatchBuilder
 
     public RadarEventBatch Build()
     {
-        var eventArray = events.Count == 0
+        var eventArray = eventCount == 0
             ? Array.Empty<RadarStreamEvent>()
-            : events.ToArray();
+            : eventBuffer.AsSpan(0, eventCount).ToArray();
         var payloadArray = payloadLength == 0
             ? Array.Empty<byte>()
             : payloadBuffer.AsSpan(0, payloadLength).ToArray();
@@ -121,7 +128,31 @@ public sealed class RadarEventBatchBuilder
             dictionaryVersion,
             sourceUniverseVersion,
             eventArray,
-            payloadArray);
+            payloadArray,
+            payloadValueCount,
+            rawValueChecksum);
+    }
+
+    public RadarEventBatch BuildAndReset()
+    {
+        var eventMemory = eventCount == 0
+            ? ReadOnlyMemory<RadarStreamEvent>.Empty
+            : eventBuffer.AsMemory(0, eventCount);
+        var payloadMemory = payloadLength == 0
+            ? ReadOnlyMemory<byte>.Empty
+            : payloadBuffer.AsMemory(0, payloadLength);
+
+        var batch = new RadarEventBatch(
+            streamSchemaVersion,
+            dictionaryVersion,
+            sourceUniverseVersion,
+            eventMemory,
+            payloadMemory,
+            payloadValueCount,
+            rawValueChecksum);
+
+        Reset();
+        return batch;
     }
 
     private static void EnsureValidIdentity(RadarStreamIdentity identity)
@@ -172,6 +203,17 @@ public sealed class RadarEventBatchBuilder
         }
     }
 
+    private void EnsureEventCapacity()
+    {
+        if (eventCount < eventBuffer.Length)
+        {
+            return;
+        }
+
+        var newLength = eventBuffer.Length == 0 ? DefaultEventCapacity : checked(eventBuffer.Length * 2);
+        Array.Resize(ref eventBuffer, newLength);
+    }
+
     private void EnsurePayloadCapacity(int appendLength)
     {
         var requiredLength = checked(payloadLength + appendLength);
@@ -187,5 +229,44 @@ public sealed class RadarEventBatchBuilder
         }
 
         Array.Resize(ref payloadBuffer, newLength);
+    }
+
+    private static long SumRawValues(RadarStreamWordSize wordSize, ReadOnlySpan<byte> payload)
+    {
+        var checksum = 0L;
+        switch (wordSize)
+        {
+            case RadarStreamWordSize.EightBit:
+                for (var valueIndex = 0; valueIndex < payload.Length; valueIndex++)
+                {
+                    checksum += payload[valueIndex];
+                }
+
+                return checksum;
+
+            case RadarStreamWordSize.SixteenBit:
+                for (var valueIndex = 0; valueIndex < payload.Length; valueIndex += sizeof(ushort))
+                {
+                    checksum += (payload[valueIndex] << 8) | payload[valueIndex + 1];
+                }
+
+                return checksum;
+
+            default:
+                throw new InvalidOperationException("Unsupported radar stream word size.");
+        }
+    }
+
+    private void Reset()
+    {
+        eventBuffer = [];
+        eventCount = 0;
+        payloadBuffer = [];
+        payloadLength = 0;
+        payloadValueCount = 0;
+        rawValueChecksum = 0;
+        dictionaryVersion = DictionaryVersion.Initial;
+        sourceUniverseVersion = SourceUniverseVersion.Initial;
+        hasSourceUniverseVersion = false;
     }
 }

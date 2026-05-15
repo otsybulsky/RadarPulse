@@ -13,15 +13,20 @@ public readonly record struct RadarEventBatchMetrics(
 
         var events = batch.Events.Span;
         var payload = batch.Payload.Span;
-        var payloadValueCount = 0L;
-        var rawValueChecksum = 0L;
+        var hasCachedPayloadMetrics = batch.TryGetPayloadMetrics(
+            out var payloadValueCount,
+            out var rawValueChecksum);
         var metadataChecksum = ComputeHeaderChecksum(batch);
 
         for (var i = 0; i < events.Length; i++)
         {
             var streamEvent = events[i];
-            payloadValueCount += streamEvent.GateCount;
-            rawValueChecksum += SumRawValues(streamEvent, payload);
+            if (!hasCachedPayloadMetrics)
+            {
+                payloadValueCount += streamEvent.GateCount;
+                rawValueChecksum += SumRawValues(streamEvent, payload);
+            }
+
             metadataChecksum = AppendEventMetadata(metadataChecksum, streamEvent);
         }
 

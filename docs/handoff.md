@@ -38,6 +38,10 @@ Done:
 - `004` first parallel stream buffer-churn reduction pass is implemented.
 - `004` stream identity-cache and batch pre-sizing optimization pass is
   implemented.
+- `004` no-copy batch finalization and cached payload counters are implemented
+  for builder-owned normalized stream batches.
+- `004` normalized batch stream cache benchmark command is implemented and
+  verified against the full local cache.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -55,8 +59,8 @@ Next work:
   `docs/milestones/004-processing-core-input-contract-plan.md`.
 - Preserve milestone 003 replay/publisher behavior while adding the new
   normalized batch stream.
-- Continue milestone 004 with normalized stream cache selection or the next
-  allocation reduction pass.
+- Continue milestone 004 with the next normalized stream allocation reduction
+  pass.
 - Treat the current `archive benchmark stream` numbers as full replay
   construction throughput, not as the future processing-core throughput over
   already-built `RadarEventBatch` values.
@@ -301,6 +305,18 @@ Completed in milestone 004 implementation so far:
   pre-sizes archive stream event/payload buffers from compressed file size and
   compressed record count. This keeps deterministic dictionary registration on
   the ordered scan path while avoiding most builder resize churn.
+- The follow-up stream optimization pass added a one-shot
+  `RadarEventBatchBuilder.BuildAndReset()` path used by Archive Two projection.
+  This transfers builder-owned event and payload buffers into the final
+  `RadarEventBatch` instead of copying them, while preserving the existing
+  snapshot-copy semantics of `Build()`. Builder-created batches also carry
+  cached payload value count and raw-value checksum, allowing the archive batch
+  counting publisher to avoid a second full payload scan.
+- `archive benchmark stream` now supports cache-wide benchmark selection with
+  `--cache`, optional `--date`, optional `--radar`, and `--max-files`. It
+  reports examined/skipped/published file counts, aggregate stream totals,
+  throughput, and allocation ratios for the normalized `RadarEventBatch`
+  construction path.
 
 Completed in milestone 003 so far:
 
@@ -548,12 +564,13 @@ dotnet run --no-build --project src\Presentation\RadarPulse.Cli.csproj -- archiv
 dotnet run --no-build -c Release --project src\Presentation\RadarPulse.Cli.csproj -- archive benchmark stream --file data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_002334_V06 --iterations 3 --warmup-iterations 1 --parallelism 1 --decompressor radarpulse
 dotnet run --no-build -c Release --project src\Presentation\RadarPulse.Cli.csproj -- archive benchmark stream --file data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_002334_V06 --iterations 3 --warmup-iterations 1 --parallelism 24 --decompressor radarpulse
 dotnet run --no-build -c Release --project src\Presentation\RadarPulse.Cli.csproj -- archive benchmark stream --file data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_002334_V06 --iterations 5 --warmup-iterations 2 --parallelism 24 --decompressor radarpulse
+dotnet run --no-build -c Release --project src\Presentation\RadarPulse.Cli.csproj -- archive benchmark stream --cache data\nexrad --max-files 1000000 --iterations 1 --warmup-iterations 0 --parallelism 24 --decompressor radarpulse
 ```
 
 Result:
 
 ```text
-tests: 139 passed, 3 skipped
+tests: 140 passed, 3 skipped
 debug build: 0 warnings, 0 errors
 release build: 0 warnings, 0 errors
 
@@ -574,29 +591,42 @@ Radar dictionary entries: 1
 Moment dictionary entries: 7
 Dictionary mapping checksum: 15_566_013_436_132_944_234
 
-Release benchmark stream after identity-cache and batch pre-sizing pass, parallelism 1:
+Release benchmark stream after no-copy batch finalization and cached counters, parallelism 1:
 Stream events per iteration: 32_400
 Payload values per iteration: 38_759_040
-Elapsed ms: 1_282.80
-Stream events/s: 75_771.76
-Payload values/s: 90_643_232.09
-Allocated bytes / payload value: 2.91
+Elapsed ms: 1_319.05
+Stream events/s: 73_689.31
+Payload values/s: 88_152_063.19
+Allocated bytes / payload value: 1.61
 
-Release benchmark stream after identity-cache and batch pre-sizing pass, parallelism 24:
+Release benchmark stream after no-copy batch finalization and cached counters, parallelism 24:
 Stream events per iteration: 32_400
 Payload values per iteration: 38_759_040
-Elapsed ms: 384.14
-Stream events/s: 253_035.32
-Payload values/s: 302_697_715.73
-Allocated bytes / payload value: 5.80
+Elapsed ms: 357.59
+Stream events/s: 271_822.42
+Payload values/s: 325_172_098.27
+Allocated bytes / payload value: 4.51
 
-Release benchmark stream after identity-cache and batch pre-sizing pass, parallelism 24, longer 5-iteration check:
+Release benchmark stream after no-copy batch finalization and cached counters, parallelism 24, longer 5-iteration check:
 Stream events per iteration: 32_400
 Payload values per iteration: 38_759_040
-Elapsed ms: 433.34
-Stream events/s: 373_837.38
-Payload values/s: 447_209_200.09
-Allocated bytes / payload value: 5.69
+Elapsed ms: 393.27
+Stream events/s: 411_931.99
+Payload values/s: 492_780_510.43
+Allocated bytes / payload value: 4.39
+
+Release benchmark stream cache-wide after no-copy batch finalization and cached counters, parallelism 24:
+Examined files per iteration: 244
+Skipped files per iteration: 24
+Published files per iteration: 220
+Compressed records per iteration: 12_087
+Decompressed bytes per iteration: 11_145_331_584
+Stream events per iteration: 7_114_560
+Payload values per iteration: 8_513_587_200
+Elapsed ms: 22_787.59
+Stream events/s: 312_212.07
+Payload values/s: 373_606_330.13
+Allocated bytes / payload value: 4.68
 ```
 
 The skipped tests are the opt-in live AWS integration tests and opt-in local
@@ -1239,6 +1269,7 @@ constant and moment data blocks.
 - `src/Application/Archive/ArchiveRadarEventBatchPublishOptions.cs`
 - `src/Application/Archive/IArchiveRadarEventBatchPublisher.cs`
 - `src/Domain/Archive/ArchiveRadarEventBatchPublishResult.cs`
+- `src/Domain/Archive/ArchiveRadarEventBatchStreamCacheBenchmarkResult.cs`
 - `src/Domain/Archive/ArchiveRadarEventBatchStreamBenchmarkResult.cs`
 - `src/Infrastructure/Archive/ArchiveRadarEventBatchCountingPublisher.cs`
 - `src/Infrastructure/Archive/ArchiveTwoRadarEventBatchProjector.cs`

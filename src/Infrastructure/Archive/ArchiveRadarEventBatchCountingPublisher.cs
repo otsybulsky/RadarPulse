@@ -40,12 +40,21 @@ public sealed class ArchiveRadarEventBatchCountingPublisher : IArchiveRadarEvent
 
         innerPublisher?.Publish(batch, cancellationToken);
 
-        var metrics = RadarEventBatchMetrics.Compute(batch);
         BatchCount++;
-        EventCount += metrics.EventCount;
-        PayloadBytes += metrics.PayloadBytes;
-        PayloadValueCount += metrics.PayloadValueCount;
-        RawValueChecksum += metrics.RawValueChecksum;
+        EventCount += batch.EventCount;
+        PayloadBytes += batch.PayloadLength;
+        if (batch.TryGetPayloadMetrics(out var payloadValueCount, out var rawValueChecksum))
+        {
+            PayloadValueCount += payloadValueCount;
+            RawValueChecksum += rawValueChecksum;
+        }
+        else
+        {
+            var metrics = RadarEventBatchMetrics.Compute(batch);
+            PayloadValueCount += metrics.PayloadValueCount;
+            RawValueChecksum += metrics.RawValueChecksum;
+        }
+
         StreamSchemaVersion = batch.StreamSchemaVersion;
         DictionaryVersion = batch.DictionaryVersion;
         SourceUniverseVersion = batch.SourceUniverseVersion;

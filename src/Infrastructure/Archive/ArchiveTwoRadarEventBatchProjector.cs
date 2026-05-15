@@ -26,6 +26,7 @@ internal sealed class ArchiveTwoRadarEventBatchProjector : IArchiveTwoMessageCon
     private readonly byte[] radarIdUtf8;
     private readonly Dictionary<int, CachedIdentityDimensions> identityCacheByMomentCode = new();
     private readonly RadarEventBatchBuilder batchBuilder;
+    private DictionaryVersion dictionarySnapshotVersion = DictionaryVersion.Initial;
     private int radialSequenceNumber;
 
     public ArchiveTwoRadarEventBatchProjector(
@@ -51,9 +52,18 @@ internal sealed class ArchiveTwoRadarEventBatchProjector : IArchiveTwoMessageCon
     public DateTimeOffset VolumeTimestamp { get; }
 
     public RadarStreamDictionarySnapshot DictionarySnapshot =>
-        identityNormalizer.CreateDictionarySnapshot(batchBuilder.DictionaryVersion);
+        identityNormalizer.CreateDictionarySnapshot(dictionarySnapshotVersion);
 
-    public RadarEventBatch BuildBatch() => batchBuilder.Build();
+    public RadarEventBatch BuildBatch()
+    {
+        var batch = batchBuilder.BuildAndReset();
+        if (batch.DictionaryVersion.Value > dictionarySnapshotVersion.Value)
+        {
+            dictionarySnapshotVersion = batch.DictionaryVersion;
+        }
+
+        return batch;
+    }
 
     public void AcceptMessage(ReadOnlySpan<byte> message, ArchiveTwoMessageSource source)
     {
