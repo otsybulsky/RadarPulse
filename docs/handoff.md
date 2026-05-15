@@ -25,6 +25,7 @@ Done:
 - `004` processing-core input contract implementation plan is drafted.
 - `004` slice 1 contract types and version constants are implemented.
 - `004` slice 2 append-only dense identity catalog is implemented.
+- `004` slice 3 dictionary version snapshots and deltas are implemented.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -42,7 +43,7 @@ Next work:
   `docs/milestones/004-processing-core-input-contract-plan.md`.
 - Preserve milestone 003 replay/publisher behavior while adding the new
   normalized batch stream.
-- Continue milestone 004 with slice 3: catalog versioning and persistence.
+- Continue milestone 004 with slice 4: canonicalization and error policy.
 - Preserve the slice 1 cache-conscious stream event constraint:
   `RadarStreamEvent` is a 64-byte unmanaged value type with no reference
   fields.
@@ -104,6 +105,20 @@ Completed in milestone 004 implementation so far:
 - Focused dense-catalog tests cover lookup-view equivalence, dense append-only
   ids, reverse lookup, invalid identity rejection, concurrent duplicate
   registration, concurrent distinct registration, and partial-entry visibility.
+- `DenseIdentityCatalog` now exposes `CurrentVersion`, immutable
+  `DenseIdentityCatalogSnapshot` views, and append-only
+  `DenseIdentityCatalogDelta` views.
+- The empty catalog starts at `DictionaryVersion.Initial`; each new identity
+  append advances the catalog version, while duplicate registration keeps the
+  current version unchanged.
+- A snapshot for version `N` exposes only entries visible at `N`. Later appends
+  do not mutate existing snapshots.
+- A delta from version `N` to a later version contains only the dense appended
+  entries needed to reconstruct the later snapshot.
+- Focused versioning tests cover version-scoped snapshot visibility, delta
+  reconstruction, published forward/reverse lookup, duplicate registration
+  version stability, immutable old snapshots, empty deltas, and rejection of
+  versions that are not yet visible.
 
 Completed in milestone 003 so far:
 
@@ -340,7 +355,7 @@ Deferred beyond milestone 003:
 
 ## Verification
 
-Latest milestone 004 slice 2 verification:
+Latest milestone 004 slice 3 verification:
 
 ```powershell
 dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
@@ -349,7 +364,7 @@ dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
 Result:
 
 ```text
-85 passed, 3 skipped
+92 passed, 3 skipped
 ```
 
 The skipped tests are the opt-in live AWS integration tests and opt-in local
@@ -960,6 +975,9 @@ constant and moment data blocks.
 - `docs/milestones/004-processing-core-input-contract.md`
 - `docs/milestones/004-processing-core-input-contract-plan.md`
 - `src/Domain/Streaming/DenseIdentityCatalog.cs`
+- `src/Domain/Streaming/DenseIdentityCatalogDelta.cs`
+- `src/Domain/Streaming/DenseIdentityCatalogEntry.cs`
+- `src/Domain/Streaming/DenseIdentityCatalogSnapshot.cs`
 - `src/Domain/Streaming/RadarEventBatch.cs`
 - `src/Domain/Streaming/RadarStreamEvent.cs`
 - `src/Domain/Streaming/StreamSchemaVersion.cs`
@@ -968,6 +986,7 @@ constant and moment data blocks.
 - `src/Domain/Streaming/RadarStreamWordSize.cs`
 - `src/Domain/Streaming/RadarStreamStatusModel.cs`
 - `tests/RadarPulse.Tests/Streaming/DenseIdentityCatalogTests.cs`
+- `tests/RadarPulse.Tests/Streaming/DenseIdentityCatalogVersioningTests.cs`
 - `tests/RadarPulse.Tests/Streaming/RadarStreamContractTests.cs`
 - `src/Presentation/Program.cs`
 - `src/Application/Archive/IHistoricalArchiveClient.cs`

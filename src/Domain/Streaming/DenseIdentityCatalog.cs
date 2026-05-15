@@ -17,6 +17,7 @@ public sealed class DenseIdentityCatalog
     private readonly object registrationGate = new();
     private string?[] idToText;
     private int count;
+    private long version = DictionaryVersion.Initial.Value;
 
     public DenseIdentityCatalog(
         string name,
@@ -51,6 +52,8 @@ public sealed class DenseIdentityCatalog
     public string Name { get; }
 
     public int Count => Volatile.Read(ref count);
+
+    public DictionaryVersion CurrentVersion => new(Volatile.Read(ref version));
 
     public int MaximumTextLength { get; }
 
@@ -137,6 +140,38 @@ public sealed class DenseIdentityCatalog
         return Register(utf8Text);
     }
 
+    public DenseIdentityCatalogSnapshot CreateSnapshot() => CreateSnapshot(CurrentVersion);
+
+    public DenseIdentityCatalogSnapshot CreateSnapshot(DictionaryVersion snapshotVersion)
+    {
+        var snapshotCount = GetVisibleCount(snapshotVersion);
+        return new DenseIdentityCatalogSnapshot(
+            Name,
+            snapshotVersion,
+            CopyEntries(startId: 0, count: snapshotCount));
+    }
+
+    public DenseIdentityCatalogDelta CreateDelta(DictionaryVersion fromVersion) =>
+        CreateDelta(fromVersion, CurrentVersion);
+
+    public DenseIdentityCatalogDelta CreateDelta(
+        DictionaryVersion fromVersion,
+        DictionaryVersion toVersion)
+    {
+        if (toVersion.Value < fromVersion.Value)
+        {
+            throw new ArgumentOutOfRangeException(nameof(toVersion));
+        }
+
+        var fromCount = GetVisibleCount(fromVersion);
+        var toCount = GetVisibleCount(toVersion);
+        return new DenseIdentityCatalogDelta(
+            Name,
+            fromVersion,
+            toVersion,
+            CopyEntries(fromCount, toCount - fromCount));
+    }
+
     private int Register(ReadOnlySpan<char> text)
     {
         var canonicalText = text.ToString();
@@ -181,9 +216,55 @@ public sealed class DenseIdentityCatalog
         AddUtf8Entry(utf8Text, id, hash);
         textToId[canonicalText] = id;
         Volatile.Write(ref count, id + 1);
+        Volatile.Write(ref version, CountToVersionValue(id + 1));
 
         return id;
     }
+
+    private DenseIdentityCatalogEntry[] CopyEntries(int startId, int count)
+    {
+        if (count == 0)
+        {
+            return [];
+        }
+
+        var reverse = Volatile.Read(ref idToText);
+        var entries = new DenseIdentityCatalogEntry[count];
+        for (var i = 0; i < count; i++)
+        {
+            var id = startId + i;
+            var text = Volatile.Read(ref reverse[id]);
+            if (text is null)
+            {
+                throw new InvalidOperationException($"Catalog '{Name}' has no published text for id {id}.");
+            }
+
+            entries[i] = new DenseIdentityCatalogEntry(id, text);
+        }
+
+        return entries;
+    }
+
+    private int GetVisibleCount(DictionaryVersion requestedVersion)
+    {
+        var currentVersionValue = Volatile.Read(ref version);
+        if (requestedVersion.Value < DictionaryVersion.Initial.Value ||
+            requestedVersion.Value > currentVersionValue)
+        {
+            throw new ArgumentOutOfRangeException(nameof(requestedVersion));
+        }
+
+        var visibleCount = requestedVersion.Value - DictionaryVersion.Initial.Value;
+        if (visibleCount > int.MaxValue)
+        {
+            throw new ArgumentOutOfRangeException(nameof(requestedVersion));
+        }
+
+        return (int)visibleCount;
+    }
+
+    private static long CountToVersionValue(int count) =>
+        checked(DictionaryVersion.Initial.Value + count);
 
     private void AddUtf8Entry(byte[] utf8Text, int id, uint hash)
     {
