@@ -29,6 +29,7 @@ Done:
 - `004` slice 4 canonicalization and error policy is implemented.
 - `004` slice 5 source universe definition is implemented.
 - `004` slice 6 identity normalizer is implemented.
+- `004` slice 7 batch builder and payload storage is implemented.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -46,7 +47,7 @@ Next work:
   `docs/milestones/004-processing-core-input-contract-plan.md`.
 - Preserve milestone 003 replay/publisher behavior while adding the new
   normalized batch stream.
-- Continue milestone 004 with slice 7: batch builder and payload storage.
+- Continue milestone 004 with slice 8: replay integration.
 - Preserve the slice 1 cache-conscious stream event constraint:
   `RadarStreamEvent` is a 64-byte unmanaged value type with no reference
   fields.
@@ -170,6 +171,25 @@ Completed in milestone 004 implementation so far:
   versions, invalid radar/moment rejection without mutation, source out-of-range
   rejection without mutation, one-radar source-universe capacity limits, UTF-8
   input equivalence, and throwing normalization failure behavior.
+- `RadarEventBatchBuilder` builds normalized `RadarEventBatch` values from
+  `RadarStreamIdentity`, event metadata, and raw payload bytes.
+- The builder owns event and payload buffers internally and returns batch-owned
+  arrays from `Build()`. Appending later events does not mutate previously built
+  batches.
+- `PayloadOffset` and `PayloadLength` are assigned by the builder. Payload bytes
+  are copied at append time so later mutation of parser/external buffers cannot
+  change the batch payload.
+- The builder validates payload length against `GateCount * WordSize`, rejects
+  invalid identity versions, and requires all events in one batch to share the
+  same `SourceUniverseVersion`.
+- The batch dictionary version is the highest dictionary version visible among
+  appended identities. Empty batches use initial dictionary and source-universe
+  versions.
+- Focused builder tests cover payload copying and offsets, multi-event payload
+  accumulation, append-order preservation across different source IDs, owned
+  build snapshots, empty build behavior, invalid payload rejection without
+  mutation, source-universe version mismatch rejection, and invalid identity
+  version rejection.
 
 Completed in milestone 003 so far:
 
@@ -406,7 +426,7 @@ Deferred beyond milestone 003:
 
 ## Verification
 
-Latest milestone 004 slice 6 verification:
+Latest milestone 004 slice 7 verification:
 
 ```powershell
 dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
@@ -415,7 +435,7 @@ dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
 Result:
 
 ```text
-116 passed, 3 skipped
+123 passed, 3 skipped
 ```
 
 The skipped tests are the opt-in live AWS integration tests and opt-in local
@@ -1035,6 +1055,7 @@ constant and moment data blocks.
 - `src/Domain/Streaming/DenseIdentityValidationInputKind.cs`
 - `src/Domain/Streaming/DenseIdentityValidationResult.cs`
 - `src/Domain/Streaming/RadarEventBatch.cs`
+- `src/Domain/Streaming/RadarEventBatchBuilder.cs`
 - `src/Domain/Streaming/RadarSourceKey.cs`
 - `src/Domain/Streaming/RadarSourceUniverse.cs`
 - `src/Domain/Streaming/RadarStreamDictionarySnapshot.cs`
@@ -1048,6 +1069,7 @@ constant and moment data blocks.
 - `src/Domain/Streaming/SourceUniverseVersion.cs`
 - `src/Domain/Streaming/RadarStreamWordSize.cs`
 - `src/Domain/Streaming/RadarStreamStatusModel.cs`
+- `tests/RadarPulse.Tests/Streaming/RadarEventBatchBuilderTests.cs`
 - `tests/RadarPulse.Tests/Streaming/DenseIdentityCanonicalizationPolicyTests.cs`
 - `tests/RadarPulse.Tests/Streaming/DenseIdentityCatalogTests.cs`
 - `tests/RadarPulse.Tests/Streaming/DenseIdentityCatalogVersioningTests.cs`
