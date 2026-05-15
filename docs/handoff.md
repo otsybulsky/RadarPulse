@@ -23,6 +23,7 @@ Done:
 - `003` historical replay publisher foundation is complete.
 - `004` processing-core input contract architecture is scoped.
 - `004` processing-core input contract implementation plan is drafted.
+- `004` slice 1 contract types and version constants are implemented.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -40,10 +41,13 @@ Next work:
   `docs/milestones/004-processing-core-input-contract-plan.md`.
 - Preserve milestone 003 replay/publisher behavior while adding the new
   normalized batch stream.
-- Implement contract types, append-only dense identity catalogs,
-  source-universe versioning, identity normalization, batch-owned payload
-  storage, replay integration, validation, and focused CLI/benchmark smoke
-  commands in the planned order.
+- Continue milestone 004 with slice 2: append-only dense identity catalogs.
+- Preserve the slice 1 cache-conscious stream event constraint:
+  `RadarStreamEvent` is a 64-byte unmanaged value type with no reference
+  fields.
+- Implement source-universe versioning, identity normalization, batch-owned
+  payload storage, replay integration, validation, and focused CLI/benchmark
+  smoke commands in the planned order.
 - Preserve the ordered parallel projection rule in any future replay work:
   workers may decompress/project records concurrently, but emission must be
   merged by original source order, not worker completion order.
@@ -67,6 +71,24 @@ Completed in milestone 004 planning:
   radar structures and batch construction, with no per-gate text lookup.
 - Payload rules are specified: raw radar values are canonical, payload storage
   belongs to the batch, and event payload references are explicit.
+
+Completed in milestone 004 implementation so far:
+
+- `RadarEventBatch`.
+- `RadarStreamEvent`.
+- `StreamSchemaVersion`.
+- `DictionaryVersion`.
+- `SourceUniverseVersion`.
+- `RadarStreamWordSize`.
+- `RadarStreamStatusModel`.
+- `RadarStreamEvent` is explicitly sized at 64 bytes and contains no reference
+  fields.
+- `RadarEventBatch` carries stream schema, dictionary, and source-universe
+  versions, event memory, and batch-owned payload memory.
+- `RadarEventBatch` validates event payload references against batch payload
+  storage and rejects mismatched gate-count/word-size payload lengths.
+- Focused streaming contract tests cover event layout, version metadata,
+  payload range validation, and version value validation.
 
 Completed in milestone 003 so far:
 
@@ -302,6 +324,21 @@ Deferred beyond milestone 003:
 - `docs/handoff.md`
 
 ## Verification
+
+Latest milestone 004 slice 1 verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Result:
+
+```text
+72 passed, 3 skipped
+```
+
+The skipped tests are the opt-in live AWS integration tests and opt-in local
+corpus validation test.
 
 Latest milestone 003 implementation verification:
 
@@ -907,6 +944,14 @@ constant and moment data blocks.
 
 - `docs/milestones/004-processing-core-input-contract.md`
 - `docs/milestones/004-processing-core-input-contract-plan.md`
+- `src/Domain/Streaming/RadarEventBatch.cs`
+- `src/Domain/Streaming/RadarStreamEvent.cs`
+- `src/Domain/Streaming/StreamSchemaVersion.cs`
+- `src/Domain/Streaming/DictionaryVersion.cs`
+- `src/Domain/Streaming/SourceUniverseVersion.cs`
+- `src/Domain/Streaming/RadarStreamWordSize.cs`
+- `src/Domain/Streaming/RadarStreamStatusModel.cs`
+- `tests/RadarPulse.Tests/Streaming/RadarStreamContractTests.cs`
 - `src/Presentation/Program.cs`
 - `src/Application/Archive/IHistoricalArchiveClient.cs`
 - `src/Application/Archive/HistoricalArchiveManifestSelector.cs`
