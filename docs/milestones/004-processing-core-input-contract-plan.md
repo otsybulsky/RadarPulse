@@ -1,5 +1,10 @@
 # Milestone 004: Processing Core Input Contract Plan
 
+Status: complete.
+
+The milestone closeout is recorded in
+`004-processing-core-input-contract-closeout.md`.
+
 ## Goal
 
 Milestone 004 implements the canonical high-rate input contract for the future
@@ -512,26 +517,26 @@ cache-wide allocation from `1.86` to `0.20` allocated bytes/payload value. The
 remaining performance target is cache-wide replay overhead outside the
 normalized batch buffers, not recovery of the 300M+ payload throughput level.
 
-## Completion Criteria
+## Completion Status
 
-Milestone 004 is complete when:
+Milestone 004 is complete:
 
 ```text
-RadarEventBatch and RadarStreamEvent contracts are implemented
-append-only dense identity catalogs are implemented
-dictionary snapshots or deltas are externally visible
-source-universe versioning is implemented
-identity normalization boundary emits numeric IDs
-batch builder emits chronological multi-source batches
-payload storage is lifetime-scoped and range-checked
-single-file stream replay works sequentially
-single-file stream replay works with ordered parallel replay
-cache-selected stream replay works
-sequential/parallel validation passes
-focused unit tests cover identity, versioning, payload, and ordering
-CLI smoke and benchmark commands are available
-milestone 004 status document is updated with achieved results
-handoff is updated for the next milestone
+[x] RadarEventBatch and RadarStreamEvent contracts are implemented
+[x] append-only dense identity catalogs are implemented
+[x] dictionary snapshots or deltas are externally visible
+[x] source-universe versioning is implemented
+[x] identity normalization boundary emits numeric IDs
+[x] batch builder emits chronological multi-source batches
+[x] payload storage is lifetime-scoped and range-checked
+[x] single-file stream replay works sequentially
+[x] single-file stream replay works with ordered parallel replay
+[x] cache-selected stream replay works
+[x] sequential/parallel validation passes
+[x] focused unit tests cover identity, versioning, payload, and ordering
+[x] CLI smoke and benchmark commands are available
+[x] milestone 004 status document is updated with achieved results
+[x] handoff is updated for the next milestone
 ```
 
 ## Non-Goals

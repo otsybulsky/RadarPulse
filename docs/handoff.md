@@ -1,18 +1,18 @@
-# Handoff: Milestone 004 Scoped
+# Handoff: Milestone 004 Complete
 
 ## Current Goal
 
-Milestone 003 is complete. RadarPulse has a publisher-facing historical replay
-input path over Archive Two gate-moment events, including sequential single-file
-publishing, ordered parallel publishing, cache-selection replay, a reusable
-count-only replay publish session, and replay-publish benchmarks for single
-files and cache selections.
+Milestone 004 is complete. RadarPulse now has a compact, deterministic,
+normalized `RadarEventBatch` stream with append-only dense identity catalogs, an
+identity normalization boundary, versioned dictionary/source-universe
+visibility, explicit raw payload storage lifetime, sequential and ordered
+parallel replay integration, cache replay, validation, CLI smoke commands, and
+benchmarks.
 
-Milestone 004 is now scoped as the processing-core input contract milestone.
-The goal is to implement a compact, deterministic, normalized `RadarEventBatch`
-stream with append-only dense identity catalogs, an identity normalization
-boundary, versioned dictionary/source-universe visibility, and explicit raw
-payload storage lifetime.
+The next milestone should build on this canonical input stream rather than
+changing the milestone 004 contract casually. Partitioning, processing
+algorithms, live ingestion, durable transport, and visualization remain outside
+milestone 004.
 
 ## Milestone Status
 
@@ -48,6 +48,7 @@ Done:
   sessions, with explicit owned snapshot conversion for retained batches.
 - `004` normalized stream throughput now exceeds the milestone 003 count-only
   replay-publish baseline on the comparable payload-value metric.
+- `004` processing-core input contract milestone is closed.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -61,12 +62,11 @@ Done:
 
 Next work:
 
-- Continue milestone 004 with the remaining cache-wide allocation sources:
-  compressed-record descriptor storage, ordered task scheduling, file
-  enumeration/order materialization, and any scanner/decompression buffer churn
-  still visible after leased batch delivery.
-- Treat the current `archive benchmark stream` numbers as full replay
-  construction throughput, not as the future processing-core throughput over
+- Start the next milestone from the closed milestone 004 stream contract:
+  `RadarEventBatch`, dense `SourceId`, dictionary/source-universe versions, and
+  owned/leased payload lifetime.
+- Treat the current `archive benchmark stream` numbers as replay construction
+  throughput, not as the future processing-core throughput over
   already-built `RadarEventBatch` values.
 - Preserve the leased batch lifetime rule: hot-path consumers may inspect a
   leased `RadarEventBatch` only during the synchronous publish callback; any
@@ -79,15 +79,20 @@ Next work:
   merged by original source order, not worker completion order.
 - Keep the order-sensitive chronology checksum as the validation gate for
   sequential/parallel equivalence.
+- Consider the remaining cache-wide allocation sources only if they block the
+  next milestone goal: compressed-record descriptor storage, ordered task
+  scheduling, file enumeration/order materialization, and scanner/decompression
+  buffer churn.
 - Avoid implementing processing algorithms, live ingestion, durable broker
-  integration, visualization, or a general storage subsystem as part of
-  milestone 004.
+  integration, visualization, or a general storage subsystem as retroactive
+  milestone 004 work.
 
 Completed in milestone 004 planning:
 
 - `docs/milestones/004-processing-core-input-contract.md`.
 - `docs/milestones/004-processing-core-input-contract-plan.md`.
 - `docs/milestones/004-processing-core-input-contract-decision-trace.md`.
+- `docs/milestones/004-processing-core-input-contract-closeout.md`.
 - Milestone 004 scope narrowed to the normalized processing-core input contract,
   not downstream processing algorithms or distribution.
 - Dense identity catalogs are specified as persistent append-only catalogs with
@@ -1297,6 +1302,8 @@ constant and moment data blocks.
 
 - `docs/milestones/004-processing-core-input-contract.md`
 - `docs/milestones/004-processing-core-input-contract-plan.md`
+- `docs/milestones/004-processing-core-input-contract-decision-trace.md`
+- `docs/milestones/004-processing-core-input-contract-closeout.md`
 - `src/Domain/Streaming/DenseIdentityAllowedCharacters.cs`
 - `src/Domain/Streaming/DenseIdentityCanonicalizationPolicy.cs`
 - `src/Domain/Streaming/DenseIdentityCatalog.cs`

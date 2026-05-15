@@ -1,5 +1,7 @@
 # Milestone 004: Processing Core Input Contract
 
+Status: complete.
+
 RadarPulse milestone 004 starts from the historical replay publisher foundation
 and defines the canonical input contract that a future processing core will
 consume.
@@ -7,6 +9,9 @@ consume.
 This document is intentionally not an implementation plan. It records the core
 model, architectural boundaries, and design rules for the stream contract before
 any task breakdown is written.
+
+The milestone closeout is recorded in
+`004-processing-core-input-contract-closeout.md`.
 
 ## Milestone Goal
 
