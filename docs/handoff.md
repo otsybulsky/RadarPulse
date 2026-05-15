@@ -28,6 +28,7 @@ Done:
 - `004` slice 3 dictionary version snapshots and deltas are implemented.
 - `004` slice 4 canonicalization and error policy is implemented.
 - `004` slice 5 source universe definition is implemented.
+- `004` slice 6 identity normalizer is implemented.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -45,7 +46,7 @@ Next work:
   `docs/milestones/004-processing-core-input-contract-plan.md`.
 - Preserve milestone 003 replay/publisher behavior while adding the new
   normalized batch stream.
-- Continue milestone 004 with slice 6: identity normalizer.
+- Continue milestone 004 with slice 7: batch builder and payload storage.
 - Preserve the slice 1 cache-conscious stream event constraint:
   `RadarStreamEvent` is a 64-byte unmanaged value type with no reference
   fields.
@@ -151,6 +152,24 @@ Completed in milestone 004 implementation so far:
 - Focused source-universe tests cover count/stride calculation, dense id space,
   tuple/id round-trip, radar block boundaries, stable existing blocks when a
   radar is added, invalid dimension rejection, and version/layout compatibility.
+- `RadarStreamIdentityNormalizer` now resolves radar code, moment name,
+  elevation slot, azimuth bucket, and range band into dense `RadarOrdinal`,
+  `MomentId`, and `SourceId` values.
+- The normalizer owns radar and moment dense catalogs with the radar-code and
+  moment-name canonicalization policies.
+- Known identities use a read-mostly path. Unknown valid identities append
+  through a serialized cold registration path; invalid text and invalid source
+  tuples do not mutate dictionaries.
+- The normalizer publishes an aggregate `DictionaryVersion` across radar and
+  moment catalogs, plus `RadarStreamDictionarySnapshot` views for a requested
+  aggregate version.
+- Resolved identities carry `DictionaryVersion` and `SourceUniverseVersion`,
+  so a future `RadarEventBatch` can use the same version metadata.
+- Focused normalizer tests cover stable identity resolution, repeated lookup
+  version stability, unknown valid appends, dictionary snapshots for resolution
+  versions, invalid radar/moment rejection without mutation, source out-of-range
+  rejection without mutation, one-radar source-universe capacity limits, UTF-8
+  input equivalence, and throwing normalization failure behavior.
 
 Completed in milestone 003 so far:
 
@@ -387,7 +406,7 @@ Deferred beyond milestone 003:
 
 ## Verification
 
-Latest milestone 004 slice 5 verification:
+Latest milestone 004 slice 6 verification:
 
 ```powershell
 dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
@@ -396,7 +415,7 @@ dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
 Result:
 
 ```text
-106 passed, 3 skipped
+116 passed, 3 skipped
 ```
 
 The skipped tests are the opt-in live AWS integration tests and opt-in local
@@ -1018,7 +1037,12 @@ constant and moment data blocks.
 - `src/Domain/Streaming/RadarEventBatch.cs`
 - `src/Domain/Streaming/RadarSourceKey.cs`
 - `src/Domain/Streaming/RadarSourceUniverse.cs`
+- `src/Domain/Streaming/RadarStreamDictionarySnapshot.cs`
 - `src/Domain/Streaming/RadarStreamEvent.cs`
+- `src/Domain/Streaming/RadarStreamIdentity.cs`
+- `src/Domain/Streaming/RadarStreamIdentityNormalizationError.cs`
+- `src/Domain/Streaming/RadarStreamIdentityNormalizationResult.cs`
+- `src/Domain/Streaming/RadarStreamIdentityNormalizer.cs`
 - `src/Domain/Streaming/StreamSchemaVersion.cs`
 - `src/Domain/Streaming/DictionaryVersion.cs`
 - `src/Domain/Streaming/SourceUniverseVersion.cs`
@@ -1027,6 +1051,7 @@ constant and moment data blocks.
 - `tests/RadarPulse.Tests/Streaming/DenseIdentityCanonicalizationPolicyTests.cs`
 - `tests/RadarPulse.Tests/Streaming/DenseIdentityCatalogTests.cs`
 - `tests/RadarPulse.Tests/Streaming/DenseIdentityCatalogVersioningTests.cs`
+- `tests/RadarPulse.Tests/Streaming/RadarStreamIdentityNormalizerTests.cs`
 - `tests/RadarPulse.Tests/Streaming/RadarSourceUniverseTests.cs`
 - `tests/RadarPulse.Tests/Streaming/RadarStreamContractTests.cs`
 - `src/Presentation/Program.cs`
