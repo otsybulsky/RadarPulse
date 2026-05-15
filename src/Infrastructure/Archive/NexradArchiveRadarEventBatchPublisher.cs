@@ -154,6 +154,7 @@ public sealed class NexradArchiveRadarEventBatchPublisher
         long compressedBytes = 0;
         long decompressedBytes = 0;
         var inFlight = new Dictionary<int, Task<ArchiveRadarEventBatchDecompressedRecord>>();
+        var availableWorkers = new ConcurrentStack<ArchiveRadarEventBatchWorker>(workers);
 
         try
         {
@@ -163,7 +164,6 @@ public sealed class NexradArchiveRadarEventBatchPublisher
                 FileAccess.Read,
                 FileShare.Read,
                 FileOptions.RandomAccess);
-            var availableWorkers = new ConcurrentStack<ArchiveRadarEventBatchWorker>(workers);
             var nextRecordToSchedule = 0;
 
             while (nextRecordToSchedule < records.Count &&
@@ -182,8 +182,23 @@ public sealed class NexradArchiveRadarEventBatchPublisher
             for (var recordIndex = 0; recordIndex < records.Count; recordIndex++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                using var recordResult = inFlight[recordIndex].GetAwaiter().GetResult();
+                var recordResult = inFlight[recordIndex].GetAwaiter().GetResult();
                 inFlight.Remove(recordIndex);
+
+                try
+                {
+                    compressedRecordCount += recordResult.CompressedRecordCount;
+                    compressedBytes += recordResult.CompressedBytes;
+                    decompressedBytes += recordResult.DecompressedBytes;
+                    scanner.Reset(recordIndex + 1);
+                    scanner.Append(recordResult.DecompressedPayload);
+                    scanner.Complete();
+                }
+                finally
+                {
+                    recordResult.Dispose();
+                    availableWorkers.Push(recordResult.Worker);
+                }
 
                 if (nextRecordToSchedule < records.Count)
                 {
@@ -196,13 +211,6 @@ public sealed class NexradArchiveRadarEventBatchPublisher
                         cancellationToken);
                     nextRecordToSchedule++;
                 }
-
-                compressedRecordCount += recordResult.CompressedRecordCount;
-                compressedBytes += recordResult.CompressedBytes;
-                decompressedBytes += recordResult.DecompressedBytes;
-                scanner.Reset(recordIndex + 1);
-                scanner.Append(recordResult.DecompressedPayload);
-                scanner.Complete();
             }
 
             var batch = projector.BuildBatch();
@@ -223,7 +231,7 @@ public sealed class NexradArchiveRadarEventBatchPublisher
         }
         finally
         {
-            WaitForInFlightTasks(inFlight.Values);
+            WaitForInFlightTasks(inFlight.Values, availableWorkers);
             foreach (var worker in workers)
             {
                 worker.Dispose();
@@ -266,27 +274,26 @@ public sealed class NexradArchiveRadarEventBatchPublisher
                     {
                         return worker.DecompressRecord(record, fileHandle);
                     }
-                    finally
+                    catch
                     {
                         availableWorkers.Push(worker);
+                        throw;
                     }
                 },
                 cancellationToken));
     }
 
-    private static void WaitForInFlightTasks(IEnumerable<Task<ArchiveRadarEventBatchDecompressedRecord>> tasks)
+    private static void WaitForInFlightTasks(
+        IEnumerable<Task<ArchiveRadarEventBatchDecompressedRecord>> tasks,
+        ConcurrentStack<ArchiveRadarEventBatchWorker> availableWorkers)
     {
         foreach (var task in tasks.ToArray())
         {
             try
             {
-                if (task.Status == TaskStatus.RanToCompletion)
-                {
-                    task.Result.Dispose();
-                    continue;
-                }
-
-                task.GetAwaiter().GetResult().Dispose();
+                var record = task.GetAwaiter().GetResult();
+                record.Dispose();
+                availableWorkers.Push(record.Worker);
             }
             catch
             {
@@ -311,12 +318,15 @@ public sealed class NexradArchiveRadarEventBatchPublisher
         private readonly IArchiveBZip2DecompressionSession decompressionSession;
         private readonly byte[] outputBuffer;
         private byte[]? compressedPayloadBuffer;
+        private byte[] decompressedPayloadBuffer;
+        private int decompressedPayloadLength;
         private bool disposed;
 
         public ArchiveRadarEventBatchWorker(IArchiveBZip2DecompressionSession decompressionSession)
         {
             this.decompressionSession = decompressionSession ?? throw new ArgumentNullException(nameof(decompressionSession));
             outputBuffer = ArrayPool<byte>.Shared.Rent(OutputBufferSize);
+            decompressedPayloadBuffer = ArrayPool<byte>.Shared.Rent(OutputBufferSize);
         }
 
         public ArchiveRadarEventBatchDecompressedRecord DecompressRecord(
@@ -332,25 +342,34 @@ public sealed class NexradArchiveRadarEventBatchPublisher
                 compressedPayloadBuffer.AsSpan(0, record.CompressedSizeBytes),
                 record.ControlWordOffset);
 
-            var decompressedRecord = new ArchiveRadarEventBatchDecompressedRecord(
-                compressedRecordCount: 1,
-                record.CompressedSizeBytes);
+            decompressedPayloadLength = 0;
             try
             {
                 var decompressedBytes = decompressionSession.Decompress(
                     compressedPayloadBuffer,
                     record.CompressedSizeBytes,
                     outputBuffer,
-                    decompressedRecord.Append);
-                decompressedRecord.SetDecompressedBytes(decompressedBytes);
-                return decompressedRecord;
+                    AppendDecompressedChunk);
+                if (decompressedBytes != decompressedPayloadLength)
+                {
+                    throw new InvalidDataException("Decompressed byte count does not match the buffered payload length.");
+                }
+
+                return new ArchiveRadarEventBatchDecompressedRecord(
+                    this,
+                    compressedRecordCount: 1,
+                    record.CompressedSizeBytes,
+                    decompressedBytes,
+                    decompressedPayloadBuffer.AsMemory(0, decompressedPayloadLength));
             }
             catch
             {
-                decompressedRecord.Dispose();
+                decompressedPayloadLength = 0;
                 throw;
             }
         }
+
+        public void CompleteDecompressedRecord() => decompressedPayloadLength = 0;
 
         private byte[] EnsureCompressedPayloadBuffer(int requiredLength)
         {
@@ -368,6 +387,32 @@ public sealed class NexradArchiveRadarEventBatchPublisher
             return compressedPayloadBuffer;
         }
 
+        private void AppendDecompressedChunk(ReadOnlySpan<byte> chunk)
+        {
+            EnsureDecompressedPayloadCapacity(checked(decompressedPayloadLength + chunk.Length));
+            chunk.CopyTo(decompressedPayloadBuffer.AsSpan(decompressedPayloadLength));
+            decompressedPayloadLength += chunk.Length;
+        }
+
+        private void EnsureDecompressedPayloadCapacity(int requiredLength)
+        {
+            if (decompressedPayloadBuffer.Length >= requiredLength)
+            {
+                return;
+            }
+
+            var newLength = decompressedPayloadBuffer.Length;
+            while (newLength < requiredLength)
+            {
+                newLength = checked(newLength * 2);
+            }
+
+            var newBuffer = ArrayPool<byte>.Shared.Rent(newLength);
+            decompressedPayloadBuffer.AsSpan(0, decompressedPayloadLength).CopyTo(newBuffer);
+            ArrayPool<byte>.Shared.Return(decompressedPayloadBuffer);
+            decompressedPayloadBuffer = newBuffer;
+        }
+
         public void Dispose()
         {
             if (disposed)
@@ -381,81 +426,53 @@ public sealed class NexradArchiveRadarEventBatchPublisher
                 ArrayPool<byte>.Shared.Return(compressedPayloadBuffer);
             }
 
+            ArrayPool<byte>.Shared.Return(decompressedPayloadBuffer);
             ArrayPool<byte>.Shared.Return(outputBuffer);
         }
     }
 
     private sealed class ArchiveRadarEventBatchDecompressedRecord : IDisposable
     {
-        private byte[]? buffer;
+        private ReadOnlyMemory<byte> decompressedPayload;
+        private bool disposed;
 
         public ArchiveRadarEventBatchDecompressedRecord(
+            ArchiveRadarEventBatchWorker worker,
             int compressedRecordCount,
-            long compressedBytes)
+            long compressedBytes,
+            long decompressedBytes,
+            ReadOnlyMemory<byte> decompressedPayload)
         {
+            Worker = worker ?? throw new ArgumentNullException(nameof(worker));
             CompressedRecordCount = compressedRecordCount;
             CompressedBytes = compressedBytes;
-            buffer = ArrayPool<byte>.Shared.Rent(OutputBufferSize);
+            DecompressedBytes = decompressedBytes;
+            this.decompressedPayload = decompressedPayload;
         }
+
+        public ArchiveRadarEventBatchWorker Worker { get; }
 
         public int CompressedRecordCount { get; }
 
         public long CompressedBytes { get; }
 
-        public long DecompressedBytes { get; private set; }
-
-        public int DecompressedPayloadLength { get; private set; }
+        public long DecompressedBytes { get; }
 
         public ReadOnlySpan<byte> DecompressedPayload =>
-            buffer is null
+            disposed
                 ? throw new ObjectDisposedException(nameof(ArchiveRadarEventBatchDecompressedRecord))
-                : buffer.AsSpan(0, DecompressedPayloadLength);
-
-        public void Append(ReadOnlySpan<byte> chunk)
-        {
-            EnsureCapacity(checked(DecompressedPayloadLength + chunk.Length));
-            chunk.CopyTo(buffer!.AsSpan(DecompressedPayloadLength));
-            DecompressedPayloadLength += chunk.Length;
-        }
-
-        public void SetDecompressedBytes(long decompressedBytes)
-        {
-            if (decompressedBytes != DecompressedPayloadLength)
-            {
-                throw new InvalidDataException("Decompressed byte count does not match the buffered payload length.");
-            }
-
-            DecompressedBytes = decompressedBytes;
-        }
-
-        private void EnsureCapacity(int requiredLength)
-        {
-            if (buffer!.Length >= requiredLength)
-            {
-                return;
-            }
-
-            var newLength = buffer.Length;
-            while (newLength < requiredLength)
-            {
-                newLength = checked(newLength * 2);
-            }
-
-            var newBuffer = ArrayPool<byte>.Shared.Rent(newLength);
-            buffer.AsSpan(0, DecompressedPayloadLength).CopyTo(newBuffer);
-            ArrayPool<byte>.Shared.Return(buffer);
-            buffer = newBuffer;
-        }
+                : decompressedPayload.Span;
 
         public void Dispose()
         {
-            if (buffer is null)
+            if (disposed)
             {
                 return;
             }
 
-            ArrayPool<byte>.Shared.Return(buffer);
-            buffer = null;
+            disposed = true;
+            decompressedPayload = default;
+            Worker.CompleteDecompressedRecord();
         }
     }
 }

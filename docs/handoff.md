@@ -35,6 +35,7 @@ Done:
 - `004` ordered-parallel batch replay parity is implemented.
 - `004` normalized batch stream CLI smoke command is implemented.
 - `004` normalized batch stream benchmark command is implemented.
+- `004` first parallel stream buffer-churn reduction pass is implemented.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -281,9 +282,16 @@ Completed in milestone 004 implementation so far:
   benchmark is currently attributed to payload copying, ordered-drain
   serialization after parallel decompression, extra decompressed-record
   buffering in the parallel path, and high allocation pressure.
-- The next optimization target is allocation and buffer churn reduction in the
-  stream replay path before interpreting benchmark numbers as a ceiling for the
-  future hot processing core.
+- The first allocation/buffer-churn pass changed the parallel batch replay path
+  so decompressed payload storage belongs to the worker and is reused across
+  records. The worker is returned to the available pool only after ordered scan
+  consumes its decompressed payload, preserving deterministic dictionary
+  registration while avoiding a separate decompressed-record buffer owner per
+  compressed record.
+- This pass improved parallel stream benchmark throughput materially, but did
+  not remove the main allocation sources. The next optimization targets are
+  reusable stream publish sessions, batch-builder payload/event buffer reuse,
+  and reducing string allocations in Type 31 moment-name extraction.
 
 Completed in milestone 003 so far:
 
@@ -556,21 +564,21 @@ Radar dictionary entries: 1
 Moment dictionary entries: 7
 Dictionary mapping checksum: 15_566_013_436_132_944_234
 
-Release benchmark stream, parallelism 1:
+Release benchmark stream after worker-owned decompressed buffers, parallelism 1:
 Stream events per iteration: 32_400
 Payload values per iteration: 38_759_040
-Elapsed ms: 1_378.04
-Stream events/s: 70_535.12
-Payload values/s: 84_378_808.41
+Elapsed ms: 1_376.78
+Stream events/s: 70_599.43
+Payload values/s: 84_455_741.97
 Allocated bytes / payload value: 5.06
 
-Release benchmark stream, parallelism 24:
+Release benchmark stream after worker-owned decompressed buffers, parallelism 24:
 Stream events per iteration: 32_400
 Payload values per iteration: 38_759_040
-Elapsed ms: 831.22
-Stream events/s: 116_935.96
-Payload values/s: 139_886_591.37
-Allocated bytes / payload value: 8.44
+Elapsed ms: 509.99
+Stream events/s: 190_591.86
+Payload values/s: 227_998_689.39
+Allocated bytes / payload value: 8.13
 ```
 
 The skipped tests are the opt-in live AWS integration tests and opt-in local
