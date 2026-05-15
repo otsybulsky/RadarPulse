@@ -32,6 +32,7 @@ Done:
 - `004` slice 7 batch builder and payload storage is implemented.
 - `004` slice 8 single-file sequential replay integration is implemented.
 - `004` slice 9 batch validation and checksum metrics are implemented.
+- `004` ordered-parallel batch replay parity is implemented.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -49,8 +50,8 @@ Next work:
   `docs/milestones/004-processing-core-input-contract-plan.md`.
 - Preserve milestone 003 replay/publisher behavior while adding the new
   normalized batch stream.
-- Continue milestone 004 with ordered-parallel batch replay parity and the
-  focused CLI/benchmark smoke commands.
+- Continue milestone 004 with focused CLI/benchmark smoke commands for the
+  normalized batch stream.
 - Preserve the slice 1 cache-conscious stream event constraint:
   `RadarStreamEvent` is a 64-byte unmanaged value type with no reference
   fields.
@@ -233,6 +234,19 @@ Completed in milestone 004 implementation so far:
   payload references, unreferenced payload tails, dictionary version mismatch,
   invisible dictionary IDs, expected metrics mismatch, and stable dictionary
   snapshot mapping checksums.
+- `ArchiveRadarEventBatchPublishOptions` now carries `DegreeOfParallelism` for
+  normalized batch replay while preserving the existing one-radar default.
+- `NexradArchiveRadarEventBatchPublisher` supports ordered-parallel single-file
+  batch replay. Workers read and decompress compressed records concurrently
+  into a bounded in-flight window, but the ordered drain feeds decompressed
+  records into one `ArchiveTwoRadarEventBatchProjector`.
+- Dynamic dictionary registration therefore happens only during ordered
+  emission, so worker completion order cannot change `RadarOrdinal`,
+  `MomentId`, `DictionaryVersion`, payload bytes, or event metadata.
+- Focused parity tests compare sequential and parallel batch replay for the
+  same synthetic file, including event sequence, payload bytes, batch metrics,
+  dictionary snapshot checksum, validator result, and moment-id registration
+  order under an intentionally delayed first record.
 
 Completed in milestone 003 so far:
 
@@ -469,7 +483,7 @@ Deferred beyond milestone 003:
 
 ## Verification
 
-Latest milestone 004 slice 9 verification:
+Latest milestone 004 ordered-parallel batch replay verification:
 
 ```powershell
 dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
@@ -478,7 +492,7 @@ dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
 Result:
 
 ```text
-136 passed, 3 skipped
+138 passed, 3 skipped
 ```
 
 The skipped tests are the opt-in live AWS integration tests and opt-in local
