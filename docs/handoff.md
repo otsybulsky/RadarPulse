@@ -1,15 +1,18 @@
-# Handoff: Milestone 003 Complete
+# Handoff: Milestone 004 Scoped
 
 ## Current Goal
 
-Milestone 003 is complete. RadarPulse now has a publisher-facing historical
-replay input path over Archive Two gate-moment events, including sequential
-single-file publishing, ordered parallel publishing, cache-selection replay, a
-reusable count-only replay publish session, and replay-publish benchmarks for
-single files and cache selections.
+Milestone 003 is complete. RadarPulse has a publisher-facing historical replay
+input path over Archive Two gate-moment events, including sequential single-file
+publishing, ordered parallel publishing, cache-selection replay, a reusable
+count-only replay publish session, and replay-publish benchmarks for single
+files and cache selections.
 
-No milestone 004 documentation has been created in this handoff. The next
-milestone is intentionally left undefined.
+Milestone 004 is now scoped as the processing-core input contract milestone.
+The goal is to implement a compact, deterministic, normalized `RadarEventBatch`
+stream with append-only dense identity catalogs, an identity normalization
+boundary, versioned dictionary/source-universe visibility, and batch-owned raw
+payload storage.
 
 ## Milestone Status
 
@@ -18,6 +21,8 @@ Done:
 - `001` historical archive loader is complete.
 - `002` NEXRAD archive inspection/decoder foundation is complete.
 - `003` historical replay publisher foundation is complete.
+- `004` processing-core input contract architecture is scoped.
+- `004` processing-core input contract implementation plan is drafted.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -31,18 +36,37 @@ Done:
 
 Next work:
 
-- Do not create or modify milestone 004 documentation until the next milestone
-  scope is explicitly selected.
+- Start milestone 004 implementation from
+  `docs/milestones/004-processing-core-input-contract-plan.md`.
+- Preserve milestone 003 replay/publisher behavior while adding the new
+  normalized batch stream.
+- Implement contract types, append-only dense identity catalogs,
+  source-universe versioning, identity normalization, batch-owned payload
+  storage, replay integration, validation, and focused CLI/benchmark smoke
+  commands in the planned order.
 - Preserve the ordered parallel projection rule in any future replay work:
-  workers may decompress/project records concurrently, but publication must be
+  workers may decompress/project records concurrently, but emission must be
   merged by original source order, not worker completion order.
 - Keep the order-sensitive chronology checksum as the validation gate for
   sequential/parallel equivalence.
-- If performance work continues, focus on record descriptor and metadata
-  storage reuse, not worker/decompressor-session setup; the reusable session
-  removed that setup churn from the internal benchmark.
-- Avoid promising a full downstream event engine, partitioning, live ingestion,
-  durable broker integration, or visualization as part of milestone 003.
+- Avoid implementing processing algorithms, live ingestion, durable broker
+  integration, visualization, or a general storage subsystem as part of
+  milestone 004.
+
+Completed in milestone 004 planning:
+
+- `docs/milestones/004-processing-core-input-contract.md`.
+- `docs/milestones/004-processing-core-input-contract-plan.md`.
+- Milestone 004 scope narrowed to the normalized processing-core input contract,
+  not downstream processing algorithms or distribution.
+- Dense identity catalogs are specified as persistent append-only catalogs with
+  external versioned visibility.
+- `RadarEventBatch` / `RadarStreamEvent` contract shape is specified with
+  `StreamSchemaVersion`, `DictionaryVersion`, and `SourceUniverseVersion`.
+- Identity normalization is specified as a mandatory boundary between decoded
+  radar structures and batch construction, with no per-gate text lookup.
+- Payload rules are specified: raw radar values are canonical, payload storage
+  belongs to the batch, and event payload references are explicit.
 
 Completed in milestone 003 so far:
 
@@ -273,6 +297,8 @@ Deferred beyond milestone 003:
 - `docs/milestones/002-nexrad-archive-inspection.md`
 - `docs/milestones/003-historical-replay-publisher-plan.md`
 - `docs/milestones/003-historical-replay-publisher.md`
+- `docs/milestones/004-processing-core-input-contract.md`
+- `docs/milestones/004-processing-core-input-contract-plan.md`
 - `docs/handoff.md`
 
 ## Verification
@@ -879,6 +905,8 @@ constant and moment data blocks.
 
 ## Important Files
 
+- `docs/milestones/004-processing-core-input-contract.md`
+- `docs/milestones/004-processing-core-input-contract-plan.md`
 - `src/Presentation/Program.cs`
 - `src/Application/Archive/IHistoricalArchiveClient.cs`
 - `src/Application/Archive/HistoricalArchiveManifestSelector.cs`
