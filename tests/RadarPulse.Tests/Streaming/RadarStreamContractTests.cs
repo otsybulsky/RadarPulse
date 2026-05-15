@@ -69,6 +69,8 @@ public sealed class RadarStreamContractTests
         Assert.Equal(8, batch.PayloadLength);
         Assert.Equal(events, batch.Events.ToArray());
         Assert.Equal(payload, batch.Payload.ToArray());
+        Assert.Equal(RadarEventBatchLifetime.Owned, batch.Lifetime);
+        Assert.Same(batch, batch.ToOwnedSnapshot());
         Assert.False(batch.TryGetPayloadMetrics(out _, out _));
     }
 

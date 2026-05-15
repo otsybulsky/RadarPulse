@@ -155,6 +155,75 @@ public sealed class RadarEventBatchBuilder
         return batch;
     }
 
+    public void ConsumeLeased(Action<RadarEventBatch> consumer)
+    {
+        ArgumentNullException.ThrowIfNull(consumer);
+
+        var batch = BuildLeased();
+        try
+        {
+            consumer(batch);
+        }
+        finally
+        {
+            ResetRetainingCapacity();
+        }
+    }
+
+    public void EnsureCapacity(int eventCapacity, int payloadCapacity)
+    {
+        if (eventCapacity < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(eventCapacity));
+        }
+
+        if (payloadCapacity < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(payloadCapacity));
+        }
+
+        if (eventBuffer.Length < eventCapacity)
+        {
+            Array.Resize(ref eventBuffer, eventCapacity);
+        }
+
+        if (payloadBuffer.Length < payloadCapacity)
+        {
+            Array.Resize(ref payloadBuffer, payloadCapacity);
+        }
+    }
+
+    public void ResetRetainingCapacity()
+    {
+        eventCount = 0;
+        payloadLength = 0;
+        payloadValueCount = 0;
+        rawValueChecksum = 0;
+        dictionaryVersion = DictionaryVersion.Initial;
+        sourceUniverseVersion = SourceUniverseVersion.Initial;
+        hasSourceUniverseVersion = false;
+    }
+
+    private RadarEventBatch BuildLeased()
+    {
+        var eventMemory = eventCount == 0
+            ? ReadOnlyMemory<RadarStreamEvent>.Empty
+            : eventBuffer.AsMemory(0, eventCount);
+        var payloadMemory = payloadLength == 0
+            ? ReadOnlyMemory<byte>.Empty
+            : payloadBuffer.AsMemory(0, payloadLength);
+
+        return new RadarEventBatch(
+            streamSchemaVersion,
+            dictionaryVersion,
+            sourceUniverseVersion,
+            eventMemory,
+            payloadMemory,
+            payloadValueCount,
+            rawValueChecksum,
+            RadarEventBatchLifetime.Leased);
+    }
+
     private static void EnsureValidIdentity(RadarStreamIdentity identity)
     {
         if (identity.DictionaryVersion.Value <= 0)

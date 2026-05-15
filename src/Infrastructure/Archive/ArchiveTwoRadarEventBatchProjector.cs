@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Text;
+using RadarPulse.Application.Archive;
 using RadarPulse.Domain.Archive;
 using RadarPulse.Domain.Streaming;
 
@@ -22,9 +23,6 @@ internal sealed class ArchiveTwoRadarEventBatchProjector : IArchiveTwoMessageCon
     private const int DefaultInitialPayloadCapacity = 4096;
 
     private readonly RadarSourceUniverse sourceUniverse;
-    private readonly RadarStreamIdentityNormalizer identityNormalizer;
-    private readonly byte[] radarIdUtf8;
-    private readonly long volumeTimestampUtcTicks;
     private readonly SourceUniverseVersion sourceUniverseVersion;
     private readonly int elevationSlotCount;
     private readonly int azimuthBucketCount;
@@ -33,6 +31,11 @@ internal sealed class ArchiveTwoRadarEventBatchProjector : IArchiveTwoMessageCon
     private readonly int sourcesPerAzimuthBucket;
     private readonly Dictionary<int, CachedIdentityDimensions> identityCacheByMomentCode = new();
     private readonly RadarEventBatchBuilder batchBuilder;
+    private RadarStreamIdentityNormalizer identityNormalizer;
+    private string radarId = string.Empty;
+    private byte[] radarIdUtf8 = [];
+    private DateTimeOffset volumeTimestamp;
+    private long volumeTimestampUtcTicks;
     private DictionaryVersion currentDictionaryVersion = DictionaryVersion.Initial;
     private DictionaryVersion dictionarySnapshotVersion = DictionaryVersion.Initial;
     private int radialSequenceNumber;
@@ -47,11 +50,7 @@ internal sealed class ArchiveTwoRadarEventBatchProjector : IArchiveTwoMessageCon
         ArgumentException.ThrowIfNullOrWhiteSpace(radarId);
         ArgumentNullException.ThrowIfNull(sourceUniverse);
 
-        RadarId = radarId;
-        VolumeTimestamp = volumeTimestamp;
         this.sourceUniverse = sourceUniverse;
-        radarIdUtf8 = Encoding.ASCII.GetBytes(radarId);
-        volumeTimestampUtcTicks = volumeTimestamp.UtcTicks;
         sourceUniverseVersion = sourceUniverse.Version;
         elevationSlotCount = sourceUniverse.ElevationSlotCount;
         azimuthBucketCount = sourceUniverse.AzimuthBucketCount;
@@ -60,14 +59,47 @@ internal sealed class ArchiveTwoRadarEventBatchProjector : IArchiveTwoMessageCon
         sourcesPerAzimuthBucket = sourceUniverse.SourcesPerAzimuthBucket;
         identityNormalizer = new RadarStreamIdentityNormalizer(sourceUniverse);
         batchBuilder = new RadarEventBatchBuilder(initialEventCapacity, initialPayloadCapacity);
+        ResetVolume(radarId, volumeTimestamp, initialEventCapacity, initialPayloadCapacity);
     }
 
-    public string RadarId { get; }
+    public string RadarId => radarId;
 
-    public DateTimeOffset VolumeTimestamp { get; }
+    public DateTimeOffset VolumeTimestamp => volumeTimestamp;
 
     public RadarStreamDictionarySnapshot DictionarySnapshot =>
         identityNormalizer.CreateDictionarySnapshot(dictionarySnapshotVersion);
+
+    public void ResetVolume(
+        string radarId,
+        DateTimeOffset volumeTimestamp,
+        int initialEventCapacity = DefaultInitialEventCapacity,
+        int initialPayloadCapacity = DefaultInitialPayloadCapacity)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(radarId);
+
+        var sameRadar = string.Equals(this.radarId, radarId, StringComparison.Ordinal);
+        this.radarId = radarId;
+        this.volumeTimestamp = volumeTimestamp;
+        volumeTimestampUtcTicks = volumeTimestamp.UtcTicks;
+        radialSequenceNumber = 0;
+        currentDictionaryVersion = identityNormalizer.CurrentDictionaryVersion;
+        dictionarySnapshotVersion = currentDictionaryVersion;
+        batchBuilder.ResetRetainingCapacity();
+        batchBuilder.EnsureCapacity(initialEventCapacity, initialPayloadCapacity);
+
+        if (!sameRadar)
+        {
+            if (sourceUniverse.RadarOrdinalCount == 1 && identityNormalizer.RadarCount > 0)
+            {
+                identityNormalizer = new RadarStreamIdentityNormalizer(sourceUniverse);
+                currentDictionaryVersion = DictionaryVersion.Initial;
+                dictionarySnapshotVersion = DictionaryVersion.Initial;
+            }
+
+            radarIdUtf8 = Encoding.ASCII.GetBytes(radarId);
+            identityCacheByMomentCode.Clear();
+        }
+    }
 
     public RadarEventBatch BuildBatch()
     {
@@ -78,6 +110,29 @@ internal sealed class ArchiveTwoRadarEventBatchProjector : IArchiveTwoMessageCon
         }
 
         return batch;
+    }
+
+    public void PublishLeasedBatch(
+        IArchiveRadarEventBatchPublisher publisher,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(publisher);
+        if (batchBuilder.EventCount == 0)
+        {
+            return;
+        }
+
+        var publishedDictionaryVersion = DictionaryVersion.Initial;
+        batchBuilder.ConsumeLeased(batch =>
+        {
+            publishedDictionaryVersion = batch.DictionaryVersion;
+            publisher.Publish(batch, cancellationToken);
+        });
+
+        if (publishedDictionaryVersion.Value > dictionarySnapshotVersion.Value)
+        {
+            dictionarySnapshotVersion = publishedDictionaryVersion;
+        }
     }
 
     public void AcceptMessage(ReadOnlySpan<byte> message, ArchiveTwoMessageSource source)

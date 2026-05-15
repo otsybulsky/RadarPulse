@@ -325,15 +325,23 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
             using var session = new NexradArchiveRadarEventBatchPublishSession(decompressor, options);
             var first = session.PublishFile(path, CancellationToken.None);
             var second = session.PublishFile(path, CancellationToken.None);
+            var leasedCapture = new LeasedCapturingRadarEventBatchPublisher();
+            var captured = session.PublishFile(path, leasedCapture, CancellationToken.None);
 
             AssertArchiveRadarEventBatchPublishTotalsEqual(expected, first);
             AssertArchiveRadarEventBatchPublishTotalsEqual(expected, second);
+            AssertArchiveRadarEventBatchPublishTotalsEqual(expected, captured);
             Assert.Equal(
                 RadarStreamDictionarySnapshotMetrics.Compute(expected.DictionarySnapshot),
                 RadarStreamDictionarySnapshotMetrics.Compute(first.DictionarySnapshot));
             Assert.Equal(
                 RadarStreamDictionarySnapshotMetrics.Compute(expected.DictionarySnapshot),
                 RadarStreamDictionarySnapshotMetrics.Compute(second.DictionarySnapshot));
+            Assert.Equal(
+                RadarStreamDictionarySnapshotMetrics.Compute(expected.DictionarySnapshot),
+                RadarStreamDictionarySnapshotMetrics.Compute(captured.DictionarySnapshot));
+            Assert.Single(leasedCapture.Batches);
+            Assert.Equal(RadarEventBatchLifetime.Owned, leasedCapture.Batches[0].Lifetime);
         }
         finally
         {
@@ -625,7 +633,21 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
         public void Publish(RadarEventBatch batch, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            batches.Add(batch);
+            batches.Add(batch.ToOwnedSnapshot());
+        }
+    }
+
+    private sealed class LeasedCapturingRadarEventBatchPublisher : IArchiveRadarEventBatchPublisher
+    {
+        private readonly List<RadarEventBatch> batches = new();
+
+        public IReadOnlyList<RadarEventBatch> Batches => batches;
+
+        public void Publish(RadarEventBatch batch, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Assert.Equal(RadarEventBatchLifetime.Leased, batch.Lifetime);
+            batches.Add(batch.ToOwnedSnapshot());
         }
     }
 

@@ -57,7 +57,7 @@ RadarEventBatch
   DictionaryVersion
   SourceUniverseVersion
   Events: ReadOnlySpan<RadarStreamEvent>
-  Payload: batch-owned raw value storage
+  Payload: raw value storage associated with the batch lifetime
 ```
 
 Each event is source-addressable and self-contained:
@@ -340,10 +340,15 @@ The batch builder should:
 ```text
 emit chronological multi-source batches
 split decoded moment blocks into source-local gate-run events when needed
-store raw radar values in batch-owned payload storage
+store raw radar values in payload storage associated with the batch lifetime
 write PayloadOffset/PayloadLength for each event
 keep payload immutable while the batch is visible
 ```
+
+The implementation should distinguish owned and leased batch lifetimes. Owned
+batches may be retained. Leased hot-path batches are valid only during the
+synchronous publisher/consumer callback and must be converted to an owned
+snapshot before diagnostic capture, asynchronous queuing, or export.
 
 The canonical payload should be raw radar values. Calibrated values remain a
 derived interpretation through explicit event metadata:
@@ -489,21 +494,23 @@ those raw values directly.
 ```text
 single file, parallelism 24:
   milestone 003 replay-publish: 362_695_693.02 published events/s
-  milestone 004 normalized stream: 518_815_144.64 payload values/s
-  result: +43.1%
+  milestone 004 normalized stream: 553_123_110.90 payload values/s
+  result: +52.5%
 
 cache-wide KTLX corpus, parallelism 24:
   milestone 003 replay-publish: 310_665_492.15 published events/s
-  milestone 004 normalized stream: 508_547_458.18 payload values/s
-  result: +63.7%
+  milestone 004 normalized stream: 509_716_417.97 payload values/s
+  result: +64.1%
 ```
 
 The current normalized stream path does more work than the count-only publisher
 path: it constructs `RadarEventBatch` values, emits 64-byte `RadarStreamEvent`
 records, normalizes dense identities, maps source-universe IDs, exposes stream
-versions, and owns batch payload storage. The remaining performance target is
-therefore allocation reduction, not recovery of the 300M+ payload throughput
-level.
+versions, and owns or leases batch payload storage. Leased hot-path delivery
+reduced single-file allocation to effectively zero per payload value and reduced
+cache-wide allocation from `1.86` to `0.20` allocated bytes/payload value. The
+remaining performance target is cache-wide replay overhead outside the
+normalized batch buffers, not recovery of the 300M+ payload throughput level.
 
 ## Completion Criteria
 
@@ -516,7 +523,7 @@ dictionary snapshots or deltas are externally visible
 source-universe versioning is implemented
 identity normalization boundary emits numeric IDs
 batch builder emits chronological multi-source batches
-payload storage is batch-owned and range-checked
+payload storage is lifetime-scoped and range-checked
 single-file stream replay works sequentially
 single-file stream replay works with ordered parallel replay
 cache-selected stream replay works

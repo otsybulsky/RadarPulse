@@ -20,7 +20,8 @@ public sealed class RadarEventBatch
             payload,
             precomputedPayloadValueCount: 0,
             precomputedRawValueChecksum: 0,
-            hasPrecomputedPayloadMetrics: false)
+            hasPrecomputedPayloadMetrics: false,
+            RadarEventBatchLifetime.Owned)
     {
     }
 
@@ -31,7 +32,8 @@ public sealed class RadarEventBatch
         ReadOnlyMemory<RadarStreamEvent> events,
         ReadOnlyMemory<byte> payload,
         long precomputedPayloadValueCount,
-        long precomputedRawValueChecksum)
+        long precomputedRawValueChecksum,
+        RadarEventBatchLifetime lifetime = RadarEventBatchLifetime.Owned)
         : this(
             streamSchemaVersion,
             dictionaryVersion,
@@ -40,7 +42,8 @@ public sealed class RadarEventBatch
             payload,
             precomputedPayloadValueCount,
             precomputedRawValueChecksum,
-            hasPrecomputedPayloadMetrics: true)
+            hasPrecomputedPayloadMetrics: true,
+            lifetime)
     {
     }
 
@@ -52,7 +55,8 @@ public sealed class RadarEventBatch
         ReadOnlyMemory<byte> payload,
         long precomputedPayloadValueCount,
         long precomputedRawValueChecksum,
-        bool hasPrecomputedPayloadMetrics)
+        bool hasPrecomputedPayloadMetrics,
+        RadarEventBatchLifetime lifetime)
     {
         if (streamSchemaVersion.Value <= 0)
         {
@@ -75,6 +79,11 @@ public sealed class RadarEventBatch
             ArgumentOutOfRangeException.ThrowIfNegative(precomputedRawValueChecksum);
         }
 
+        if (lifetime is not RadarEventBatchLifetime.Owned and not RadarEventBatchLifetime.Leased)
+        {
+            throw new ArgumentOutOfRangeException(nameof(lifetime));
+        }
+
         ValidatePayloadReferences(events.Span, payload.Length);
 
         StreamSchemaVersion = streamSchemaVersion;
@@ -82,6 +91,7 @@ public sealed class RadarEventBatch
         SourceUniverseVersion = sourceUniverseVersion;
         Events = events;
         Payload = payload;
+        Lifetime = lifetime;
         this.precomputedPayloadValueCount = precomputedPayloadValueCount;
         this.precomputedRawValueChecksum = precomputedRawValueChecksum;
         this.hasPrecomputedPayloadMetrics = hasPrecomputedPayloadMetrics;
@@ -97,9 +107,36 @@ public sealed class RadarEventBatch
 
     public ReadOnlyMemory<byte> Payload { get; }
 
+    public RadarEventBatchLifetime Lifetime { get; }
+
     public int EventCount => Events.Length;
 
     public int PayloadLength => Payload.Length;
+
+    public RadarEventBatch ToOwnedSnapshot()
+    {
+        if (Lifetime == RadarEventBatchLifetime.Owned)
+        {
+            return this;
+        }
+
+        var eventArray = Events.Length == 0
+            ? Array.Empty<RadarStreamEvent>()
+            : Events.Span.ToArray();
+        var payloadArray = Payload.Length == 0
+            ? Array.Empty<byte>()
+            : Payload.Span.ToArray();
+
+        return new RadarEventBatch(
+            StreamSchemaVersion,
+            DictionaryVersion,
+            SourceUniverseVersion,
+            eventArray,
+            payloadArray,
+            precomputedPayloadValueCount,
+            precomputedRawValueChecksum,
+            RadarEventBatchLifetime.Owned);
+    }
 
     public bool TryGetPayloadMetrics(out long payloadValueCount, out long rawValueChecksum)
     {

@@ -571,13 +571,33 @@ Payload storage can be decided later. The architectural requirement is that the
 event has an explicit payload reference and that the referenced payload bytes or
 values have deterministic layout.
 
-The payload belongs to the batch. `PayloadOffset` and `PayloadLength` are valid
-only against the payload storage associated with that `RadarEventBatch`.
+The payload is visible through the batch. `PayloadOffset` and `PayloadLength`
+are valid only against the payload storage associated with that
+`RadarEventBatch` and its lifetime.
 
 Payload storage must be immutable while the batch is visible to consumers. Event
 references must not outlive the batch payload storage they point into. This keeps
 zero-copy payload handling possible without making event interpretation depend
 on hidden mutable state.
+
+The stream contract can support two explicit batch lifetimes:
+
+```text
+Owned batch:
+  safe to retain after publication
+  owns an immutable snapshot of event and payload storage
+
+Leased hot-path batch:
+  valid only during the synchronous consumer callback
+  backed by reusable buffers owned by the producer/session
+  must be copied to an owned snapshot before retention
+```
+
+This lifetime distinction must not change event semantics. It only describes
+who owns the event and payload buffers, and for how long. Future processing-core
+hot paths should consume leased batches synchronously, update their own state,
+and release the batch immediately. Diagnostics, export, asynchronous queues, or
+debug capture must perform an explicit owned snapshot conversion.
 
 The canonical payload should be raw radar values. Calibrated values are derived
 from explicit event metadata such as `Scale`, `Offset`, and `StatusModel`. This
@@ -683,6 +703,10 @@ Source mapping boundary:
 
 Stream boundary:
   Source-local radar records become deterministic RadarStreamEvent values.
+
+Batch lifetime boundary:
+  Hot-path leased batches are consumed synchronously; retained data becomes an
+  explicit owned snapshot.
 
 Publication boundary:
   Internal numeric data can be expanded back to semantic output if needed.

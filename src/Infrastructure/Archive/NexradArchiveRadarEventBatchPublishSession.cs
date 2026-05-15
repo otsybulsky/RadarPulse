@@ -23,6 +23,8 @@ public sealed class NexradArchiveRadarEventBatchPublishSession : IDisposable
     private readonly ConcurrentStack<ArchiveRadarEventBatchWorker> availableWorkers = new();
     private readonly Dictionary<int, Task<ArchiveRadarEventBatchDecompressedRecord>> inFlight = new();
     private readonly byte[] controlWordBuffer = new byte[4];
+    private ArchiveTwoRadarEventBatchProjector? projector;
+    private ArchiveTwoMessageStreamScanner? scanner;
     private bool disposed;
 
     public NexradArchiveRadarEventBatchPublishSession(
@@ -77,16 +79,15 @@ public sealed class NexradArchiveRadarEventBatchPublishSession : IDisposable
         var countingPublisher = publisher as ArchiveRadarEventBatchCountingPublisher ??
             new ArchiveRadarEventBatchCountingPublisher(publisher);
         var initialPayloadCapacity = EstimateInitialPayloadCapacity(fileInfo);
-        var projector = new ArchiveTwoRadarEventBatchProjector(
+        var projector = PrepareProjector(
             volumeHeader.RadarId,
             volumeHeader.VolumeTimestamp,
-            options.SourceUniverse,
             EstimateInitialEventCapacity(
                 compressedRecordCount: null,
                 options.SourceUniverse.RangeBandCount,
                 initialPayloadCapacity),
             initialPayloadCapacity);
-        var scanner = new ArchiveTwoMessageStreamScanner(projector);
+        var scanner = this.scanner ?? throw new InvalidOperationException("Archive stream scanner was not initialized.");
         var worker = workers[0];
         var compressedRecordCount = 0;
         long compressedBytes = 0;
@@ -119,11 +120,7 @@ public sealed class NexradArchiveRadarEventBatchPublishSession : IDisposable
             scanner.Complete();
         }
 
-        var batch = projector.BuildBatch();
-        if (batch.EventCount > 0)
-        {
-            countingPublisher.Publish(batch, cancellationToken);
-        }
+        projector.PublishLeasedBatch(countingPublisher, cancellationToken);
 
         return countingPublisher.BuildResult(
             fileInfo.FullName,
@@ -146,16 +143,15 @@ public sealed class NexradArchiveRadarEventBatchPublishSession : IDisposable
         var countingPublisher = publisher as ArchiveRadarEventBatchCountingPublisher ??
             new ArchiveRadarEventBatchCountingPublisher(publisher);
         var initialPayloadCapacity = EstimateInitialPayloadCapacity(fileInfo);
-        var projector = new ArchiveTwoRadarEventBatchProjector(
+        var projector = PrepareProjector(
             volumeHeader.RadarId,
             volumeHeader.VolumeTimestamp,
-            options.SourceUniverse,
             EstimateInitialEventCapacity(
                 records.Count,
                 options.SourceUniverse.RangeBandCount,
                 initialPayloadCapacity),
             initialPayloadCapacity);
-        var scanner = new ArchiveTwoMessageStreamScanner(projector);
+        var scanner = this.scanner ?? throw new InvalidOperationException("Archive stream scanner was not initialized.");
         var compressedRecordCount = 0;
         long compressedBytes = 0;
         long decompressedBytes = 0;
@@ -215,11 +211,7 @@ public sealed class NexradArchiveRadarEventBatchPublishSession : IDisposable
                 }
             }
 
-            var batch = projector.BuildBatch();
-            if (batch.EventCount > 0)
-            {
-                countingPublisher.Publish(batch, cancellationToken);
-            }
+            projector.PublishLeasedBatch(countingPublisher, cancellationToken);
 
             return countingPublisher.BuildResult(
                 fileInfo.FullName,
@@ -236,6 +228,32 @@ public sealed class NexradArchiveRadarEventBatchPublishSession : IDisposable
             WaitForInFlightTasks();
             inFlight.Clear();
         }
+    }
+
+    private ArchiveTwoRadarEventBatchProjector PrepareProjector(
+        string radarId,
+        DateTimeOffset volumeTimestamp,
+        int initialEventCapacity,
+        int initialPayloadCapacity)
+    {
+        if (projector is null)
+        {
+            projector = new ArchiveTwoRadarEventBatchProjector(
+                radarId,
+                volumeTimestamp,
+                options.SourceUniverse,
+                initialEventCapacity,
+                initialPayloadCapacity);
+            scanner = new ArchiveTwoMessageStreamScanner(projector);
+            return projector;
+        }
+
+        projector.ResetVolume(
+            radarId,
+            volumeTimestamp,
+            initialEventCapacity,
+            initialPayloadCapacity);
+        return projector;
     }
 
     private void ResetAvailableWorkers()

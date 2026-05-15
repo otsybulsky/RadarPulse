@@ -11,8 +11,8 @@ files and cache selections.
 Milestone 004 is now scoped as the processing-core input contract milestone.
 The goal is to implement a compact, deterministic, normalized `RadarEventBatch`
 stream with append-only dense identity catalogs, an identity normalization
-boundary, versioned dictionary/source-universe visibility, and batch-owned raw
-payload storage.
+boundary, versioned dictionary/source-universe visibility, and explicit raw
+payload storage lifetime.
 
 ## Milestone Status
 
@@ -44,6 +44,8 @@ Done:
   verified against the full local cache.
 - `004` reusable normalized batch publish session is implemented for stream
   benchmarks.
+- `004` leased hot-path batch delivery is implemented for reusable stream
+  sessions, with explicit owned snapshot conversion for retained batches.
 - `004` normalized stream throughput now exceeds the milestone 003 count-only
   replay-publish baseline on the comparable payload-value metric.
 - `archive list` supports one radar and explicit `--all-radars`.
@@ -59,21 +61,19 @@ Done:
 
 Next work:
 
-- Start milestone 004 implementation from
-  `docs/milestones/004-processing-core-input-contract-plan.md`.
-- Preserve milestone 003 replay/publisher behavior while adding the new
-  normalized batch stream.
-- Continue milestone 004 with the next normalized stream allocation reduction
-  pass.
+- Continue milestone 004 with the remaining cache-wide allocation sources:
+  compressed-record descriptor storage, ordered task scheduling, file
+  enumeration/order materialization, and any scanner/decompression buffer churn
+  still visible after leased batch delivery.
 - Treat the current `archive benchmark stream` numbers as full replay
   construction throughput, not as the future processing-core throughput over
   already-built `RadarEventBatch` values.
+- Preserve the leased batch lifetime rule: hot-path consumers may inspect a
+  leased `RadarEventBatch` only during the synchronous publish callback; any
+  retained batch must be converted with `ToOwnedSnapshot()`.
 - Preserve the slice 1 cache-conscious stream event constraint:
   `RadarStreamEvent` is a 64-byte unmanaged value type with no reference
   fields.
-- Implement source-universe versioning, identity normalization, batch-owned
-  payload storage, replay integration, validation, and focused CLI/benchmark
-  smoke commands in the planned order.
 - Preserve the ordered parallel projection rule in any future replay work:
   workers may decompress/project records concurrently, but emission must be
   merged by original source order, not worker completion order.
@@ -96,7 +96,8 @@ Completed in milestone 004 planning:
 - Identity normalization is specified as a mandatory boundary between decoded
   radar structures and batch construction, with no per-gate text lookup.
 - Payload rules are specified: raw radar values are canonical, payload storage
-  belongs to the batch, and event payload references are explicit.
+  is associated with the visible batch lifetime, and event payload references
+  are explicit.
 
 Completed in milestone 004 implementation so far:
 
@@ -110,7 +111,7 @@ Completed in milestone 004 implementation so far:
 - `RadarStreamEvent` is explicitly sized at 64 bytes and contains no reference
   fields.
 - `RadarEventBatch` carries stream schema, dictionary, and source-universe
-  versions, event memory, and batch-owned payload memory.
+  versions, event memory, payload memory, and explicit owned/leased lifetime.
 - `RadarEventBatch` validates event payload references against batch payload
   storage and rejects mismatched gate-count/word-size payload lengths.
 - Focused streaming contract tests cover event layout, version metadata,
@@ -193,9 +194,9 @@ Completed in milestone 004 implementation so far:
   input equivalence, and throwing normalization failure behavior.
 - `RadarEventBatchBuilder` builds normalized `RadarEventBatch` values from
   `RadarStreamIdentity`, event metadata, and raw payload bytes.
-- The builder owns event and payload buffers internally and returns batch-owned
-  arrays from `Build()`. Appending later events does not mutate previously built
-  batches.
+- The builder owns event and payload buffers internally. `Build()` returns owned
+  snapshot arrays; leased hot-path publication borrows the current buffers only
+  during the synchronous callback.
 - `PayloadOffset` and `PayloadLength` are assigned by the builder. Payload bytes
   are copied at append time so later mutation of parser/external buffers cannot
   change the batch payload.
@@ -216,7 +217,7 @@ Completed in milestone 004 implementation so far:
   Archive Two replay into normalized `RadarEventBatch` output.
 - `ArchiveTwoRadarEventBatchProjector` parses Type 31 moment blocks directly
   into gate-run stream events, preserving raw 8-bit and 16-bit moment payload
-  bytes, word size, scale, offset, source order, and batch-owned payload
+  bytes, word size, scale, offset, source order, and lifetime-scoped payload
   storage.
 - The first replay integration publishes one batch per file. It uses the
   identity normalizer and batch builder, and emits numeric `RadarOrdinal`,
@@ -286,8 +287,8 @@ Completed in milestone 004 implementation so far:
 - The first benchmark result is intentionally conservative: it measures Archive
   Two replay into the normalized batch stream, including BZip2 decompression,
   message scanning, Type 31 parsing, identity normalization, source-id
-  calculation, batch event construction, batch-owned payload copying, counting,
-  and checksum work.
+  calculation, batch event construction, lifetime-scoped payload copying,
+  counting, and checksum work.
 - The gap between earlier decoder-level throughput and the normalized stream
   benchmark is currently attributed to payload copying, ordered-drain
   serialization after parallel decompression, extra decompressed-record
@@ -329,6 +330,17 @@ Completed in milestone 004 implementation so far:
   reusable file-publish context. It reuses decompression workers, worker-owned
   buffers, the available-worker stack, and the in-flight task dictionary across
   repeated single-file and cache-wide benchmark runs.
+- `RadarEventBatch` now exposes an explicit `Lifetime`: `Owned` batches may be
+  retained, while `Leased` batches are valid only during the synchronous publish
+  callback. Consumers that need to keep a leased batch must call
+  `ToOwnedSnapshot()`.
+- `RadarEventBatchBuilder.ConsumeLeased()` gives the hot path a borrowed batch
+  view and then resets counters while retaining event and payload buffer
+  capacity for reuse.
+- `NexradArchiveRadarEventBatchPublishSession` now reuses the
+  `ArchiveTwoRadarEventBatchProjector` and its builder buffers across file
+  publishes. The non-session `NexradArchiveRadarEventBatchPublisher` keeps the
+  owned batch behavior for safer external capture tests and one-off publishing.
 
 Completed in milestone 003 so far:
 
@@ -619,15 +631,16 @@ Stream events/s: 271_822.42
 Payload values/s: 325_172_098.27
 Allocated bytes / payload value: 4.51
 
-Release benchmark stream after reusable publish session, parallelism 24, longer 5-iteration check:
+Release benchmark stream after leased hot-path delivery and reusable projector buffers, parallelism 24, longer 5-iteration check:
 Stream events per iteration: 32_400
 Payload values per iteration: 38_759_040
-Elapsed ms: 373.53
-Stream events/s: 433_695.23
-Payload values/s: 518_815_144.64
-Allocated bytes / payload value: 1.55
+Elapsed ms: 350.37
+Stream events/s: 462_374.42
+Payload values/s: 553_123_110.90
+Allocated bytes: 180_080
+Allocated bytes / payload value: 0.00
 
-Release benchmark stream cache-wide after reusable publish session, parallelism 24:
+Release benchmark stream cache-wide after leased hot-path delivery and reusable projector buffers, parallelism 24:
 Examined files per iteration: 244
 Skipped files per iteration: 24
 Published files per iteration: 220
@@ -635,10 +648,11 @@ Compressed records per iteration: 12_087
 Decompressed bytes per iteration: 11_145_331_584
 Stream events per iteration: 7_114_560
 Payload values per iteration: 8_513_587_200
-Elapsed ms: 16_740.99
-Stream events/s: 424_978.49
-Payload values/s: 508_547_458.18
-Allocated bytes / payload value: 1.86
+Elapsed ms: 16_702.60
+Stream events/s: 425_955.35
+Payload values/s: 509_716_417.97
+Allocated bytes: 1_710_792_384
+Allocated bytes / payload value: 0.20
 ```
 
 Milestone 004 throughput achievement versus the milestone 003 count-only
@@ -652,27 +666,28 @@ Comparable metric:
 
 single file, parallelism 24:
   milestone 003 replay-publish: 362_695_693.02 published events/s
-  milestone 004 normalized stream: 518_815_144.64 payload values/s
-  delta: +156_119_451.62 values/s, +43.1%
+  milestone 004 normalized stream: 553_123_110.90 payload values/s
+  delta: +190_427_417.88 values/s, +52.5%
 
 cache-wide KTLX corpus, parallelism 24:
   milestone 003 replay-publish: 310_665_492.15 published events/s
-  milestone 004 normalized stream: 508_547_458.18 payload values/s
-  delta: +197_881_966.03 values/s, +63.7%
+  milestone 004 normalized stream: 509_716_417.97 payload values/s
+  delta: +199_050_925.82 values/s, +64.1%
 
 allocation tradeoff:
   milestone 003 single-file: 0.07 allocated bytes/event
-  milestone 004 single-file: 1.55 allocated bytes/payload value
+  milestone 004 single-file: 0.00 allocated bytes/payload value
   milestone 003 cache-wide: 0.06 allocated bytes/event
-  milestone 004 cache-wide: 1.86 allocated bytes/payload value
+  milestone 004 cache-wide: 0.20 allocated bytes/payload value
 ```
 
 Assessment: milestone 004 has recovered and exceeded the earlier 300M+
 throughput level while doing more structural work: normalized batch creation,
 dense identity normalization, source-universe mapping, version visibility, and
-batch-owned payload storage. Remaining performance work should focus on reducing
-normalized stream allocation cost without weakening the deterministic batch
-contract.
+explicit payload lifetime. The leased hot-path delivery pass removed the main
+single-file batch buffer allocation cost and reduced cache-wide allocation from
+`1.86` to `0.20` allocated bytes/payload value. Remaining performance work
+should focus on cache-wide replay overhead outside the normalized batch buffers.
 
 The skipped tests are the opt-in live AWS integration tests and opt-in local
 corpus validation test.
@@ -1292,6 +1307,7 @@ constant and moment data blocks.
 - `src/Domain/Streaming/DenseIdentityValidationResult.cs`
 - `src/Domain/Streaming/RadarEventBatch.cs`
 - `src/Domain/Streaming/RadarEventBatchBuilder.cs`
+- `src/Domain/Streaming/RadarEventBatchLifetime.cs`
 - `src/Domain/Streaming/RadarEventBatchMetrics.cs`
 - `src/Domain/Streaming/RadarEventBatchValidationError.cs`
 - `src/Domain/Streaming/RadarEventBatchValidationResult.cs`
