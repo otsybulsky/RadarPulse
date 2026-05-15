@@ -24,8 +24,16 @@ internal sealed class ArchiveTwoRadarEventBatchProjector : IArchiveTwoMessageCon
     private readonly RadarSourceUniverse sourceUniverse;
     private readonly RadarStreamIdentityNormalizer identityNormalizer;
     private readonly byte[] radarIdUtf8;
+    private readonly long volumeTimestampUtcTicks;
+    private readonly SourceUniverseVersion sourceUniverseVersion;
+    private readonly int elevationSlotCount;
+    private readonly int azimuthBucketCount;
+    private readonly int rangeBandCount;
+    private readonly int sourcesPerElevationSlot;
+    private readonly int sourcesPerAzimuthBucket;
     private readonly Dictionary<int, CachedIdentityDimensions> identityCacheByMomentCode = new();
     private readonly RadarEventBatchBuilder batchBuilder;
+    private DictionaryVersion currentDictionaryVersion = DictionaryVersion.Initial;
     private DictionaryVersion dictionarySnapshotVersion = DictionaryVersion.Initial;
     private int radialSequenceNumber;
 
@@ -43,6 +51,13 @@ internal sealed class ArchiveTwoRadarEventBatchProjector : IArchiveTwoMessageCon
         VolumeTimestamp = volumeTimestamp;
         this.sourceUniverse = sourceUniverse;
         radarIdUtf8 = Encoding.ASCII.GetBytes(radarId);
+        volumeTimestampUtcTicks = volumeTimestamp.UtcTicks;
+        sourceUniverseVersion = sourceUniverse.Version;
+        elevationSlotCount = sourceUniverse.ElevationSlotCount;
+        azimuthBucketCount = sourceUniverse.AzimuthBucketCount;
+        rangeBandCount = sourceUniverse.RangeBandCount;
+        sourcesPerElevationSlot = sourceUniverse.SourcesPerElevationSlot;
+        sourcesPerAzimuthBucket = sourceUniverse.SourcesPerAzimuthBucket;
         identityNormalizer = new RadarStreamIdentityNormalizer(sourceUniverse);
         batchBuilder = new RadarEventBatchBuilder(initialEventCapacity, initialPayloadCapacity);
     }
@@ -118,7 +133,7 @@ internal sealed class ArchiveTwoRadarEventBatchProjector : IArchiveTwoMessageCon
         // First integration uses deterministic radial order buckets. A later
         // parser slice can swap in decoded azimuth angle without changing the
         // stream contract or SourceId arithmetic.
-        return (radialSequence - 1) % sourceUniverse.AzimuthBucketCount;
+        return (radialSequence - 1) % azimuthBucketCount;
     }
 
     private void AcceptMomentBlock(
@@ -153,7 +168,6 @@ internal sealed class ArchiveTwoRadarEventBatchProjector : IArchiveTwoMessageCon
             return;
         }
 
-        var rangeBandCount = sourceUniverse.RangeBandCount;
         for (var rangeBand = 0; rangeBand < rangeBandCount; rangeBand++)
         {
             var startGate = rangeBand * metadata.GateCount / rangeBandCount;
@@ -173,7 +187,7 @@ internal sealed class ArchiveTwoRadarEventBatchProjector : IArchiveTwoMessageCon
             var payloadLength = (endGate - startGate) * bytesPerGate;
             batchBuilder.AddEvent(
                 identity,
-                VolumeTimestamp.UtcTicks,
+                volumeTimestampUtcTicks,
                 source.MessageTimestamp.UtcTicks,
                 source.CompressedRecordSequenceNumber,
                 source.MessageSequenceNumberInRecord,
@@ -228,6 +242,11 @@ internal sealed class ArchiveTwoRadarEventBatchProjector : IArchiveTwoMessageCon
         if (result.IsResolved)
         {
             CacheIdentityDimensions(momentCode, result.Identity);
+            if (result.Identity.DictionaryVersion.Value > currentDictionaryVersion.Value)
+            {
+                currentDictionaryVersion = result.Identity.DictionaryVersion;
+            }
+
             return result.Identity;
         }
 
@@ -255,9 +274,9 @@ internal sealed class ArchiveTwoRadarEventBatchProjector : IArchiveTwoMessageCon
         int azimuthBucket,
         int rangeBand)
     {
-        if ((uint)elevationSlot >= (uint)sourceUniverse.ElevationSlotCount ||
-            (uint)azimuthBucket >= (uint)sourceUniverse.AzimuthBucketCount ||
-            (uint)rangeBand >= (uint)sourceUniverse.RangeBandCount)
+        if ((uint)elevationSlot >= (uint)elevationSlotCount ||
+            (uint)azimuthBucket >= (uint)azimuthBucketCount ||
+            (uint)rangeBand >= (uint)rangeBandCount)
         {
             throw new InvalidDataException("Radar stream source dimensions are outside the source universe.");
         }
@@ -271,8 +290,8 @@ internal sealed class ArchiveTwoRadarEventBatchProjector : IArchiveTwoMessageCon
 
         var sourceId =
             dimensions.RadarSourceBlockStart +
-            (elevationSlot * sourceUniverse.SourcesPerElevationSlot) +
-            (azimuthBucket * sourceUniverse.SourcesPerAzimuthBucket) +
+            (elevationSlot * sourcesPerElevationSlot) +
+            (azimuthBucket * sourcesPerAzimuthBucket) +
             rangeBand;
 
         return new RadarStreamIdentity(
@@ -282,8 +301,8 @@ internal sealed class ArchiveTwoRadarEventBatchProjector : IArchiveTwoMessageCon
             checked((ushort)elevationSlot),
             checked((ushort)azimuthBucket),
             checked((ushort)rangeBand),
-            identityNormalizer.CurrentDictionaryVersion,
-            identityNormalizer.SourceUniverseVersion);
+            currentDictionaryVersion,
+            sourceUniverseVersion);
     }
 
     private static int GetMomentCode(ReadOnlySpan<byte> momentNameUtf8)

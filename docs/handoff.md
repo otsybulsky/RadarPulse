@@ -317,6 +317,10 @@ Completed in milestone 004 implementation so far:
   reports examined/skipped/published file counts, aggregate stream totals,
   throughput, and allocation ratios for the normalized `RadarEventBatch`
   construction path.
+- The latest projector hot-path pass keeps current dictionary version,
+  source-universe version, source-universe strides, and volume timestamp ticks
+  as projector-local fields. The cached identity path no longer reads the
+  normalizer's volatile dictionary version for every stream event.
 
 Completed in milestone 003 so far:
 
@@ -607,15 +611,15 @@ Stream events/s: 271_822.42
 Payload values/s: 325_172_098.27
 Allocated bytes / payload value: 4.51
 
-Release benchmark stream after no-copy batch finalization and cached counters, parallelism 24, longer 5-iteration check:
+Release benchmark stream after projector-local hot-path caches, parallelism 24, longer 5-iteration check:
 Stream events per iteration: 32_400
 Payload values per iteration: 38_759_040
-Elapsed ms: 393.27
-Stream events/s: 411_931.99
-Payload values/s: 492_780_510.43
+Elapsed ms: 390.54
+Stream events/s: 414_805.91
+Payload values/s: 496_218_480.83
 Allocated bytes / payload value: 4.39
 
-Release benchmark stream cache-wide after no-copy batch finalization and cached counters, parallelism 24:
+Release benchmark stream cache-wide after projector-local hot-path caches, parallelism 24:
 Examined files per iteration: 244
 Skipped files per iteration: 24
 Published files per iteration: 220
@@ -623,9 +627,9 @@ Compressed records per iteration: 12_087
 Decompressed bytes per iteration: 11_145_331_584
 Stream events per iteration: 7_114_560
 Payload values per iteration: 8_513_587_200
-Elapsed ms: 22_787.59
-Stream events/s: 312_212.07
-Payload values/s: 373_606_330.13
+Elapsed ms: 17_779.37
+Stream events/s: 400_158.13
+Payload values/s: 478_846_352.92
 Allocated bytes / payload value: 4.68
 ```
 
