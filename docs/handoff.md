@@ -1,4 +1,4 @@
-# Handoff: Milestone 006 Slice 9 Complete
+# Handoff: Milestone 006 Slice 10 Complete
 
 ## Current Goal
 
@@ -95,10 +95,20 @@ hot shard, projects source/target pressure before and after, rejects cosmetic
 or unsafe target moves, applies anti-churn policy gates, and returns
 `ColdEvacuation` rebalance decisions without mutating topology or policy state.
 
-The next implementation focus is milestone 006 slice 10: migration lifecycle
-and coordinator. The next slice should apply accepted rebalance decisions safely
-between processing calls by validating topology ownership and publishing a new
-topology version through the topology manager.
+Milestone 006 slice 10 is implemented in the current working tree. RadarPulse
+now has a synchronous migration lifecycle and coordinator:
+`RadarProcessingPartitionMigrationState`, migration validation errors,
+partition migration requests, migration validation results, migration results,
+and `RadarProcessingMigrationCoordinator`. The coordinator accepts only
+accepted rebalance decisions, validates the current topology version and source
+shard ownership before publication, applies moves through
+`RadarProcessingTopologyManager`, records previous/current topology versions,
+and leaves topology unchanged on rejected or failed validation.
+
+The next implementation focus is milestone 006 slice 11: state handoff
+validation. The next slice should capture partition-owned source-state summaries
+before and after migration and validate that no source state is lost or
+duplicated.
 
 Planning note: quarantine is not intended to be permanent. The current slice 8
 state supports explicit clear/effective-outcome reset, but the controller
@@ -179,6 +189,8 @@ Done:
 - `006` slice 8 intrinsic hot partition classification is implemented and
   tested.
 - `006` slice 9 cold evacuation planner is implemented and tested.
+- `006` slice 10 migration lifecycle and coordinator is implemented and
+  tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -192,10 +204,12 @@ Done:
 
 Next milestone focus:
 
-- Implement milestone 006 slice 10 migration lifecycle and coordinator.
-- Accept only accepted rebalance decisions, validate current topology ownership,
-  publish topology `N+1` through the topology manager, and surface migration
-  lifecycle results without partial ownership changes.
+- Implement milestone 006 slice 11 state handoff validation.
+- Capture partition-owned source-state summaries before and after migration and
+  validate that no source state is lost, duplicated, or assigned to the wrong
+  partition range.
+- Preserve migration lifecycle semantics: no partial ownership changes after
+  failed validation.
 - Keep cold evacuation as a pressure-relief fallback, not general load
   shuffling when it is integrated into the controller.
 - Preserve the follow-up requirement that quarantined hot partitions must decay
@@ -585,6 +599,37 @@ Completed in milestone 006 implementation:
   `dotnet test RadarPulse.sln --no-restore` passed with 313 tests passed and 3
   skipped.
 - Verification after milestone 006 slice 9:
+  `dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore`
+  passed with 0 warnings and 0 errors.
+- `RadarProcessingPartitionMigrationState`.
+- `RadarProcessingMigrationValidationError`.
+- `RadarProcessingPartitionMigration`.
+- `RadarProcessingMigrationValidationResult`.
+- `RadarProcessingMigrationResult`.
+- `RadarProcessingMigrationCoordinator`.
+- Migration coordination accepts only accepted rebalance decisions and rejects
+  no-action or rejected-candidate decisions before topology validation.
+- Migration validation checks current topology version, partition id range,
+  source shard id range, target shard id range, no-op moves, and current source
+  shard ownership before publishing a topology move.
+- Valid migrations are applied through `RadarProcessingTopologyManager`, so
+  published moves still reuse the monotonic topology snapshot boundary.
+- Migration results record lifecycle state, validation result, migration
+  request, previous topology version, current topology version, and topology
+  move error when one is surfaced.
+- Failed migration validation leaves the current topology snapshot unchanged
+  and does not publish a partial ownership change.
+- Migration coordinator tests cover accepted decision publication to topology
+  `N+1`, stale decision rejection, wrong old-owner rejection, invalid target
+  rejection, non-accepted decision rejection, validation without publication,
+  lifecycle state/version fields, and migration contract guardrails.
+- Verification after milestone 006 slice 10:
+  `dotnet test RadarPulse.sln --no-restore --filter FullyQualifiedName~Processing`
+  passed with 177 tests passed.
+- Verification after milestone 006 slice 10:
+  `dotnet test RadarPulse.sln --no-restore` passed with 320 tests passed and 3
+  skipped.
+- Verification after milestone 006 slice 10:
   `dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore`
   passed with 0 warnings and 0 errors.
 
@@ -2179,6 +2224,12 @@ constant and moment data blocks.
 - `src/Domain/Processing/RadarProcessingHotPartitionState.cs`
 - `src/Domain/Processing/RadarProcessingHotPartitionClassifier.cs`
 - `src/Domain/Processing/RadarProcessingColdEvacuationPlanner.cs`
+- `src/Domain/Processing/RadarProcessingPartitionMigrationState.cs`
+- `src/Domain/Processing/RadarProcessingMigrationValidationError.cs`
+- `src/Domain/Processing/RadarProcessingPartitionMigration.cs`
+- `src/Domain/Processing/RadarProcessingMigrationValidationResult.cs`
+- `src/Domain/Processing/RadarProcessingMigrationResult.cs`
+- `src/Domain/Processing/RadarProcessingMigrationCoordinator.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingTopologyVersioningTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingBatchRouterTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingTelemetryTests.cs`
@@ -2190,6 +2241,7 @@ constant and moment data blocks.
 - `tests/RadarPulse.Tests/Processing/RadarProcessingDirectHotReliefPlannerTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingHotPartitionClassifierTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingColdEvacuationPlannerTests.cs`
+- `tests/RadarPulse.Tests/Processing/RadarProcessingMigrationCoordinatorTests.cs`
 - `src/Domain/Processing/*`
 - `tests/RadarPulse.Tests/Processing/*`
 - `src/Domain/Streaming/DenseIdentityAllowedCharacters.cs`
