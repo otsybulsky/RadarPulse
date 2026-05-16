@@ -1,4 +1,4 @@
-# Handoff: Milestone 006 Slice 2 Complete
+# Handoff: Milestone 006 Slice 3 Complete
 
 ## Current Goal
 
@@ -36,10 +36,18 @@ partitioned telemetry, and processing results now record the topology version
 captured for a batch. Partitioned telemetry and result construction validate
 that telemetry topology version matches the result topology version.
 
-The next implementation focus is milestone 006 slice 3: pressure sample and
-pressure score contracts over partitioned route telemetry. The next slice should
-derive deterministic shard and partition pressure samples from telemetry without
-retaining `RadarEventBatch` payload references.
+Milestone 006 slice 3 is implemented in the current working tree. RadarPulse now
+has pressure sample and score contracts over partitioned telemetry:
+`RadarProcessingPressureSample`, shard and partition pressure samples,
+`RadarProcessingPressureScore`, `RadarProcessingPressureBand`, and
+`RadarProcessingPressureOptions`. Pressure samples copy numeric telemetry only
+and do not retain `RadarEventBatch` payload references.
+
+The next implementation focus is milestone 006 slice 4: pressure window and
+hysteresis tracking. The next slice should maintain recent shard and partition
+pressure state across telemetry samples, require a minimum sample count before
+rebalance is eligible, and apply explicit enter/exit thresholds for pressure
+bands.
 
 ## Milestone Status
 
@@ -103,6 +111,8 @@ Done:
 - `006` slice 1 versioned topology contracts and publication boundary are
   implemented and tested.
 - `006` slice 2 route topology-version integration is implemented and tested.
+- `006` slice 3 pressure sample and pressure score contracts are implemented
+  and tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -116,12 +126,12 @@ Done:
 
 Next milestone focus:
 
-- Implement milestone 006 slice 3 pressure sample and pressure score contracts.
-- Derive deterministic shard and partition pressure samples from partitioned
-  telemetry, including topology version, event count, payload value count, and
-  raw-value checksum inputs.
-- Preserve rebalance-state lifetime safety: pressure samples copy numeric
-  telemetry only and must not retain `RadarEventBatch` payload references.
+- Implement milestone 006 slice 4 pressure window and hysteresis tracking.
+- Track recent shard and partition pressure from `RadarProcessingPressureSample`
+  values.
+- Require a minimum sample count before rebalance is eligible.
+- Add explicit pressure band enter/exit threshold behavior so short spikes do
+  not trigger rebalance.
 - Preserve synchronous `PartitionedBarrier` processing as the first rebalance
   correctness boundary: process one batch against one topology snapshot, then
   evaluate and apply rebalance before the next batch.
@@ -278,6 +288,36 @@ Completed in milestone 006 implementation:
   `dotnet test RadarPulse.sln --no-restore` passed with 251 tests passed and 3
   skipped.
 - Verification after milestone 006 slice 2:
+  `dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore`
+  passed with 0 warnings and 0 errors.
+- `RadarProcessingPressureBand`.
+- `RadarProcessingPressureScore`.
+- `RadarProcessingPressureOptions`.
+- `RadarProcessingShardPressureSample`.
+- `RadarProcessingPartitionPressureSample`.
+- `RadarProcessingPressureSample`.
+- `RadarProcessingPressureSample.FromTelemetry` projects partitioned telemetry
+  into immutable shard and partition pressure samples.
+- Pressure samples preserve topology version, batch metrics, per-shard metrics,
+  per-partition metrics, event counts, payload value counts, and raw-value
+  checksums.
+- Pressure scoring is deterministic and currently uses configurable event,
+  payload-value, and raw-checksum weights.
+- Pressure band classification supports `Cold`, `Normal`, `Warm`, `Hot`, and
+  `SuperHot`.
+- Pressure numeric options reject negative, NaN, infinity, and non-monotonic
+  threshold values.
+- Pressure sample tests cover empty telemetry, topology version and metric
+  projection, score growth by event and payload count, deterministic band
+  classification, leased payload lifetime safety, stability after later
+  processing, and numeric guardrails.
+- Verification after milestone 006 slice 3:
+  `dotnet test RadarPulse.sln --no-restore --filter FullyQualifiedName~Processing`
+  passed with 116 tests passed.
+- Verification after milestone 006 slice 3:
+  `dotnet test RadarPulse.sln --no-restore` passed with 259 tests passed and 3
+  skipped.
+- Verification after milestone 006 slice 3:
   `dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore`
   passed with 0 warnings and 0 errors.
 
@@ -1842,10 +1882,17 @@ constant and moment data blocks.
 - `src/Domain/Processing/RadarProcessingBatchRouter.cs`
 - `src/Domain/Processing/RadarProcessingTelemetry.cs`
 - `src/Domain/Processing/RadarProcessingResult.cs`
+- `src/Domain/Processing/RadarProcessingPressureBand.cs`
+- `src/Domain/Processing/RadarProcessingPressureScore.cs`
+- `src/Domain/Processing/RadarProcessingPressureOptions.cs`
+- `src/Domain/Processing/RadarProcessingPressureSample.cs`
+- `src/Domain/Processing/RadarProcessingShardPressureSample.cs`
+- `src/Domain/Processing/RadarProcessingPartitionPressureSample.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingTopologyVersioningTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingBatchRouterTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingTelemetryTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingContractTests.cs`
+- `tests/RadarPulse.Tests/Processing/RadarProcessingPressureSampleTests.cs`
 - `src/Domain/Processing/*`
 - `tests/RadarPulse.Tests/Processing/*`
 - `src/Domain/Streaming/DenseIdentityAllowedCharacters.cs`
