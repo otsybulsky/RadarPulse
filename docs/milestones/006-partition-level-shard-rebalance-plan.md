@@ -1,6 +1,8 @@
 # Milestone 006: Partition-Level Shard Rebalance Plan
 
-Status: planned.
+Status: complete.
+
+Closed by `006-partition-level-shard-rebalance-closeout.md`.
 
 This plan implements the milestone 006 architecture defined in
 `006-partition-level-shard-rebalance.md`.
@@ -1160,7 +1162,7 @@ Expected documents:
 docs/handoff.md update
 ```
 
-The decision trace should record:
+The decision trace records:
 
 ```text
 why rebalance remained synchronous for milestone 006
@@ -1172,7 +1174,7 @@ why intrinsic hot partitions are not repeatedly moved
 why partition splitting is deferred
 ```
 
-The closeout should state:
+The closeout records:
 
 ```text
 implemented versioned topology
@@ -1192,31 +1194,31 @@ remaining risks and next milestone input
 
 ## Milestone 006 Completion Criteria
 
-Milestone 006 is complete when:
+Milestone 006 completion criteria are all satisfied:
 
 ```text
-[ ] versioned PartitionId -> ShardId topology is implemented and tested
-[ ] topology snapshots are immutable and monotonic
-[ ] routing and telemetry record the topology version used
-[ ] one batch is processed against one topology snapshot
-[ ] pressure samples are derived from partitioned telemetry
-[ ] pressure windowing and hysteresis are implemented and tested
-[ ] anti-churn policy supports cooldown, residency, budgets, and benefit gates
-[ ] direct hot relief is implemented and tested
-[ ] intrinsic hot partition classification is implemented and tested
-[ ] cold evacuation fallback is implemented and tested
-[ ] migration coordinator publishes topology N+1 between barriers
-[ ] state handoff validation preserves source and handler state summaries
-[ ] rebalance validation catches topology, route, and handoff errors
-[ ] synthetic workloads cover balanced, hot, intrinsic-hot, and oscillating cases
-[ ] processing-only rebalance benchmark reports overhead and decisions
-[ ] Release rebalance benchmark numbers are captured before closeout
-[ ] Release benchmark results are compared with milestone 005 processing baselines
-[ ] Release benchmark results include same-run static no-rebalance comparison
-[ ] CLI smoke or benchmark command can manually exercise rebalance
-[ ] decision trace is written
-[ ] closeout is written
-[ ] handoff identifies the next milestone input
+[x] versioned PartitionId -> ShardId topology is implemented and tested
+[x] topology snapshots are immutable and monotonic
+[x] routing and telemetry record the topology version used
+[x] one batch is processed against one topology snapshot
+[x] pressure samples are derived from partitioned telemetry
+[x] pressure windowing and hysteresis are implemented and tested
+[x] anti-churn policy supports cooldown, residency, budgets, and benefit gates
+[x] direct hot relief is implemented and tested
+[x] intrinsic hot partition classification is implemented and tested
+[x] cold evacuation fallback is implemented and tested
+[x] migration coordinator publishes topology N+1 between barriers
+[x] state handoff validation preserves source and handler state summaries
+[x] rebalance validation catches topology, route, and handoff errors
+[x] synthetic workloads cover balanced, hot, intrinsic-hot, and oscillating cases
+[x] processing-only rebalance benchmark reports overhead and decisions
+[x] Release rebalance benchmark numbers are captured before closeout
+[x] Release benchmark results are compared with milestone 005 processing baselines
+[x] Release benchmark results include same-run static no-rebalance comparison
+[x] CLI smoke or benchmark command can manually exercise rebalance
+[x] decision trace is written
+[x] closeout is written
+[x] handoff identifies the next milestone input
 ```
 
 ## Non-Goals

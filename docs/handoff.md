@@ -1,4 +1,4 @@
-# Handoff: Milestone 006 Decision Trace Complete
+# Handoff: Milestone 006 Closeout Complete
 
 ## Current Goal
 
@@ -184,10 +184,11 @@ archive data into leased `RadarEventBatch` callbacks, processes each batch
 synchronously, and reports end-to-end archive replay timing separately from
 processing callback timing.
 
-Milestone 006 decision trace is written in
-`docs/milestones/006-partition-level-shard-rebalance-decision-trace.md`. The
-next implementation focus is milestone 006 closeout documentation. The closeout
-should include the captured Release benchmark table, the real-data smoke and
+Milestone 006 is complete. The decision trace is written in
+`docs/milestones/006-partition-level-shard-rebalance-decision-trace.md`, and
+the closeout is written in
+`docs/milestones/006-partition-level-shard-rebalance-closeout.md`. The closeout
+records the captured Release benchmark table, the real-data smoke and
 cache-wide results, the same-run static overhead interpretation, and the caveat
 that the milestone 006 synthetic rebalance catalog is a tiny behavioral contour
 rather than the large milestone 005 throughput shape.
@@ -288,6 +289,7 @@ Done:
 - `006` real-data rebalance archive cache-wide benchmark is captured and
   compared with milestone 005 processing-only throughput.
 - `006` partition-level shard rebalance decision trace is written.
+- `006` partition-level shard rebalance closeout is written.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -301,21 +303,20 @@ Done:
 
 Next milestone focus:
 
-- Write milestone 006 closeout now that the decision trace and performance
-  table are recorded.
-- Include the real-data archive smoke result in closeout: it validates the
-  controller over a real leased `RadarEventBatch` stream and separates replay
-  time from processing callback time.
-- Carry the captured benchmark caveat into closeout: the milestone 006 rebalance
+- Plan milestone 007 from the closed milestone 006 baseline.
+- Decide whether milestone 007 is rebalance production hardening
+  (allocation/telemetry/quarantine lifecycle) or the first real async worker
+  transport over the validated topology boundary.
+- Carry forward the captured benchmark caveat: the milestone 006 rebalance
   catalog uses tiny deterministic behavioral workloads, so same-run static
   ratios are the meaningful overhead signal and milestone 005 throughput ratios
   are diagnostic only.
-- Preserve the requirement that before milestone closeout we capture Release
-  numbers and compare them with previous processing baselines.
+- Treat Release synthetic, single-file real-data, comparable parallel real-data,
+  and cache-wide real-data measurements as the accepted 006 baseline.
 - Preserve migration lifecycle semantics: no partial ownership changes after
   failed validation.
 - Keep cold evacuation as a pressure-relief fallback, not general load
-  shuffling when it is integrated into the controller.
+  shuffling, when tuning or extending the controller.
 - Preserve the follow-up requirement that quarantined hot partitions must decay
   or clear by logical evaluation state after sustained cooling; quarantine must
   not become an eternal ban.
@@ -325,14 +326,14 @@ Next milestone focus:
   correctness boundary: process one batch against one topology snapshot, then
   evaluate and apply rebalance before the next batch.
 - Preserve the `SourceId -> PartitionId -> ShardId` ownership model when
-  adding partition movement and source-state transfer. The
+  extending partition movement and source-state transfer. The
   source-to-partition mapping remains stable; only partition-to-shard ownership
   moves.
-- Implement rebalance as cautious pressure relief, not mechanical equalization.
-  The controller should require sustained pressure, projected benefit,
+- Preserve rebalance as cautious pressure relief, not mechanical equalization.
+  The controller requires sustained pressure, projected benefit,
   headroom on the target shard, cooldown, minimum residency, and move budgets.
-- Support direct hot-partition relief first, then cold-partition evacuation from
-  a hot shard when the hot partition cannot move safely.
+- Preserve direct hot-partition relief first, then cold-partition evacuation
+  from a hot shard when the hot partition cannot move safely.
 - Treat the current `archive benchmark stream` numbers as replay construction
   throughput, not as the future processing-core throughput over
   already-built `RadarEventBatch` values.
@@ -396,11 +397,12 @@ Completed in milestone 005 planning:
 - Milestone 006 is identified as the next milestone for partition-level shard
   rebalance after the static processing core baseline is measured.
 
-Completed in milestone 006 planning:
+Completed in milestone 006 documentation and planning:
 
 - `docs/milestones/006-partition-level-shard-rebalance.md`.
 - `docs/milestones/006-partition-level-shard-rebalance-plan.md`.
 - `docs/milestones/006-partition-level-shard-rebalance-decision-trace.md`.
+- `docs/milestones/006-partition-level-shard-rebalance-closeout.md`.
 - Milestone 006 scope is cautious partition-level shard rebalance over the
   synchronous milestone 005 `PartitionedBarrier` baseline, not retained async
   processing, live ingestion, source-level migration, partition splitting, or
@@ -418,7 +420,7 @@ Completed in milestone 006 planning:
   migration lifecycle, state handoff validation, rebalance validation,
   synthetic workloads, benchmarks, CLI smoke/benchmark command, and
   closeout/handoff.
-- The first implementation slice should add versioned topology contracts while
+- The first implementation slice added versioned topology contracts while
   preserving the existing contiguous source-range partition mapping.
 
 Completed in milestone 006 implementation:
@@ -1098,7 +1100,7 @@ Completed in milestone 006 implementation:
   bytes/payload value versus `0.03` in the milestone 005 processing-only
   synthetic baseline. Treat this as production-hardening input, not a blocker
   for milestone 006 closeout.
-- Closeout judgement: milestone 006 can close as a correctness and cautious
+- Closeout judgement: milestone 006 is closed as a correctness and cautious
   real-data rebalance milestone. Follow-up work should focus on allocation
   profile, repeated cache-wide runs, policy tuning, and longer multi-radar
   scenarios rather than expanding controller behavior further inside 006.

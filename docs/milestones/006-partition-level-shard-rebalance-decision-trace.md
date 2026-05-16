@@ -1,5 +1,9 @@
 # Milestone 006: Decision Trace
 
+Status: complete.
+
+Closeout: `006-partition-level-shard-rebalance-closeout.md`.
+
 ## 1. What Was Implemented
 
 Milestone 006 implemented cautious partition-level shard rebalance over the
