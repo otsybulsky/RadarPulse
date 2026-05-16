@@ -1,4 +1,4 @@
-# Handoff: Milestone 006 Slice 5 Complete
+# Handoff: Milestone 006 Slice 6 Complete
 
 ## Current Goal
 
@@ -60,10 +60,18 @@ mutating state, records only accepted moves, and applies logical-sequence based
 minimum residency, cooldown, global/source/target budget, projected-benefit,
 and target-headroom gates.
 
-The next implementation focus is milestone 006 slice 6: rebalance decision and
-skipped-reason telemetry. The next slice should introduce a decision contract
-that can explain accepted moves and no-move outcomes before the planner starts
-choosing direct hot relief or cold evacuation candidates.
+Milestone 006 slice 6 is implemented in the current working tree. RadarPulse now
+has a stable rebalance decision and skipped-reason telemetry contract:
+`RadarProcessingRebalanceDecision`, decision kind, move kind, skipped reason,
+candidate, and projected pressure types. Decisions can now represent no-action,
+accepted move, and rejected-candidate outcomes, carry topology/evaluation/window
+context, expose move telemetry, and map policy rejections into explicit skipped
+reasons.
+
+The next implementation focus is milestone 006 slice 7: direct hot relief
+planner. The next slice should use pressure windows and policy state to choose
+deterministic direct hot-partition relief candidates, returning the decision
+contracts added in slice 6 instead of mutating topology directly.
 
 ## Milestone Status
 
@@ -132,6 +140,8 @@ Done:
 - `006` slice 4 pressure window and hysteresis tracking is implemented and
   tested.
 - `006` slice 5 anti-churn policy state is implemented and tested.
+- `006` slice 6 rebalance decision and skipped-reason telemetry contracts are
+  implemented and tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -145,10 +155,9 @@ Done:
 
 Next milestone focus:
 
-- Implement milestone 006 slice 6 rebalance decision and skipped-reason
-  telemetry.
-- Add a stable decision contract for accepted moves, no-op decisions, and
-  policy/planner skipped reasons.
+- Implement milestone 006 slice 7 direct hot relief planner.
+- Select deterministic direct hot-partition relief candidates from the pressure
+  window and return accepted/rejected/no-action rebalance decisions.
 - Keep skipped rebalance decisions visible through telemetry so "no move" can
   be explained by policy gates rather than ambiguity.
 - Preserve synchronous `PartitionedBarrier` processing as the first rebalance
@@ -406,6 +415,44 @@ Completed in milestone 006 implementation:
   `dotnet test RadarPulse.sln --no-restore` passed with 282 tests passed and 3
   skipped.
 - Verification after milestone 006 slice 5:
+  `dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore`
+  passed with 0 warnings and 0 errors.
+- `RadarProcessingRebalanceDecisionKind`.
+- `RadarProcessingRebalanceMoveKind`.
+- `RadarProcessingRebalanceSkippedReason`.
+- `RadarProcessingProjectedPressure`.
+- `RadarProcessingRebalanceCandidate`.
+- `RadarProcessingRebalanceDecision`.
+- Rebalance decisions now represent three stable outcomes: `NoAction`,
+  `AcceptedMove`, and `RejectedCandidate`.
+- Rebalance move kinds now classify direct hot relief, cold evacuation, and a
+  reserved room-making move kind.
+- Skipped reasons are explicit telemetry values for no sustained pressure, no
+  hot shard, no cold target shard, unsafe direct hot relief, insufficient
+  projected benefit, target pressure risk, residency/cooldown/budget gates,
+  intrinsic hot partition classification, cold evacuation benefit failure, and
+  migration validation failure.
+- Rebalance candidates carry move kind, partition id, source shard id, target
+  shard id, projected source/target pressure before and after, and expected
+  relief.
+- Rebalance candidates can be converted into policy inputs and topology move
+  requests without the future planner duplicating move shape logic.
+- Rejected-candidate decisions can be created from
+  `RadarProcessingRebalancePolicyResult`; policy rejections are copied into
+  decision telemetry and mapped to skipped reasons.
+- Decision contracts copy and de-duplicate reason collections so later caller
+  mutation does not affect recorded telemetry.
+- Rebalance decision tests cover no-pressure no-action, hot shard with no
+  target, rejected candidate with multiple policy gates, accepted move
+  telemetry, deterministic construction, collection copying, decision
+  guardrails, and candidate guardrails.
+- Verification after milestone 006 slice 6:
+  `dotnet test RadarPulse.sln --no-restore --filter FullyQualifiedName~Processing`
+  passed with 147 tests passed.
+- Verification after milestone 006 slice 6:
+  `dotnet test RadarPulse.sln --no-restore` passed with 290 tests passed and 3
+  skipped.
+- Verification after milestone 006 slice 6:
   `dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore`
   passed with 0 warnings and 0 errors.
 
@@ -1989,6 +2036,12 @@ constant and moment data blocks.
 - `src/Domain/Processing/RadarProcessingRebalancePolicyRejection.cs`
 - `src/Domain/Processing/RadarProcessingRebalancePolicyResult.cs`
 - `src/Domain/Processing/RadarProcessingRebalancePolicyState.cs`
+- `src/Domain/Processing/RadarProcessingRebalanceDecisionKind.cs`
+- `src/Domain/Processing/RadarProcessingRebalanceMoveKind.cs`
+- `src/Domain/Processing/RadarProcessingRebalanceSkippedReason.cs`
+- `src/Domain/Processing/RadarProcessingProjectedPressure.cs`
+- `src/Domain/Processing/RadarProcessingRebalanceCandidate.cs`
+- `src/Domain/Processing/RadarProcessingRebalanceDecision.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingTopologyVersioningTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingBatchRouterTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingTelemetryTests.cs`
@@ -1996,6 +2049,7 @@ constant and moment data blocks.
 - `tests/RadarPulse.Tests/Processing/RadarProcessingPressureSampleTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingPressureWindowTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingRebalancePolicyStateTests.cs`
+- `tests/RadarPulse.Tests/Processing/RadarProcessingRebalanceDecisionTests.cs`
 - `src/Domain/Processing/*`
 - `tests/RadarPulse.Tests/Processing/*`
 - `src/Domain/Streaming/DenseIdentityAllowedCharacters.cs`
