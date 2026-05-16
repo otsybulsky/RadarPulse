@@ -11,12 +11,13 @@ benchmarks.
 
 Milestone 005 architecture and implementation planning are drafted. The first
 processing contracts, static partition topology, dense source-local state
-store, processing payload reader, and sequential core baseline slices are
-implemented. The current work is to continue from the first sequential
-processing core toward the static partitioned processing core over already-built
-`RadarEventBatch` values: explicit payload lifetime boundary, `SourceId ->
-PartitionId -> ShardId` routing, shard-owned dense source state, source-local
-handler slots, processing-only telemetry, validation, and benchmarks.
+store, processing payload reader, sequential core baseline, and sequential
+lifetime/parity guardrail slices are implemented. The current work is to move
+from the sequential oracle toward the static partitioned processing core over
+already-built `RadarEventBatch` values: explicit payload lifetime boundary,
+`SourceId -> PartitionId -> ShardId` routing, shard-owned dense source state,
+source-local handler slots, processing-only telemetry, validation, and
+benchmarks.
 
 Milestone 005 should build on the closed milestone 004 stream contract rather
 than changing it casually. Live shard rebalance is deliberately reserved for
@@ -64,6 +65,7 @@ Done:
 - `005` dense source-local state store is implemented and tested.
 - `005` processing payload reader helpers are implemented and tested.
 - `005` sequential processing core baseline is implemented and tested.
+- `005` sequential lifetime and parity guardrails are tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -79,8 +81,7 @@ Next work:
 
 - Implement milestone 005 from the drafted architecture and plan:
   static partitioned processing core over `RadarEventBatch`.
-- Continue with lifetime guardrails and sequential validation/parity support,
-  then implement the partitioned completion-barrier core.
+- Continue with the partitioned completion-barrier substrate or skeleton.
 - Preserve the `SourceId -> PartitionId -> ShardId` ownership model so
   milestone 006 can add partition-level shard rebalance.
 - Treat the current `archive benchmark stream` numbers as replay construction
@@ -199,6 +200,12 @@ Completed in milestone 005 implementation so far:
 - Sequential baseline returns invalid processing results for unsupported stream
   schema, source-universe mismatch, source id outside universe, source
   ownership mismatch, and source-local timestamp regression.
+- Sequential lifetime/parity guardrails are covered without additional
+  production-code changes.
+- Guardrails verify owned and leased-equivalent batch parity, result/snapshot
+  stability after leased builder buffer reuse, result counters matching
+  `RadarEventBatchMetrics`, invalid processing not incrementing processed batch
+  count, and invalid source validation not mutating state.
 - Focused contract tests cover default options, invalid execution modes,
   invalid topology counts, validation result invariants, result shape, and empty
   result construction.
@@ -217,6 +224,9 @@ Completed in milestone 005 implementation so far:
   version mismatch, empty batch result, multi-source metrics/snapshots,
   cumulative processing across batches, source id outside universe, source
   ownership mismatch, and source-local timestamp regression.
+- Focused guardrail tests cover owned/leased parity, leased-buffer reuse,
+  sequential counter parity with `RadarEventBatchMetrics`, invalid batch
+  accounting, and invalid-source state isolation.
 - Verification after slice 1:
   `dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore`
   passed with 151 tests passed and 3 skipped.
@@ -231,12 +241,15 @@ Completed in milestone 005 implementation so far:
   passed with 177 tests passed and 3 skipped.
 - Verification after slice 5:
   `dotnet test --no-restore` passed with 188 tests passed and 3 skipped.
+- Verification after slice 6:
+  `dotnet test --no-restore` passed with 193 tests passed and 3 skipped.
 - Commits so far:
   `d9106b0 Add processing core contracts`;
   `4639ec0 Add static processing topology`;
   `33c437a Add dense source processing state`;
   `3a3ce88 Add processing payload reader`;
-  `e04265d Avoid ref parameter in payload reader`.
+  `e04265d Avoid ref parameter in payload reader`;
+  `981afa1 Add sequential processing core`.
 
 Completed in milestone 004 implementation so far:
 
