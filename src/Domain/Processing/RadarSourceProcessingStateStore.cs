@@ -4,19 +4,35 @@ namespace RadarPulse.Domain.Processing;
 
 public sealed class RadarSourceProcessingStateStore
 {
+    private readonly RadarSourceProcessingHandlerSlotLayout handlerSlotLayout;
     private readonly bool[] activeSources;
     private readonly long[] processedEventCounts;
     private readonly long[] processedPayloadValueCounts;
     private readonly long[] rawValueChecksums;
     private readonly long[] lastMessageTimestampUtcTicks;
     private readonly ulong[] processingChecksums;
+    private readonly long[] handlerInt64Slots;
+    private readonly double[] handlerDoubleSlots;
 
-    public RadarSourceProcessingStateStore(RadarSourceUniverse sourceUniverse)
+    public RadarSourceProcessingStateStore(
+        RadarSourceUniverse sourceUniverse,
+        IReadOnlyList<IRadarSourceProcessingHandler>? handlers = null)
+        : this(
+            sourceUniverse,
+            new RadarSourceProcessingHandlerSlotLayout(handlers))
+    {
+    }
+
+    internal RadarSourceProcessingStateStore(
+        RadarSourceUniverse sourceUniverse,
+        RadarSourceProcessingHandlerSlotLayout handlerSlotLayout)
     {
         ArgumentNullException.ThrowIfNull(sourceUniverse);
+        ArgumentNullException.ThrowIfNull(handlerSlotLayout);
 
         SourceUniverseVersion = sourceUniverse.Version;
         SourceCount = sourceUniverse.SourceCount;
+        this.handlerSlotLayout = handlerSlotLayout;
 
         activeSources = new bool[SourceCount];
         processedEventCounts = new long[SourceCount];
@@ -24,6 +40,8 @@ public sealed class RadarSourceProcessingStateStore
         rawValueChecksums = new long[SourceCount];
         lastMessageTimestampUtcTicks = new long[SourceCount];
         processingChecksums = new ulong[SourceCount];
+        handlerInt64Slots = CreateInt64HandlerSlots(SourceCount, handlerSlotLayout.TotalInt64SlotCount);
+        handlerDoubleSlots = CreateDoubleHandlerSlots(SourceCount, handlerSlotLayout.TotalDoubleSlotCount);
     }
 
     public SourceUniverseVersion SourceUniverseVersion { get; }
@@ -32,15 +50,36 @@ public sealed class RadarSourceProcessingStateStore
 
     public long ActiveSourceCount { get; private set; }
 
+    public RadarSourceProcessingHandlerSlotLayout HandlerSlotLayout => handlerSlotLayout;
+
     public void ApplyProcessedEvent(
         in RadarStreamEvent streamEvent,
         long processedPayloadValueCount,
         long rawValueChecksum)
     {
+        if (handlerSlotLayout.HasHandlers)
+        {
+            throw new InvalidOperationException(
+                "Processing handlers require the payload-aware ApplyProcessedEvent overload.");
+        }
+
+        ApplyProcessedEvent(
+            streamEvent,
+            ReadOnlySpan<byte>.Empty,
+            new RadarProcessingPayloadMetrics(
+                processedPayloadValueCount,
+                rawValueChecksum));
+    }
+
+    public void ApplyProcessedEvent(
+        in RadarStreamEvent streamEvent,
+        ReadOnlySpan<byte> eventPayload,
+        RadarProcessingPayloadMetrics payloadMetrics)
+    {
         var sourceId = streamEvent.SourceId;
         EnsureSourceId(sourceId);
-        ArgumentOutOfRangeException.ThrowIfNegative(processedPayloadValueCount);
-        ArgumentOutOfRangeException.ThrowIfNegative(rawValueChecksum);
+        ArgumentOutOfRangeException.ThrowIfNegative(payloadMetrics.PayloadValueCount);
+        ArgumentOutOfRangeException.ThrowIfNegative(payloadMetrics.RawValueChecksum);
 
         var isActive = activeSources[sourceId];
         if (isActive &&
@@ -58,14 +97,15 @@ public sealed class RadarSourceProcessingStateStore
 
         processedEventCounts[sourceId] = checked(processedEventCounts[sourceId] + 1);
         processedPayloadValueCounts[sourceId] = checked(
-            processedPayloadValueCounts[sourceId] + processedPayloadValueCount);
-        rawValueChecksums[sourceId] = checked(rawValueChecksums[sourceId] + rawValueChecksum);
+            processedPayloadValueCounts[sourceId] + payloadMetrics.PayloadValueCount);
+        rawValueChecksums[sourceId] = checked(rawValueChecksums[sourceId] + payloadMetrics.RawValueChecksum);
         lastMessageTimestampUtcTicks[sourceId] = streamEvent.MessageTimestampUtcTicks;
         processingChecksums[sourceId] = RadarSourceProcessingChecksum.AppendEvent(
             isActive ? processingChecksums[sourceId] : RadarStreamChecksum.Initial,
             streamEvent,
-            processedPayloadValueCount,
-            rawValueChecksum);
+            payloadMetrics.PayloadValueCount,
+            payloadMetrics.RawValueChecksum);
+        ApplyHandlers(sourceId, streamEvent, eventPayload, payloadMetrics);
     }
 
     public RadarSourceProcessingSnapshot GetSnapshot(int sourceId)
@@ -88,6 +128,45 @@ public sealed class RadarSourceProcessingStateStore
         for (var sourceId = 0; sourceId < snapshots.Length; sourceId++)
         {
             snapshots[sourceId] = GetSnapshot(sourceId);
+        }
+
+        return snapshots;
+    }
+
+    public RadarSourceProcessingHandlerSnapshot GetHandlerSnapshot(int sourceId)
+    {
+        EnsureSourceId(sourceId);
+
+        var values = new RadarSourceProcessingSnapshotValue[handlerSlotLayout.SnapshotFieldCount];
+        var valueIndex = 0;
+        foreach (var assignment in handlerSlotLayout.Assignments)
+        {
+            foreach (var field in assignment.Descriptor.SnapshotFields)
+            {
+                values[valueIndex++] = field.Type switch
+                {
+                    RadarSourceProcessingSnapshotFieldType.Int64 =>
+                        RadarSourceProcessingSnapshotValue.FromInt64(
+                            field.Name,
+                            ReadInt64HandlerSlot(sourceId, assignment.Int64SlotOffset + field.SlotIndex)),
+                    RadarSourceProcessingSnapshotFieldType.Double =>
+                        RadarSourceProcessingSnapshotValue.FromDouble(
+                            field.Name,
+                            ReadDoubleHandlerSlot(sourceId, assignment.DoubleSlotOffset + field.SlotIndex)),
+                    _ => throw new InvalidOperationException("Unsupported handler snapshot field type.")
+                };
+            }
+        }
+
+        return new RadarSourceProcessingHandlerSnapshot(sourceId, values);
+    }
+
+    public RadarSourceProcessingHandlerSnapshot[] CreateHandlerSnapshots()
+    {
+        var snapshots = new RadarSourceProcessingHandlerSnapshot[SourceCount];
+        for (var sourceId = 0; sourceId < snapshots.Length; sourceId++)
+        {
+            snapshots[sourceId] = GetHandlerSnapshot(sourceId);
         }
 
         return snapshots;
@@ -144,4 +223,75 @@ public sealed class RadarSourceProcessingStateStore
 
         throw new ArgumentOutOfRangeException(nameof(sourceId));
     }
+
+    private void ApplyHandlers(
+        int sourceId,
+        in RadarStreamEvent streamEvent,
+        ReadOnlySpan<byte> eventPayload,
+        RadarProcessingPayloadMetrics payloadMetrics)
+    {
+        if (!handlerSlotLayout.HasHandlers)
+        {
+            return;
+        }
+
+        var context = new RadarSourceProcessingHandlerContext(
+            streamEvent,
+            eventPayload,
+            payloadMetrics);
+        foreach (var assignment in handlerSlotLayout.Assignments)
+        {
+            assignment.Handler.Process(
+                context,
+                CreateHandlerState(sourceId, assignment));
+        }
+    }
+
+    private RadarSourceProcessingState CreateHandlerState(
+        int sourceId,
+        RadarSourceProcessingHandlerSlotAssignment assignment)
+    {
+        var int64Slots = assignment.Descriptor.Int64SlotCount == 0
+            ? Span<long>.Empty
+            : handlerInt64Slots.AsSpan(
+                GetSourceSlotOffset(sourceId, handlerSlotLayout.TotalInt64SlotCount, assignment.Int64SlotOffset),
+                assignment.Descriptor.Int64SlotCount);
+        var doubleSlots = assignment.Descriptor.DoubleSlotCount == 0
+            ? Span<double>.Empty
+            : handlerDoubleSlots.AsSpan(
+                GetSourceSlotOffset(sourceId, handlerSlotLayout.TotalDoubleSlotCount, assignment.DoubleSlotOffset),
+                assignment.Descriptor.DoubleSlotCount);
+
+        return new RadarSourceProcessingState(int64Slots, doubleSlots);
+    }
+
+    private long ReadInt64HandlerSlot(
+        int sourceId,
+        int slotIndex) =>
+        handlerInt64Slots[GetSourceSlotOffset(sourceId, handlerSlotLayout.TotalInt64SlotCount, slotIndex)];
+
+    private double ReadDoubleHandlerSlot(
+        int sourceId,
+        int slotIndex) =>
+        handlerDoubleSlots[GetSourceSlotOffset(sourceId, handlerSlotLayout.TotalDoubleSlotCount, slotIndex)];
+
+    private static int GetSourceSlotOffset(
+        int sourceId,
+        int sourceSlotCount,
+        int slotOffset) =>
+        checked((sourceId * sourceSlotCount) + slotOffset);
+
+    private static long[] CreateInt64HandlerSlots(
+        int sourceCount,
+        int sourceSlotCount) =>
+        sourceSlotCount == 0
+            ? Array.Empty<long>()
+            : new long[checked(sourceCount * sourceSlotCount)];
+
+    private static double[] CreateDoubleHandlerSlots(
+        int sourceCount,
+        int sourceSlotCount) =>
+        sourceSlotCount == 0
+            ? Array.Empty<double>()
+            : new double[checked(sourceCount * sourceSlotCount)];
 }

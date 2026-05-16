@@ -21,7 +21,7 @@ public sealed class RadarProcessingCore
         Options = options;
         Topology = new RadarProcessingTopology(sourceUniverse, options);
         batchRouter = new RadarProcessingBatchRouter(Topology);
-        stateStore = new RadarSourceProcessingStateStore(sourceUniverse);
+        stateStore = new RadarSourceProcessingStateStore(sourceUniverse, options.HandlerSlotLayout);
     }
 
     public RadarProcessingCoreOptions Options { get; }
@@ -73,6 +73,12 @@ public sealed class RadarProcessingCore
     public RadarSourceProcessingSnapshot[] CreateSourceSnapshots() =>
         stateStore.CreateSnapshots();
 
+    public RadarSourceProcessingHandlerSnapshot GetSourceHandlerSnapshot(int sourceId) =>
+        stateStore.GetHandlerSnapshot(sourceId);
+
+    public RadarSourceProcessingHandlerSnapshot[] CreateSourceHandlerSnapshots() =>
+        stateStore.CreateHandlerSnapshots();
+
     public RadarProcessingMetrics CreateMetrics() =>
         stateStore.CreateMetrics(processedBatchCount);
 
@@ -89,7 +95,7 @@ public sealed class RadarProcessingCore
 
             var streamEvent = events[eventIndex];
             var payloadMetrics = RadarProcessingPayloadReader.ComputeEventMetrics(streamEvent, payload);
-            var result = ApplyProcessedEvent(streamEvent, eventIndex, payloadMetrics);
+            var result = ApplyProcessedEvent(streamEvent, eventIndex, payload, payloadMetrics);
             if (result is not null)
             {
                 return result;
@@ -122,6 +128,7 @@ public sealed class RadarProcessingCore
                 var result = ApplyProcessedEvent(
                     streamEvent,
                     eventIndex,
+                    batch.Payload.Span,
                     route.GetRoutedEvent(eventIndex).PayloadMetrics);
                 if (result is not null)
                 {
@@ -155,14 +162,18 @@ public sealed class RadarProcessingCore
     private RadarProcessingResult? ApplyProcessedEvent(
         RadarStreamEvent streamEvent,
         int eventIndex,
+        ReadOnlySpan<byte> batchPayload,
         RadarProcessingPayloadMetrics payloadMetrics)
     {
         try
         {
+            var eventPayload = Options.Handlers.Count == 0
+                ? ReadOnlySpan<byte>.Empty
+                : RadarProcessingPayloadReader.GetEventPayload(streamEvent, batchPayload);
             stateStore.ApplyProcessedEvent(
                 streamEvent,
-                payloadMetrics.PayloadValueCount,
-                payloadMetrics.RawValueChecksum);
+                eventPayload,
+                payloadMetrics);
             return null;
         }
         catch (InvalidOperationException ex)

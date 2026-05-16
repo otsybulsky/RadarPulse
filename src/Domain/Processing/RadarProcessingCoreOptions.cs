@@ -8,7 +8,8 @@ public sealed record RadarProcessingCoreOptions
         RadarProcessingExecutionMode executionMode = RadarProcessingExecutionMode.Sequential,
         int partitionCount = 1,
         int shardCount = 1,
-        bool enableValidation = true)
+        bool enableValidation = true,
+        IReadOnlyList<IRadarSourceProcessingHandler>? handlers = null)
     {
         EnsureKnownExecutionMode(executionMode);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(partitionCount);
@@ -26,6 +27,7 @@ public sealed record RadarProcessingCoreOptions
         PartitionCount = partitionCount;
         ShardCount = shardCount;
         EnableValidation = enableValidation;
+        HandlerSlotLayout = new RadarSourceProcessingHandlerSlotLayout(handlers);
     }
 
     public RadarProcessingExecutionMode ExecutionMode { get; }
@@ -35,6 +37,10 @@ public sealed record RadarProcessingCoreOptions
     public int ShardCount { get; }
 
     public bool EnableValidation { get; }
+
+    public IReadOnlyList<IRadarSourceProcessingHandler> Handlers => HandlerSlotLayout.Handlers;
+
+    internal RadarSourceProcessingHandlerSlotLayout HandlerSlotLayout { get; }
 
     internal static void EnsureKnownExecutionMode(RadarProcessingExecutionMode executionMode)
     {
