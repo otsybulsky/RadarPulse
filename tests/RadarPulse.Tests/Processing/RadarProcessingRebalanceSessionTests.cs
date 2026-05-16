@@ -14,6 +14,7 @@ public sealed class RadarProcessingRebalanceSessionTests
         var first = session.Process(CreateEightBitBatch(universe.Version, [0, 0, 0, 0, 1, 1]));
 
         Assert.True(first.ProcessingResult.IsValid);
+        Assert.True(first.Validation.IsValid);
         Assert.NotNull(first.PressureSample);
         Assert.Equal(RadarProcessingTopologyVersion.Initial, first.ProcessingResult.TopologyVersion);
         Assert.Equal(first.ProcessingResult.TopologyVersion, first.PressureSample.TopologyVersion);
@@ -29,6 +30,7 @@ public sealed class RadarProcessingRebalanceSessionTests
         var secondTelemetry = Assert.IsType<RadarProcessingTelemetry>(second.ProcessingResult.Telemetry);
 
         Assert.True(second.ProcessingResult.IsValid);
+        Assert.True(second.Validation.IsValid);
         Assert.Equal(RadarProcessingTopologyVersion.Initial.Next(), second.ProcessingResult.TopologyVersion);
         Assert.Equal(second.ProcessingResult.TopologyVersion, secondTelemetry.TopologyVersion);
         Assert.Equal(1, secondTelemetry.Partitions[0].ShardId);
@@ -50,6 +52,7 @@ public sealed class RadarProcessingRebalanceSessionTests
         Assert.Equal(RadarProcessingRebalanceDecisionKind.AcceptedMove, result.ColdEvacuationDecision!.Kind);
         Assert.Equal(RadarProcessingRebalanceMoveKind.ColdEvacuation, result.RebalanceDecision!.MoveKind);
         Assert.True(result.PublishedMigration);
+        Assert.True(result.Validation.IsValid);
         Assert.True(result.HandoffValidation!.IsValid);
         Assert.Equal(1, result.RebalanceDecision.PartitionId);
         Assert.Equal(1, session.CurrentTopology.GetShardIdForPartition(1));
@@ -65,6 +68,7 @@ public sealed class RadarProcessingRebalanceSessionTests
         var result = session.Process(CreateEmptyBatch(new SourceUniverseVersion(2)));
 
         Assert.False(result.ProcessingResult.IsValid);
+        Assert.True(result.Validation.IsValid);
         Assert.Null(result.PressureSample);
         Assert.Null(result.DirectHotReliefDecision);
         Assert.Null(result.ColdEvacuationDecision);

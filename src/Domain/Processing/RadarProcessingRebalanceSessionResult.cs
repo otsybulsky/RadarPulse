@@ -8,7 +8,8 @@ public sealed class RadarProcessingRebalanceSessionResult
         RadarProcessingRebalanceDecision? directHotReliefDecision,
         RadarProcessingRebalanceDecision? coldEvacuationDecision,
         RadarProcessingMigrationResult? migrationResult,
-        RadarProcessingStateHandoffValidationResult? handoffValidation)
+        RadarProcessingStateHandoffValidationResult? handoffValidation,
+        RadarProcessingTopology? currentTopology = null)
     {
         ArgumentNullException.ThrowIfNull(processingResult);
 
@@ -27,6 +28,9 @@ public sealed class RadarProcessingRebalanceSessionResult
         ColdEvacuationDecision = coldEvacuationDecision;
         MigrationResult = migrationResult;
         HandoffValidation = handoffValidation;
+        Validation = currentTopology is null
+            ? RadarProcessingRebalanceValidationResult.Valid()
+            : RadarProcessingRebalanceValidator.ValidateSessionResult(this, currentTopology);
     }
 
     public RadarProcessingResult ProcessingResult { get; }
@@ -43,6 +47,8 @@ public sealed class RadarProcessingRebalanceSessionResult
     public RadarProcessingMigrationResult? MigrationResult { get; }
 
     public RadarProcessingStateHandoffValidationResult? HandoffValidation { get; }
+
+    public RadarProcessingRebalanceValidationResult Validation { get; }
 
     public bool EvaluatedRebalance => RebalanceDecision is not null;
 

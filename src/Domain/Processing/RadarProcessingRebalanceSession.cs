@@ -70,7 +70,8 @@ public sealed class RadarProcessingRebalanceSession
                 directHotReliefDecision: null,
                 coldEvacuationDecision: null,
                 migrationResult: null,
-                handoffValidation: null);
+                handoffValidation: null,
+                core.Topology);
         }
 
         var pressureSample = RadarProcessingPressureSample.FromTelemetry(
@@ -106,7 +107,8 @@ public sealed class RadarProcessingRebalanceSession
             directDecision,
             coldDecision,
             migrationResult,
-            handoffValidation);
+            handoffValidation,
+            core.Topology);
     }
 
     private (RadarProcessingMigrationResult? Migration, RadarProcessingStateHandoffValidationResult? Handoff)
