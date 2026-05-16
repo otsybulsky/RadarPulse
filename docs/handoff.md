@@ -1,4 +1,4 @@
-# Handoff: Milestone 006 Slice 1 Complete
+# Handoff: Milestone 006 Slice 2 Complete
 
 ## Current Goal
 
@@ -31,10 +31,15 @@ validated partition owner move requests/results, and a
 `RadarProcessingTopologyManager` that publishes version `N+1` snapshots while
 preserving the stable `SourceId -> PartitionId` mapping.
 
-The next implementation focus is milestone 006 slice 2: route topology-version
-integration. `RadarProcessingBatchRoute`, partitioned telemetry, and processing
-results should record the topology version captured for a batch, and validation
-should prove that one batch is processed against one topology snapshot.
+Milestone 006 slice 2 is implemented in the current working tree. Routes,
+partitioned telemetry, and processing results now record the topology version
+captured for a batch. Partitioned telemetry and result construction validate
+that telemetry topology version matches the result topology version.
+
+The next implementation focus is milestone 006 slice 3: pressure sample and
+pressure score contracts over partitioned route telemetry. The next slice should
+derive deterministic shard and partition pressure samples from telemetry without
+retaining `RadarEventBatch` payload references.
 
 ## Milestone Status
 
@@ -97,6 +102,7 @@ Done:
 - `006` partition-level shard rebalance implementation plan is complete.
 - `006` slice 1 versioned topology contracts and publication boundary are
   implemented and tested.
+- `006` slice 2 route topology-version integration is implemented and tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -110,10 +116,12 @@ Done:
 
 Next milestone focus:
 
-- Implement milestone 006 slice 2 route topology-version integration.
-- Ensure `RadarProcessingBatchRoute`, `RadarProcessingTelemetry`, and relevant
-  processing results expose the topology version used by the batch.
-- Add validation that no batch route uses mixed topology versions.
+- Implement milestone 006 slice 3 pressure sample and pressure score contracts.
+- Derive deterministic shard and partition pressure samples from partitioned
+  telemetry, including topology version, event count, payload value count, and
+  raw-value checksum inputs.
+- Preserve rebalance-state lifetime safety: pressure samples copy numeric
+  telemetry only and must not retain `RadarEventBatch` payload references.
 - Preserve synchronous `PartitionedBarrier` processing as the first rebalance
   correctness boundary: process one batch against one topology snapshot, then
   evaluate and apply rebalance before the next batch.
@@ -245,6 +253,31 @@ Completed in milestone 006 implementation:
   `dotnet test RadarPulse.sln --no-restore` passed with 249 tests passed and 3
   skipped.
 - Verification after milestone 006 slice 1:
+  `dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore`
+  passed with 0 warnings and 0 errors.
+- `RadarProcessingBatchRoute` now exposes `TopologyVersion`, captured from the
+  `RadarProcessingTopology` used by `RadarProcessingBatchRouter.Route`.
+- `RadarProcessingTelemetry` now exposes `TopologyVersion`, copied from the
+  route used to build partitioned telemetry.
+- `RadarProcessingResult` now exposes `TopologyVersion`. When telemetry is
+  supplied, the result validates that telemetry topology version matches result
+  topology version.
+- `RadarProcessingCore` now returns valid and invalid results with the core
+  topology version.
+- Router tests verify that routes capture topology version and that a route
+  built from an old topology snapshot remains explainable after the manager
+  publishes a newer snapshot.
+- Telemetry tests verify that partitioned result topology version and telemetry
+  topology version match.
+- Contract tests verify the default initial result topology version and reject
+  telemetry/result topology-version mismatch.
+- Verification after milestone 006 slice 2:
+  `dotnet test RadarPulse.sln --no-restore --filter FullyQualifiedName~Processing`
+  passed with 108 tests passed.
+- Verification after milestone 006 slice 2:
+  `dotnet test RadarPulse.sln --no-restore` passed with 251 tests passed and 3
+  skipped.
+- Verification after milestone 006 slice 2:
   `dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore`
   passed with 0 warnings and 0 errors.
 
@@ -1805,7 +1838,14 @@ constant and moment data blocks.
 - `src/Domain/Processing/RadarProcessingTopologyMoveRequest.cs`
 - `src/Domain/Processing/RadarProcessingTopologyMoveResult.cs`
 - `src/Domain/Processing/RadarProcessingTopologyMoveError.cs`
+- `src/Domain/Processing/RadarProcessingBatchRoute.cs`
+- `src/Domain/Processing/RadarProcessingBatchRouter.cs`
+- `src/Domain/Processing/RadarProcessingTelemetry.cs`
+- `src/Domain/Processing/RadarProcessingResult.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingTopologyVersioningTests.cs`
+- `tests/RadarPulse.Tests/Processing/RadarProcessingBatchRouterTests.cs`
+- `tests/RadarPulse.Tests/Processing/RadarProcessingTelemetryTests.cs`
+- `tests/RadarPulse.Tests/Processing/RadarProcessingContractTests.cs`
 - `src/Domain/Processing/*`
 - `tests/RadarPulse.Tests/Processing/*`
 - `src/Domain/Streaming/DenseIdentityAllowedCharacters.cs`

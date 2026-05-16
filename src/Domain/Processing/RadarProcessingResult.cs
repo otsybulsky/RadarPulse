@@ -8,7 +8,8 @@ public sealed record RadarProcessingResult
         int shardCount,
         RadarProcessingMetrics metrics,
         RadarProcessingValidationResult validation,
-        RadarProcessingTelemetry? telemetry = null)
+        RadarProcessingTelemetry? telemetry = null,
+        RadarProcessingTopologyVersion? topologyVersion = null)
     {
         RadarProcessingCoreOptions.EnsureKnownExecutionMode(executionMode);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(partitionCount);
@@ -23,9 +24,14 @@ public sealed record RadarProcessingResult
         }
 
         ArgumentNullException.ThrowIfNull(validation);
-        ValidateTelemetry(executionMode, partitionCount, shardCount, telemetry);
+        var resolvedTopologyVersion =
+            topologyVersion ??
+            telemetry?.TopologyVersion ??
+            RadarProcessingTopologyVersion.Initial;
+        ValidateTelemetry(executionMode, partitionCount, shardCount, resolvedTopologyVersion, telemetry);
 
         ExecutionMode = executionMode;
+        TopologyVersion = resolvedTopologyVersion;
         PartitionCount = partitionCount;
         ShardCount = shardCount;
         Metrics = metrics;
@@ -34,6 +40,8 @@ public sealed record RadarProcessingResult
     }
 
     public RadarProcessingExecutionMode ExecutionMode { get; }
+
+    public RadarProcessingTopologyVersion TopologyVersion { get; }
 
     public int PartitionCount { get; }
 
@@ -63,6 +71,7 @@ public sealed record RadarProcessingResult
         RadarProcessingExecutionMode executionMode,
         int partitionCount,
         int shardCount,
+        RadarProcessingTopologyVersion topologyVersion,
         RadarProcessingTelemetry? telemetry)
     {
         if (telemetry is null)
@@ -88,6 +97,11 @@ public sealed record RadarProcessingResult
         if (telemetry.ShardCount != shardCount)
         {
             throw new ArgumentException("Telemetry shard count must match result shard count.", nameof(telemetry));
+        }
+
+        if (telemetry.TopologyVersion != topologyVersion)
+        {
+            throw new ArgumentException("Telemetry topology version must match result topology version.", nameof(telemetry));
         }
     }
 }

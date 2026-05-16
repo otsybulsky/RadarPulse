@@ -235,7 +235,8 @@ public sealed class RadarProcessingCore
             Options.ShardCount,
             metrics,
             RadarProcessingValidationResult.Valid(metrics),
-            telemetry);
+            telemetry,
+            Topology.Version);
     }
 
     private RadarProcessingResult Invalid(
@@ -255,6 +256,7 @@ public sealed class RadarProcessingCore
                 sourceId,
                 eventIndex,
                 message,
-                metrics));
+                metrics),
+            topologyVersion: Topology.Version);
     }
 }

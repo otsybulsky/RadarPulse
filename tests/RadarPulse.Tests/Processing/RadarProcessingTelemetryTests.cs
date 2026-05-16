@@ -39,7 +39,9 @@ public sealed class RadarProcessingTelemetryTests
         var telemetry = Assert.IsType<RadarProcessingTelemetry>(result.Telemetry);
 
         Assert.True(result.IsValid);
+        Assert.Equal(core.Topology.Version, result.TopologyVersion);
         Assert.Equal(RadarProcessingExecutionMode.PartitionedBarrier, telemetry.ExecutionMode);
+        Assert.Equal(result.TopologyVersion, telemetry.TopologyVersion);
         Assert.Equal(4, telemetry.PartitionCount);
         Assert.Equal(2, telemetry.ShardCount);
         Assert.Equal(batch.EventCount, telemetry.BatchMetrics.EventCount);
@@ -67,6 +69,7 @@ public sealed class RadarProcessingTelemetryTests
         var telemetry = Assert.IsType<RadarProcessingTelemetry>(result.Telemetry);
 
         Assert.True(result.IsValid);
+        Assert.Equal(result.TopologyVersion, telemetry.TopologyVersion);
         Assert.Equal(RadarProcessingRouteMetrics.Empty, telemetry.BatchMetrics);
         Assert.Equal(-1, telemetry.HotPartitionId);
         Assert.Equal(-1, telemetry.HotShardId);
@@ -142,6 +145,7 @@ public sealed class RadarProcessingTelemetryTests
 
         Assert.True(result.IsValid);
         Assert.Equal(RadarProcessingExecutionMode.Sequential, result.ExecutionMode);
+        Assert.Equal(core.Topology.Version, result.TopologyVersion);
         Assert.Null(result.Telemetry);
     }
 

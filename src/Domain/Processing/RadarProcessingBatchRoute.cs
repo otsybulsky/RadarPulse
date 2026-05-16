@@ -7,6 +7,7 @@ public sealed class RadarProcessingBatchRoute
     private readonly RadarProcessingShardBatchRoute[] shards;
 
     internal RadarProcessingBatchRoute(
+        RadarProcessingTopologyVersion topologyVersion,
         RadarProcessingRoutedEvent[] routedEvents,
         RadarProcessingPartitionBatchRoute[] partitions,
         RadarProcessingShardBatchRoute[] shards,
@@ -16,11 +17,14 @@ public sealed class RadarProcessingBatchRoute
         ArgumentNullException.ThrowIfNull(partitions);
         ArgumentNullException.ThrowIfNull(shards);
 
+        TopologyVersion = topologyVersion;
         this.routedEvents = routedEvents;
         this.partitions = partitions;
         this.shards = shards;
         Metrics = metrics;
     }
+
+    public RadarProcessingTopologyVersion TopologyVersion { get; }
 
     public int EventCount => routedEvents.Length;
 

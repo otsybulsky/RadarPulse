@@ -7,6 +7,7 @@ public sealed class RadarProcessingTelemetry
 
     internal RadarProcessingTelemetry(
         RadarProcessingExecutionMode executionMode,
+        RadarProcessingTopologyVersion topologyVersion,
         RadarProcessingRouteMetrics batchMetrics,
         RadarProcessingPartitionTelemetry[] partitions,
         RadarProcessingShardTelemetry[] shards,
@@ -39,6 +40,7 @@ public sealed class RadarProcessingTelemetry
         ValidateRouteMetrics(batchMetrics, partitions, shards);
 
         ExecutionMode = executionMode;
+        TopologyVersion = topologyVersion;
         BatchMetrics = batchMetrics;
         this.partitions = Array.AsReadOnly((RadarProcessingPartitionTelemetry[])partitions.Clone());
         this.shards = Array.AsReadOnly((RadarProcessingShardTelemetry[])shards.Clone());
@@ -47,6 +49,8 @@ public sealed class RadarProcessingTelemetry
     }
 
     public RadarProcessingExecutionMode ExecutionMode { get; }
+
+    public RadarProcessingTopologyVersion TopologyVersion { get; }
 
     public RadarProcessingRouteMetrics BatchMetrics { get; }
 
@@ -73,6 +77,7 @@ public sealed class RadarProcessingTelemetry
 
         return new RadarProcessingTelemetry(
             executionMode,
+            route.TopologyVersion,
             route.Metrics,
             partitions,
             shards,

@@ -1,4 +1,5 @@
 using RadarPulse.Domain.Processing;
+using RadarPulse.Domain.Streaming;
 
 namespace RadarPulse.Tests.Processing;
 
@@ -97,6 +98,7 @@ public sealed class RadarProcessingContractTests
             validation);
 
         Assert.Equal(RadarProcessingExecutionMode.PartitionedBarrier, result.ExecutionMode);
+        Assert.Equal(RadarProcessingTopologyVersion.Initial, result.TopologyVersion);
         Assert.Equal(4, result.PartitionCount);
         Assert.Equal(2, result.ShardCount);
         Assert.Equal(metrics, result.Metrics);
@@ -115,10 +117,46 @@ public sealed class RadarProcessingContractTests
         var result = RadarProcessingResult.Empty(options);
 
         Assert.Equal(RadarProcessingExecutionMode.PartitionedBarrier, result.ExecutionMode);
+        Assert.Equal(RadarProcessingTopologyVersion.Initial, result.TopologyVersion);
         Assert.Equal(4, result.PartitionCount);
         Assert.Equal(2, result.ShardCount);
         Assert.Equal(RadarProcessingMetrics.Empty, result.Metrics);
         Assert.True(result.Validation.IsValid);
         Assert.Equal(RadarProcessingMetrics.Empty, result.Validation.Metrics);
+    }
+
+    [Fact]
+    public void ResultRejectsTelemetryTopologyVersionMismatch()
+    {
+        var universe = new RadarSourceUniverse(
+            SourceUniverseVersion.Initial,
+            radarOrdinalCount: 1,
+            elevationSlotCount: 1,
+            azimuthBucketCount: 1,
+            rangeBandCount: 1);
+        var core = new RadarProcessingCore(
+            universe,
+            new RadarProcessingCoreOptions(
+                RadarProcessingExecutionMode.PartitionedBarrier,
+                partitionCount: 1,
+                shardCount: 1));
+        var batch = new RadarEventBatch(
+            StreamSchemaVersion.Current,
+            DictionaryVersion.Initial,
+            universe.Version,
+            Array.Empty<RadarStreamEvent>(),
+            Array.Empty<byte>());
+        var result = core.Process(batch);
+
+        Assert.NotNull(result.Telemetry);
+        Assert.Throws<ArgumentException>(() =>
+            new RadarProcessingResult(
+                RadarProcessingExecutionMode.PartitionedBarrier,
+                partitionCount: 1,
+                shardCount: 1,
+                result.Metrics,
+                result.Validation,
+                result.Telemetry,
+                new RadarProcessingTopologyVersion(result.TopologyVersion.Value + 1)));
     }
 }

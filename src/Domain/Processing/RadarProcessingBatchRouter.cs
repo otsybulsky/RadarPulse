@@ -69,6 +69,7 @@ public sealed class RadarProcessingBatchRouter
         }
 
         return new RadarProcessingBatchRoute(
+            topology.Version,
             routedEvents,
             CreatePartitionRoutes(partitionEventIndexes, partitionMetrics),
             CreateShardRoutes(shardEventIndexes, shardMetrics),
