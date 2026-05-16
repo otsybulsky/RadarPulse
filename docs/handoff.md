@@ -12,12 +12,12 @@ benchmarks.
 Milestone 005 architecture and implementation planning are drafted. The first
 processing contracts, static partition topology, dense source-local state
 store, processing payload reader, sequential core baseline, and sequential
-lifetime/parity guardrail slices are implemented. The current work is to move
-from the sequential oracle toward the static partitioned processing core over
-already-built `RadarEventBatch` values: explicit payload lifetime boundary,
-`SourceId -> PartitionId -> ShardId` routing, shard-owned dense source state,
-source-local handler slots, processing-only telemetry, validation, and
-benchmarks.
+lifetime/parity guardrail slices are implemented. The deterministic
+partitioned-routing substrate is implemented. The current work is to add the
+first `PartitionedBarrier` execution path over already-built `RadarEventBatch`
+values while preserving the explicit payload lifetime boundary, `SourceId ->
+PartitionId -> ShardId` routing, shard-owned dense source state, source-local
+handler slots, processing-only telemetry, validation, and benchmarks.
 
 Milestone 005 should build on the closed milestone 004 stream contract rather
 than changing it casually. Live shard rebalance is deliberately reserved for
@@ -66,6 +66,7 @@ Done:
 - `005` processing payload reader helpers are implemented and tested.
 - `005` sequential processing core baseline is implemented and tested.
 - `005` sequential lifetime and parity guardrails are tested.
+- `005` partitioned batch routing substrate is implemented and tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -81,7 +82,7 @@ Next work:
 
 - Implement milestone 005 from the drafted architecture and plan:
   static partitioned processing core over `RadarEventBatch`.
-- Continue with the partitioned completion-barrier substrate or skeleton.
+- Continue with the first `PartitionedBarrier` execution path.
 - Preserve the `SourceId -> PartitionId -> ShardId` ownership model so
   milestone 006 can add partition-level shard rebalance.
 - Treat the current `archive benchmark stream` numbers as replay construction
@@ -206,6 +207,19 @@ Completed in milestone 005 implementation so far:
   stability after leased builder buffer reuse, result counters matching
   `RadarEventBatchMetrics`, invalid processing not incrementing processed batch
   count, and invalid source validation not mutating state.
+- `RadarProcessingBatchRouter`.
+- `RadarProcessingBatchRoute`.
+- `RadarProcessingPartitionBatchRoute`.
+- `RadarProcessingShardBatchRoute`.
+- `RadarProcessingRoutedEvent`.
+- `RadarProcessingRouteMetrics`.
+- Partitioned routing maps each batch event index to `PartitionId` and
+  `ShardId` through `RadarProcessingTopology`.
+- Routing stores event indexes and per-partition/per-shard counters without
+  copying payload bytes or starting worker execution.
+- Route metrics track event count, payload value count, and raw value checksum
+  and aggregate consistently through partitions and shards.
+- Source ids outside the topology are rejected before a route is returned.
 - Focused contract tests cover default options, invalid execution modes,
   invalid topology counts, validation result invariants, result shape, and empty
   result construction.
@@ -227,6 +241,11 @@ Completed in milestone 005 implementation so far:
 - Focused guardrail tests cover owned/leased parity, leased-buffer reuse,
   sequential counter parity with `RadarEventBatchMetrics`, invalid batch
   accounting, and invalid-source state isolation.
+- Focused batch-router tests cover empty routes, every event routed exactly
+  once, topology assignment parity, same-source order preservation inside
+  partition/shard routes, metrics parity with `RadarEventBatchMetrics`,
+  payload-mutation stability after routing, null/mismatched input rejection,
+  source id outside topology, and route lookup bounds.
 - Verification after slice 1:
   `dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore`
   passed with 151 tests passed and 3 skipped.
@@ -243,13 +262,16 @@ Completed in milestone 005 implementation so far:
   `dotnet test --no-restore` passed with 188 tests passed and 3 skipped.
 - Verification after slice 6:
   `dotnet test --no-restore` passed with 193 tests passed and 3 skipped.
+- Verification after slice 7:
+  `dotnet test --no-restore` passed with 202 tests passed and 3 skipped.
 - Commits so far:
   `d9106b0 Add processing core contracts`;
   `4639ec0 Add static processing topology`;
   `33c437a Add dense source processing state`;
   `3a3ce88 Add processing payload reader`;
   `e04265d Avoid ref parameter in payload reader`;
-  `981afa1 Add sequential processing core`.
+  `981afa1 Add sequential processing core`;
+  `38296b6 Add processing core guardrail tests`.
 
 Completed in milestone 004 implementation so far:
 
