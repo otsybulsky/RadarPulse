@@ -17,8 +17,9 @@ partitioned-routing substrate and first synchronous `PartitionedBarrier`
 execution path are implemented. Partitioned telemetry and route-summary
 validation around shard routes are implemented. Processing-output validation
 helpers are implemented outside the hot path. The source-local handler slot
-model is implemented. The current work is to continue milestone 005 toward
-processing-only benchmarks, CLI smoke/benchmark commands, and closeout while
+model is implemented. The synthetic processing-only benchmark harness is
+implemented for prebuilt `RadarEventBatch` workloads. The current work is to
+continue milestone 005 toward CLI smoke/benchmark commands and closeout while
 preserving the explicit payload lifetime boundary, static source-to-shard
 routing, and shard-owned dense source state.
 
@@ -76,6 +77,7 @@ Done:
   tested.
 - `005` processing-output validation helpers are implemented and tested.
 - `005` source-local handler slot model is implemented and tested.
+- `005` synthetic processing-only benchmark harness is implemented and tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -89,11 +91,10 @@ Done:
 
 Next work:
 
-- Commit the current source-local handler slot/handoff slice if continuing the
+- Commit the current processing-only benchmark/handoff slice if continuing the
   established checkpoint cadence.
-- Implement processing-only benchmarks that measure `RadarProcessingCore`
-  separately from decompression, Archive Two scanning, identity normalization,
-  and `RadarEventBatch` construction.
+- Add CLI smoke or benchmark commands that manually exercise the processing
+  core through the synthetic processing benchmark harness.
 - Preserve the `SourceId -> PartitionId -> ShardId` ownership model so
   milestone 006 can add partition-level shard rebalance.
 - Treat the current `archive benchmark stream` numbers as replay construction
@@ -110,8 +111,9 @@ Next work:
   merged by original source order, not worker completion order.
 - Keep the order-sensitive chronology checksum as the validation gate for
   sequential/parallel equivalence.
-- Add CLI smoke or benchmark commands that can manually exercise the processing
-  core once the processing-only benchmark harness is stable.
+- Keep processing benchmark commands explicit that measured time excludes
+  decompression, Archive Two scanning, identity normalization, and
+  `RadarEventBatch` construction.
 - Consider the remaining cache-wide allocation sources only if they block the
   next milestone goal: compressed-record descriptor storage, ordered task
   scheduling, file enumeration/order materialization, and scanner/decompression
@@ -242,6 +244,12 @@ Completed in milestone 005 implementation so far:
 - `RadarSourceProcessingSnapshotFieldType`.
 - `RadarSourceProcessingSnapshotValue`.
 - `RadarSourceProcessingHandlerSnapshot`.
+- `RadarProcessingBenchmarkHandlerSet`.
+- `RadarProcessingBenchmarkResult`.
+- `RadarProcessingBenchmarkShardDistribution`.
+- `RadarProcessingSyntheticWorkloadOptions`.
+- `RadarProcessingSyntheticWorkload`.
+- `RadarProcessingSyntheticBenchmark`.
 - Partitioned routing maps each batch event index to `PartitionId` and
   `ShardId` through `RadarProcessingTopology`.
 - Routing stores event indexes and per-partition/per-shard counters without
@@ -287,6 +295,17 @@ Completed in milestone 005 implementation so far:
 - `RadarProcessingCore` exposes `GetSourceHandlerSnapshot` and
   `CreateSourceHandlerSnapshots`. The no-handler path remains valid and does
   not require payload span materialization for handlers.
+- Synthetic processing-only benchmarks are available through
+  `RadarProcessingSyntheticBenchmark` over prebuilt deterministic
+  `RadarEventBatch` workloads.
+- Benchmark setup constructs the synthetic workload before the measured loop;
+  warmup iterations also run before stopwatch and allocation snapshots.
+- Benchmark results report execution mode, topology, handler set, iterations,
+  warmup iterations, per-iteration and total batch/event/payload counters,
+  raw checksum, active source count, validation checksum, shard distribution,
+  elapsed time, throughput, and allocated bytes per event/value.
+- Benchmark handler sets currently support `None` and `CounterChecksum`, giving
+  a stable no-handler baseline and a simple source-local handler workload.
 - Source validation runs before execution for both modes, so invalid source ids
   and ownership mismatches do not mutate state.
 - Partitioned and sequential results/snapshots are verified for parity on the
@@ -333,6 +352,10 @@ Completed in milestone 005 implementation so far:
   invocation and snapshot projection, payload-span delivery, payload-aware
   apply requirements when handlers are configured, and no-handler base-path
   behavior.
+- Focused synthetic benchmark tests cover stable sequential iteration totals,
+  partitioned shard distribution, warmup exclusion from measured totals,
+  sequential/partitioned validation-checksum parity, and invalid input
+  guardrails.
 - Verification after slice 1:
   `dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore`
   passed with 151 tests passed and 3 skipped.
@@ -382,6 +405,15 @@ Completed in milestone 005 implementation so far:
   `git diff --check` passed. Scoped formatting verification for the changed
   processing files passed with
   `dotnet format --verify-no-changes --no-restore --include ...`.
+- Verification after slice 12:
+  `dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarPulse.Tests.Processing`
+  passed with 91 tests passed.
+- Verification after slice 12:
+  `dotnet test --no-restore` passed with 234 tests passed and 3 skipped.
+- Verification after slice 12:
+  `git diff --check` passed. Scoped formatting verification for the changed
+  processing files passed with
+  `dotnet format --verify-no-changes --no-restore --include ...`.
 - Commits so far:
   `d9106b0 Add processing core contracts`;
   `4639ec0 Add static processing topology`;
@@ -393,7 +425,8 @@ Completed in milestone 005 implementation so far:
   `5b65852 Add partitioned batch routing substrate`;
   `e900c54 Add partitioned barrier processing path`;
   `5b573d1 Add partitioned processing telemetry`;
-  `c6cdd94 Add processing output validation`.
+  `c6cdd94 Add processing output validation`;
+  `eb22723 Add source processing handler slots`.
 
 Completed in milestone 004 implementation so far:
 
