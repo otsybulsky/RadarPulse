@@ -1,4 +1,4 @@
-# Handoff: Milestone 004 Complete
+# Handoff: Milestone 005 Planning Ready
 
 ## Current Goal
 
@@ -9,10 +9,16 @@ visibility, explicit raw payload storage lifetime, sequential and ordered
 parallel replay integration, cache replay, validation, CLI smoke commands, and
 benchmarks.
 
-The next milestone should build on this canonical input stream rather than
-changing the milestone 004 contract casually. Partitioning, processing
-algorithms, live ingestion, durable transport, and visualization remain outside
-milestone 004.
+Milestone 005 architecture and implementation planning are drafted. The next
+work is to implement the first static partitioned processing core over
+already-built `RadarEventBatch` values: explicit payload lifetime boundary,
+`SourceId -> PartitionId -> ShardId` routing, shard-owned dense source state,
+source-local handler slots, processing-only telemetry, validation, and
+benchmarks.
+
+Milestone 005 should build on the closed milestone 004 stream contract rather
+than changing it casually. Live shard rebalance is deliberately reserved for
+milestone 006 after the static processing core baseline is measured.
 
 ## Milestone Status
 
@@ -49,6 +55,8 @@ Done:
 - `004` normalized stream throughput now exceeds the milestone 003 count-only
   replay-publish baseline on the comparable payload-value metric.
 - `004` processing-core input contract milestone is closed.
+- `005` processing-core architecture is drafted.
+- `005` processing-core implementation plan is drafted.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -62,9 +70,12 @@ Done:
 
 Next work:
 
-- Start the next milestone from the closed milestone 004 stream contract:
-  `RadarEventBatch`, dense `SourceId`, dictionary/source-universe versions, and
-  owned/leased payload lifetime.
+- Implement milestone 005 from the drafted architecture and plan:
+  static partitioned processing core over `RadarEventBatch`.
+- Start with processing core contracts, static partition topology, and dense
+  source-local state sized by `RadarSourceUniverse`.
+- Preserve the `SourceId -> PartitionId -> ShardId` ownership model so
+  milestone 006 can add partition-level shard rebalance.
 - Treat the current `archive benchmark stream` numbers as replay construction
   throughput, not as the future processing-core throughput over
   already-built `RadarEventBatch` values.
@@ -79,6 +90,8 @@ Next work:
   merged by original source order, not worker completion order.
 - Keep the order-sensitive chronology checksum as the validation gate for
   sequential/parallel equivalence.
+- Add processing-only benchmarks that exclude decompression, Archive Two
+  scanning, identity normalization, and batch construction.
 - Consider the remaining cache-wide allocation sources only if they block the
   next milestone goal: compressed-record descriptor storage, ordered task
   scheduling, file enumeration/order materialization, and scanner/decompression
@@ -104,6 +117,24 @@ Completed in milestone 004 planning:
 - Payload rules are specified: raw radar values are canonical, payload storage
   is associated with the visible batch lifetime, and event payload references
   are explicit.
+
+Completed in milestone 005 planning:
+
+- `docs/milestones/005-processing-core-architecture.md`.
+- `docs/milestones/005-processing-core-architecture-plan.md`.
+- Milestone 005 scope is the first static partitioned processing core over
+  `RadarEventBatch`, not live shard rebalance or complex radar algorithms.
+- The expected result is an accepted processing-core boundary over
+  `RadarEventBatch`, static source-based partition/shard ownership, dense
+  source-local state, explicit leased/retained payload lifetime rules,
+  source-local handler slots, processing-only telemetry, validation, and
+  benchmark contracts.
+- The implementation plan is broken into processing contracts, static
+  topology, dense state, handler slots, payload readers, sequential baseline,
+  partitioned completion-barrier mode, lifetime guardrails, telemetry,
+  validation, benchmarks, CLI smoke commands, and closeout/handoff.
+- Milestone 006 is identified as the next milestone for partition-level shard
+  rebalance after the static processing core baseline is measured.
 
 Completed in milestone 004 implementation so far:
 
@@ -587,6 +618,8 @@ Deferred beyond milestone 003:
 - `docs/milestones/004-processing-core-input-contract-plan.md`
 - `docs/milestones/004-processing-core-input-contract-decision-trace.md`
 - `docs/milestones/004-processing-core-input-contract-closeout.md`
+- `docs/milestones/005-processing-core-architecture.md`
+- `docs/milestones/005-processing-core-architecture-plan.md`
 - `docs/handoff.md`
 
 ## Verification
@@ -1312,6 +1345,8 @@ constant and moment data blocks.
 - `docs/milestones/004-processing-core-input-contract-plan.md`
 - `docs/milestones/004-processing-core-input-contract-decision-trace.md`
 - `docs/milestones/004-processing-core-input-contract-closeout.md`
+- `docs/milestones/005-processing-core-architecture.md`
+- `docs/milestones/005-processing-core-architecture-plan.md`
 - `src/Domain/Streaming/DenseIdentityAllowedCharacters.cs`
 - `src/Domain/Streaming/DenseIdentityCanonicalizationPolicy.cs`
 - `src/Domain/Streaming/DenseIdentityCatalog.cs`
