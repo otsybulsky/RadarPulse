@@ -11,8 +11,9 @@ benchmarks.
 
 Milestone 005 architecture and implementation planning are drafted. The first
 processing contracts, static partition topology, dense source-local state
-store, and processing payload reader slices are implemented. The current work
-is to implement the first static partitioned processing core over already-built
+store, processing payload reader, and sequential core baseline slices are
+implemented. The current work is to continue from the first sequential
+processing core toward the static partitioned processing core over already-built
 `RadarEventBatch` values: explicit payload lifetime boundary, `SourceId ->
 PartitionId -> ShardId` routing, shard-owned dense source state, source-local
 handler slots, processing-only telemetry, validation, and benchmarks.
@@ -62,6 +63,7 @@ Done:
 - `005` static partition topology is implemented and tested.
 - `005` dense source-local state store is implemented and tested.
 - `005` processing payload reader helpers are implemented and tested.
+- `005` sequential processing core baseline is implemented and tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -77,7 +79,8 @@ Next work:
 
 - Implement milestone 005 from the drafted architecture and plan:
   static partitioned processing core over `RadarEventBatch`.
-- Continue with the sequential core baseline.
+- Continue with lifetime guardrails and sequential validation/parity support,
+  then implement the partitioned completion-barrier core.
 - Preserve the `SourceId -> PartitionId -> ShardId` ownership model so
   milestone 006 can add partition-level shard rebalance.
 - Treat the current `archive benchmark stream` numbers as replay construction
@@ -181,6 +184,21 @@ Completed in milestone 005 implementation so far:
   the existing `RadarEventBatchMetrics` raw-value contract.
 - Payload reader guardrails reject null batches, unsupported word sizes,
   payload length mismatches, and out-of-range payload references.
+- Payload reader signatures pass `RadarStreamEvent` by value to avoid
+  ref-safety/tooling ambiguity around returned spans.
+- `RadarProcessingCore`.
+- The first core baseline supports `Sequential` execution mode.
+- `RadarProcessingCore.Process` consumes `RadarEventBatch`, honors
+  `CancellationToken`, validates stream schema and source-universe version, and
+  returns `RadarProcessingResult`.
+- Sequential processing iterates `RadarEventBatch.Events` in canonical order,
+  reads event payload metrics through `RadarProcessingPayloadReader`, updates
+  `RadarSourceProcessingStateStore`, and exposes source snapshots.
+- Sequential metrics accumulate across processed batches and are available
+  through both the processing result and the core state.
+- Sequential baseline returns invalid processing results for unsupported stream
+  schema, source-universe mismatch, source id outside universe, source
+  ownership mismatch, and source-local timestamp regression.
 - Focused contract tests cover default options, invalid execution modes,
   invalid topology counts, validation result invariants, result shape, and empty
   result construction.
@@ -194,6 +212,11 @@ Completed in milestone 005 implementation so far:
   payload reads, batch-level parity with `RadarEventBatchMetrics`, empty batch
   metrics, metric addition, null batch rejection, length mismatch rejection,
   out-of-range payload rejection, and unsupported word size rejection.
+- Focused sequential-core tests cover constructor validation, null batch,
+  cancellation before processing, unsupported stream schema, source-universe
+  version mismatch, empty batch result, multi-source metrics/snapshots,
+  cumulative processing across batches, source id outside universe, source
+  ownership mismatch, and source-local timestamp regression.
 - Verification after slice 1:
   `dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore`
   passed with 151 tests passed and 3 skipped.
@@ -206,10 +229,14 @@ Completed in milestone 005 implementation so far:
 - Verification after slice 4:
   `dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore`
   passed with 177 tests passed and 3 skipped.
+- Verification after slice 5:
+  `dotnet test --no-restore` passed with 188 tests passed and 3 skipped.
 - Commits so far:
   `d9106b0 Add processing core contracts`;
   `4639ec0 Add static processing topology`;
-  `33c437a Add dense source processing state`.
+  `33c437a Add dense source processing state`;
+  `3a3ce88 Add processing payload reader`;
+  `e04265d Avoid ref parameter in payload reader`.
 
 Completed in milestone 004 implementation so far:
 
