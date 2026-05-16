@@ -1,4 +1,4 @@
-# Handoff: Milestone 006 Slice 6 Complete
+# Handoff: Milestone 006 Slice 7 Complete
 
 ## Current Goal
 
@@ -68,10 +68,19 @@ accepted move, and rejected-candidate outcomes, carry topology/evaluation/window
 context, expose move telemetry, and map policy rejections into explicit skipped
 reasons.
 
-The next implementation focus is milestone 006 slice 7: direct hot relief
-planner. The next slice should use pressure windows and policy state to choose
-deterministic direct hot-partition relief candidates, returning the decision
-contracts added in slice 6 instead of mutating topology directly.
+Milestone 006 slice 7 is implemented in the current working tree. RadarPulse now
+has a deterministic direct hot relief planner:
+`RadarProcessingDirectHotReliefPlanner`. The planner reads the rolling pressure
+window and anti-churn policy state, finds hot or super-hot source shards, builds
+direct hot-partition relief candidates against cold target shards, projects
+source/target pressure before and after, rejects unsafe target projections,
+applies policy gates, and returns rebalance decisions without mutating topology
+or policy state.
+
+The next implementation focus is milestone 006 slice 8: intrinsic hot partition
+classification. The next slice should classify hot partitions that cannot be
+safely absorbed by any target, expose that classification in decision telemetry,
+and avoid repeatedly trying to move the same intrinsically hot partition.
 
 ## Milestone Status
 
@@ -142,6 +151,7 @@ Done:
 - `006` slice 5 anti-churn policy state is implemented and tested.
 - `006` slice 6 rebalance decision and skipped-reason telemetry contracts are
   implemented and tested.
+- `006` slice 7 direct hot relief planner is implemented and tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -155,9 +165,10 @@ Done:
 
 Next milestone focus:
 
-- Implement milestone 006 slice 7 direct hot relief planner.
-- Select deterministic direct hot-partition relief candidates from the pressure
-  window and return accepted/rejected/no-action rebalance decisions.
+- Implement milestone 006 slice 8 intrinsic hot partition classification.
+- Classify hot partitions that cannot be moved safely as intrinsic rather than
+  repeatedly trying the same unsafe direct move.
+- Expose intrinsic classification through decision telemetry.
 - Keep skipped rebalance decisions visible through telemetry so "no move" can
   be explained by policy gates rather than ambiguity.
 - Preserve synchronous `PartitionedBarrier` processing as the first rebalance
@@ -453,6 +464,34 @@ Completed in milestone 006 implementation:
   `dotnet test RadarPulse.sln --no-restore` passed with 290 tests passed and 3
   skipped.
 - Verification after milestone 006 slice 6:
+  `dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore`
+  passed with 0 warnings and 0 errors.
+- `RadarProcessingDirectHotReliefPlanner`.
+- Direct hot relief planning reads pressure windows and policy state without
+  mutating topology or consuming anti-churn budgets/cooldowns.
+- The planner returns `NoAction` when the pressure window has not reached its
+  minimum sample count, when no shard is hot, or when no cold target shard is
+  available.
+- The planner ranks direct hot relief candidates deterministically by projected
+  max-pressure relief, partition pressure, partition id, and target shard id.
+- Candidate projection records source shard pressure before/after, target shard
+  pressure before/after, and expected relief.
+- Candidate target projection rejects direct moves that would make the target
+  shard warm, hot, or super-hot before policy gates are evaluated.
+- Anti-churn gates are applied through `RadarProcessingRebalancePolicyState`
+  evaluation before an accepted move decision is returned.
+- Direct hot relief tests cover sustained hot shard candidate creation,
+  deterministic largest useful partition selection, target-hot rejection,
+  insufficient projected benefit rejection, cooldown rejection, accepted move
+  projected max-pressure relief, ineligible window no-action, and eligible
+  no-hot-shard no-action.
+- Verification after milestone 006 slice 7:
+  `dotnet test RadarPulse.sln --no-restore --filter FullyQualifiedName~Processing`
+  passed with 155 tests passed.
+- Verification after milestone 006 slice 7:
+  `dotnet test RadarPulse.sln --no-restore` passed with 298 tests passed and 3
+  skipped.
+- Verification after milestone 006 slice 7:
   `dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore`
   passed with 0 warnings and 0 errors.
 
@@ -2042,6 +2081,7 @@ constant and moment data blocks.
 - `src/Domain/Processing/RadarProcessingProjectedPressure.cs`
 - `src/Domain/Processing/RadarProcessingRebalanceCandidate.cs`
 - `src/Domain/Processing/RadarProcessingRebalanceDecision.cs`
+- `src/Domain/Processing/RadarProcessingDirectHotReliefPlanner.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingTopologyVersioningTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingBatchRouterTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingTelemetryTests.cs`
@@ -2050,6 +2090,7 @@ constant and moment data blocks.
 - `tests/RadarPulse.Tests/Processing/RadarProcessingPressureWindowTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingRebalancePolicyStateTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingRebalanceDecisionTests.cs`
+- `tests/RadarPulse.Tests/Processing/RadarProcessingDirectHotReliefPlannerTests.cs`
 - `src/Domain/Processing/*`
 - `tests/RadarPulse.Tests/Processing/*`
 - `src/Domain/Streaming/DenseIdentityAllowedCharacters.cs`
