@@ -14,11 +14,12 @@ processing contracts, static partition topology, dense source-local state
 store, processing payload reader, sequential core baseline, and sequential
 lifetime/parity guardrail slices are implemented. The deterministic
 partitioned-routing substrate and first synchronous `PartitionedBarrier`
-execution path are implemented. The current work is to add partitioned
-telemetry and validation around shard routes while preserving the explicit
-payload lifetime boundary, `SourceId -> PartitionId -> ShardId` routing,
-shard-owned dense source state, source-local handler slots, processing-only
-telemetry, validation, and benchmarks.
+execution path are implemented. Partitioned telemetry and route-summary
+validation around shard routes are implemented. The current work is to continue
+milestone 005 toward optional processing-output validation, source-local
+handler slots, processing-only benchmarks, and closeout while preserving the
+explicit payload lifetime boundary, `SourceId -> PartitionId -> ShardId`
+routing, and shard-owned dense source state.
 
 Milestone 005 should build on the closed milestone 004 stream contract rather
 than changing it casually. Live shard rebalance is deliberately reserved for
@@ -70,6 +71,8 @@ Done:
 - `005` partitioned batch routing substrate is implemented and tested.
 - `005` first synchronous `PartitionedBarrier` execution path is implemented
   and tested.
+- `005` partitioned telemetry and route-summary validation are implemented and
+  tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -83,9 +86,12 @@ Done:
 
 Next work:
 
-- Implement milestone 005 from the drafted architecture and plan:
-  static partitioned processing core over `RadarEventBatch`.
-- Continue with partitioned telemetry and validation around shard routes.
+- Commit the current partitioned telemetry/handoff slice if continuing the
+  established checkpoint cadence.
+- Implement optional processing-output validation helpers outside the hot path:
+  compare input batch counters, result metrics, partitioned telemetry, and
+  source snapshots so missing, duplicate, out-of-order, or mismatched work can
+  be diagnosed explicitly.
 - Preserve the `SourceId -> PartitionId -> ShardId` ownership model so
   milestone 006 can add partition-level shard rebalance.
 - Treat the current `archive benchmark stream` numbers as replay construction
@@ -163,6 +169,9 @@ Completed in milestone 005 implementation so far:
   initial `PartitionCount >= ShardCount` topology constraint.
 - Processing results carry execution mode, topology shape, deterministic
   metrics, and validation state.
+- Processing results can optionally carry partitioned telemetry. Telemetry is
+  accepted only for `PartitionedBarrier` results and must match the result's
+  execution mode, partition count, and shard count.
 - `RadarProcessingPartitionAssignment`.
 - `RadarProcessingTopology`.
 - Static topology maps `SourceId -> PartitionId -> ShardId` with contiguous
@@ -216,6 +225,9 @@ Completed in milestone 005 implementation so far:
 - `RadarProcessingShardBatchRoute`.
 - `RadarProcessingRoutedEvent`.
 - `RadarProcessingRouteMetrics`.
+- `RadarProcessingPartitionTelemetry`.
+- `RadarProcessingShardTelemetry`.
+- `RadarProcessingTelemetry`.
 - Partitioned routing maps each batch event index to `PartitionId` and
   `ShardId` through `RadarProcessingTopology`.
 - Routing stores event indexes and per-partition/per-shard counters without
@@ -223,6 +235,14 @@ Completed in milestone 005 implementation so far:
 - Route metrics track event count, payload value count, and raw value checksum
   and aggregate consistently through partitions and shards.
 - Source ids outside the topology are rejected before a route is returned.
+- Partitioned telemetry is a read-side snapshot over the route: batch metrics,
+  per-partition metrics, per-shard metrics, shard partition counts, active
+  partition counts, deterministic hot partition id, and deterministic hot shard
+  id.
+- Telemetry does not expose event indexes, payload spans, or references to
+  leased batch storage.
+- Telemetry construction validates that partition and shard metric totals match
+  the batch route metrics.
 - `RadarProcessingCore` now supports both `Sequential` and
   `PartitionedBarrier` execution modes.
 - The first `PartitionedBarrier` path uses `RadarProcessingBatchRouter`, then
@@ -230,6 +250,8 @@ Completed in milestone 005 implementation so far:
   loops finish.
 - `RadarProcessingRoutedEvent` carries precomputed payload metrics so the
   partitioned path does not read payload bytes a second time after routing.
+- Valid `PartitionedBarrier` results now carry partitioned telemetry; sequential
+  and invalid results do not carry partitioned telemetry.
 - Source validation runs before execution for both modes, so invalid source ids
   and ownership mismatches do not mutate state.
 - Partitioned and sequential results/snapshots are verified for parity on the
@@ -264,6 +286,9 @@ Completed in milestone 005 implementation so far:
   owned/leased parity, same-source ordering, unsupported stream schema,
   source-universe mismatch, invalid source id before mutation, source ownership
   mismatch before mutation, and source-local timestamp regression.
+- Focused telemetry tests cover partitioned result telemetry, empty-batch
+  telemetry, deterministic hot partition/shard ids, leased-buffer stability,
+  and sequential results staying free of partitioned telemetry.
 - Verification after slice 1:
   `dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore`
   passed with 151 tests passed and 3 skipped.
@@ -284,6 +309,17 @@ Completed in milestone 005 implementation so far:
   `dotnet test --no-restore` passed with 202 tests passed and 3 skipped.
 - Verification after slice 8:
   `dotnet test --no-restore` passed with 211 tests passed and 3 skipped.
+- Verification after slice 9:
+  `dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarPulse.Tests.Processing`
+  passed with 73 tests passed.
+- Verification after slice 9:
+  `dotnet test --no-restore` passed with 216 tests passed and 3 skipped.
+- Verification after slice 9:
+  `git diff --check` passed. Scoped formatting verification for the changed
+  processing files passed with the scoped
+  `dotnet format --verify-no-changes --no-restore --include ...` command. The
+  repo-wide formatting command still reports pre-existing whitespace in
+  `tests\RadarPulse.Tests\Archive\NexradArchiveReplayPublisherTests.cs`.
 - Commits so far:
   `d9106b0 Add processing core contracts`;
   `4639ec0 Add static processing topology`;
@@ -292,7 +328,8 @@ Completed in milestone 005 implementation so far:
   `e04265d Avoid ref parameter in payload reader`;
   `981afa1 Add sequential processing core`;
   `38296b6 Add processing core guardrail tests`;
-  `5b65852 Add partitioned batch routing substrate`.
+  `5b65852 Add partitioned batch routing substrate`;
+  `e900c54 Add partitioned barrier processing path`.
 
 Completed in milestone 004 implementation so far:
 
@@ -1505,6 +1542,8 @@ constant and moment data blocks.
 - `docs/milestones/004-processing-core-input-contract-closeout.md`
 - `docs/milestones/005-processing-core-architecture.md`
 - `docs/milestones/005-processing-core-architecture-plan.md`
+- `src/Domain/Processing/*`
+- `tests/RadarPulse.Tests/Processing/*`
 - `src/Domain/Streaming/DenseIdentityAllowedCharacters.cs`
 - `src/Domain/Streaming/DenseIdentityCanonicalizationPolicy.cs`
 - `src/Domain/Streaming/DenseIdentityCatalog.cs`

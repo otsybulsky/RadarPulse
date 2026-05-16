@@ -7,7 +7,8 @@ public sealed record RadarProcessingResult
         int partitionCount,
         int shardCount,
         RadarProcessingMetrics metrics,
-        RadarProcessingValidationResult validation)
+        RadarProcessingValidationResult validation,
+        RadarProcessingTelemetry? telemetry = null)
     {
         RadarProcessingCoreOptions.EnsureKnownExecutionMode(executionMode);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(partitionCount);
@@ -22,12 +23,14 @@ public sealed record RadarProcessingResult
         }
 
         ArgumentNullException.ThrowIfNull(validation);
+        ValidateTelemetry(executionMode, partitionCount, shardCount, telemetry);
 
         ExecutionMode = executionMode;
         PartitionCount = partitionCount;
         ShardCount = shardCount;
         Metrics = metrics;
         Validation = validation;
+        Telemetry = telemetry;
     }
 
     public RadarProcessingExecutionMode ExecutionMode { get; }
@@ -39,6 +42,8 @@ public sealed record RadarProcessingResult
     public RadarProcessingMetrics Metrics { get; }
 
     public RadarProcessingValidationResult Validation { get; }
+
+    public RadarProcessingTelemetry? Telemetry { get; }
 
     public bool IsValid => Validation.IsValid;
 
@@ -52,5 +57,37 @@ public sealed record RadarProcessingResult
             options.ShardCount,
             RadarProcessingMetrics.Empty,
             RadarProcessingValidationResult.Valid(RadarProcessingMetrics.Empty));
+    }
+
+    private static void ValidateTelemetry(
+        RadarProcessingExecutionMode executionMode,
+        int partitionCount,
+        int shardCount,
+        RadarProcessingTelemetry? telemetry)
+    {
+        if (telemetry is null)
+        {
+            return;
+        }
+
+        if (executionMode != RadarProcessingExecutionMode.PartitionedBarrier)
+        {
+            throw new ArgumentException("Telemetry is only supported for partitioned barrier processing.", nameof(telemetry));
+        }
+
+        if (telemetry.ExecutionMode != executionMode)
+        {
+            throw new ArgumentException("Telemetry execution mode must match result execution mode.", nameof(telemetry));
+        }
+
+        if (telemetry.PartitionCount != partitionCount)
+        {
+            throw new ArgumentException("Telemetry partition count must match result partition count.", nameof(telemetry));
+        }
+
+        if (telemetry.ShardCount != shardCount)
+        {
+            throw new ArgumentException("Telemetry shard count must match result shard count.", nameof(telemetry));
+        }
     }
 }

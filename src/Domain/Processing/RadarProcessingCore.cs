@@ -105,6 +105,7 @@ public sealed class RadarProcessingCore
         CancellationToken cancellationToken)
     {
         var route = batchRouter.Route(batch);
+        var telemetry = RadarProcessingTelemetry.FromRoute(Options.ExecutionMode, route);
         var events = batch.Events.Span;
 
         foreach (var shard in route.Shards)
@@ -130,7 +131,7 @@ public sealed class RadarProcessingCore
         }
 
         processedBatchCount = checked(processedBatchCount + 1);
-        return Valid();
+        return Valid(telemetry);
     }
 
     private RadarProcessingResult? ValidateSources(
@@ -214,7 +215,7 @@ public sealed class RadarProcessingCore
         return null;
     }
 
-    private RadarProcessingResult Valid()
+    private RadarProcessingResult Valid(RadarProcessingTelemetry? telemetry = null)
     {
         var metrics = CreateMetrics();
         return new RadarProcessingResult(
@@ -222,7 +223,8 @@ public sealed class RadarProcessingCore
             Options.PartitionCount,
             Options.ShardCount,
             metrics,
-            RadarProcessingValidationResult.Valid(metrics));
+            RadarProcessingValidationResult.Valid(metrics),
+            telemetry);
     }
 
     private RadarProcessingResult Invalid(
