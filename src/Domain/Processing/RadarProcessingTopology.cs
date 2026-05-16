@@ -5,10 +5,22 @@ namespace RadarPulse.Domain.Processing;
 public sealed class RadarProcessingTopology
 {
     private readonly RadarProcessingPartitionAssignment[] partitions;
+    private readonly IReadOnlyList<RadarProcessingPartitionAssignment> partitionView;
 
     public RadarProcessingTopology(
         RadarSourceUniverse sourceUniverse,
         RadarProcessingCoreOptions options)
+        : this(
+            sourceUniverse,
+            options,
+            RadarProcessingTopologyVersion.Initial)
+    {
+    }
+
+    private RadarProcessingTopology(
+        RadarSourceUniverse sourceUniverse,
+        RadarProcessingCoreOptions options,
+        RadarProcessingTopologyVersion version)
     {
         ArgumentNullException.ThrowIfNull(sourceUniverse);
         ArgumentNullException.ThrowIfNull(options);
@@ -21,13 +33,36 @@ public sealed class RadarProcessingTopology
         }
 
         SourceUniverseVersion = sourceUniverse.Version;
+        Version = version;
         SourceCount = sourceUniverse.SourceCount;
         PartitionCount = options.PartitionCount;
         ShardCount = options.ShardCount;
         partitions = CreatePartitions(SourceCount, PartitionCount, ShardCount);
+        partitionView = Array.AsReadOnly(partitions);
+    }
+
+    private RadarProcessingTopology(
+        SourceUniverseVersion sourceUniverseVersion,
+        RadarProcessingTopologyVersion version,
+        int sourceCount,
+        int partitionCount,
+        int shardCount,
+        RadarProcessingPartitionAssignment[] partitions)
+    {
+        ArgumentNullException.ThrowIfNull(partitions);
+
+        SourceUniverseVersion = sourceUniverseVersion;
+        Version = version;
+        SourceCount = sourceCount;
+        PartitionCount = partitionCount;
+        ShardCount = shardCount;
+        this.partitions = partitions;
+        partitionView = Array.AsReadOnly(partitions);
     }
 
     public SourceUniverseVersion SourceUniverseVersion { get; }
+
+    public RadarProcessingTopologyVersion Version { get; }
 
     public int SourceCount { get; }
 
@@ -35,7 +70,7 @@ public sealed class RadarProcessingTopology
 
     public int ShardCount { get; }
 
-    public IReadOnlyList<RadarProcessingPartitionAssignment> Partitions => partitions;
+    public IReadOnlyList<RadarProcessingPartitionAssignment> Partitions => partitionView;
 
     public RadarProcessingPartitionAssignment GetPartition(int partitionId)
     {
@@ -69,6 +104,31 @@ public sealed class RadarProcessingTopology
 
     public int GetShardIdForSource(int sourceId) =>
         GetPartitionForSource(sourceId).ShardId;
+
+    internal RadarProcessingTopology MovePartitionOwner(
+        int partitionId,
+        int targetShardId,
+        RadarProcessingTopologyVersion version)
+    {
+        EnsurePartitionId(partitionId);
+        EnsureShardId(targetShardId);
+
+        var current = partitions[partitionId];
+        var updated = (RadarProcessingPartitionAssignment[])partitions.Clone();
+        updated[partitionId] = new RadarProcessingPartitionAssignment(
+            current.PartitionId,
+            targetShardId,
+            current.SourceIdStart,
+            current.SourceIdEndExclusive);
+
+        return new RadarProcessingTopology(
+            SourceUniverseVersion,
+            version,
+            SourceCount,
+            PartitionCount,
+            ShardCount,
+            updated);
+    }
 
     private static RadarProcessingPartitionAssignment[] CreatePartitions(
         int sourceCount,
@@ -123,5 +183,15 @@ public sealed class RadarProcessingTopology
         }
 
         throw new ArgumentOutOfRangeException(nameof(sourceId));
+    }
+
+    private void EnsureShardId(int shardId)
+    {
+        if ((uint)shardId < (uint)ShardCount)
+        {
+            return;
+        }
+
+        throw new ArgumentOutOfRangeException(nameof(shardId));
     }
 }

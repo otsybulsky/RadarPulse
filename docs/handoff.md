@@ -1,4 +1,4 @@
-# Handoff: Milestone 006 Planning Complete
+# Handoff: Milestone 006 Slice 1 Complete
 
 ## Current Goal
 
@@ -24,10 +24,17 @@ windowed pressure detection, direct hot-partition relief, cold-partition
 evacuation when the hot partition cannot move safely, anti-churn policy,
 migration lifecycle, state handoff validation, and rebalance telemetry.
 
-The next implementation focus is milestone 006 slice 1: versioned topology
-contracts and publication boundaries, while preserving the explicit payload
-lifetime boundary, stable `SourceId -> PartitionId` mapping, and dense
-source-local state model.
+Milestone 006 slice 1 is implemented in the current working tree. RadarPulse now
+has the first versioned topology foundation: `RadarProcessingTopologyVersion`,
+an immutable public topology partition view, monotonic topology snapshots,
+validated partition owner move requests/results, and a
+`RadarProcessingTopologyManager` that publishes version `N+1` snapshots while
+preserving the stable `SourceId -> PartitionId` mapping.
+
+The next implementation focus is milestone 006 slice 2: route topology-version
+integration. `RadarProcessingBatchRoute`, partitioned telemetry, and processing
+results should record the topology version captured for a batch, and validation
+should prove that one batch is processed against one topology snapshot.
 
 ## Milestone Status
 
@@ -88,6 +95,8 @@ Done:
 - `005` processing-core decision trace and closeout are written.
 - `006` partition-level shard rebalance architecture is complete.
 - `006` partition-level shard rebalance implementation plan is complete.
+- `006` slice 1 versioned topology contracts and publication boundary are
+  implemented and tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -101,8 +110,10 @@ Done:
 
 Next milestone focus:
 
-- Implement milestone 006 starting with versioned topology contracts and a
-  topology publication boundary.
+- Implement milestone 006 slice 2 route topology-version integration.
+- Ensure `RadarProcessingBatchRoute`, `RadarProcessingTelemetry`, and relevant
+  processing results expose the topology version used by the batch.
+- Add validation that no batch route uses mixed topology versions.
 - Preserve synchronous `PartitionedBarrier` processing as the first rebalance
   correctness boundary: process one batch against one topology snapshot, then
   evaluate and apply rebalance before the next batch.
@@ -203,6 +214,39 @@ Completed in milestone 006 planning:
   closeout/handoff.
 - The first implementation slice should add versioned topology contracts while
   preserving the existing contiguous source-range partition mapping.
+
+Completed in milestone 006 implementation:
+
+- `RadarProcessingTopologyVersion`.
+- `RadarProcessingTopologyMoveError`.
+- `RadarProcessingTopologyMoveRequest`.
+- `RadarProcessingTopologyMoveResult`.
+- `RadarProcessingTopologyManager`.
+- `RadarProcessingTopology` now exposes `Version`, starting at
+  `RadarProcessingTopologyVersion.Initial`.
+- `RadarProcessingTopology.Partitions` now exposes an immutable read-only view
+  over the partition assignments.
+- A valid partition owner move creates a new topology snapshot with version
+  `N+1`.
+- Old topology snapshots remain unchanged after a partition owner move.
+- The source-to-partition mapping is preserved across partition owner moves.
+- Only the requested `PartitionId -> ShardId` owner changes during a move.
+- Topology move publication rejects stale topology versions, out-of-range
+  partition ids, out-of-range source/target shard ids, no-op moves, and source
+  shard ownership mismatches.
+- `RadarProcessingTopologyVersioningTests` cover initial versioning, valid
+  publication, old snapshot immutability, stable source-to-partition mapping,
+  single-partition owner changes, stale requests, invalid requests, and negative
+  topology version guardrails.
+- Verification after milestone 006 slice 1:
+  `dotnet test RadarPulse.sln --no-restore --filter FullyQualifiedName~Processing`
+  passed with 106 tests passed.
+- Verification after milestone 006 slice 1:
+  `dotnet test RadarPulse.sln --no-restore` passed with 249 tests passed and 3
+  skipped.
+- Verification after milestone 006 slice 1:
+  `dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore`
+  passed with 0 warnings and 0 errors.
 
 Completed in milestone 005 implementation:
 
@@ -1756,6 +1800,12 @@ constant and moment data blocks.
 - `docs/milestones/005-processing-core-architecture-closeout.md`
 - `docs/milestones/006-partition-level-shard-rebalance.md`
 - `docs/milestones/006-partition-level-shard-rebalance-plan.md`
+- `src/Domain/Processing/RadarProcessingTopologyVersion.cs`
+- `src/Domain/Processing/RadarProcessingTopologyManager.cs`
+- `src/Domain/Processing/RadarProcessingTopologyMoveRequest.cs`
+- `src/Domain/Processing/RadarProcessingTopologyMoveResult.cs`
+- `src/Domain/Processing/RadarProcessingTopologyMoveError.cs`
+- `tests/RadarPulse.Tests/Processing/RadarProcessingTopologyVersioningTests.cs`
 - `src/Domain/Processing/*`
 - `tests/RadarPulse.Tests/Processing/*`
 - `src/Domain/Streaming/DenseIdentityAllowedCharacters.cs`
