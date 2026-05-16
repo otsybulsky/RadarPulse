@@ -6,7 +6,8 @@ public readonly record struct RadarProcessingRoutedEvent
         int eventIndex,
         int sourceId,
         int partitionId,
-        int shardId)
+        int shardId,
+        RadarProcessingPayloadMetrics payloadMetrics)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(eventIndex);
         ArgumentOutOfRangeException.ThrowIfNegative(sourceId);
@@ -17,6 +18,7 @@ public readonly record struct RadarProcessingRoutedEvent
         SourceId = sourceId;
         PartitionId = partitionId;
         ShardId = shardId;
+        PayloadMetrics = payloadMetrics;
     }
 
     public int EventIndex { get; }
@@ -26,4 +28,6 @@ public readonly record struct RadarProcessingRoutedEvent
     public int PartitionId { get; }
 
     public int ShardId { get; }
+
+    public RadarProcessingPayloadMetrics PayloadMetrics { get; }
 }

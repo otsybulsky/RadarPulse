@@ -6,6 +6,7 @@ public sealed class RadarProcessingCore
 {
     private readonly RadarSourceUniverse sourceUniverse;
     private readonly RadarSourceProcessingStateStore stateStore;
+    private readonly RadarProcessingBatchRouter batchRouter;
     private long processedBatchCount;
 
     public RadarProcessingCore(
@@ -15,15 +16,11 @@ public sealed class RadarProcessingCore
         ArgumentNullException.ThrowIfNull(sourceUniverse);
 
         options ??= RadarProcessingCoreOptions.Default;
-        if (options.ExecutionMode != RadarProcessingExecutionMode.Sequential)
-        {
-            throw new NotSupportedException(
-                "Only sequential processing mode is implemented in the current processing core baseline.");
-        }
 
         this.sourceUniverse = sourceUniverse;
         Options = options;
         Topology = new RadarProcessingTopology(sourceUniverse, options);
+        batchRouter = new RadarProcessingBatchRouter(Topology);
         stateStore = new RadarSourceProcessingStateStore(sourceUniverse);
     }
 
@@ -56,40 +53,18 @@ public sealed class RadarProcessingCore
                 "Batch source-universe version does not match the processing core source universe.");
         }
 
-        var events = batch.Events.Span;
-        var payload = batch.Payload.Span;
-
-        for (var eventIndex = 0; eventIndex < events.Length; eventIndex++)
+        var sourceValidation = ValidateSources(batch.Events.Span, cancellationToken);
+        if (sourceValidation is not null)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var streamEvent = events[eventIndex];
-            var sourceValidation = ValidateSource(streamEvent, eventIndex);
-            if (sourceValidation is not null)
-            {
-                return sourceValidation;
-            }
-
-            var payloadMetrics = RadarProcessingPayloadReader.ComputeEventMetrics(streamEvent, payload);
-            try
-            {
-                stateStore.ApplyProcessedEvent(
-                    streamEvent,
-                    payloadMetrics.PayloadValueCount,
-                    payloadMetrics.RawValueChecksum);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return Invalid(
-                    RadarProcessingValidationError.SourceOrderViolation,
-                    streamEvent.SourceId,
-                    eventIndex,
-                    ex.Message);
-            }
+            return sourceValidation;
         }
 
-        processedBatchCount = checked(processedBatchCount + 1);
-        return Valid();
+        return Options.ExecutionMode switch
+        {
+            RadarProcessingExecutionMode.Sequential => ProcessSequential(batch, cancellationToken),
+            RadarProcessingExecutionMode.PartitionedBarrier => ProcessPartitionedBarrier(batch, cancellationToken),
+            _ => throw new InvalidOperationException("Unsupported processing execution mode.")
+        };
     }
 
     public RadarSourceProcessingSnapshot GetSourceSnapshot(int sourceId) =>
@@ -100,6 +75,104 @@ public sealed class RadarProcessingCore
 
     public RadarProcessingMetrics CreateMetrics() =>
         stateStore.CreateMetrics(processedBatchCount);
+
+    private RadarProcessingResult ProcessSequential(
+        RadarEventBatch batch,
+        CancellationToken cancellationToken)
+    {
+        var events = batch.Events.Span;
+        var payload = batch.Payload.Span;
+
+        for (var eventIndex = 0; eventIndex < events.Length; eventIndex++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var streamEvent = events[eventIndex];
+            var payloadMetrics = RadarProcessingPayloadReader.ComputeEventMetrics(streamEvent, payload);
+            var result = ApplyProcessedEvent(streamEvent, eventIndex, payloadMetrics);
+            if (result is not null)
+            {
+                return result;
+            }
+        }
+
+        processedBatchCount = checked(processedBatchCount + 1);
+        return Valid();
+    }
+
+    private RadarProcessingResult ProcessPartitionedBarrier(
+        RadarEventBatch batch,
+        CancellationToken cancellationToken)
+    {
+        var route = batchRouter.Route(batch);
+        var events = batch.Events.Span;
+
+        foreach (var shard in route.Shards)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var eventIndexes = shard.EventIndexes.Span;
+            for (var i = 0; i < eventIndexes.Length; i++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var eventIndex = eventIndexes[i];
+                var streamEvent = events[eventIndex];
+                var result = ApplyProcessedEvent(
+                    streamEvent,
+                    eventIndex,
+                    route.GetRoutedEvent(eventIndex).PayloadMetrics);
+                if (result is not null)
+                {
+                    return result;
+                }
+            }
+        }
+
+        processedBatchCount = checked(processedBatchCount + 1);
+        return Valid();
+    }
+
+    private RadarProcessingResult? ValidateSources(
+        ReadOnlySpan<RadarStreamEvent> events,
+        CancellationToken cancellationToken)
+    {
+        for (var eventIndex = 0; eventIndex < events.Length; eventIndex++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var result = ValidateSource(events[eventIndex], eventIndex);
+            if (result is not null)
+            {
+                return result;
+            }
+        }
+
+        return null;
+    }
+
+    private RadarProcessingResult? ApplyProcessedEvent(
+        RadarStreamEvent streamEvent,
+        int eventIndex,
+        RadarProcessingPayloadMetrics payloadMetrics)
+    {
+        try
+        {
+            stateStore.ApplyProcessedEvent(
+                streamEvent,
+                payloadMetrics.PayloadValueCount,
+                payloadMetrics.RawValueChecksum);
+            return null;
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Invalid(
+                RadarProcessingValidationError.SourceOrderViolation,
+                streamEvent.SourceId,
+                eventIndex,
+                ex.Message);
+        }
+    }
 
     private RadarProcessingResult? ValidateSource(
         RadarStreamEvent streamEvent,

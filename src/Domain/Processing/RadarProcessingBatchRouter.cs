@@ -59,7 +59,8 @@ public sealed class RadarProcessingBatchRouter
                 eventIndex,
                 streamEvent.SourceId,
                 partitionId,
-                shardId);
+                shardId,
+                payloadMetrics);
             partitionEventIndexes[partitionId][partitionOffsets[partitionId]++] = eventIndex;
             shardEventIndexes[shardId][shardOffsets[shardId]++] = eventIndex;
             partitionMetrics[partitionId] = partitionMetrics[partitionId].AddEvent(payloadMetrics);
