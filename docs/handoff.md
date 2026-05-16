@@ -1,4 +1,4 @@
-# Handoff: Milestone 006 Slice 3 Complete
+# Handoff: Milestone 006 Slice 4 Complete
 
 ## Current Goal
 
@@ -43,11 +43,19 @@ has pressure sample and score contracts over partitioned telemetry:
 `RadarProcessingPressureOptions`. Pressure samples copy numeric telemetry only
 and do not retain `RadarEventBatch` payload references.
 
-The next implementation focus is milestone 006 slice 4: pressure window and
-hysteresis tracking. The next slice should maintain recent shard and partition
-pressure state across telemetry samples, require a minimum sample count before
-rebalance is eligible, and apply explicit enter/exit thresholds for pressure
-bands.
+Milestone 006 slice 4 is implemented in the current working tree. RadarPulse now
+has rolling pressure windows with explicit hysteresis:
+`RadarProcessingPressureWindow`, window options, shard pressure state, and
+partition pressure state. The window tracks recent pressure samples, exposes
+rebalance eligibility only after the configured minimum sample count, preserves
+latest topology version, and applies enter/exit thresholds so short spikes do
+not automatically trigger rebalance.
+
+The next implementation focus is milestone 006 slice 5: anti-churn policy
+state. The next slice should introduce deterministic cooldown, minimum
+residency, source-shard move budget, target-shard receive budget, global move
+budget, and projected-benefit gates that the future rebalance controller can
+apply before accepting any move.
 
 ## Milestone Status
 
@@ -113,6 +121,8 @@ Done:
 - `006` slice 2 route topology-version integration is implemented and tested.
 - `006` slice 3 pressure sample and pressure score contracts are implemented
   and tested.
+- `006` slice 4 pressure window and hysteresis tracking is implemented and
+  tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -126,12 +136,12 @@ Done:
 
 Next milestone focus:
 
-- Implement milestone 006 slice 4 pressure window and hysteresis tracking.
-- Track recent shard and partition pressure from `RadarProcessingPressureSample`
-  values.
-- Require a minimum sample count before rebalance is eligible.
-- Add explicit pressure band enter/exit threshold behavior so short spikes do
-  not trigger rebalance.
+- Implement milestone 006 slice 5 anti-churn policy state.
+- Add deterministic cooldown, minimum partition residency, source-shard move
+  budget, target-shard receive budget, global move budget, and
+  projected-benefit gates.
+- Keep policy state logical-sequence based rather than wall-clock based for the
+  first implementation.
 - Preserve synchronous `PartitionedBarrier` processing as the first rebalance
   correctness boundary: process one batch against one topology snapshot, then
   evaluate and apply rebalance before the next batch.
@@ -318,6 +328,37 @@ Completed in milestone 006 implementation:
   `dotnet test RadarPulse.sln --no-restore` passed with 259 tests passed and 3
   skipped.
 - Verification after milestone 006 slice 3:
+  `dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore`
+  passed with 0 warnings and 0 errors.
+- `RadarProcessingPressureWindowOptions`.
+- `RadarProcessingShardPressureState`.
+- `RadarProcessingPartitionPressureState`.
+- `RadarProcessingPressureWindow`.
+- Pressure windows retain the last configured number of
+  `RadarProcessingPressureSample` values and expose current shard and partition
+  pressure state.
+- Pressure windows expose `IsRebalanceEligible` only after the configured
+  minimum sample count is reached.
+- Pressure windows preserve the latest observed topology version.
+- Shard pressure state tracks sample count, latest partition counts, total
+  route metrics across the window, average score, band, hot flag, and super-hot
+  flag.
+- Partition pressure state tracks partition id, latest owner shard, sample
+  count, total route metrics across the window, average score, band, hot flag,
+  and super-hot flag.
+- Window hysteresis uses explicit warm/hot/super-hot enter and exit thresholds.
+- Pressure window tests cover minimum sample eligibility, sustained hot
+  detection, preserving hot band between enter/exit thresholds, leaving hot
+  below the exit threshold, cold empty samples, partition pressure ownership,
+  latest topology version, mismatched sample shape rejection, and option
+  guardrails.
+- Verification after milestone 006 slice 4:
+  `dotnet test RadarPulse.sln --no-restore --filter FullyQualifiedName~Processing`
+  passed with 125 tests passed.
+- Verification after milestone 006 slice 4:
+  `dotnet test RadarPulse.sln --no-restore` passed with 268 tests passed and 3
+  skipped.
+- Verification after milestone 006 slice 4:
   `dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore`
   passed with 0 warnings and 0 errors.
 
@@ -1888,11 +1929,16 @@ constant and moment data blocks.
 - `src/Domain/Processing/RadarProcessingPressureSample.cs`
 - `src/Domain/Processing/RadarProcessingShardPressureSample.cs`
 - `src/Domain/Processing/RadarProcessingPartitionPressureSample.cs`
+- `src/Domain/Processing/RadarProcessingPressureWindowOptions.cs`
+- `src/Domain/Processing/RadarProcessingPressureWindow.cs`
+- `src/Domain/Processing/RadarProcessingShardPressureState.cs`
+- `src/Domain/Processing/RadarProcessingPartitionPressureState.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingTopologyVersioningTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingBatchRouterTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingTelemetryTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingContractTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingPressureSampleTests.cs`
+- `tests/RadarPulse.Tests/Processing/RadarProcessingPressureWindowTests.cs`
 - `src/Domain/Processing/*`
 - `tests/RadarPulse.Tests/Processing/*`
 - `src/Domain/Streaming/DenseIdentityAllowedCharacters.cs`
