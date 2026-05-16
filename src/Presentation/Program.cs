@@ -178,6 +178,7 @@ static int PrintUsage()
     Console.WriteLine("  radarpulse archive benchmark stream (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse processing benchmark synthetic [--mode sequential|partitioned] [--sources n] [--batches n] [--events-per-batch n] [--payload-values n] [--partitions n] [--shards n] [--handlers none|counter-checksum] [--iterations n] [--warmup-iterations n]");
     Console.WriteLine("  radarpulse processing benchmark rebalance-synthetic [--workload balanced|hot-shard|intrinsic-hot|oscillating|cooldown-storm|all] [--mode static|sampling|rebalance|all] [--iterations n] [--warmup-iterations n]");
+    Console.WriteLine("  radarpulse processing benchmark rebalance-archive (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--mode static|sampling|rebalance|all] [--partitions n] [--shards n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse archive validate decompress (--file path | --cache data/nexrad [--radar KTLX] [--max-files n])");
     Console.WriteLine("  radarpulse archive validate replay-shape (--file path | --cache data/nexrad [--radar KTLX] [--max-files n]) [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     return 2;
@@ -362,6 +363,7 @@ static int ProcessingBenchmark(string[] args)
     {
         "synthetic" => BenchmarkProcessingSynthetic(args[1..]),
         "rebalance" or "rebalance-synthetic" => BenchmarkProcessingRebalanceSynthetic(args[1..]),
+        "rebalance-archive" => BenchmarkProcessingRebalanceArchive(args[1..]),
         _ => PrintUsage()
     };
 }
@@ -413,6 +415,56 @@ static int BenchmarkProcessingRebalanceSynthetic(string[] args)
             PrintProcessingRebalanceBenchmarkResult(result);
             printedResult = true;
         }
+    }
+
+    return 0;
+}
+
+static int BenchmarkProcessingRebalanceArchive(string[] args)
+{
+    var options = ProcessingBenchmarkArchiveRebalanceOptions.Parse(args);
+    var benchmark = new RadarProcessingArchiveRebalanceBenchmark(
+        ArchiveBZip2Decompressors.Create(options.Decompressor));
+    var printedResult = false;
+
+    foreach (var mode in options.Modes)
+    {
+        if (printedResult)
+        {
+            Console.WriteLine();
+        }
+
+        if (options.CachePath is not null)
+        {
+            var cacheResult = benchmark.MeasureCache(
+                options.CachePath,
+                options.Date,
+                options.RadarId,
+                options.MaxFiles,
+                mode,
+                options.Iterations,
+                options.WarmupIterations,
+                options.PartitionCount,
+                options.ShardCount,
+                options.Parallelism,
+                CancellationToken.None);
+            PrintProcessingArchiveRebalanceCacheBenchmarkResult(cacheResult);
+        }
+        else
+        {
+            var result = benchmark.MeasureFile(
+                options.FilePath ?? throw new InvalidOperationException("--file is required when --cache is not provided."),
+                mode,
+                options.Iterations,
+                options.WarmupIterations,
+                options.PartitionCount,
+                options.ShardCount,
+                options.Parallelism,
+                CancellationToken.None);
+            PrintProcessingArchiveRebalanceBenchmarkResult(result);
+        }
+
+        printedResult = true;
     }
 
     return 0;
@@ -490,9 +542,129 @@ static void PrintProcessingRebalanceBenchmarkResult(RadarProcessingSyntheticReba
     PrintProcessingRebalanceMovePressures(result.AcceptedMovePressures);
 }
 
+static void PrintProcessingArchiveRebalanceBenchmarkResult(RadarProcessingArchiveRebalanceBenchmarkResult result)
+{
+    Console.WriteLine("Processing benchmark: rebalance-archive");
+    Console.WriteLine("Measured contour: Archive replay to RadarEventBatch plus processing rebalance callback");
+    Console.WriteLine("Processing-only timing: synchronous RadarEventBatch callback inside archive publisher");
+    Console.WriteLine("Batch lifetime: leased batches are processed during the callback and are not retained");
+    Console.WriteLine($"File: {result.FilePath}");
+    Console.WriteLine($"Decompressor: {result.Decompressor}");
+    Console.WriteLine($"Archive parallelism: {FormatNumber(result.DegreeOfParallelism)}");
+    Console.WriteLine("Execution mode: partitioned");
+    Console.WriteLine($"Benchmark mode: {FormatProcessingRebalanceMode(result.Mode)}");
+    Console.WriteLine($"Source count: {FormatNumber(result.SourceCount)}");
+    Console.WriteLine($"Partitions: {FormatNumber(result.PartitionCount)}");
+    Console.WriteLine($"Shards: {FormatNumber(result.ShardCount)}");
+    Console.WriteLine($"Iterations: {FormatNumber(result.Iterations)}");
+    Console.WriteLine($"Warmup iterations: {FormatNumber(result.WarmupIterations)}");
+    Console.WriteLine($"File size bytes per iteration: {FormatNumber(result.FileSizeBytesPerIteration)}");
+    Console.WriteLine($"Compressed records per iteration: {FormatNumber(result.CompressedRecordsPerIteration)}");
+    Console.WriteLine($"Compressed bytes per iteration: {FormatNumber(result.CompressedBytesPerIteration)}");
+    Console.WriteLine($"Decompressed bytes per iteration: {FormatNumber(result.DecompressedBytesPerIteration)}");
+    Console.WriteLine($"Batches per iteration: {FormatNumber(result.BatchesPerIteration)}");
+    Console.WriteLine($"Stream events per iteration: {FormatNumber(result.EventsPerIteration)}");
+    Console.WriteLine($"Payload bytes per iteration: {FormatNumber(result.PayloadBytesPerIteration)}");
+    Console.WriteLine($"Payload values per iteration: {FormatNumber(result.PayloadValuesPerIteration)}");
+    Console.WriteLine($"Raw value checksum per iteration: {FormatNumber(result.RawValueChecksumPerIteration)}");
+    Console.WriteLine($"Topology versions per iteration: {FormatNumber(result.TopologyVersionCount)}");
+    Console.WriteLine($"Rebalance evaluations: {FormatNumber(result.RebalanceEvaluationCount)}");
+    Console.WriteLine($"Accepted moves: {FormatNumber(result.AcceptedMoveCount)}");
+    Console.WriteLine($"Skipped decisions: {FormatNumber(result.SkippedDecisionCount)}");
+    Console.WriteLine($"Direct hot relief moves: {FormatNumber(result.DirectHotReliefCount)}");
+    Console.WriteLine($"Cold evacuation moves: {FormatNumber(result.ColdEvacuationCount)}");
+    Console.WriteLine($"Failed migrations: {FormatNumber(result.FailedMigrationCount)}");
+    Console.WriteLine($"Validation: {(result.ValidationSucceeded ? "succeeded" : "failed")}");
+    Console.WriteLine($"Validation checksum: {FormatUnsignedNumber(result.ValidationChecksum)}");
+    Console.WriteLine($"Skipped reasons: {FormatProcessingRebalanceSkippedReasons(result.SkippedReasons)}");
+    Console.WriteLine($"End-to-end elapsed ms: {FormatDecimal(result.Elapsed.TotalMilliseconds)}");
+    Console.WriteLine($"Processing callback elapsed ms: {FormatDecimal(result.ProcessingElapsed.TotalMilliseconds)}");
+    Console.WriteLine($"Replay and batch construction elapsed ms: {FormatDecimal(result.ReplayAndBatchConstructionElapsed.TotalMilliseconds)}");
+    Console.WriteLine($"Compressed MB/s: {FormatDecimal(result.CompressedMegabytesPerSecond)}");
+    Console.WriteLine($"Decompressed MB/s: {FormatDecimal(result.DecompressedMegabytesPerSecond)}");
+    Console.WriteLine($"End-to-end stream events/s: {FormatDecimal(result.EventsPerSecond)}");
+    Console.WriteLine($"End-to-end payload values/s: {FormatDecimal(result.PayloadValuesPerSecond)}");
+    Console.WriteLine($"Processing stream events/s: {FormatDecimal(result.ProcessingEventsPerSecond)}");
+    Console.WriteLine($"Processing payload values/s: {FormatDecimal(result.ProcessingPayloadValuesPerSecond)}");
+    Console.WriteLine($"Rebalance evaluations/s: {FormatDecimal(result.RebalanceEvaluationsPerSecond)}");
+    Console.WriteLine($"Allocated bytes: {FormatNumber(result.AllocatedBytes)}");
+    Console.WriteLine($"Allocated bytes / stream event: {FormatDecimal(result.AllocatedBytesPerStreamEvent)}");
+    Console.WriteLine($"Allocated bytes / payload value: {FormatDecimal(result.AllocatedBytesPerPayloadValue)}");
+    Console.WriteLine($"Allocated bytes / rebalance evaluation: {FormatDecimal(result.AllocatedBytesPerRebalanceEvaluation)}");
+    PrintProcessingRebalanceMovePressures(result.AcceptedMovePressures);
+}
+
+static void PrintProcessingArchiveRebalanceCacheBenchmarkResult(RadarProcessingArchiveRebalanceCacheBenchmarkResult result)
+{
+    Console.WriteLine("Processing benchmark: rebalance-archive cache");
+    Console.WriteLine("Measured contour: Archive cache replay to RadarEventBatch plus processing rebalance callback");
+    Console.WriteLine("Processing-only timing: synchronous RadarEventBatch callback inside archive publisher");
+    Console.WriteLine("Batch lifetime: leased batches are processed during the callback and are not retained");
+    Console.WriteLine($"Cache: {result.CachePath}");
+    if (result.Date is { } date)
+    {
+        Console.WriteLine($"Date: {date:yyyy-MM-dd}");
+    }
+
+    if (result.RadarId is not null)
+    {
+        Console.WriteLine($"Radar: {result.RadarId}");
+    }
+
+    Console.WriteLine($"Decompressor: {result.Decompressor}");
+    Console.WriteLine($"Archive parallelism: {FormatNumber(result.DegreeOfParallelism)}");
+    Console.WriteLine("Execution mode: partitioned");
+    Console.WriteLine($"Benchmark mode: {FormatProcessingRebalanceMode(result.Mode)}");
+    Console.WriteLine($"Source count: {FormatNumber(result.SourceCount)}");
+    Console.WriteLine($"Partitions: {FormatNumber(result.PartitionCount)}");
+    Console.WriteLine($"Shards: {FormatNumber(result.ShardCount)}");
+    Console.WriteLine($"Iterations: {FormatNumber(result.Iterations)}");
+    Console.WriteLine($"Warmup iterations: {FormatNumber(result.WarmupIterations)}");
+    Console.WriteLine($"Examined files per iteration: {FormatNumber(result.ExaminedFilesPerIteration)}");
+    Console.WriteLine($"Skipped files per iteration: {FormatNumber(result.SkippedFilesPerIteration)}");
+    Console.WriteLine($"Published files per iteration: {FormatNumber(result.PublishedFilesPerIteration)}");
+    Console.WriteLine($"File size bytes per iteration: {FormatNumber(result.FileSizeBytesPerIteration)}");
+    Console.WriteLine($"Compressed records per iteration: {FormatNumber(result.CompressedRecordsPerIteration)}");
+    Console.WriteLine($"Compressed bytes per iteration: {FormatNumber(result.CompressedBytesPerIteration)}");
+    Console.WriteLine($"Decompressed bytes per iteration: {FormatNumber(result.DecompressedBytesPerIteration)}");
+    Console.WriteLine($"Batches per iteration: {FormatNumber(result.BatchesPerIteration)}");
+    Console.WriteLine($"Stream events per iteration: {FormatNumber(result.EventsPerIteration)}");
+    Console.WriteLine($"Payload bytes per iteration: {FormatNumber(result.PayloadBytesPerIteration)}");
+    Console.WriteLine($"Payload values per iteration: {FormatNumber(result.PayloadValuesPerIteration)}");
+    Console.WriteLine($"Raw value checksum per iteration: {FormatNumber(result.RawValueChecksumPerIteration)}");
+    Console.WriteLine($"Topology versions per iteration: {FormatNumber(result.TopologyVersionCount)}");
+    Console.WriteLine($"Rebalance evaluations: {FormatNumber(result.RebalanceEvaluationCount)}");
+    Console.WriteLine($"Accepted moves: {FormatNumber(result.AcceptedMoveCount)}");
+    Console.WriteLine($"Skipped decisions: {FormatNumber(result.SkippedDecisionCount)}");
+    Console.WriteLine($"Direct hot relief moves: {FormatNumber(result.DirectHotReliefCount)}");
+    Console.WriteLine($"Cold evacuation moves: {FormatNumber(result.ColdEvacuationCount)}");
+    Console.WriteLine($"Failed migrations: {FormatNumber(result.FailedMigrationCount)}");
+    Console.WriteLine($"Validation: {(result.ValidationSucceeded ? "succeeded" : "failed")}");
+    Console.WriteLine($"Validation checksum: {FormatUnsignedNumber(result.ValidationChecksum)}");
+    Console.WriteLine($"Skipped reasons: {FormatProcessingRebalanceSkippedReasons(result.SkippedReasons)}");
+    Console.WriteLine($"End-to-end elapsed ms: {FormatDecimal(result.Elapsed.TotalMilliseconds)}");
+    Console.WriteLine($"Processing callback elapsed ms: {FormatDecimal(result.ProcessingElapsed.TotalMilliseconds)}");
+    Console.WriteLine($"Replay and batch construction elapsed ms: {FormatDecimal(result.ReplayAndBatchConstructionElapsed.TotalMilliseconds)}");
+    Console.WriteLine($"Compressed MB/s: {FormatDecimal(result.CompressedMegabytesPerSecond)}");
+    Console.WriteLine($"Decompressed MB/s: {FormatDecimal(result.DecompressedMegabytesPerSecond)}");
+    Console.WriteLine($"Files/s: {FormatDecimal(result.FilesPerSecond)}");
+    Console.WriteLine($"End-to-end stream events/s: {FormatDecimal(result.EventsPerSecond)}");
+    Console.WriteLine($"End-to-end payload values/s: {FormatDecimal(result.PayloadValuesPerSecond)}");
+    Console.WriteLine($"Processing stream events/s: {FormatDecimal(result.ProcessingEventsPerSecond)}");
+    Console.WriteLine($"Processing payload values/s: {FormatDecimal(result.ProcessingPayloadValuesPerSecond)}");
+    Console.WriteLine($"Rebalance evaluations/s: {FormatDecimal(result.RebalanceEvaluationsPerSecond)}");
+    Console.WriteLine($"Allocated bytes: {FormatNumber(result.AllocatedBytes)}");
+    Console.WriteLine($"Allocated bytes / stream event: {FormatDecimal(result.AllocatedBytesPerStreamEvent)}");
+    Console.WriteLine($"Allocated bytes / payload value: {FormatDecimal(result.AllocatedBytesPerPayloadValue)}");
+    Console.WriteLine($"Allocated bytes / rebalance evaluation: {FormatDecimal(result.AllocatedBytesPerRebalanceEvaluation)}");
+    PrintProcessingRebalanceMovePressures(result.AcceptedMovePressures);
+}
+
 static void PrintProcessingRebalanceMovePressures(
     IReadOnlyList<RadarProcessingSyntheticRebalanceMovePressure> acceptedMovePressures)
 {
+    const int displayedMovePressureLimit = 8;
+
     if (acceptedMovePressures.Count == 0)
     {
         Console.WriteLine("Accepted move pressures: (none)");
@@ -500,7 +672,8 @@ static void PrintProcessingRebalanceMovePressures(
     }
 
     Console.WriteLine("Accepted move pressures:");
-    for (var i = 0; i < acceptedMovePressures.Count; i++)
+    var displayedCount = Math.Min(acceptedMovePressures.Count, displayedMovePressureLimit);
+    for (var i = 0; i < displayedCount; i++)
     {
         var pressure = acceptedMovePressures[i];
         Console.WriteLine(
@@ -508,6 +681,12 @@ static void PrintProcessingRebalanceMovePressures(
             $"source {FormatDecimal(pressure.SourceShardBefore)}->{FormatDecimal(pressure.SourceShardAfter)}, " +
             $"target {FormatDecimal(pressure.TargetShardBefore)}->{FormatDecimal(pressure.TargetShardAfter)}, " +
             $"relief {FormatDecimal(pressure.ExpectedRelief)}");
+    }
+
+    var omittedCount = acceptedMovePressures.Count - displayedCount;
+    if (omittedCount > 0)
+    {
+        Console.WriteLine($"  ... {FormatNumber(omittedCount)} more accepted move pressure samples omitted");
     }
 }
 
@@ -1844,6 +2023,182 @@ public sealed record ProcessingBenchmarkRebalanceSyntheticOptions(
             "rebalance" or "session" or "rebalance-session" =>
                 Single(RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession),
             _ => throw new ArgumentException($"Unknown synthetic rebalance benchmark mode: {value}")
+        };
+
+    private static IReadOnlyList<T> Single<T>(T value) => Array.AsReadOnly([value]);
+
+    private static string RequireValue(string[] args, ref int index, string option)
+    {
+        if (index + 1 >= args.Length)
+        {
+            throw new ArgumentException($"{option} requires a value.");
+        }
+
+        index++;
+        return args[index];
+    }
+}
+
+public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
+    string? FilePath,
+    string? CachePath,
+    DateOnly? Date,
+    string? RadarId,
+    int MaxFiles,
+    IReadOnlyList<RadarProcessingSyntheticRebalanceBenchmarkMode> Modes,
+    int PartitionCount,
+    int ShardCount,
+    int Iterations,
+    int WarmupIterations,
+    int Parallelism,
+    string Decompressor)
+{
+    public static ProcessingBenchmarkArchiveRebalanceOptions Parse(string[] args)
+    {
+        string? filePath = null;
+        string? cachePath = null;
+        DateOnly? date = null;
+        string? radarId = null;
+        var maxFiles = 20;
+        var maxFilesWasProvided = false;
+        IReadOnlyList<RadarProcessingSyntheticRebalanceBenchmarkMode> modes = Array.AsReadOnly(
+        [
+            RadarProcessingSyntheticRebalanceBenchmarkMode.StaticNoRebalance,
+            RadarProcessingSyntheticRebalanceBenchmarkMode.PressureSamplingOnly,
+            RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession
+        ]);
+        var partitionCount = 24;
+        var shardCount = 4;
+        var iterations = 1;
+        var warmupIterations = 0;
+        var parallelism = 1;
+        var decompressor = ArchiveBZip2Decompressors.DefaultName;
+
+        for (var i = 0; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--file":
+                    filePath = RequireValue(args, ref i, "--file");
+                    break;
+                case "--cache":
+                    cachePath = RequireValue(args, ref i, "--cache");
+                    break;
+                case "--date":
+                    date = DateOnly.Parse(RequireValue(args, ref i, "--date"));
+                    break;
+                case "--radar":
+                    radarId = HistoricalArchiveRequest.NormalizeRadarId(RequireValue(args, ref i, "--radar"));
+                    break;
+                case "--max-files":
+                    maxFiles = int.Parse(RequireValue(args, ref i, "--max-files"));
+                    maxFilesWasProvided = true;
+                    break;
+                case "--mode":
+                    modes = ParseMode(RequireValue(args, ref i, "--mode"));
+                    break;
+                case "--partitions":
+                    partitionCount = int.Parse(RequireValue(args, ref i, "--partitions"));
+                    break;
+                case "--shards":
+                    shardCount = int.Parse(RequireValue(args, ref i, "--shards"));
+                    break;
+                case "--iterations":
+                    iterations = int.Parse(RequireValue(args, ref i, "--iterations"));
+                    break;
+                case "--warmup-iterations":
+                    warmupIterations = int.Parse(RequireValue(args, ref i, "--warmup-iterations"));
+                    break;
+                case "--parallelism":
+                    parallelism = int.Parse(RequireValue(args, ref i, "--parallelism"));
+                    break;
+                case "--decompressor":
+                    decompressor = RequireValue(args, ref i, "--decompressor");
+                    break;
+                default:
+                    throw new ArgumentException($"Unknown option: {args[i]}");
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(filePath) == string.IsNullOrWhiteSpace(cachePath))
+        {
+            throw new InvalidOperationException("Provide exactly one of --file or --cache.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(filePath) &&
+            (date is not null || radarId is not null || maxFilesWasProvided))
+        {
+            throw new InvalidOperationException("--date, --radar, and --max-files can only be used with --cache.");
+        }
+
+        if (maxFiles <= 0)
+        {
+            throw new InvalidOperationException("--max-files must be greater than zero.");
+        }
+
+        if (partitionCount <= 0)
+        {
+            throw new InvalidOperationException("--partitions must be greater than zero.");
+        }
+
+        if (shardCount <= 0)
+        {
+            throw new InvalidOperationException("--shards must be greater than zero.");
+        }
+
+        if (partitionCount < shardCount)
+        {
+            throw new InvalidOperationException("--partitions must be greater than or equal to --shards.");
+        }
+
+        if (iterations <= 0)
+        {
+            throw new InvalidOperationException("--iterations must be greater than zero.");
+        }
+
+        if (warmupIterations < 0)
+        {
+            throw new InvalidOperationException("--warmup-iterations cannot be negative.");
+        }
+
+        if (parallelism <= 0)
+        {
+            throw new InvalidOperationException("--parallelism must be greater than zero.");
+        }
+
+        ArchiveBZip2Decompressors.Create(decompressor);
+
+        return new ProcessingBenchmarkArchiveRebalanceOptions(
+            filePath,
+            cachePath,
+            date,
+            radarId,
+            maxFiles,
+            modes,
+            partitionCount,
+            shardCount,
+            iterations,
+            warmupIterations,
+            parallelism,
+            decompressor);
+    }
+
+    private static IReadOnlyList<RadarProcessingSyntheticRebalanceBenchmarkMode> ParseMode(string value) =>
+        value.ToLowerInvariant() switch
+        {
+            "all" => Array.AsReadOnly(
+            [
+                RadarProcessingSyntheticRebalanceBenchmarkMode.StaticNoRebalance,
+                RadarProcessingSyntheticRebalanceBenchmarkMode.PressureSamplingOnly,
+                RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession
+            ]),
+            "static" or "static-no-rebalance" =>
+                Single(RadarProcessingSyntheticRebalanceBenchmarkMode.StaticNoRebalance),
+            "sampling" or "sampling-only" or "pressure-sampling" or "pressure-sampling-only" =>
+                Single(RadarProcessingSyntheticRebalanceBenchmarkMode.PressureSamplingOnly),
+            "rebalance" or "session" or "rebalance-session" =>
+                Single(RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession),
+            _ => throw new ArgumentException($"Unknown archive rebalance benchmark mode: {value}")
         };
 
     private static IReadOnlyList<T> Single<T>(T value) => Array.AsReadOnly([value]);

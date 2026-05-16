@@ -1,0 +1,107 @@
+using RadarPulse.Domain.Processing;
+
+namespace RadarPulse.Infrastructure.Processing;
+
+public sealed record RadarProcessingArchiveRebalanceCacheBenchmarkResult(
+    string CachePath,
+    DateOnly? Date,
+    string? RadarId,
+    string Decompressor,
+    RadarProcessingSyntheticRebalanceBenchmarkMode Mode,
+    int Iterations,
+    int WarmupIterations,
+    int DegreeOfParallelism,
+    int SourceCount,
+    int PartitionCount,
+    int ShardCount,
+    long ExaminedFilesPerIteration,
+    long SkippedFilesPerIteration,
+    long PublishedFilesPerIteration,
+    long FileSizeBytesPerIteration,
+    long CompressedRecordsPerIteration,
+    long CompressedBytesPerIteration,
+    long DecompressedBytesPerIteration,
+    long BatchesPerIteration,
+    long EventsPerIteration,
+    long PayloadBytesPerIteration,
+    long PayloadValuesPerIteration,
+    long RawValueChecksumPerIteration,
+    long TopologyVersionCount,
+    long RebalanceEvaluationCount,
+    long AcceptedMoveCount,
+    long SkippedDecisionCount,
+    long DirectHotReliefCount,
+    long ColdEvacuationCount,
+    long FailedMigrationCount,
+    bool ValidationSucceeded,
+    ulong ValidationChecksum,
+    IReadOnlyList<RadarProcessingRebalanceSkippedReason> SkippedReasons,
+    IReadOnlyList<RadarProcessingSyntheticRebalanceMovePressure> AcceptedMovePressures,
+    TimeSpan Elapsed,
+    TimeSpan ProcessingElapsed,
+    long AllocatedBytes)
+{
+    public long TotalExaminedFiles => ExaminedFilesPerIteration * Iterations;
+
+    public long TotalSkippedFiles => SkippedFilesPerIteration * Iterations;
+
+    public long TotalPublishedFiles => PublishedFilesPerIteration * Iterations;
+
+    public long TotalFileSizeBytes => FileSizeBytesPerIteration * Iterations;
+
+    public long TotalCompressedRecords => CompressedRecordsPerIteration * Iterations;
+
+    public long TotalCompressedBytes => CompressedBytesPerIteration * Iterations;
+
+    public long TotalDecompressedBytes => DecompressedBytesPerIteration * Iterations;
+
+    public long TotalBatches => BatchesPerIteration * Iterations;
+
+    public long TotalEvents => EventsPerIteration * Iterations;
+
+    public long TotalPayloadBytes => PayloadBytesPerIteration * Iterations;
+
+    public long TotalPayloadValues => PayloadValuesPerIteration * Iterations;
+
+    public TimeSpan ReplayAndBatchConstructionElapsed =>
+        Elapsed >= ProcessingElapsed ? Elapsed - ProcessingElapsed : TimeSpan.Zero;
+
+    public double CompressedMegabytesPerSecond => MegabytesPerSecond(TotalCompressedBytes, Elapsed);
+
+    public double DecompressedMegabytesPerSecond => MegabytesPerSecond(TotalDecompressedBytes, Elapsed);
+
+    public double FilesPerSecond => PerSecond(TotalPublishedFiles, Elapsed);
+
+    public double BatchesPerSecond => PerSecond(TotalBatches, Elapsed);
+
+    public double EventsPerSecond => PerSecond(TotalEvents, Elapsed);
+
+    public double PayloadValuesPerSecond => PerSecond(TotalPayloadValues, Elapsed);
+
+    public double ProcessingEventsPerSecond => PerSecond(TotalEvents, ProcessingElapsed);
+
+    public double ProcessingPayloadValuesPerSecond => PerSecond(TotalPayloadValues, ProcessingElapsed);
+
+    public double RebalanceEvaluationsPerSecond => PerSecond(RebalanceEvaluationCount, ProcessingElapsed);
+
+    public double AllocatedBytesPerStreamEvent => Ratio(AllocatedBytes, TotalEvents);
+
+    public double AllocatedBytesPerPayloadValue => Ratio(AllocatedBytes, TotalPayloadValues);
+
+    public double AllocatedBytesPerRebalanceEvaluation => Ratio(AllocatedBytes, RebalanceEvaluationCount);
+
+    private static double MegabytesPerSecond(
+        long bytes,
+        TimeSpan elapsed) =>
+        elapsed.TotalSeconds <= 0 ? 0 : bytes / 1_000_000d / elapsed.TotalSeconds;
+
+    private static double PerSecond(
+        long value,
+        TimeSpan elapsed) =>
+        elapsed.TotalSeconds <= 0 ? 0 : value / elapsed.TotalSeconds;
+
+    private static double Ratio(
+        long numerator,
+        long denominator) =>
+        denominator <= 0 ? 0 : (double)numerator / denominator;
+}

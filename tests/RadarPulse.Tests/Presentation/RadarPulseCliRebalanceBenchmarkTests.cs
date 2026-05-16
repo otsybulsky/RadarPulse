@@ -66,6 +66,90 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
         Assert.Equal(string.Empty, result.StandardError);
     }
 
+    [Fact]
+    public void ArchiveRebalanceBenchmarkOptionsParseFileModeAndTopology()
+    {
+        var options = global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
+        [
+            "--file",
+            "data/nexrad/sample",
+            "--mode",
+            "sampling",
+            "--partitions",
+            "24",
+            "--shards",
+            "4",
+            "--iterations",
+            "2",
+            "--warmup-iterations",
+            "1",
+            "--parallelism",
+            "2"
+        ]);
+
+        Assert.Equal("data/nexrad/sample", options.FilePath);
+        Assert.Equal(
+            [RadarProcessingSyntheticRebalanceBenchmarkMode.PressureSamplingOnly],
+            options.Modes);
+        Assert.Equal(24, options.PartitionCount);
+        Assert.Equal(4, options.ShardCount);
+        Assert.Equal(2, options.Iterations);
+        Assert.Equal(1, options.WarmupIterations);
+        Assert.Equal(2, options.Parallelism);
+    }
+
+    [Fact]
+    public void ArchiveRebalanceBenchmarkOptionsParseCacheSelection()
+    {
+        var options = global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
+        [
+            "--cache",
+            "data/nexrad",
+            "--date",
+            "2026-05-04",
+            "--radar",
+            "ktlx",
+            "--max-files",
+            "100",
+            "--mode",
+            "rebalance"
+        ]);
+
+        Assert.Null(options.FilePath);
+        Assert.Equal("data/nexrad", options.CachePath);
+        Assert.Equal(new DateOnly(2026, 5, 4), options.Date);
+        Assert.Equal("KTLX", options.RadarId);
+        Assert.Equal(100, options.MaxFiles);
+        Assert.Equal(
+            [RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession],
+            options.Modes);
+    }
+
+    [Fact]
+    public void ArchiveRebalanceBenchmarkOptionsRequireFileAndCompatibleTopology()
+    {
+        Assert.Throws<InvalidOperationException>(
+            () => global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(["--mode", "static"]));
+        Assert.Throws<InvalidOperationException>(
+            () => global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
+            [
+                "--file",
+                "data/nexrad/sample",
+                "--cache",
+                "data/nexrad"
+            ]));
+        Assert.Throws<InvalidOperationException>(
+            () => global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
+            [
+                "--file",
+                "data/nexrad/sample",
+                "--partitions",
+                "2",
+                "--shards",
+                "4"
+            ]));
+    }
+
     private static CliResult RunCli(params string[] args)
     {
         var assemblyPath = typeof(global::ProcessingBenchmarkRebalanceSyntheticOptions).Assembly.Location;

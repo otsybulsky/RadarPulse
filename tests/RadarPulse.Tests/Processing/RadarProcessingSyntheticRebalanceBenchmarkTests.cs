@@ -127,6 +127,22 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmarkTests
     }
 
     [Fact]
+    public void AcceptedMovePressureAggregationDoesNotCopyPreviousIterations()
+    {
+        var result = Measure(
+            RadarProcessingSyntheticRebalanceWorkloadKind.SustainedHotShard,
+            RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession,
+            iterations: 3_000,
+            warmupIterations: 0);
+
+        Assert.Equal(3_000, result.AcceptedMoveCount);
+        Assert.Equal(3_000, result.AcceptedMovePressures.Count);
+        Assert.True(
+            result.AllocatedBytes < 400_000_000,
+            $"Expected bounded benchmark aggregation allocation, got {result.AllocatedBytes} bytes.");
+    }
+
+    [Fact]
     public void BenchmarkRejectsInvalidInputs()
     {
         var benchmark = new RadarProcessingSyntheticRebalanceBenchmark();
@@ -161,12 +177,14 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmarkTests
 
     private static RadarProcessingSyntheticRebalanceBenchmarkResult Measure(
         RadarProcessingSyntheticRebalanceWorkloadKind workloadKind,
-        RadarProcessingSyntheticRebalanceBenchmarkMode mode) =>
+        RadarProcessingSyntheticRebalanceBenchmarkMode mode,
+        int iterations = 1,
+        int warmupIterations = 0) =>
         new RadarProcessingSyntheticRebalanceBenchmark().Measure(
             workloadKind,
             mode,
-            iterations: 1,
-            warmupIterations: 0);
+            iterations,
+            warmupIterations);
 
     private static RadarProcessingSyntheticRebalanceBenchmarkResult Measure(
         RadarProcessingSyntheticRebalanceWorkload workload,

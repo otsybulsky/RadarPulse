@@ -276,8 +276,8 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmark
 
         public IterationTelemetry Add(RadarProcessingRebalanceSessionResult result)
         {
-            var skippedReasons = CopySkippedReasons(SkippedReasons);
-            var movePressures = new List<RadarProcessingSyntheticRebalanceMovePressure>(AcceptedMovePressures);
+            var skippedReasons = SkippedReasons;
+            var movePressures = AcceptedMovePressures;
             var skippedDecisionCount = SkippedDecisionCount;
             var acceptedMoveCount = AcceptedMoveCount;
             var directHotReliefCount = DirectHotReliefCount;
@@ -324,7 +324,7 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmark
 
         public IterationTelemetry Add(IterationTelemetry other)
         {
-            var skippedReasons = CopySkippedReasons(SkippedReasons);
+            var skippedReasons = SkippedReasons;
             foreach (var reason in other.SkippedReasons)
             {
                 if (!skippedReasons.Contains(reason))
@@ -333,7 +333,7 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmark
                 }
             }
 
-            var movePressures = new List<RadarProcessingSyntheticRebalanceMovePressure>(AcceptedMovePressures);
+            var movePressures = AcceptedMovePressures;
             movePressures.AddRange(other.AcceptedMovePressures);
 
             return this with
@@ -432,10 +432,6 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmark
                 decision.ProjectedPressure.SourceShardAfter.Value,
                 decision.ProjectedPressure.TargetShardAfter.Value,
                 decision.ExpectedRelief);
-
-        private static List<RadarProcessingRebalanceSkippedReason> CopySkippedReasons(
-            IEnumerable<RadarProcessingRebalanceSkippedReason> skippedReasons) =>
-            new(skippedReasons);
 
         private static ulong ComputeChecksum(
             RadarProcessingMetrics metrics,

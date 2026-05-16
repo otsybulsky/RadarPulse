@@ -167,11 +167,28 @@ and full rebalance-session modes over one workload or the full workload catalog,
 and prints topology, move, skipped-reason, throughput, allocation, validation,
 and accepted-move pressure summary fields.
 
-The next implementation focus is milestone 006 Release benchmark capture and
-closeout documentation. The next slice should run the new CLI command in
-Release, compare rebalance overhead against same-run static baseline and the
-milestone 005 processing-only baseline, then write the decision trace and
-closeout.
+Milestone 006 Release benchmark capture is implemented in the current working
+tree. The captured command is
+`processing benchmark rebalance-synthetic --workload all --mode all --iterations 10000 --warmup-iterations 1000`
+after a Release CLI build. The benchmark records same-run static, sampling, and
+full rebalance contours for balanced, hot-shard, intrinsic-hot, oscillating, and
+cooldown-storm workloads, with same-run static ratios and a diagnostic
+comparison against the milestone 005 partitioned/no-handler baseline.
+
+Milestone 006 real-data rebalance smoke benchmarking is implemented in the
+current working tree. The new command is
+`processing benchmark rebalance-archive` with `--file` or `--cache` input,
+static, sampling, rebalance, or all modes plus
+partition/shard/iteration/archive parallelism options. It streams real NEXRAD
+archive data into leased `RadarEventBatch` callbacks, processes each batch
+synchronously, and reports end-to-end archive replay timing separately from
+processing callback timing.
+
+The next implementation focus is milestone 006 decision trace and closeout
+documentation. The closeout should include the captured Release benchmark table,
+the real-data smoke result, the same-run static overhead interpretation, and
+the caveat that the milestone 006 synthetic rebalance catalog is a tiny
+behavioral contour rather than the large milestone 005 throughput shape.
 
 Planning note: quarantine is not intended to be permanent. The current slice 8
 state supports explicit clear/effective-outcome reset, but the controller
@@ -261,6 +278,11 @@ Done:
 - `006` slice 15 synthetic rebalance benchmarks are implemented and tested.
 - `006` slice 16 synthetic rebalance CLI benchmark command is implemented and
   smoke-tested.
+- `006` Release synthetic rebalance benchmark numbers are captured and compared
+  against same-run static baselines and the milestone 005 processing-only
+  baseline.
+- `006` real-data rebalance archive smoke benchmark command is implemented and
+  verified against a local KTLX Archive Two file.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -274,13 +296,15 @@ Done:
 
 Next milestone focus:
 
-- Capture milestone 006 Release benchmark numbers with
-  `processing benchmark rebalance-synthetic`.
-- Compare static, sampling-only, no-churn, direct-relief, and cold-evacuation
-  contours against same-run static baselines and the milestone 005
-  processing-only baseline.
 - Write milestone 006 decision trace and closeout once the performance table is
   recorded.
+- Include the real-data archive smoke result in closeout: it validates the
+  controller over a real leased `RadarEventBatch` stream and separates replay
+  time from processing callback time.
+- Carry the captured benchmark caveat into closeout: the milestone 006 rebalance
+  catalog uses tiny deterministic behavioral workloads, so same-run static
+  ratios are the meaningful overhead signal and milestone 005 throughput ratios
+  are diagnostic only.
 - Preserve the requirement that before milestone closeout we capture Release
   numbers and compare them with previous processing baselines.
 - Preserve migration lifecycle semantics: no partial ownership changes after
@@ -917,6 +941,161 @@ Completed in milestone 006 implementation:
 - Verification after milestone 006 slice 16:
   `dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-synthetic --workload hot-shard --mode all --iterations 1 --warmup-iterations 0`
   passed and emitted static, sampling, and rebalance-session benchmark blocks.
+- Synthetic rebalance benchmark aggregation no longer copies previously
+  accepted move pressure samples on every measured iteration. This keeps the
+  benchmark allocation signal from being dominated by O(n^2) result aggregation
+  when accepted moves are present.
+- CLI accepted-move pressure output is capped to the first 8 samples, followed
+  by an omitted-sample count, so large Release benchmark captures remain
+  readable while the benchmark result still counts all accepted moves.
+- Rebalance benchmark tests now include a bounded-allocation regression for
+  accepted move pressure aggregation over 3_000 iterations.
+- Verification after milestone 006 Release benchmark capture:
+  `dotnet test RadarPulse.sln --no-restore --filter FullyQualifiedName~Processing`
+  passed with 210 tests passed.
+- Verification after milestone 006 Release benchmark capture:
+  `dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore`
+  passed with 0 warnings and 0 errors.
+- Release benchmark capture command:
+  `dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-synthetic --workload all --mode all --iterations 10000 --warmup-iterations 1000`.
+- Captured milestone 006 Release benchmark results:
+
+  ```text
+  workload        mode       topo versions  accepted moves  skipped decisions  payload values/s  alloc bytes/event  vs static  vs 005 baseline
+  balanced        static     1              0               0                  1_086_338.08      667.00             100.0%     0.0414%
+  balanced        sampling   1              0               0                    852_609.41    1_008.00              78.5%     0.0325%
+  balanced        rebalance  1              0              40_000                634_847.07    1_624.06              58.4%     0.0242%
+  hot-shard       static     1              0               0                  1_899_984.80      443.33             100.0%     0.0724%
+  hot-shard       sampling   1              0               0                  1_166_343.98      670.67              61.4%     0.0445%
+  hot-shard       rebalance  2             10_000          20_000                788_605.70    1_322.52              41.5%     0.0301%
+  intrinsic-hot   static     1              0               0                  2_642_682.85      352.01             100.0%     0.1008%
+  intrinsic-hot   sampling   1              0               0                  2_201_177.87      512.00              83.3%     0.0839%
+  intrinsic-hot   rebalance  2             10_000          10_000                675_789.32    1_642.48              25.6%     0.0258%
+  oscillating     static     1              0               0                  2_797_429.72      382.80             100.0%     0.1067%
+  oscillating     sampling   1              0               0                  2_375_452.08      583.60              84.9%     0.0906%
+  oscillating     rebalance  1              0              40_000              2_733_173.90      796.83              97.7%     0.1042%
+  cooldown-storm  static     1              0               0                  5_077_044.14      445.33             100.0%     0.1936%
+  cooldown-storm  sampling   1              0               0                  5_660_404.06      672.67             111.5%     0.2158%
+  cooldown-storm  rebalance  2             10_000          20_000                823_981.71    1_907.32              16.2%     0.0314%
+  ```
+
+- Captured benchmark interpretation: same-run static ratios are the useful
+  overhead signal for milestone 006. The milestone 005 ratio is diagnostic only
+  because the 006 catalog uses 8-20 payload values per iteration while the
+  milestone 005 throughput baseline used 38_750_400 payload values per
+  iteration.
+- All captured Release rows reported successful validation and zero failed
+  migrations.
+- `RadarProcessingArchiveRebalanceBenchmark`.
+- `RadarProcessingArchiveRebalanceBenchmarkResult`.
+- `processing benchmark rebalance-archive`.
+- The real-data command supports `--file` input or cache input through
+  `--cache`, `--date`, `--radar`, and `--max-files`. It also accepts
+  `--mode static|sampling|rebalance|all`, `--partitions`, `--shards`,
+  `--iterations`, `--warmup-iterations`, `--parallelism`, and `--decompressor`.
+- The archive rebalance benchmark uses
+  `NexradArchiveRadarEventBatchPublishSession` to stream real Archive Two data
+  into leased `RadarEventBatch` callbacks. It processes the batch during the
+  callback and does not retain leased batch data.
+- Archive benchmark output separates end-to-end archive replay/batch
+  construction timing from processing callback timing, and reports topology,
+  rebalance decisions, validation, skipped reasons, accepted move pressure,
+  throughput, and allocation counters.
+- CLI archive rebalance option tests cover file/mode/topology parsing and
+  required-file/compatible-topology guardrails.
+- Verification after milestone 006 real-data rebalance smoke command:
+  `dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests`
+  passed with 5 tests passed.
+- Verification after milestone 006 real-data rebalance smoke command:
+  `dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore`
+  passed with 0 warnings and 0 errors.
+- Real-data Release smoke command:
+  `dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --file data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_000245_V06 --mode all --partitions 24 --shards 4 --iterations 3 --warmup-iterations 1 --parallelism 1`.
+- Captured real-data smoke shape:
+  `55` compressed records, `50_741_824` decompressed bytes, `1` batch,
+  `32_400` stream events, and `38_759_040` payload values per iteration.
+- Captured real-data smoke results:
+
+  ```text
+  mode       topology versions  evaluations  accepted moves  skipped decisions  callback payload values/s  end-to-end payload values/s  alloc bytes/payload value
+  static     1                  0            0               0                  2_589_754_314.69           92_333_354.54              0.06
+  sampling   1                  3            0               0                  2_990_889_752.58           92_347_294.79              0.06
+  rebalance  2                  3            3               0                  3_061_858_015.59           92_350_954.71              0.06
+  ```
+
+- Captured real-data rebalance pressure projection:
+  `direct-hot-relief source 51_868.80->42_837.12, target 0.00->9_031.68, relief 9_031.68`.
+- All captured real-data rows reported successful validation and zero failed
+  migrations.
+- Important comparison note: the `92M` end-to-end real-data smoke value above
+  used archive `--parallelism 1`, while the earlier milestone 004 `~500M`
+  normalized-stream baseline used archive `--parallelism 24`.
+- Comparable real-data rerun on `KTLX20260504_002334_V06` with archive
+  `--parallelism 24`:
+
+  ```text
+  command/result                                      end-to-end payload values/s
+  archive benchmark stream                            430_859_940.37
+  processing benchmark rebalance-archive sampling     458_420_311.03
+  processing benchmark rebalance-archive rebalance    449_250_477.25
+  ```
+
+- The comparable parallel real-data rebalance smoke remains in the same order
+  of magnitude as the milestone 004 stream baseline and still reports
+  successful validation, accepted direct hot relief, and zero failed
+  migrations. The earlier `92M` result is therefore a single-thread replay
+  smoke number, not evidence of a rebalance regression.
+- Cache-wide real-data rebalance benchmark command:
+  `dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --cache data\nexrad --max-files 1000000 --mode all --partitions 24 --shards 4 --iterations 1 --warmup-iterations 0 --parallelism 24 --decompressor radarpulse`.
+- Captured cache-wide real-data shape:
+  `244` examined files, `24` skipped files, `220` published Archive Two
+  base-data files, `1_330_634_309` compressed bytes, `11_145_331_584`
+  decompressed bytes, `220` batches, `7_114_560` stream events, and
+  `8_513_587_200` payload values.
+- Captured cache-wide real-data results:
+
+  ```text
+  mode       topology versions  evaluations  accepted moves  skipped decisions  callback payload values/s  end-to-end payload values/s  alloc bytes/payload value
+  static     1                  0            0               0                  2_796_597_485.46           355_001_379.25             0.24
+  sampling   1                  220          0               0                  2_735_817_941.09           385_154_964.58             0.23
+  rebalance  2                  220          2               436                2_680_685_752.29           380_667_655.66             0.23
+  ```
+
+- Cache-wide accepted pressure projections:
+  `direct-hot-relief source 51_868.80->42_837.12, target 0.00->9_031.68, relief 9_031.68`;
+  `direct-hot-relief source 43_966.08->35_038.08, target 0.00->8_928.00, relief 8_928.00`.
+- Cache-wide skipped reasons were `global-move-budget-exhausted`,
+  `source-shard-move-budget-exhausted`, `no-cold-target-shard`, and
+  `no-hot-shard`.
+- All cache-wide rows reported successful validation and zero failed
+  migrations.
+- Milestone 006 benchmark assessment:
+  the milestone is successful as a correctness, cautious-rebalance, and
+  real-data validation milestone. Synthetic, single-file real-data, parallel
+  real-data, and cache-wide real-data runs all validated successfully with zero
+  failed migrations.
+- Cautious behavior is visible in the cache-wide result: rebalance accepted only
+  `2` direct-hot-relief moves across `220` real batches, then policy gates
+  (`global-move-budget-exhausted`, `source-shard-move-budget-exhausted`,
+  target availability, and no-hot-shard cases) prevented churn.
+- Pressure relief is visible in accepted real-data moves:
+  source pressure dropped from `51_868.80` to `42_837.12` and from `43_966.08`
+  to `35_038.08`, while target pressure rose from `0` to `9_031.68` and
+  `8_928.00` respectively.
+- Comparison with milestone 005: cache-wide rebalance processing callback
+  throughput was `2_680_685_752.29` payload values/s, about `102.2%` of the
+  milestone 005 `partitioned 24/24 none` processing-only baseline
+  (`2_622_669_443.85` payload values/s). End-to-end archive numbers are replay
+  dominated and are not directly comparable to milestone 005 processing-only
+  results.
+- Known performance cost: cache-wide real-data allocation is about `0.23`
+  bytes/payload value versus `0.03` in the milestone 005 processing-only
+  synthetic baseline. Treat this as production-hardening input, not a blocker
+  for milestone 006 closeout.
+- Closeout judgement: milestone 006 can close as a correctness and cautious
+  real-data rebalance milestone. Follow-up work should focus on allocation
+  profile, repeated cache-wide runs, policy tuning, and longer multi-radar
+  scenarios rather than expanding controller behavior further inside 006.
 
 Completed in milestone 005 implementation:
 
