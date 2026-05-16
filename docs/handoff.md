@@ -1,4 +1,4 @@
-# Handoff: Milestone 006 Slice 11 Complete
+# Handoff: Milestone 006 Slice 12 Complete
 
 ## Current Goal
 
@@ -115,11 +115,21 @@ and after a migration and allows owner shard changes while rejecting partition
 id, source range, count, raw checksum, processing checksum, last timestamp
 checksum, and handler snapshot checksum mismatches.
 
-The next implementation focus is milestone 006 slice 12: rebalance-aware
-processing loop. The next slice should process one batch against one immutable
-topology snapshot, feed telemetry into pressure tracking, evaluate rebalance
-after the barrier, and apply at most bounded accepted migrations before the
-next batch.
+Milestone 006 slice 12 is implemented in the current working tree. RadarPulse
+now has a synchronous rebalance-aware processing session:
+`RadarProcessingRebalanceSession` and
+`RadarProcessingRebalanceSessionResult`. The session processes one batch
+against one topology snapshot, converts partitioned telemetry into a pressure
+sample, advances logical evaluation state, tries direct hot relief first, falls
+back to cold evacuation when direct movement cannot publish a move, validates
+state handoff, publishes accepted migrations only between batches, records the
+accepted move in anti-churn policy state, and lets the next batch route against
+the latest topology version.
+
+The next implementation focus is milestone 006 slice 13: rebalance validation.
+The next slice should add explicit validation helpers that catch topology,
+route, migration, and handoff inconsistencies as rebalance session diagnostics
+rather than leaving them implicit in lower-level contracts.
 
 Planning note: quarantine is not intended to be permanent. The current slice 8
 state supports explicit clear/effective-outcome reset, but the controller
@@ -203,6 +213,7 @@ Done:
 - `006` slice 10 migration lifecycle and coordinator is implemented and
   tested.
 - `006` slice 11 state handoff validation is implemented and tested.
+- `006` slice 12 rebalance-aware processing loop is implemented and tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -216,11 +227,11 @@ Done:
 
 Next milestone focus:
 
-- Implement milestone 006 slice 12 rebalance-aware processing loop.
-- Process one batch against one topology snapshot, evaluate rebalance after the
-  synchronous barrier, and apply accepted migrations only between batches.
-- Preserve state handoff validation when migration is integrated into the
-  processing session.
+- Implement milestone 006 slice 13 rebalance validation.
+- Add explicit validation helpers for topology, route, migration, and handoff
+  invariants around the rebalance session.
+- Keep session diagnostics clear when no move is applied because of validation,
+  policy, pressure, or classification gates.
 - Preserve migration lifecycle semantics: no partial ownership changes after
   failed validation.
 - Keep cold evacuation as a pressure-relief fallback, not general load
@@ -676,6 +687,41 @@ Completed in milestone 006 implementation:
   `dotnet test RadarPulse.sln --no-restore` passed with 329 tests passed and 3
   skipped.
 - Verification after milestone 006 slice 11:
+  `dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore`
+  passed with 0 warnings and 0 errors.
+- `RadarProcessingCore` now owns a `RadarProcessingTopologyManager` and routes
+  each `PartitionedBarrier` batch from the current immutable topology snapshot.
+- `RadarProcessingCore.Topology` now exposes the manager's current topology, so
+  a published migration affects only later processing calls, not the already
+  routed batch.
+- `RadarProcessingCore.CapturePartitionState` captures partition-owned state
+  summaries for state handoff validation without exposing the dense state store.
+- `RadarProcessingRebalanceSession`.
+- `RadarProcessingRebalanceSessionResult`.
+- Rebalance sessions require `PartitionedBarrier` execution mode; sequential
+  cores are rejected with a clear unsupported shape.
+- Rebalance session processing converts valid partitioned telemetry into a
+  pressure sample, appends it to the rolling pressure window, advances logical
+  policy evaluation, evaluates direct hot relief first, then evaluates cold
+  evacuation when direct relief does not produce an accepted move.
+- Accepted session moves validate projected source-state handoff before
+  publication, publish through `RadarProcessingMigrationCoordinator`, validate
+  the post-publication partition state snapshot, then record the move in
+  anti-churn policy state.
+- Invalid processing results do not update pressure windows, advance policy
+  evaluation, evaluate planners, or attempt migration.
+- Rebalance session tests cover first-batch initial topology routing, accepted
+  direct relief publishing topology `N+1`, next-batch routing on the new
+  topology version, direct-unsafe fallback to cold evacuation, handoff
+  validation participation, invalid processing no-op behavior, and sequential
+  core rejection.
+- Verification after milestone 006 slice 12:
+  `dotnet test RadarPulse.sln --no-restore --filter FullyQualifiedName~Processing`
+  passed with 190 tests passed.
+- Verification after milestone 006 slice 12:
+  `dotnet test RadarPulse.sln --no-restore` passed with 333 tests passed and 3
+  skipped.
+- Verification after milestone 006 slice 12:
   `dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore`
   passed with 0 warnings and 0 errors.
 
@@ -2281,6 +2327,8 @@ constant and moment data blocks.
 - `src/Domain/Processing/RadarProcessingStateHandoffValidationError.cs`
 - `src/Domain/Processing/RadarProcessingStateHandoffValidationResult.cs`
 - `src/Domain/Processing/RadarProcessingStateHandoffValidator.cs`
+- `src/Domain/Processing/RadarProcessingRebalanceSession.cs`
+- `src/Domain/Processing/RadarProcessingRebalanceSessionResult.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingTopologyVersioningTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingBatchRouterTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingTelemetryTests.cs`
@@ -2294,6 +2342,7 @@ constant and moment data blocks.
 - `tests/RadarPulse.Tests/Processing/RadarProcessingColdEvacuationPlannerTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingMigrationCoordinatorTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingStateHandoffValidatorTests.cs`
+- `tests/RadarPulse.Tests/Processing/RadarProcessingRebalanceSessionTests.cs`
 - `src/Domain/Processing/*`
 - `tests/RadarPulse.Tests/Processing/*`
 - `src/Domain/Streaming/DenseIdentityAllowedCharacters.cs`

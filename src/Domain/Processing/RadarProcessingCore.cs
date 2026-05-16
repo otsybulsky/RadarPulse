@@ -5,8 +5,8 @@ namespace RadarPulse.Domain.Processing;
 public sealed class RadarProcessingCore
 {
     private readonly RadarSourceUniverse sourceUniverse;
+    private readonly RadarProcessingTopologyManager topologyManager;
     private readonly RadarSourceProcessingStateStore stateStore;
-    private readonly RadarProcessingBatchRouter batchRouter;
     private long processedBatchCount;
 
     public RadarProcessingCore(
@@ -19,14 +19,15 @@ public sealed class RadarProcessingCore
 
         this.sourceUniverse = sourceUniverse;
         Options = options;
-        Topology = new RadarProcessingTopology(sourceUniverse, options);
-        batchRouter = new RadarProcessingBatchRouter(Topology);
+        topologyManager = new RadarProcessingTopologyManager(sourceUniverse, options);
         stateStore = new RadarSourceProcessingStateStore(sourceUniverse, options.HandlerSlotLayout);
     }
 
     public RadarProcessingCoreOptions Options { get; }
 
-    public RadarProcessingTopology Topology { get; }
+    public RadarProcessingTopology Topology => topologyManager.Current;
+
+    internal RadarProcessingTopologyManager TopologyManager => topologyManager;
 
     public RadarProcessingResult Process(
         RadarEventBatch batch,
@@ -82,6 +83,10 @@ public sealed class RadarProcessingCore
     public RadarProcessingMetrics CreateMetrics() =>
         stateStore.CreateMetrics(processedBatchCount);
 
+    public RadarProcessingPartitionStateSnapshot CapturePartitionState(
+        RadarProcessingPartitionAssignment partition) =>
+        RadarProcessingPartitionStateSnapshot.Capture(partition, stateStore);
+
     private RadarProcessingResult ProcessSequential(
         RadarEventBatch batch,
         CancellationToken cancellationToken)
@@ -110,7 +115,8 @@ public sealed class RadarProcessingCore
         RadarEventBatch batch,
         CancellationToken cancellationToken)
     {
-        var route = batchRouter.Route(batch);
+        var topology = topologyManager.Current;
+        var route = new RadarProcessingBatchRouter(topology).Route(batch);
         var telemetry = RadarProcessingTelemetry.FromRoute(Options.ExecutionMode, route);
         var events = batch.Events.Span;
 
