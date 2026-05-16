@@ -61,7 +61,7 @@ public sealed class RadarSourceProcessingStateStore
             processedPayloadValueCounts[sourceId] + processedPayloadValueCount);
         rawValueChecksums[sourceId] = checked(rawValueChecksums[sourceId] + rawValueChecksum);
         lastMessageTimestampUtcTicks[sourceId] = streamEvent.MessageTimestampUtcTicks;
-        processingChecksums[sourceId] = AppendEventChecksum(
+        processingChecksums[sourceId] = RadarSourceProcessingChecksum.AppendEvent(
             isActive ? processingChecksums[sourceId] : RadarStreamChecksum.Initial,
             streamEvent,
             processedPayloadValueCount,
@@ -116,7 +116,14 @@ public sealed class RadarSourceProcessingStateStore
             processedPayloadValueCount = checked(
                 processedPayloadValueCount + processedPayloadValueCounts[sourceId]);
             rawValueChecksum = checked(rawValueChecksum + rawValueChecksums[sourceId]);
-            processingChecksum = AppendSourceChecksum(processingChecksum, sourceId);
+            processingChecksum = RadarSourceProcessingChecksum.AppendSource(
+                processingChecksum,
+                sourceId,
+                processedEventCounts[sourceId],
+                processedPayloadValueCounts[sourceId],
+                rawValueChecksums[sourceId],
+                lastMessageTimestampUtcTicks[sourceId],
+                processingChecksums[sourceId]);
         }
 
         return new RadarProcessingMetrics(
@@ -126,34 +133,6 @@ public sealed class RadarSourceProcessingStateStore
             ActiveSourceCount,
             rawValueChecksum,
             processingChecksum);
-    }
-
-    private static ulong AppendEventChecksum(
-        ulong checksum,
-        in RadarStreamEvent streamEvent,
-        long processedPayloadValueCount,
-        long rawValueChecksum)
-    {
-        checksum = RadarStreamChecksum.AppendInt64(checksum, streamEvent.MessageTimestampUtcTicks);
-        checksum = RadarStreamChecksum.AppendInt32(checksum, streamEvent.SourceId);
-        checksum = RadarStreamChecksum.AppendInt32(checksum, streamEvent.SourceRecord);
-        checksum = RadarStreamChecksum.AppendInt32(checksum, streamEvent.SourceMessage);
-        checksum = RadarStreamChecksum.AppendInt32(checksum, streamEvent.RadialSequence);
-        checksum = RadarStreamChecksum.AppendUInt16(checksum, streamEvent.MomentId);
-        checksum = RadarStreamChecksum.AppendUInt16(checksum, streamEvent.GateStart);
-        checksum = RadarStreamChecksum.AppendUInt16(checksum, streamEvent.GateCount);
-        checksum = RadarStreamChecksum.AppendInt64(checksum, processedPayloadValueCount);
-        return RadarStreamChecksum.AppendInt64(checksum, rawValueChecksum);
-    }
-
-    private ulong AppendSourceChecksum(ulong checksum, int sourceId)
-    {
-        checksum = RadarStreamChecksum.AppendInt32(checksum, sourceId);
-        checksum = RadarStreamChecksum.AppendInt64(checksum, processedEventCounts[sourceId]);
-        checksum = RadarStreamChecksum.AppendInt64(checksum, processedPayloadValueCounts[sourceId]);
-        checksum = RadarStreamChecksum.AppendInt64(checksum, rawValueChecksums[sourceId]);
-        checksum = RadarStreamChecksum.AppendInt64(checksum, lastMessageTimestampUtcTicks[sourceId]);
-        return RadarStreamChecksum.AppendUInt64(checksum, processingChecksums[sourceId]);
     }
 
     private void EnsureSourceId(int sourceId)

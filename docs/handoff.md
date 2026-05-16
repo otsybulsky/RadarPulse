@@ -15,11 +15,12 @@ store, processing payload reader, sequential core baseline, and sequential
 lifetime/parity guardrail slices are implemented. The deterministic
 partitioned-routing substrate and first synchronous `PartitionedBarrier`
 execution path are implemented. Partitioned telemetry and route-summary
-validation around shard routes are implemented. The current work is to continue
-milestone 005 toward optional processing-output validation, source-local
-handler slots, processing-only benchmarks, and closeout while preserving the
-explicit payload lifetime boundary, `SourceId -> PartitionId -> ShardId`
-routing, and shard-owned dense source state.
+validation around shard routes are implemented. Processing-output validation
+helpers are implemented outside the hot path. The current work is to continue
+milestone 005 toward source-local handler slots, processing-only benchmarks,
+and closeout while preserving the explicit payload lifetime boundary,
+`SourceId -> PartitionId -> ShardId` routing, and shard-owned dense source
+state.
 
 Milestone 005 should build on the closed milestone 004 stream contract rather
 than changing it casually. Live shard rebalance is deliberately reserved for
@@ -73,6 +74,7 @@ Done:
   and tested.
 - `005` partitioned telemetry and route-summary validation are implemented and
   tested.
+- `005` processing-output validation helpers are implemented and tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -86,12 +88,11 @@ Done:
 
 Next work:
 
-- Commit the current partitioned telemetry/handoff slice if continuing the
-  established checkpoint cadence.
-- Implement optional processing-output validation helpers outside the hot path:
-  compare input batch counters, result metrics, partitioned telemetry, and
-  source snapshots so missing, duplicate, out-of-order, or mismatched work can
-  be diagnosed explicitly.
+- Commit the current processing-output validation/handoff slice if continuing
+  the established checkpoint cadence.
+- Implement the source-local handler slot model: handler descriptors,
+  source-local state slots, isolated per-source state mutation, and read-side
+  snapshot projection without per-event lookup or allocation.
 - Preserve the `SourceId -> PartitionId -> ShardId` ownership model so
   milestone 006 can add partition-level shard rebalance.
 - Treat the current `archive benchmark stream` numbers as replay construction
@@ -228,6 +229,8 @@ Completed in milestone 005 implementation so far:
 - `RadarProcessingPartitionTelemetry`.
 - `RadarProcessingShardTelemetry`.
 - `RadarProcessingTelemetry`.
+- `RadarProcessingOutputValidator`.
+- `RadarSourceProcessingChecksum`.
 - Partitioned routing maps each batch event index to `PartitionId` and
   `ShardId` through `RadarProcessingTopology`.
 - Routing stores event indexes and per-partition/per-shard counters without
@@ -252,6 +255,14 @@ Completed in milestone 005 implementation so far:
   partitioned path does not read payload bytes a second time after routing.
 - Valid `PartitionedBarrier` results now carry partitioned telemetry; sequential
   and invalid results do not carry partitioned telemetry.
+- Processing-output validation is available as a read-side helper outside the
+  hot path. It validates a processed batch against `RadarProcessingResult`,
+  before/after source snapshots, and optional previous metrics.
+- Output validation detects missing work, duplicate work, source-local order
+  violations, result/snapshot metric mismatches, and missing partitioned
+  telemetry for valid `PartitionedBarrier` results.
+- Processing checksum construction is shared between the runtime state store and
+  the output validator so both compare the same source/event checksum contract.
 - Source validation runs before execution for both modes, so invalid source ids
   and ownership mismatches do not mutate state.
 - Partitioned and sequential results/snapshots are verified for parity on the
@@ -289,6 +300,10 @@ Completed in milestone 005 implementation so far:
 - Focused telemetry tests cover partitioned result telemetry, empty-batch
   telemetry, deterministic hot partition/shard ids, leased-buffer stability,
   and sequential results staying free of partitioned telemetry.
+- Focused output-validator tests cover valid sequential output, valid
+  partitioned output with telemetry, missing processed event detection,
+  duplicate processed event detection, source-local order violation detection,
+  and missing partitioned telemetry detection.
 - Verification after slice 1:
   `dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore`
   passed with 151 tests passed and 3 skipped.
@@ -320,6 +335,15 @@ Completed in milestone 005 implementation so far:
   `dotnet format --verify-no-changes --no-restore --include ...` command. The
   repo-wide formatting command still reports pre-existing whitespace in
   `tests\RadarPulse.Tests\Archive\NexradArchiveReplayPublisherTests.cs`.
+- Verification after slice 10:
+  `dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarPulse.Tests.Processing`
+  passed with 79 tests passed.
+- Verification after slice 10:
+  `dotnet test --no-restore` passed with 222 tests passed and 3 skipped.
+- Verification after slice 10:
+  `git diff --check` passed. Scoped formatting verification for the changed
+  processing files passed with
+  `dotnet format --verify-no-changes --no-restore --include ...`.
 - Commits so far:
   `d9106b0 Add processing core contracts`;
   `4639ec0 Add static processing topology`;
@@ -329,7 +353,8 @@ Completed in milestone 005 implementation so far:
   `981afa1 Add sequential processing core`;
   `38296b6 Add processing core guardrail tests`;
   `5b65852 Add partitioned batch routing substrate`;
-  `e900c54 Add partitioned barrier processing path`.
+  `e900c54 Add partitioned barrier processing path`;
+  `5b573d1 Add partitioned processing telemetry`.
 
 Completed in milestone 004 implementation so far:
 
