@@ -497,12 +497,21 @@ Required behavior:
 classify a partition as movable hot when at least one target can absorb it
 classify a partition as intrinsic hot when no target can absorb it safely
 classify a partition as quarantined when recent movement was ineffective
+quarantine must not be permanent; it should decay by logical evaluation state
+clear or downgrade quarantine after sustained non-hot observations
+keep quarantine active while the partition remains hot and recent movement was ineffective
 record classification in decision telemetry
 avoid repeated movement of intrinsic or quarantined hot partitions
 ```
 
 Milestone 006 does not split intrinsic hot partitions. It should expose the
 condition as telemetry and allow cold evacuation to reduce adjacent load.
+Quarantine is a storm-prevention state, not a permanent ban. The first
+classifier can expose explicit clear/effective-outcome operations, but the
+controller integration should add automatic lifecycle handling based on logical
+evaluations: for example, quarantine TTL, sustained cooled-sample reset, or
+downgrade from `Quarantined` to `IntrinsicHot`/`None` when the pressure pattern
+has changed. Avoid wall-clock expiry in the first implementation.
 
 Expected tests:
 
@@ -510,6 +519,8 @@ Expected tests:
 dominant partition with no safe target becomes intrinsic hot
 intrinsic hot partition is not selected for direct movement
 recently moved ineffective partition can become quarantined
+quarantine expires or clears after sustained cooled evaluations
+quarantine remains active while the partition is still hot inside the TTL
 classification includes a skipped reason for diagnostics
 classification does not prevent cold evacuation of other partitions
 ```
@@ -1029,6 +1040,7 @@ Mitigation:
 project target pressure before moving
 classify intrinsic hot partitions
 quarantine ineffective moves
+expire or clear quarantine by logical evaluation state after sustained cooling
 prefer cold evacuation when direct movement is unsafe
 record skipped reasons
 ```

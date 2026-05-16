@@ -5,7 +5,8 @@ public sealed class RadarProcessingDirectHotReliefPlanner
     public RadarProcessingRebalanceDecision Plan(
         long decisionId,
         RadarProcessingPressureWindow pressureWindow,
-        RadarProcessingRebalancePolicyState policyState)
+        RadarProcessingRebalancePolicyState policyState,
+        RadarProcessingHotPartitionClassifier? hotPartitionClassifier = null)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(decisionId);
         ArgumentNullException.ThrowIfNull(pressureWindow);
@@ -20,7 +21,7 @@ public sealed class RadarProcessingDirectHotReliefPlanner
                 [RadarProcessingRebalanceSkippedReason.NoSustainedPressure]);
         }
 
-        EnsureCompatibleShape(pressureWindow, policyState);
+        EnsureCompatibleShape(pressureWindow, policyState, hotPartitionClassifier);
 
         var hotShards = pressureWindow.Shards
             .Where(shard => shard.IsHot)
@@ -50,9 +51,24 @@ public sealed class RadarProcessingDirectHotReliefPlanner
                 [RadarProcessingRebalanceSkippedReason.NoColdTargetShard]);
         }
 
-        var candidates = CreateCandidateEvaluations(pressureWindow, hotShards, coldTargets);
+        var skippedClassificationReasons = new List<RadarProcessingRebalanceSkippedReason>();
+        var candidates = CreateCandidateEvaluations(
+            pressureWindow,
+            hotShards,
+            coldTargets,
+            hotPartitionClassifier,
+            skippedClassificationReasons);
         if (candidates.Count == 0)
         {
+            if (skippedClassificationReasons.Count > 0)
+            {
+                return NoAction(
+                    decisionId,
+                    pressureWindow,
+                    policyState,
+                    skippedClassificationReasons);
+            }
+
             return NoAction(
                 decisionId,
                 pressureWindow,
@@ -76,6 +92,11 @@ public sealed class RadarProcessingDirectHotReliefPlanner
                 .ThenBy(candidate => candidate.Candidate.PartitionId)
                 .ThenBy(candidate => candidate.Candidate.TargetShardId)
                 .First();
+            hotPartitionClassifier?.ClassifyIntrinsicHot(
+                rejected.Candidate.PartitionId,
+                rejected.Candidate.SourceShardId,
+                policyState.EvaluationSequence);
+
             return RadarProcessingRebalanceDecision.RejectedCandidate(
                 decisionId,
                 policyState.EvaluationSequence,
@@ -84,7 +105,8 @@ public sealed class RadarProcessingDirectHotReliefPlanner
                 rejected.Candidate,
                 [
                     RadarProcessingRebalanceSkippedReason.DirectHotPartitionHasNoSafeTarget,
-                    rejected.TargetSkippedReason!.Value
+                    rejected.TargetSkippedReason!.Value,
+                    RadarProcessingRebalanceSkippedReason.PartitionClassifiedIntrinsicHot
                 ]);
         }
 
@@ -98,6 +120,11 @@ public sealed class RadarProcessingDirectHotReliefPlanner
                 selected.Candidate,
                 [RadarProcessingRebalanceSkippedReason.InsufficientProjectedBenefit]);
         }
+
+        hotPartitionClassifier?.ClassifyMovableHot(
+            selected.Candidate.PartitionId,
+            selected.Candidate.SourceShardId,
+            policyState.EvaluationSequence);
 
         var policyResult = policyState.EvaluateMove(selected.Candidate.ToPolicyInput());
         return policyResult.IsAllowed
@@ -119,7 +146,9 @@ public sealed class RadarProcessingDirectHotReliefPlanner
     private static List<CandidateEvaluation> CreateCandidateEvaluations(
         RadarProcessingPressureWindow pressureWindow,
         IReadOnlyCollection<RadarProcessingShardPressureState> hotShards,
-        IReadOnlyCollection<RadarProcessingShardPressureState> coldTargets)
+        IReadOnlyCollection<RadarProcessingShardPressureState> coldTargets,
+        RadarProcessingHotPartitionClassifier? hotPartitionClassifier,
+        List<RadarProcessingRebalanceSkippedReason> skippedClassificationReasons)
     {
         var result = new List<CandidateEvaluation>();
 
@@ -133,6 +162,12 @@ public sealed class RadarProcessingDirectHotReliefPlanner
 
             foreach (var partition in sourcePartitions)
             {
+                if (hotPartitionClassifier is not null &&
+                    TrySkipClassifiedPartition(hotPartitionClassifier, partition.PartitionId, skippedClassificationReasons))
+                {
+                    continue;
+                }
+
                 foreach (var targetShard in coldTargets)
                 {
                     if (targetShard.ShardId == sourceShard.ShardId)
@@ -200,7 +235,8 @@ public sealed class RadarProcessingDirectHotReliefPlanner
 
     private static void EnsureCompatibleShape(
         RadarProcessingPressureWindow pressureWindow,
-        RadarProcessingRebalancePolicyState policyState)
+        RadarProcessingRebalancePolicyState policyState,
+        RadarProcessingHotPartitionClassifier? hotPartitionClassifier)
     {
         if (pressureWindow.Partitions.Count != policyState.PartitionCount)
         {
@@ -215,6 +251,42 @@ public sealed class RadarProcessingDirectHotReliefPlanner
                 "Pressure window shard count must match rebalance policy state.",
                 nameof(pressureWindow));
         }
+
+        if (hotPartitionClassifier is not null &&
+            pressureWindow.Partitions.Count != hotPartitionClassifier.PartitionCount)
+        {
+            throw new ArgumentException(
+                "Pressure window partition count must match hot partition classifier state.",
+                nameof(pressureWindow));
+        }
+    }
+
+    private static bool TrySkipClassifiedPartition(
+        RadarProcessingHotPartitionClassifier hotPartitionClassifier,
+        int partitionId,
+        List<RadarProcessingRebalanceSkippedReason> skippedClassificationReasons)
+    {
+        var state = hotPartitionClassifier.GetPartition(partitionId);
+        if (!state.BlocksDirectMove)
+        {
+            return false;
+        }
+
+        var reason = state.Classification switch
+        {
+            RadarProcessingHotPartitionClassification.IntrinsicHot =>
+                RadarProcessingRebalanceSkippedReason.PartitionClassifiedIntrinsicHot,
+            RadarProcessingHotPartitionClassification.Quarantined =>
+                RadarProcessingRebalanceSkippedReason.PartitionQuarantined,
+            _ => throw new InvalidOperationException("Only blocked hot partition classifications can be skipped.")
+        };
+
+        if (!skippedClassificationReasons.Contains(reason))
+        {
+            skippedClassificationReasons.Add(reason);
+        }
+
+        return true;
     }
 
     private sealed record CandidateEvaluation(

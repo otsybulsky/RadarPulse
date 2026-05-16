@@ -19,6 +19,7 @@ public enum RadarProcessingRebalanceSkippedReason
     TargetShardReceiveBudgetExhausted,
     GlobalMoveBudgetExhausted,
     PartitionClassifiedIntrinsicHot,
+    PartitionQuarantined,
     ColdEvacuationInsufficientBenefit,
     MigrationValidationFailed
 }

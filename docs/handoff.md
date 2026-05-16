@@ -1,4 +1,4 @@
-# Handoff: Milestone 006 Slice 7 Complete
+# Handoff: Milestone 006 Slice 8 Complete
 
 ## Current Goal
 
@@ -77,10 +77,26 @@ source/target pressure before and after, rejects unsafe target projections,
 applies policy gates, and returns rebalance decisions without mutating topology
 or policy state.
 
-The next implementation focus is milestone 006 slice 8: intrinsic hot partition
-classification. The next slice should classify hot partitions that cannot be
-safely absorbed by any target, expose that classification in decision telemetry,
-and avoid repeatedly trying to move the same intrinsically hot partition.
+Milestone 006 slice 8 is implemented in the current working tree. RadarPulse now
+has hot-partition classification state:
+`RadarProcessingHotPartitionClassification`,
+`RadarProcessingHotPartitionState`, and
+`RadarProcessingHotPartitionClassifier`. Direct hot relief planning can now
+record intrinsic hot partitions, skip intrinsic or quarantined partitions on
+later evaluations, surface skipped classification reasons in decision telemetry,
+and quarantine partitions whose recent movement produced insufficient actual
+relief.
+
+The next implementation focus is milestone 006 slice 9: cold evacuation
+planner. The next slice should move cold partitions away from a hot shard when
+the directly hot partition is intrinsic, quarantined, or otherwise unsafe to
+move.
+
+Planning note: quarantine is not intended to be permanent. The current slice 8
+state supports explicit clear/effective-outcome reset, but the controller
+integration should add automatic lifecycle handling on logical evaluations:
+quarantine TTL, sustained cooled-sample reset, or downgrade when pressure has
+changed enough that retrying is safe.
 
 ## Milestone Status
 
@@ -152,6 +168,8 @@ Done:
 - `006` slice 6 rebalance decision and skipped-reason telemetry contracts are
   implemented and tested.
 - `006` slice 7 direct hot relief planner is implemented and tested.
+- `006` slice 8 intrinsic hot partition classification is implemented and
+  tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -165,10 +183,14 @@ Done:
 
 Next milestone focus:
 
-- Implement milestone 006 slice 8 intrinsic hot partition classification.
-- Classify hot partitions that cannot be moved safely as intrinsic rather than
-  repeatedly trying the same unsafe direct move.
-- Expose intrinsic classification through decision telemetry.
+- Implement milestone 006 slice 9 cold evacuation planner.
+- Move cold partitions away from a hot shard when direct hot relief is unsafe
+  or blocked by intrinsic/quarantined hot partition classification.
+- Keep cold evacuation as a pressure-relief fallback, not general load
+  shuffling.
+- Preserve the follow-up requirement that quarantined hot partitions must decay
+  or clear by logical evaluation state after sustained cooling; quarantine must
+  not become an eternal ban.
 - Keep skipped rebalance decisions visible through telemetry so "no move" can
   be explained by policy gates rather than ambiguity.
 - Preserve synchronous `PartitionedBarrier` processing as the first rebalance
@@ -492,6 +514,40 @@ Completed in milestone 006 implementation:
   `dotnet test RadarPulse.sln --no-restore` passed with 298 tests passed and 3
   skipped.
 - Verification after milestone 006 slice 7:
+  `dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore`
+  passed with 0 warnings and 0 errors.
+- `RadarProcessingHotPartitionClassification`.
+- `RadarProcessingHotPartitionState`.
+- `RadarProcessingHotPartitionClassifier`.
+- `RadarProcessingRebalanceSkippedReason.PartitionQuarantined`.
+- Hot partition classification tracks `None`, `MovableHot`, `IntrinsicHot`,
+  and `Quarantined` states per partition.
+- Intrinsic and quarantined hot partition states block direct hot relief
+  selection for that partition.
+- The direct hot relief planner can receive optional hot-partition
+  classification state. It records intrinsic hot classification when the
+  selected direct-hot candidate has no safe target, skips previously intrinsic
+  or quarantined partitions, and returns diagnostic skipped reasons when all
+  hot partitions are classification-blocked.
+- Hot partition move outcomes can quarantine a partition after repeated
+  ineffective movement attempts, using configurable ineffective-move count and
+  minimum effective relief ratio.
+- Quarantine is intentionally conservative in slice 8, but the milestone plan
+  now requires later controller lifecycle handling so quarantined partitions can
+  decay, clear, or downgrade after sustained cooling on logical evaluations.
+- Hot partition classifier tests cover initial unclassified state, intrinsic
+  blocking, movable-hot non-blocking, ineffective-move quarantine, effective
+  outcome reset, clearing classification, and guardrails.
+- Direct hot relief tests now cover intrinsic classification recording,
+  skipping an intrinsic partition in favor of another direct candidate, and
+  diagnostic no-action when every hot partition is classification-blocked.
+- Verification after milestone 006 slice 8:
+  `dotnet test RadarPulse.sln --no-restore --filter FullyQualifiedName~Processing`
+  passed with 164 tests passed.
+- Verification after milestone 006 slice 8:
+  `dotnet test RadarPulse.sln --no-restore` passed with 307 tests passed and 3
+  skipped.
+- Verification after milestone 006 slice 8:
   `dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore`
   passed with 0 warnings and 0 errors.
 
@@ -2082,6 +2138,9 @@ constant and moment data blocks.
 - `src/Domain/Processing/RadarProcessingRebalanceCandidate.cs`
 - `src/Domain/Processing/RadarProcessingRebalanceDecision.cs`
 - `src/Domain/Processing/RadarProcessingDirectHotReliefPlanner.cs`
+- `src/Domain/Processing/RadarProcessingHotPartitionClassification.cs`
+- `src/Domain/Processing/RadarProcessingHotPartitionState.cs`
+- `src/Domain/Processing/RadarProcessingHotPartitionClassifier.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingTopologyVersioningTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingBatchRouterTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingTelemetryTests.cs`
@@ -2091,6 +2150,7 @@ constant and moment data blocks.
 - `tests/RadarPulse.Tests/Processing/RadarProcessingRebalancePolicyStateTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingRebalanceDecisionTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingDirectHotReliefPlannerTests.cs`
+- `tests/RadarPulse.Tests/Processing/RadarProcessingHotPartitionClassifierTests.cs`
 - `src/Domain/Processing/*`
 - `tests/RadarPulse.Tests/Processing/*`
 - `src/Domain/Streaming/DenseIdentityAllowedCharacters.cs`
