@@ -1,4 +1,4 @@
-# Handoff: Milestone 006 Slice 15 Complete
+# Handoff: Milestone 006 Decision Trace Complete
 
 ## Current Goal
 
@@ -175,8 +175,8 @@ full rebalance contours for balanced, hot-shard, intrinsic-hot, oscillating, and
 cooldown-storm workloads, with same-run static ratios and a diagnostic
 comparison against the milestone 005 partitioned/no-handler baseline.
 
-Milestone 006 real-data rebalance smoke benchmarking is implemented in the
-current working tree. The new command is
+Milestone 006 real-data rebalance smoke and cache-wide benchmarking are
+implemented in the current working tree. The new command is
 `processing benchmark rebalance-archive` with `--file` or `--cache` input,
 static, sampling, rebalance, or all modes plus
 partition/shard/iteration/archive parallelism options. It streams real NEXRAD
@@ -184,11 +184,13 @@ archive data into leased `RadarEventBatch` callbacks, processes each batch
 synchronously, and reports end-to-end archive replay timing separately from
 processing callback timing.
 
-The next implementation focus is milestone 006 decision trace and closeout
-documentation. The closeout should include the captured Release benchmark table,
-the real-data smoke result, the same-run static overhead interpretation, and
-the caveat that the milestone 006 synthetic rebalance catalog is a tiny
-behavioral contour rather than the large milestone 005 throughput shape.
+Milestone 006 decision trace is written in
+`docs/milestones/006-partition-level-shard-rebalance-decision-trace.md`. The
+next implementation focus is milestone 006 closeout documentation. The closeout
+should include the captured Release benchmark table, the real-data smoke and
+cache-wide results, the same-run static overhead interpretation, and the caveat
+that the milestone 006 synthetic rebalance catalog is a tiny behavioral contour
+rather than the large milestone 005 throughput shape.
 
 Planning note: quarantine is not intended to be permanent. The current slice 8
 state supports explicit clear/effective-outcome reset, but the controller
@@ -283,6 +285,9 @@ Done:
   baseline.
 - `006` real-data rebalance archive smoke benchmark command is implemented and
   verified against a local KTLX Archive Two file.
+- `006` real-data rebalance archive cache-wide benchmark is captured and
+  compared with milestone 005 processing-only throughput.
+- `006` partition-level shard rebalance decision trace is written.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -296,8 +301,8 @@ Done:
 
 Next milestone focus:
 
-- Write milestone 006 decision trace and closeout once the performance table is
-  recorded.
+- Write milestone 006 closeout now that the decision trace and performance
+  table are recorded.
 - Include the real-data archive smoke result in closeout: it validates the
   controller over a real leased `RadarEventBatch` stream and separates replay
   time from processing callback time.
@@ -395,6 +400,7 @@ Completed in milestone 006 planning:
 
 - `docs/milestones/006-partition-level-shard-rebalance.md`.
 - `docs/milestones/006-partition-level-shard-rebalance-plan.md`.
+- `docs/milestones/006-partition-level-shard-rebalance-decision-trace.md`.
 - Milestone 006 scope is cautious partition-level shard rebalance over the
   synchronous milestone 005 `PartitionedBarrier` baseline, not retained async
   processing, live ingestion, source-level migration, partition splitting, or
