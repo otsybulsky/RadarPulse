@@ -1,4 +1,4 @@
-# Handoff: Milestone 006 Slice 8 Complete
+# Handoff: Milestone 006 Slice 9 Complete
 
 ## Current Goal
 
@@ -87,10 +87,18 @@ later evaluations, surface skipped classification reasons in decision telemetry,
 and quarantine partitions whose recent movement produced insufficient actual
 relief.
 
-The next implementation focus is milestone 006 slice 9: cold evacuation
-planner. The next slice should move cold partitions away from a hot shard when
-the directly hot partition is intrinsic, quarantined, or otherwise unsafe to
-move.
+Milestone 006 slice 9 is implemented in the current working tree. RadarPulse now
+has a cold evacuation fallback planner:
+`RadarProcessingColdEvacuationPlanner`. The planner runs only against sustained
+hot or super-hot source shards, selects low-pressure non-hot partitions on the
+hot shard, projects source/target pressure before and after, rejects cosmetic
+or unsafe target moves, applies anti-churn policy gates, and returns
+`ColdEvacuation` rebalance decisions without mutating topology or policy state.
+
+The next implementation focus is milestone 006 slice 10: migration lifecycle
+and coordinator. The next slice should apply accepted rebalance decisions safely
+between processing calls by validating topology ownership and publishing a new
+topology version through the topology manager.
 
 Planning note: quarantine is not intended to be permanent. The current slice 8
 state supports explicit clear/effective-outcome reset, but the controller
@@ -170,6 +178,7 @@ Done:
 - `006` slice 7 direct hot relief planner is implemented and tested.
 - `006` slice 8 intrinsic hot partition classification is implemented and
   tested.
+- `006` slice 9 cold evacuation planner is implemented and tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -183,11 +192,12 @@ Done:
 
 Next milestone focus:
 
-- Implement milestone 006 slice 9 cold evacuation planner.
-- Move cold partitions away from a hot shard when direct hot relief is unsafe
-  or blocked by intrinsic/quarantined hot partition classification.
+- Implement milestone 006 slice 10 migration lifecycle and coordinator.
+- Accept only accepted rebalance decisions, validate current topology ownership,
+  publish topology `N+1` through the topology manager, and surface migration
+  lifecycle results without partial ownership changes.
 - Keep cold evacuation as a pressure-relief fallback, not general load
-  shuffling.
+  shuffling when it is integrated into the controller.
 - Preserve the follow-up requirement that quarantined hot partitions must decay
   or clear by logical evaluation state after sustained cooling; quarantine must
   not become an eternal ban.
@@ -548,6 +558,33 @@ Completed in milestone 006 implementation:
   `dotnet test RadarPulse.sln --no-restore` passed with 307 tests passed and 3
   skipped.
 - Verification after milestone 006 slice 8:
+  `dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore`
+  passed with 0 warnings and 0 errors.
+- `RadarProcessingColdEvacuationPlanner`.
+- Cold evacuation planning reads pressure windows and policy state without
+  mutating topology or consuming anti-churn budgets/cooldowns.
+- The planner returns `NoAction` when the pressure window has not reached its
+  minimum sample count, when no shard is hot, when no cold target shard is
+  available, or when no useful non-hot partition can be evacuated.
+- The planner selects low-pressure non-hot partitions currently owned by hot or
+  super-hot source shards and emits `ColdEvacuation` candidates.
+- Cold evacuation candidate projection records source shard pressure
+  before/after, target shard pressure before/after, and expected relief.
+- Target projection rejects cold evacuation moves that would make the target
+  shard warm, hot, or super-hot before policy gates are evaluated.
+- Anti-churn gates are applied through `RadarProcessingRebalancePolicyState`
+  evaluation before an accepted cold evacuation decision is returned.
+- Cold evacuation tests cover direct-hot unsafe fallback, moving a cold
+  partition off a hot shard, deterministic smallest useful cold-partition
+  selection, target headroom, insufficient projected relief, target-warm
+  rejection, and source-shard move budget rejection.
+- Verification after milestone 006 slice 9:
+  `dotnet test RadarPulse.sln --no-restore --filter FullyQualifiedName~Processing`
+  passed with 170 tests passed.
+- Verification after milestone 006 slice 9:
+  `dotnet test RadarPulse.sln --no-restore` passed with 313 tests passed and 3
+  skipped.
+- Verification after milestone 006 slice 9:
   `dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore`
   passed with 0 warnings and 0 errors.
 
@@ -2141,6 +2178,7 @@ constant and moment data blocks.
 - `src/Domain/Processing/RadarProcessingHotPartitionClassification.cs`
 - `src/Domain/Processing/RadarProcessingHotPartitionState.cs`
 - `src/Domain/Processing/RadarProcessingHotPartitionClassifier.cs`
+- `src/Domain/Processing/RadarProcessingColdEvacuationPlanner.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingTopologyVersioningTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingBatchRouterTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingTelemetryTests.cs`
@@ -2151,6 +2189,7 @@ constant and moment data blocks.
 - `tests/RadarPulse.Tests/Processing/RadarProcessingRebalanceDecisionTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingDirectHotReliefPlannerTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingHotPartitionClassifierTests.cs`
+- `tests/RadarPulse.Tests/Processing/RadarProcessingColdEvacuationPlannerTests.cs`
 - `src/Domain/Processing/*`
 - `tests/RadarPulse.Tests/Processing/*`
 - `src/Domain/Streaming/DenseIdentityAllowedCharacters.cs`
