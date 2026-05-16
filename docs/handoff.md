@@ -1,4 +1,4 @@
-# Handoff: Milestone 005 Complete
+# Handoff: Milestone 006 Planning Complete
 
 ## Current Goal
 
@@ -17,9 +17,17 @@ shard telemetry, processing-output validation helpers, source-local handler
 slots, a synthetic processing-only benchmark harness, CLI benchmark command,
 decision trace, closeout, and Release processing-only benchmark numbers.
 
-The next milestone focus is partition-level shard rebalance over the measured
-static baseline, while preserving the explicit payload lifetime boundary,
-static source-to-shard ownership model, and shard-owned dense source state.
+Milestone 006 architecture and implementation planning are complete. The
+milestone scope is cautious, synchronous, partition-level shard rebalance over
+the measured static baseline: versioned `PartitionId -> ShardId` topology,
+windowed pressure detection, direct hot-partition relief, cold-partition
+evacuation when the hot partition cannot move safely, anti-churn policy,
+migration lifecycle, state handoff validation, and rebalance telemetry.
+
+The next implementation focus is milestone 006 slice 1: versioned topology
+contracts and publication boundaries, while preserving the explicit payload
+lifetime boundary, stable `SourceId -> PartitionId` mapping, and dense
+source-local state model.
 
 ## Milestone Status
 
@@ -78,6 +86,8 @@ Done:
   and partitioned synthetic modes, with and without the counter/checksum
   handler workload.
 - `005` processing-core decision trace and closeout are written.
+- `006` partition-level shard rebalance architecture is complete.
+- `006` partition-level shard rebalance implementation plan is complete.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -91,9 +101,22 @@ Done:
 
 Next milestone focus:
 
-- Start milestone 006 around partition-level shard rebalance.
+- Implement milestone 006 starting with versioned topology contracts and a
+  topology publication boundary.
+- Preserve synchronous `PartitionedBarrier` processing as the first rebalance
+  correctness boundary: process one batch against one topology snapshot, then
+  evaluate and apply rebalance before the next batch.
 - Preserve the `SourceId -> PartitionId -> ShardId` ownership model when
-  adding partition movement and source-state transfer.
+  adding partition movement and source-state transfer. The
+  source-to-partition mapping remains stable; only partition-to-shard ownership
+  moves.
+- Implement rebalance as cautious pressure relief, not mechanical equalization.
+  The controller should require sustained pressure, projected benefit,
+  headroom on the target shard, cooldown, minimum residency, and move budgets.
+- Support direct hot-partition relief first, then cold-partition evacuation from
+  a hot shard when the hot partition cannot move safely.
+- Make skipped rebalance decisions visible through telemetry so "no move" can
+  be explained by policy gates rather than ambiguity.
 - Treat the current `archive benchmark stream` numbers as replay construction
   throughput, not as the future processing-core throughput over
   already-built `RadarEventBatch` values.
@@ -156,6 +179,30 @@ Completed in milestone 005 planning:
   validation, benchmarks, CLI smoke commands, and closeout/handoff.
 - Milestone 006 is identified as the next milestone for partition-level shard
   rebalance after the static processing core baseline is measured.
+
+Completed in milestone 006 planning:
+
+- `docs/milestones/006-partition-level-shard-rebalance.md`.
+- `docs/milestones/006-partition-level-shard-rebalance-plan.md`.
+- Milestone 006 scope is cautious partition-level shard rebalance over the
+  synchronous milestone 005 `PartitionedBarrier` baseline, not retained async
+  processing, live ingestion, source-level migration, partition splitting, or
+  complex radar algorithms.
+- The accepted architecture preserves stable `SourceId -> PartitionId` mapping
+  and makes only `PartitionId -> ShardId` movable through versioned topology
+  snapshots.
+- Rebalance is defined as pressure relief, not mechanical equalization:
+  decisions require sustained shard pressure, projected benefit, target
+  headroom, cooldown, minimum residency, and move-budget gates.
+- The implementation plan is broken into versioned topology contracts,
+  topology publication, route topology-version integration, pressure samples,
+  pressure windows, anti-churn state, decision/skipped-reason telemetry, direct
+  hot relief, intrinsic hot partition classification, cold evacuation,
+  migration lifecycle, state handoff validation, rebalance validation,
+  synthetic workloads, benchmarks, CLI smoke/benchmark command, and
+  closeout/handoff.
+- The first implementation slice should add versioned topology contracts while
+  preserving the existing contiguous source-range partition mapping.
 
 Completed in milestone 005 implementation:
 
@@ -1707,6 +1754,8 @@ constant and moment data blocks.
 - `docs/milestones/005-processing-core-architecture-plan.md`
 - `docs/milestones/005-processing-core-architecture-decision-trace.md`
 - `docs/milestones/005-processing-core-architecture-closeout.md`
+- `docs/milestones/006-partition-level-shard-rebalance.md`
+- `docs/milestones/006-partition-level-shard-rebalance-plan.md`
 - `src/Domain/Processing/*`
 - `tests/RadarPulse.Tests/Processing/*`
 - `src/Domain/Streaming/DenseIdentityAllowedCharacters.cs`

@@ -1,6 +1,6 @@
 # Milestone 006: Partition-Level Shard Rebalance Architecture
 
-Status: concept draft.
+Status: planned.
 
 RadarPulse milestone 006 starts from the closed milestone 005 processing-core
 baseline and defines the architecture for cautious partition-level shard
