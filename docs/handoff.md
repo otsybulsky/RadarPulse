@@ -10,11 +10,12 @@ parallel replay integration, cache replay, validation, CLI smoke commands, and
 benchmarks.
 
 Milestone 005 architecture and implementation planning are drafted, and the
-first implementation slice is committed. The current work is to implement the
-first static partitioned processing core over already-built `RadarEventBatch`
-values: explicit payload lifetime boundary, `SourceId -> PartitionId ->
-ShardId` routing, shard-owned dense source state, source-local handler slots,
-processing-only telemetry, validation, and benchmarks.
+first processing contracts plus static partition topology slices are
+implemented. The current work is to implement the first static partitioned
+processing core over already-built `RadarEventBatch` values: explicit payload
+lifetime boundary, `SourceId -> PartitionId -> ShardId` routing, shard-owned
+dense source state, source-local handler slots, processing-only telemetry,
+validation, and benchmarks.
 
 Milestone 005 should build on the closed milestone 004 stream contract rather
 than changing it casually. Live shard rebalance is deliberately reserved for
@@ -58,6 +59,7 @@ Done:
 - `005` processing-core architecture is drafted.
 - `005` processing-core implementation plan is drafted.
 - `005` processing-core contracts are implemented and tested.
+- `005` static partition topology is implemented and tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -73,8 +75,7 @@ Next work:
 
 - Implement milestone 005 from the drafted architecture and plan:
   static partitioned processing core over `RadarEventBatch`.
-- Continue with static partition topology, then dense source-local state sized
-  by `RadarSourceUniverse`.
+- Continue with dense source-local state sized by `RadarSourceUniverse`.
 - Preserve the `SourceId -> PartitionId -> ShardId` ownership model so
   milestone 006 can add partition-level shard rebalance.
 - Treat the current `archive benchmark stream` numbers as replay construction
@@ -152,12 +153,26 @@ Completed in milestone 005 implementation so far:
   initial `PartitionCount >= ShardCount` topology constraint.
 - Processing results carry execution mode, topology shape, deterministic
   metrics, and validation state.
+- `RadarProcessingPartitionAssignment`.
+- `RadarProcessingTopology`.
+- Static topology maps `SourceId -> PartitionId -> ShardId` with contiguous
+  source blocks.
+- Topology construction validates against `RadarSourceUniverse.SourceCount`.
+- Partition assignments expose partition id, shard id, source range start,
+  source range end, source count, and source containment checks.
+- Source ids and partition ids are range-checked at lookup boundaries.
 - Focused contract tests cover default options, invalid execution modes,
   invalid topology counts, validation result invariants, result shape, and empty
   result construction.
+- Focused topology tests cover contiguous source blocks, complete source-id
+  coverage, stable assignments, shard range mapping, null inputs, too many
+  partitions, invalid source/partition ids, and invalid partition ranges.
 - Verification after slice 1:
   `dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore`
   passed with 151 tests passed and 3 skipped.
+- Verification after slice 2:
+  `dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore`
+  passed with 160 tests passed and 3 skipped.
 - Commit: `d9106b0 Add processing core contracts`.
 
 Completed in milestone 004 implementation so far:
