@@ -159,9 +159,19 @@ moves, skipped decisions, direct/cold move counts, failed migrations,
 validation status, deterministic checksum, throughput, allocation ratios, and
 accepted-move pressure projections.
 
-The next implementation focus is milestone 006 slice 16: CLI smoke or benchmark
-command. The next slice should expose the synthetic rebalance benchmark through
-a small manual command so Release numbers can be captured before closeout.
+Milestone 006 slice 16 is implemented in the current working tree. RadarPulse
+now exposes the synthetic rebalance benchmark through
+`processing benchmark rebalance-synthetic` with workload, mode, iteration, and
+warmup options. The command can run static no-rebalance, pressure-sampling-only,
+and full rebalance-session modes over one workload or the full workload catalog,
+and prints topology, move, skipped-reason, throughput, allocation, validation,
+and accepted-move pressure summary fields.
+
+The next implementation focus is milestone 006 Release benchmark capture and
+closeout documentation. The next slice should run the new CLI command in
+Release, compare rebalance overhead against same-run static baseline and the
+milestone 005 processing-only baseline, then write the decision trace and
+closeout.
 
 Planning note: quarantine is not intended to be permanent. The current slice 8
 state supports explicit clear/effective-outcome reset, but the controller
@@ -249,6 +259,8 @@ Done:
 - `006` slice 13 rebalance validation helpers are implemented and tested.
 - `006` slice 14 synthetic rebalance workloads are implemented and tested.
 - `006` slice 15 synthetic rebalance benchmarks are implemented and tested.
+- `006` slice 16 synthetic rebalance CLI benchmark command is implemented and
+  smoke-tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -262,10 +274,13 @@ Done:
 
 Next milestone focus:
 
-- Implement milestone 006 slice 16 CLI smoke or benchmark command for
-  synthetic rebalance workloads.
-- Expose workload/mode/iteration options and print topology, move, skipped
-  reason, throughput, allocation, and validation summary fields.
+- Capture milestone 006 Release benchmark numbers with
+  `processing benchmark rebalance-synthetic`.
+- Compare static, sampling-only, no-churn, direct-relief, and cold-evacuation
+  contours against same-run static baselines and the milestone 005
+  processing-only baseline.
+- Write milestone 006 decision trace and closeout once the performance table is
+  recorded.
 - Preserve the requirement that before milestone closeout we capture Release
   numbers and compare them with previous processing baselines.
 - Preserve migration lifecycle semantics: no partial ownership changes after
@@ -871,6 +886,37 @@ Completed in milestone 006 implementation:
 - Verification after milestone 006 slice 15:
   `dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore`
   passed with 0 warnings and 0 errors.
+- `processing benchmark rebalance-synthetic`.
+- `processing benchmark rebalance` is available as a short alias for the same
+  command.
+- The command accepts
+  `--workload balanced|hot-shard|intrinsic-hot|oscillating|cooldown-storm|all`,
+  `--mode static|sampling|rebalance|all`, `--iterations`, and
+  `--warmup-iterations`.
+- The command runs the processing-only synthetic rebalance benchmark over
+  prebuilt `RadarEventBatch` values and keeps replay construction, identity
+  normalization, batch construction, and CLI formatting out of the measured
+  loop.
+- CLI output reports workload kind, benchmark mode, partition and shard shape,
+  iteration counts, per-iteration batch/event/payload totals, topology version
+  count, rebalance evaluations, accepted moves, skipped decisions, direct/cold
+  move counts, failed migrations, validation status/checksum, unique skipped
+  reasons, elapsed time, throughput, allocation ratios, and accepted-move
+  pressure projections.
+- CLI smoke tests cover option parsing, rejection of `--mode sequential`, and a
+  real small-process run that emits topology and rebalance counters.
+- Verification after milestone 006 slice 16:
+  `dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests`
+  passed with 3 tests passed.
+- Verification after milestone 006 slice 16:
+  `dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore`
+  passed with 0 warnings and 0 errors.
+- Verification after milestone 006 slice 16:
+  `dotnet test RadarPulse.sln --no-restore` passed with 355 tests passed and 3
+  skipped.
+- Verification after milestone 006 slice 16:
+  `dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-synthetic --workload hot-shard --mode all --iterations 1 --warmup-iterations 0`
+  passed and emitted static, sampling, and rebalance-session benchmark blocks.
 
 Completed in milestone 005 implementation:
 

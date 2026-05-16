@@ -868,14 +868,8 @@ Candidate command:
 
 ```text
 processing benchmark rebalance-synthetic
-  [--workload balanced|hot-shard|intrinsic-hot|oscillating]
-  [--sources n]
-  [--batches n]
-  [--events-per-batch n]
-  [--payload-values n]
-  [--partitions n]
-  [--shards n]
-  [--handlers none|counter-checksum]
+  [--workload balanced|hot-shard|intrinsic-hot|oscillating|cooldown-storm|all]
+  [--mode static|sampling|rebalance|all]
   [--iterations n]
   [--warmup-iterations n]
 ```
@@ -886,14 +880,17 @@ Expected output:
 measured contour name
 workload kind
 execution mode
+benchmark mode
 topology versions observed
 accepted moves
-skipped decisions by reason
+skipped decision count
+unique skipped reasons
 direct hot relief count
 cold evacuation count
 failed migration count
 throughput counters
 allocation ratios
+pressure before and after accepted moves
 validation checksum
 ```
 

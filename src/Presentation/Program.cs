@@ -177,6 +177,7 @@ static int PrintUsage()
     Console.WriteLine("  radarpulse archive benchmark replay-publish --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse archive benchmark stream (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse processing benchmark synthetic [--mode sequential|partitioned] [--sources n] [--batches n] [--events-per-batch n] [--payload-values n] [--partitions n] [--shards n] [--handlers none|counter-checksum] [--iterations n] [--warmup-iterations n]");
+    Console.WriteLine("  radarpulse processing benchmark rebalance-synthetic [--workload balanced|hot-shard|intrinsic-hot|oscillating|cooldown-storm|all] [--mode static|sampling|rebalance|all] [--iterations n] [--warmup-iterations n]");
     Console.WriteLine("  radarpulse archive validate decompress (--file path | --cache data/nexrad [--radar KTLX] [--max-files n])");
     Console.WriteLine("  radarpulse archive validate replay-shape (--file path | --cache data/nexrad [--radar KTLX] [--max-files n]) [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     return 2;
@@ -360,6 +361,7 @@ static int ProcessingBenchmark(string[] args)
     return args[0] switch
     {
         "synthetic" => BenchmarkProcessingSynthetic(args[1..]),
+        "rebalance" or "rebalance-synthetic" => BenchmarkProcessingRebalanceSynthetic(args[1..]),
         _ => PrintUsage()
     };
 }
@@ -383,6 +385,36 @@ static int BenchmarkProcessingSynthetic(string[] args)
         CancellationToken.None);
 
     PrintProcessingBenchmarkResult(result);
+    return 0;
+}
+
+static int BenchmarkProcessingRebalanceSynthetic(string[] args)
+{
+    var options = ProcessingBenchmarkRebalanceSyntheticOptions.Parse(args);
+    var benchmark = new RadarProcessingSyntheticRebalanceBenchmark();
+    var printedResult = false;
+
+    foreach (var workload in options.Workloads)
+    {
+        foreach (var mode in options.Modes)
+        {
+            if (printedResult)
+            {
+                Console.WriteLine();
+            }
+
+            var result = benchmark.Measure(
+                workload,
+                mode,
+                options.Iterations,
+                options.WarmupIterations,
+                CancellationToken.None);
+
+            PrintProcessingRebalanceBenchmarkResult(result);
+            printedResult = true;
+        }
+    }
+
     return 0;
 }
 
@@ -420,6 +452,65 @@ static void PrintProcessingBenchmarkResult(RadarProcessingBenchmarkResult result
     }
 }
 
+static void PrintProcessingRebalanceBenchmarkResult(RadarProcessingSyntheticRebalanceBenchmarkResult result)
+{
+    Console.WriteLine("Processing benchmark: rebalance-synthetic");
+    Console.WriteLine("Measured contour: RadarProcessingCore plus rebalance evaluation over prebuilt synthetic RadarEventBatch values");
+    Console.WriteLine("Excluded work: decompression, Archive Two scanning, identity normalization, batch construction, CLI formatting");
+    Console.WriteLine("Execution mode: partitioned");
+    Console.WriteLine($"Workload: {FormatProcessingRebalanceWorkload(result.WorkloadKind)}");
+    Console.WriteLine($"Benchmark mode: {FormatProcessingRebalanceMode(result.Mode)}");
+    Console.WriteLine($"Partitions: {FormatNumber(result.PartitionCount)}");
+    Console.WriteLine($"Shards: {FormatNumber(result.ShardCount)}");
+    Console.WriteLine($"Iterations: {FormatNumber(result.Iterations)}");
+    Console.WriteLine($"Warmup iterations: {FormatNumber(result.WarmupIterations)}");
+    Console.WriteLine($"Source count: {FormatNumber(result.SourceCount)}");
+    Console.WriteLine($"Batches per iteration: {FormatNumber(result.BatchesPerIteration)}");
+    Console.WriteLine($"Stream events per iteration: {FormatNumber(result.EventsPerIteration)}");
+    Console.WriteLine($"Payload values per iteration: {FormatNumber(result.PayloadValuesPerIteration)}");
+    Console.WriteLine($"Raw value checksum per iteration: {FormatNumber(result.RawValueChecksumPerIteration)}");
+    Console.WriteLine($"Topology versions per iteration: {FormatNumber(result.TopologyVersionCount)}");
+    Console.WriteLine($"Rebalance evaluations: {FormatNumber(result.RebalanceEvaluationCount)}");
+    Console.WriteLine($"Accepted moves: {FormatNumber(result.AcceptedMoveCount)}");
+    Console.WriteLine($"Skipped decisions: {FormatNumber(result.SkippedDecisionCount)}");
+    Console.WriteLine($"Direct hot relief moves: {FormatNumber(result.DirectHotReliefCount)}");
+    Console.WriteLine($"Cold evacuation moves: {FormatNumber(result.ColdEvacuationCount)}");
+    Console.WriteLine($"Failed migrations: {FormatNumber(result.FailedMigrationCount)}");
+    Console.WriteLine($"Validation: {(result.ValidationSucceeded ? "succeeded" : "failed")}");
+    Console.WriteLine($"Validation checksum: {FormatUnsignedNumber(result.ValidationChecksum)}");
+    Console.WriteLine($"Skipped reasons: {FormatProcessingRebalanceSkippedReasons(result.SkippedReasons)}");
+    Console.WriteLine($"Elapsed ms: {FormatDecimal(result.Elapsed.TotalMilliseconds)}");
+    Console.WriteLine($"Batches/s: {FormatDecimal(result.BatchesPerSecond)}");
+    Console.WriteLine($"Stream events/s: {FormatDecimal(result.EventsPerSecond)}");
+    Console.WriteLine($"Payload values/s: {FormatDecimal(result.PayloadValuesPerSecond)}");
+    Console.WriteLine($"Rebalance evaluations/s: {FormatDecimal(result.RebalanceEvaluationsPerSecond)}");
+    Console.WriteLine($"Allocated bytes: {FormatNumber(result.AllocatedBytes)}");
+    Console.WriteLine($"Allocated bytes / stream event: {FormatDecimal(result.AllocatedBytesPerStreamEvent)}");
+    Console.WriteLine($"Allocated bytes / rebalance evaluation: {FormatDecimal(result.AllocatedBytesPerRebalanceEvaluation)}");
+    PrintProcessingRebalanceMovePressures(result.AcceptedMovePressures);
+}
+
+static void PrintProcessingRebalanceMovePressures(
+    IReadOnlyList<RadarProcessingSyntheticRebalanceMovePressure> acceptedMovePressures)
+{
+    if (acceptedMovePressures.Count == 0)
+    {
+        Console.WriteLine("Accepted move pressures: (none)");
+        return;
+    }
+
+    Console.WriteLine("Accepted move pressures:");
+    for (var i = 0; i < acceptedMovePressures.Count; i++)
+    {
+        var pressure = acceptedMovePressures[i];
+        Console.WriteLine(
+            $"  {FormatNumber(i + 1)}. {FormatProcessingRebalanceMoveKind(pressure.MoveKind)} " +
+            $"source {FormatDecimal(pressure.SourceShardBefore)}->{FormatDecimal(pressure.SourceShardAfter)}, " +
+            $"target {FormatDecimal(pressure.TargetShardBefore)}->{FormatDecimal(pressure.TargetShardAfter)}, " +
+            $"relief {FormatDecimal(pressure.ExpectedRelief)}");
+    }
+}
+
 static string FormatProcessingMode(RadarProcessingExecutionMode executionMode) =>
     executionMode switch
     {
@@ -434,6 +525,72 @@ static string FormatProcessingHandlerSet(RadarProcessingBenchmarkHandlerSet hand
         RadarProcessingBenchmarkHandlerSet.None => "none",
         RadarProcessingBenchmarkHandlerSet.CounterChecksum => "counter-checksum",
         _ => handlerSet.ToString()
+    };
+
+static string FormatProcessingRebalanceWorkload(RadarProcessingSyntheticRebalanceWorkloadKind workloadKind) =>
+    workloadKind switch
+    {
+        RadarProcessingSyntheticRebalanceWorkloadKind.Balanced => "balanced",
+        RadarProcessingSyntheticRebalanceWorkloadKind.SustainedHotShard => "hot-shard",
+        RadarProcessingSyntheticRebalanceWorkloadKind.IntrinsicHotPartition => "intrinsic-hot",
+        RadarProcessingSyntheticRebalanceWorkloadKind.OscillatingSpike => "oscillating",
+        RadarProcessingSyntheticRebalanceWorkloadKind.CooldownStorm => "cooldown-storm",
+        _ => workloadKind.ToString()
+    };
+
+static string FormatProcessingRebalanceMode(RadarProcessingSyntheticRebalanceBenchmarkMode mode) =>
+    mode switch
+    {
+        RadarProcessingSyntheticRebalanceBenchmarkMode.StaticNoRebalance => "static",
+        RadarProcessingSyntheticRebalanceBenchmarkMode.PressureSamplingOnly => "sampling",
+        RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession => "rebalance-session",
+        _ => mode.ToString()
+    };
+
+static string FormatProcessingRebalanceMoveKind(RadarProcessingRebalanceMoveKind moveKind) =>
+    moveKind switch
+    {
+        RadarProcessingRebalanceMoveKind.DirectHotRelief => "direct-hot-relief",
+        RadarProcessingRebalanceMoveKind.ColdEvacuation => "cold-evacuation",
+        RadarProcessingRebalanceMoveKind.RoomMakingReserved => "room-making-reserved",
+        _ => moveKind.ToString()
+    };
+
+static string FormatProcessingRebalanceSkippedReasons(
+    IReadOnlyList<RadarProcessingRebalanceSkippedReason> skippedReasons) =>
+    skippedReasons.Count == 0
+        ? "(none)"
+        : string.Join(", ", skippedReasons.Select(FormatProcessingRebalanceSkippedReason));
+
+static string FormatProcessingRebalanceSkippedReason(RadarProcessingRebalanceSkippedReason reason) =>
+    reason switch
+    {
+        RadarProcessingRebalanceSkippedReason.NoSustainedPressure => "no-sustained-pressure",
+        RadarProcessingRebalanceSkippedReason.NoHotShard => "no-hot-shard",
+        RadarProcessingRebalanceSkippedReason.NoColdTargetShard => "no-cold-target-shard",
+        RadarProcessingRebalanceSkippedReason.DirectHotPartitionHasNoSafeTarget =>
+            "direct-hot-partition-has-no-safe-target",
+        RadarProcessingRebalanceSkippedReason.InsufficientProjectedBenefit => "insufficient-projected-benefit",
+        RadarProcessingRebalanceSkippedReason.TargetWouldBecomeWarm => "target-would-become-warm",
+        RadarProcessingRebalanceSkippedReason.TargetWouldBecomeHot => "target-would-become-hot",
+        RadarProcessingRebalanceSkippedReason.TargetHeadroomExceeded => "target-headroom-exceeded",
+        RadarProcessingRebalanceSkippedReason.CandidatePartitionInCooldown => "candidate-partition-in-cooldown",
+        RadarProcessingRebalanceSkippedReason.CandidatePartitionBelowMinimumResidency =>
+            "candidate-partition-below-minimum-residency",
+        RadarProcessingRebalanceSkippedReason.SourceShardInCooldown => "source-shard-in-cooldown",
+        RadarProcessingRebalanceSkippedReason.TargetShardInCooldown => "target-shard-in-cooldown",
+        RadarProcessingRebalanceSkippedReason.SourceShardMoveBudgetExhausted =>
+            "source-shard-move-budget-exhausted",
+        RadarProcessingRebalanceSkippedReason.TargetShardReceiveBudgetExhausted =>
+            "target-shard-receive-budget-exhausted",
+        RadarProcessingRebalanceSkippedReason.GlobalMoveBudgetExhausted => "global-move-budget-exhausted",
+        RadarProcessingRebalanceSkippedReason.PartitionClassifiedIntrinsicHot =>
+            "partition-classified-intrinsic-hot",
+        RadarProcessingRebalanceSkippedReason.PartitionQuarantined => "partition-quarantined",
+        RadarProcessingRebalanceSkippedReason.ColdEvacuationInsufficientBenefit =>
+            "cold-evacuation-insufficient-benefit",
+        RadarProcessingRebalanceSkippedReason.MigrationValidationFailed => "migration-validation-failed",
+        _ => reason.ToString()
     };
 
 static int BenchmarkArchiveDecompression(string[] args)
@@ -1575,6 +1732,121 @@ internal sealed record ProcessingBenchmarkSyntheticOptions(
             "counter-checksum" => RadarProcessingBenchmarkHandlerSet.CounterChecksum,
             _ => throw new ArgumentException($"Unknown processing benchmark handler set: {value}")
         };
+
+    private static string RequireValue(string[] args, ref int index, string option)
+    {
+        if (index + 1 >= args.Length)
+        {
+            throw new ArgumentException($"{option} requires a value.");
+        }
+
+        index++;
+        return args[index];
+    }
+}
+
+public sealed record ProcessingBenchmarkRebalanceSyntheticOptions(
+    IReadOnlyList<RadarProcessingSyntheticRebalanceWorkloadKind> Workloads,
+    IReadOnlyList<RadarProcessingSyntheticRebalanceBenchmarkMode> Modes,
+    int Iterations,
+    int WarmupIterations)
+{
+    private static readonly IReadOnlyList<RadarProcessingSyntheticRebalanceWorkloadKind> AllWorkloads =
+        Array.AsReadOnly(
+        [
+            RadarProcessingSyntheticRebalanceWorkloadKind.Balanced,
+            RadarProcessingSyntheticRebalanceWorkloadKind.SustainedHotShard,
+            RadarProcessingSyntheticRebalanceWorkloadKind.IntrinsicHotPartition,
+            RadarProcessingSyntheticRebalanceWorkloadKind.OscillatingSpike,
+            RadarProcessingSyntheticRebalanceWorkloadKind.CooldownStorm
+        ]);
+
+    private static readonly IReadOnlyList<RadarProcessingSyntheticRebalanceBenchmarkMode> AllModes =
+        Array.AsReadOnly(
+        [
+            RadarProcessingSyntheticRebalanceBenchmarkMode.StaticNoRebalance,
+            RadarProcessingSyntheticRebalanceBenchmarkMode.PressureSamplingOnly,
+            RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession
+        ]);
+
+    public static ProcessingBenchmarkRebalanceSyntheticOptions Parse(string[] args)
+    {
+        IReadOnlyList<RadarProcessingSyntheticRebalanceWorkloadKind> workloads = Array.AsReadOnly(
+        [
+            RadarProcessingSyntheticRebalanceWorkloadKind.Balanced
+        ]);
+        IReadOnlyList<RadarProcessingSyntheticRebalanceBenchmarkMode> modes = AllModes;
+        var iterations = 3;
+        var warmupIterations = 1;
+
+        for (var i = 0; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--workload":
+                    workloads = ParseWorkload(RequireValue(args, ref i, "--workload"));
+                    break;
+                case "--mode":
+                    modes = ParseMode(RequireValue(args, ref i, "--mode"));
+                    break;
+                case "--iterations":
+                    iterations = int.Parse(RequireValue(args, ref i, "--iterations"));
+                    break;
+                case "--warmup-iterations":
+                    warmupIterations = int.Parse(RequireValue(args, ref i, "--warmup-iterations"));
+                    break;
+                default:
+                    throw new ArgumentException($"Unknown option: {args[i]}");
+            }
+        }
+
+        if (iterations <= 0)
+        {
+            throw new InvalidOperationException("--iterations must be greater than zero.");
+        }
+
+        if (warmupIterations < 0)
+        {
+            throw new InvalidOperationException("--warmup-iterations cannot be negative.");
+        }
+
+        return new ProcessingBenchmarkRebalanceSyntheticOptions(
+            workloads,
+            modes,
+            iterations,
+            warmupIterations);
+    }
+
+    private static IReadOnlyList<RadarProcessingSyntheticRebalanceWorkloadKind> ParseWorkload(string value) =>
+        value.ToLowerInvariant() switch
+        {
+            "all" => AllWorkloads,
+            "balanced" => Single(RadarProcessingSyntheticRebalanceWorkloadKind.Balanced),
+            "hot-shard" or "sustained-hot" or "sustained-hot-shard" =>
+                Single(RadarProcessingSyntheticRebalanceWorkloadKind.SustainedHotShard),
+            "intrinsic-hot" or "intrinsic-hot-partition" =>
+                Single(RadarProcessingSyntheticRebalanceWorkloadKind.IntrinsicHotPartition),
+            "oscillating" or "oscillating-spike" =>
+                Single(RadarProcessingSyntheticRebalanceWorkloadKind.OscillatingSpike),
+            "cooldown" or "cooldown-storm" =>
+                Single(RadarProcessingSyntheticRebalanceWorkloadKind.CooldownStorm),
+            _ => throw new ArgumentException($"Unknown synthetic rebalance workload: {value}")
+        };
+
+    private static IReadOnlyList<RadarProcessingSyntheticRebalanceBenchmarkMode> ParseMode(string value) =>
+        value.ToLowerInvariant() switch
+        {
+            "all" => AllModes,
+            "static" or "static-no-rebalance" =>
+                Single(RadarProcessingSyntheticRebalanceBenchmarkMode.StaticNoRebalance),
+            "sampling" or "sampling-only" or "pressure-sampling" or "pressure-sampling-only" =>
+                Single(RadarProcessingSyntheticRebalanceBenchmarkMode.PressureSamplingOnly),
+            "rebalance" or "session" or "rebalance-session" =>
+                Single(RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession),
+            _ => throw new ArgumentException($"Unknown synthetic rebalance benchmark mode: {value}")
+        };
+
+    private static IReadOnlyList<T> Single<T>(T value) => Array.AsReadOnly([value]);
 
     private static string RequireValue(string[] args, ref int index, string option)
     {
