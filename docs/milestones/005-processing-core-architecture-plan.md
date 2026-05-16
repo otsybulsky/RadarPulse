@@ -1,6 +1,6 @@
 # Milestone 005: Processing Core Architecture Plan
 
-Status: draft.
+Status: implementation near closeout.
 
 This plan implements the milestone 005 architecture defined in
 `005-processing-core-architecture.md`.
@@ -539,6 +539,59 @@ sequential and partitioned benchmark checksums match
 synthetic workload distribution is deterministic
 ```
 
+Captured Release baseline:
+
+```text
+workload:
+  synthetic prebuilt RadarEventBatch
+  sources: 32_400
+  batches per iteration: 1
+  stream events per iteration: 32_400
+  payload values per stream event: 1_196
+  payload values per iteration: 38_750_400
+  measured iterations: 20
+  warmup iterations: 3
+
+mode              handlers          payload values/s   stream events/s   allocated bytes / payload value
+sequential        none              2_559_218_888.23   2_139_815.12      0.00
+partitioned 24/24 none              2_622_669_443.85   2_192_867.43      0.03
+sequential        counter-checksum  1_630_968_124.27   1_363_685.72      0.03
+partitioned 24/24 counter-checksum  1_745_635_000.27   1_459_561.04      0.06
+```
+
+Comparison with milestone 004 normalized stream baselines:
+
+```text
+milestone 004 single-file normalized stream: 553_123_110.90 payload values/s
+milestone 004 cache-wide normalized stream: 509_716_417.97 payload values/s
+
+processing-only vs milestone 004 single-file:
+  sequential none:              4.63x
+  partitioned 24/24 none:       4.74x
+  sequential counter-checksum:  2.95x
+  partitioned counter-checksum: 3.16x
+
+processing-only vs milestone 004 cache-wide:
+  sequential none:              5.02x
+  partitioned 24/24 none:       5.15x
+  sequential counter-checksum:  3.20x
+  partitioned counter-checksum: 3.42x
+```
+
+Interpretation:
+
+```text
+processing core is not the current throughput bottleneck relative to normalized
+stream construction
+
+current PartitionedBarrier is synchronous and measures routing/barrier/shard
+loop cost, not multi-core worker scaling
+
+partitioned routing allocation remains visible:
+  none handlers:             40.33 allocated bytes / stream event
+  counter-checksum handlers: 72.33 allocated bytes / stream event
+```
+
 ### 12. CLI Smoke Commands
 
 Add minimal manual smoke commands only after the core and benchmark harness are
@@ -576,6 +629,26 @@ synthetic benchmark command reports stable counters
 file-backed command separates replay and processing timings
 ```
 
+Implemented command:
+
+```text
+radarpulse processing benchmark synthetic
+  [--mode sequential|partitioned]
+  [--sources n]
+  [--batches n]
+  [--events-per-batch n]
+  [--payload-values n]
+  [--partitions n]
+  [--shards n]
+  [--handlers none|counter-checksum]
+  [--iterations n]
+  [--warmup-iterations n]
+```
+
+The implemented synthetic command is sufficient for the milestone 005 manual
+exercise requirement. File-backed processing benchmarks can be added later only
+if they keep replay construction timing separate from processing timing.
+
 ### 13. Documentation And Handoff
 
 Close the milestone with the same documentation pattern used by previous
@@ -610,21 +683,21 @@ remaining risks
 Milestone 005 is complete when:
 
 ```text
-[ ] processing core consumes RadarEventBatch directly
-[ ] static SourceId -> PartitionId -> ShardId topology is implemented
-[ ] dense source-local state is implemented
-[ ] source-local handler slot model is implemented
-[ ] sequential processing mode is implemented and tested
-[ ] partitioned completion-barrier mode is implemented and tested
-[ ] leased batch lifetime is preserved by the processing boundary
-[ ] owned and leased-equivalent inputs produce matching results
-[ ] sequential and partitioned modes produce matching deterministic metrics
-[ ] processing telemetry reports aggregate, shard, and partition load
-[ ] processing validation catches missing/duplicate/out-of-order work
-[ ] processing-only benchmark excludes replay construction work
-[ ] CLI smoke or benchmark command can manually exercise the core
+[x] processing core consumes RadarEventBatch directly
+[x] static SourceId -> PartitionId -> ShardId topology is implemented
+[x] dense source-local state is implemented
+[x] source-local handler slot model is implemented
+[x] sequential processing mode is implemented and tested
+[x] partitioned completion-barrier mode is implemented and tested
+[x] leased batch lifetime is preserved by the processing boundary
+[x] owned and leased-equivalent inputs produce matching results
+[x] sequential and partitioned modes produce matching deterministic metrics
+[x] processing telemetry reports aggregate, shard, and partition load
+[x] processing validation catches missing/duplicate/out-of-order work
+[x] processing-only benchmark excludes replay construction work
+[x] CLI smoke or benchmark command can manually exercise the core
 [ ] decision trace and closeout are written
-[ ] handoff identifies milestone 006 as partition-level shard rebalance
+[x] handoff identifies milestone 006 as partition-level shard rebalance
 ```
 
 ## Non-Goals

@@ -1,4 +1,4 @@
-# Handoff: Milestone 005 Implementation Started
+# Handoff: Milestone 005 Implementation Near Closeout
 
 ## Current Goal
 
@@ -17,11 +17,12 @@ partitioned-routing substrate and first synchronous `PartitionedBarrier`
 execution path are implemented. Partitioned telemetry and route-summary
 validation around shard routes are implemented. Processing-output validation
 helpers are implemented outside the hot path. The source-local handler slot
-model is implemented. The synthetic processing-only benchmark harness is
-implemented for prebuilt `RadarEventBatch` workloads. The current work is to
-continue milestone 005 toward CLI smoke/benchmark commands and closeout while
-preserving the explicit payload lifetime boundary, static source-to-shard
-routing, and shard-owned dense source state.
+model is implemented. The synthetic processing-only benchmark harness and
+manual CLI benchmark command are implemented for prebuilt `RadarEventBatch`
+workloads. Release processing-only benchmark numbers are captured. The current
+work is to close out milestone 005 with decision trace, closeout documentation,
+and handoff while preserving the explicit payload lifetime boundary, static
+source-to-shard routing, and shard-owned dense source state.
 
 Milestone 005 should build on the closed milestone 004 stream contract rather
 than changing it casually. Live shard rebalance is deliberately reserved for
@@ -78,6 +79,11 @@ Done:
 - `005` processing-output validation helpers are implemented and tested.
 - `005` source-local handler slot model is implemented and tested.
 - `005` synthetic processing-only benchmark harness is implemented and tested.
+- `005` synthetic processing CLI benchmark command is implemented and
+  smoke-tested.
+- `005` Release processing-only benchmark baseline is captured for sequential
+  and partitioned synthetic modes, with and without the counter/checksum
+  handler workload.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -91,10 +97,7 @@ Done:
 
 Next work:
 
-- Commit the current processing-only benchmark/handoff slice if continuing the
-  established checkpoint cadence.
-- Add CLI smoke or benchmark commands that manually exercise the processing
-  core through the synthetic processing benchmark harness.
+- Draft milestone 005 decision trace and closeout documentation.
 - Preserve the `SourceId -> PartitionId -> ShardId` ownership model so
   milestone 006 can add partition-level shard rebalance.
 - Treat the current `archive benchmark stream` numbers as replay construction
@@ -306,6 +309,44 @@ Completed in milestone 005 implementation so far:
   elapsed time, throughput, and allocated bytes per event/value.
 - Benchmark handler sets currently support `None` and `CounterChecksum`, giving
   a stable no-handler baseline and a simple source-local handler workload.
+- Latest Release processing-only benchmark used a synthetic prebuilt
+  `RadarEventBatch` workload shaped close to the milestone 004 single-file
+  normalized stream benchmark: 32_400 sources, 1 batch, 32_400 stream events per
+  iteration, 1_196 payload values per stream event, 38_750_400 payload values
+  per iteration, 20 measured iterations, and 3 warmup iterations.
+- Latest Release processing-only benchmark results:
+
+  ```text
+  mode              handlers          payload values/s   stream events/s   allocated bytes / payload value
+  sequential        none              2_559_218_888.23   2_139_815.12      0.00
+  partitioned 24/24 none              2_622_669_443.85   2_192_867.43      0.03
+  sequential        counter-checksum  1_630_968_124.27   1_363_685.72      0.03
+  partitioned 24/24 counter-checksum  1_745_635_000.27   1_459_561.04      0.06
+  ```
+
+- Compared with milestone 004 normalized stream single-file throughput
+  (`553_123_110.90` payload values/s), the latest processing-only baseline is
+  roughly `4.63x` faster for sequential/no-handler, `4.74x` faster for
+  partitioned/no-handler, `2.95x` faster for sequential/counter-checksum, and
+  `3.16x` faster for partitioned/counter-checksum.
+- Compared with milestone 004 cache-wide normalized stream throughput
+  (`509_716_417.97` payload values/s), the same processing-only results are
+  roughly `5.02x`, `5.15x`, `3.20x`, and `3.42x` faster respectively.
+- The processing-only result is not directly measuring multi-core scaling:
+  current `PartitionedBarrier` execution is still synchronous and measures the
+  static routing/barrier/shard-loop contour. Worker execution and live
+  partition-level rebalance remain future milestones.
+- The visible remaining performance risk inside milestone 005 is routing-buffer
+  allocation in the partitioned path: the measured allocation ratios are
+  `40.33` bytes per stream event without handlers and `72.33` bytes per stream
+  event with the counter/checksum handler workload.
+- `processing benchmark synthetic` is available as a manual CLI command over
+  the synthetic processing benchmark harness.
+- The CLI command accepts execution mode, source count, batch shape, topology,
+  handler set, iteration count, and warmup iteration options.
+- CLI output names the measured contour explicitly and states that measured
+  time excludes decompression, Archive Two scanning, identity normalization,
+  and `RadarEventBatch` construction.
 - Source validation runs before execution for both modes, so invalid source ids
   and ownership mismatches do not mutate state.
 - Partitioned and sequential results/snapshots are verified for parity on the
@@ -414,6 +455,27 @@ Completed in milestone 005 implementation so far:
   `git diff --check` passed. Scoped formatting verification for the changed
   processing files passed with
   `dotnet format --verify-no-changes --no-restore --include ...`.
+- Verification after the CLI benchmark command:
+  `dotnet run --no-restore --project src\Presentation\RadarPulse.Cli.csproj -- processing benchmark synthetic --mode partitioned --sources 4 --batches 1 --events-per-batch 8 --payload-values 2 --partitions 4 --shards 2 --handlers counter-checksum --iterations 1 --warmup-iterations 0`
+  passed.
+- Verification after the CLI benchmark command:
+  `dotnet test --no-restore` passed with 234 tests passed and 3 skipped.
+- Verification after the CLI benchmark command:
+  `git diff --check` passed with only Git line-ending warnings for touched
+  files.
+- Latest Release processing-only benchmark verification:
+
+  ```powershell
+  dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore
+  dotnet run --no-build -c Release --project src\Presentation\RadarPulse.Cli.csproj -- processing benchmark synthetic --mode sequential --sources 32400 --batches 1 --events-per-batch 32400 --payload-values 1196 --partitions 1 --shards 1 --handlers none --iterations 20 --warmup-iterations 3
+  dotnet run --no-build -c Release --project src\Presentation\RadarPulse.Cli.csproj -- processing benchmark synthetic --mode partitioned --sources 32400 --batches 1 --events-per-batch 32400 --payload-values 1196 --partitions 24 --shards 24 --handlers none --iterations 20 --warmup-iterations 3
+  dotnet run --no-build -c Release --project src\Presentation\RadarPulse.Cli.csproj -- processing benchmark synthetic --mode sequential --sources 32400 --batches 1 --events-per-batch 32400 --payload-values 1196 --partitions 1 --shards 1 --handlers counter-checksum --iterations 20 --warmup-iterations 3
+  dotnet run --no-build -c Release --project src\Presentation\RadarPulse.Cli.csproj -- processing benchmark synthetic --mode partitioned --sources 32400 --batches 1 --events-per-batch 32400 --payload-values 1196 --partitions 24 --shards 24 --handlers counter-checksum --iterations 20 --warmup-iterations 3
+  ```
+
+  Result: Release build passed; measured payload values/s were
+  `2_559_218_888.23`, `2_622_669_443.85`, `1_630_968_124.27`, and
+  `1_745_635_000.27` for the four commands above.
 - Commits so far:
   `d9106b0 Add processing core contracts`;
   `4639ec0 Add static processing topology`;
@@ -426,7 +488,8 @@ Completed in milestone 005 implementation so far:
   `e900c54 Add partitioned barrier processing path`;
   `5b573d1 Add partitioned processing telemetry`;
   `c6cdd94 Add processing output validation`;
-  `eb22723 Add source processing handler slots`.
+  `eb22723 Add source processing handler slots`;
+  `e40aece Add processing synthetic benchmark`.
 
 Completed in milestone 004 implementation so far:
 

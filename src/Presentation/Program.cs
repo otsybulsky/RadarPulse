@@ -1,10 +1,12 @@
 using System.Globalization;
 using RadarPulse.Application.Archive;
 using RadarPulse.Domain.Archive;
+using RadarPulse.Domain.Processing;
 using RadarPulse.Domain.Streaming;
 using RadarPulse.Infrastructure.Archive;
+using RadarPulse.Infrastructure.Processing;
 
-if (args.Length < 2 || args[0] != "archive")
+if (args.Length < 2)
 {
     PrintUsage();
     return 2;
@@ -12,15 +14,20 @@ if (args.Length < 2 || args[0] != "archive")
 
 try
 {
-    return args[1] switch
+    return args[0] switch
     {
-        "list" => await ListArchiveAsync(args[2..]),
-        "download" => await DownloadArchiveAsync(args[2..]),
-        "inspect" => await InspectArchiveAsync(args[2..]),
-        "replay" => ReplayArchive(args[2..]),
-        "stream" => StreamArchive(args[2..]),
-        "benchmark" => BenchmarkArchive(args[2..]),
-        "validate" => ValidateArchive(args[2..]),
+        "archive" => args[1] switch
+        {
+            "list" => await ListArchiveAsync(args[2..]),
+            "download" => await DownloadArchiveAsync(args[2..]),
+            "inspect" => await InspectArchiveAsync(args[2..]),
+            "replay" => ReplayArchive(args[2..]),
+            "stream" => StreamArchive(args[2..]),
+            "benchmark" => BenchmarkArchive(args[2..]),
+            "validate" => ValidateArchive(args[2..]),
+            _ => PrintUsage()
+        },
+        "processing" => Processing(args[1..]),
         _ => PrintUsage()
     };
 }
@@ -169,6 +176,7 @@ static int PrintUsage()
     Console.WriteLine("  radarpulse archive benchmark replay-publish --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse archive benchmark replay-publish --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse archive benchmark stream (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
+    Console.WriteLine("  radarpulse processing benchmark synthetic [--mode sequential|partitioned] [--sources n] [--batches n] [--events-per-batch n] [--payload-values n] [--partitions n] [--shards n] [--handlers none|counter-checksum] [--iterations n] [--warmup-iterations n]");
     Console.WriteLine("  radarpulse archive validate decompress (--file path | --cache data/nexrad [--radar KTLX] [--max-files n])");
     Console.WriteLine("  radarpulse archive validate replay-shape (--file path | --cache data/nexrad [--radar KTLX] [--max-files n]) [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     return 2;
@@ -327,6 +335,106 @@ static int BenchmarkArchive(string[] args)
         _ => PrintUsage()
     };
 }
+
+static int Processing(string[] args)
+{
+    if (args.Length == 0)
+    {
+        return PrintUsage();
+    }
+
+    return args[0] switch
+    {
+        "benchmark" => ProcessingBenchmark(args[1..]),
+        _ => PrintUsage()
+    };
+}
+
+static int ProcessingBenchmark(string[] args)
+{
+    if (args.Length == 0)
+    {
+        return PrintUsage();
+    }
+
+    return args[0] switch
+    {
+        "synthetic" => BenchmarkProcessingSynthetic(args[1..]),
+        _ => PrintUsage()
+    };
+}
+
+static int BenchmarkProcessingSynthetic(string[] args)
+{
+    var options = ProcessingBenchmarkSyntheticOptions.Parse(args);
+    var workloadOptions = new RadarProcessingSyntheticWorkloadOptions(
+        options.SourceCount,
+        options.BatchCount,
+        options.EventsPerBatch,
+        options.PayloadValuesPerEvent);
+    var result = new RadarProcessingSyntheticBenchmark().Measure(
+        workloadOptions,
+        options.ExecutionMode,
+        options.PartitionCount,
+        options.ShardCount,
+        options.HandlerSet,
+        options.Iterations,
+        options.WarmupIterations,
+        CancellationToken.None);
+
+    PrintProcessingBenchmarkResult(result);
+    return 0;
+}
+
+static void PrintProcessingBenchmarkResult(RadarProcessingBenchmarkResult result)
+{
+    Console.WriteLine("Processing benchmark: synthetic");
+    Console.WriteLine("Measured contour: RadarProcessingCore over prebuilt RadarEventBatch");
+    Console.WriteLine("Excluded work: decompression, Archive Two scanning, identity normalization, batch construction");
+    Console.WriteLine($"Execution mode: {FormatProcessingMode(result.ExecutionMode)}");
+    Console.WriteLine($"Partitions: {FormatNumber(result.PartitionCount)}");
+    Console.WriteLine($"Shards: {FormatNumber(result.ShardCount)}");
+    Console.WriteLine($"Handler set: {FormatProcessingHandlerSet(result.HandlerSet)}");
+    Console.WriteLine($"Iterations: {FormatNumber(result.Iterations)}");
+    Console.WriteLine($"Warmup iterations: {FormatNumber(result.WarmupIterations)}");
+    Console.WriteLine($"Source count: {FormatNumber(result.SourceCount)}");
+    Console.WriteLine($"Batches per iteration: {FormatNumber(result.BatchesPerIteration)}");
+    Console.WriteLine($"Stream events per iteration: {FormatNumber(result.EventsPerIteration)}");
+    Console.WriteLine($"Payload values per iteration: {FormatNumber(result.PayloadValuesPerIteration)}");
+    Console.WriteLine($"Raw value checksum per iteration: {FormatNumber(result.RawValueChecksumPerIteration)}");
+    Console.WriteLine($"Active source count: {FormatNumber(result.ActiveSourceCount)}");
+    Console.WriteLine($"Total batches: {FormatNumber(result.TotalBatches)}");
+    Console.WriteLine($"Total stream events: {FormatNumber(result.TotalEvents)}");
+    Console.WriteLine($"Total payload values: {FormatNumber(result.TotalPayloadValues)}");
+    Console.WriteLine($"Validation checksum: {FormatUnsignedNumber(result.ValidationChecksum)}");
+    Console.WriteLine($"Elapsed ms: {FormatDecimal(result.Elapsed.TotalMilliseconds)}");
+    Console.WriteLine($"Batches/s: {FormatDecimal(result.BatchesPerSecond)}");
+    Console.WriteLine($"Stream events/s: {FormatDecimal(result.EventsPerSecond)}");
+    Console.WriteLine($"Payload values/s: {FormatDecimal(result.PayloadValuesPerSecond)}");
+    Console.WriteLine($"Allocated bytes: {FormatNumber(result.AllocatedBytes)}");
+    Console.WriteLine($"Allocated bytes / stream event: {FormatDecimal(result.AllocatedBytesPerEvent)}");
+    Console.WriteLine($"Allocated bytes / payload value: {FormatDecimal(result.AllocatedBytesPerPayloadValue)}");
+    foreach (var shard in result.ShardDistributions)
+    {
+        Console.WriteLine($"Shard {FormatNumber(shard.ShardId)} events per iteration: {FormatNumber(shard.EventCount)}");
+    }
+}
+
+static string FormatProcessingMode(RadarProcessingExecutionMode executionMode) =>
+    executionMode switch
+    {
+        RadarProcessingExecutionMode.Sequential => "sequential",
+        RadarProcessingExecutionMode.PartitionedBarrier => "partitioned",
+        _ => executionMode.ToString()
+    };
+
+static string FormatProcessingHandlerSet(RadarProcessingBenchmarkHandlerSet handlerSet) =>
+    handlerSet switch
+    {
+        RadarProcessingBenchmarkHandlerSet.None => "none",
+        RadarProcessingBenchmarkHandlerSet.CounterChecksum => "counter-checksum",
+        _ => handlerSet.ToString()
+    };
 
 static int BenchmarkArchiveDecompression(string[] args)
 {
@@ -1326,6 +1434,147 @@ internal sealed record ArchiveInspectOptions(
 
         return new ArchiveInspectOptions(filePath, cachePath, date, radarId, maxFiles);
     }
+
+    private static string RequireValue(string[] args, ref int index, string option)
+    {
+        if (index + 1 >= args.Length)
+        {
+            throw new ArgumentException($"{option} requires a value.");
+        }
+
+        index++;
+        return args[index];
+    }
+}
+
+internal sealed record ProcessingBenchmarkSyntheticOptions(
+    RadarProcessingExecutionMode ExecutionMode,
+    int SourceCount,
+    int BatchCount,
+    int EventsPerBatch,
+    int PayloadValuesPerEvent,
+    int PartitionCount,
+    int ShardCount,
+    RadarProcessingBenchmarkHandlerSet HandlerSet,
+    int Iterations,
+    int WarmupIterations)
+{
+    public static ProcessingBenchmarkSyntheticOptions Parse(string[] args)
+    {
+        var executionMode = RadarProcessingExecutionMode.Sequential;
+        var sourceCount = 16;
+        var batchCount = 4;
+        var eventsPerBatch = 1024;
+        var payloadValuesPerEvent = 4;
+        var partitionCount = 1;
+        var shardCount = 1;
+        var handlerSet = RadarProcessingBenchmarkHandlerSet.None;
+        var iterations = 3;
+        var warmupIterations = 1;
+
+        for (var i = 0; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--mode":
+                    executionMode = ParseExecutionMode(RequireValue(args, ref i, "--mode"));
+                    break;
+                case "--sources":
+                    sourceCount = int.Parse(RequireValue(args, ref i, "--sources"));
+                    break;
+                case "--batches":
+                    batchCount = int.Parse(RequireValue(args, ref i, "--batches"));
+                    break;
+                case "--events-per-batch":
+                    eventsPerBatch = int.Parse(RequireValue(args, ref i, "--events-per-batch"));
+                    break;
+                case "--payload-values":
+                    payloadValuesPerEvent = int.Parse(RequireValue(args, ref i, "--payload-values"));
+                    break;
+                case "--partitions":
+                    partitionCount = int.Parse(RequireValue(args, ref i, "--partitions"));
+                    break;
+                case "--shards":
+                    shardCount = int.Parse(RequireValue(args, ref i, "--shards"));
+                    break;
+                case "--handlers":
+                    handlerSet = ParseHandlerSet(RequireValue(args, ref i, "--handlers"));
+                    break;
+                case "--iterations":
+                    iterations = int.Parse(RequireValue(args, ref i, "--iterations"));
+                    break;
+                case "--warmup-iterations":
+                    warmupIterations = int.Parse(RequireValue(args, ref i, "--warmup-iterations"));
+                    break;
+                default:
+                    throw new ArgumentException($"Unknown option: {args[i]}");
+            }
+        }
+
+        new RadarProcessingSyntheticWorkloadOptions(
+            sourceCount,
+            batchCount,
+            eventsPerBatch,
+            payloadValuesPerEvent).Validate();
+
+        if (partitionCount <= 0)
+        {
+            throw new InvalidOperationException("--partitions must be greater than zero.");
+        }
+
+        if (shardCount <= 0)
+        {
+            throw new InvalidOperationException("--shards must be greater than zero.");
+        }
+
+        if (partitionCount < shardCount)
+        {
+            throw new InvalidOperationException("--partitions must be greater than or equal to --shards.");
+        }
+
+        if (partitionCount > sourceCount)
+        {
+            throw new InvalidOperationException("--partitions must be less than or equal to --sources.");
+        }
+
+        if (iterations <= 0)
+        {
+            throw new InvalidOperationException("--iterations must be greater than zero.");
+        }
+
+        if (warmupIterations < 0)
+        {
+            throw new InvalidOperationException("--warmup-iterations cannot be negative.");
+        }
+
+        return new ProcessingBenchmarkSyntheticOptions(
+            executionMode,
+            sourceCount,
+            batchCount,
+            eventsPerBatch,
+            payloadValuesPerEvent,
+            partitionCount,
+            shardCount,
+            handlerSet,
+            iterations,
+            warmupIterations);
+    }
+
+    private static RadarProcessingExecutionMode ParseExecutionMode(string value) =>
+        value.ToLowerInvariant() switch
+        {
+            "sequential" => RadarProcessingExecutionMode.Sequential,
+            "partitioned" or "partitioned-barrier" => RadarProcessingExecutionMode.PartitionedBarrier,
+            _ => throw new ArgumentException($"Unknown processing mode: {value}")
+        };
+
+    private static RadarProcessingBenchmarkHandlerSet ParseHandlerSet(string value) =>
+        value.ToLowerInvariant() switch
+        {
+            "none" => RadarProcessingBenchmarkHandlerSet.None,
+            "counter-checksum" => RadarProcessingBenchmarkHandlerSet.CounterChecksum,
+            _ => throw new ArgumentException($"Unknown processing benchmark handler set: {value}")
+        };
 
     private static string RequireValue(string[] args, ref int index, string option)
     {
