@@ -1,4 +1,4 @@
-# Handoff: Milestone 006 Slice 13 Complete
+# Handoff: Milestone 006 Slice 14 Complete
 
 ## Current Goal
 
@@ -137,10 +137,20 @@ session decision topology, migration result topology, and state handoff
 diagnostics. `RadarProcessingRebalanceSessionResult` now carries a validation
 result for session-level diagnostics.
 
-The next implementation focus is milestone 006 slice 14: synthetic rebalance
-workloads. The next slice should add deterministic workload shapes for balanced,
-sustained-hot, intrinsic-hot, oscillating, and cooldown cases over prebuilt
+Milestone 006 slice 14 is implemented in the current working tree. RadarPulse
+now has deterministic synthetic rebalance workloads:
+`RadarProcessingSyntheticRebalanceWorkloadKind`,
+`RadarProcessingSyntheticRebalanceWorkload`,
+`RadarProcessingSyntheticRebalanceWorkloadRunner`, and workload result
+contracts. The workload catalog covers balanced no-move, sustained hot-shard
+direct relief, intrinsic-hot fallback to cold evacuation, oscillating short
+spikes with no churn, and cooldown storm rejection scenarios over prebuilt
 `RadarEventBatch` values.
+
+The next implementation focus is milestone 006 slice 15: rebalance benchmarks.
+The next slice should measure static no-rebalance, pressure-sampling,
+evaluation-with-no-move, direct relief, cold evacuation, oscillating no-churn,
+and cooldown workload behavior using the synthetic workload catalog.
 
 Planning note: quarantine is not intended to be permanent. The current slice 8
 state supports explicit clear/effective-outcome reset, but the controller
@@ -226,6 +236,7 @@ Done:
 - `006` slice 11 state handoff validation is implemented and tested.
 - `006` slice 12 rebalance-aware processing loop is implemented and tested.
 - `006` slice 13 rebalance validation helpers are implemented and tested.
+- `006` slice 14 synthetic rebalance workloads are implemented and tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -239,11 +250,12 @@ Done:
 
 Next milestone focus:
 
-- Implement milestone 006 slice 14 synthetic rebalance workloads.
-- Add deterministic balanced, sustained-hot, intrinsic-hot, oscillating, and
-  cooldown workload shapes over prebuilt `RadarEventBatch` values.
-- Preserve session validation diagnostics when workloads produce no move,
-  direct relief, cold evacuation, or policy-gated no-action.
+- Implement milestone 006 slice 15 rebalance benchmarks.
+- Use the synthetic rebalance workload catalog to measure static no-rebalance,
+  pressure sampling, no-move evaluation, direct relief, cold evacuation,
+  oscillating no-churn, and cooldown scenarios.
+- Preserve the requirement that before milestone closeout we capture Release
+  numbers and compare them with previous processing baselines.
 - Preserve migration lifecycle semantics: no partial ownership changes after
   failed validation.
 - Keep cold evacuation as a pressure-relief fallback, not general load
@@ -774,6 +786,40 @@ Completed in milestone 006 implementation:
   `dotnet test RadarPulse.sln --no-restore` passed with 339 tests passed and 3
   skipped.
 - Verification after milestone 006 slice 13:
+  `dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore`
+  passed with 0 warnings and 0 errors.
+- `RadarProcessingSyntheticRebalanceWorkloadKind`.
+- `RadarProcessingSyntheticRebalanceWorkload`.
+- `RadarProcessingSyntheticRebalanceWorkloadResult`.
+- `RadarProcessingSyntheticRebalanceWorkloadRunner`.
+- Synthetic rebalance workloads are implemented in
+  `RadarPulse.Infrastructure.Processing`, alongside the existing synthetic
+  processing workload harness, because they construct prebuilt
+  `RadarEventBatch` values for tests and future benchmarks.
+- The balanced workload distributes pressure across shards and produces no
+  accepted moves.
+- The sustained-hot workload produces direct hot relief and topology version
+  movement.
+- The intrinsic-hot workload seeds a blocked small partition so direct movement
+  rejects the intrinsically hot partition and cold evacuation can move a useful
+  cold partition instead.
+- The oscillating workload uses a longer pressure window so short spikes do not
+  trigger churn.
+- The cooldown-storm workload accepts one initial move, then records cooldown
+  and budget skipped reasons without publishing a second move.
+- Workload results expose batch count, accepted move counts, direct/cold move
+  counts, initial/final topology versions, topology version count, aggregate
+  skipped reasons, and aggregate session validation success.
+- Synthetic rebalance workload tests cover balanced no-move, sustained direct
+  relief, intrinsic hot fallback to cold evacuation, oscillating no-churn,
+  cooldown skipped reasons, and unknown workload guardrails.
+- Verification after milestone 006 slice 14:
+  `dotnet test RadarPulse.sln --no-restore --filter FullyQualifiedName~Processing`
+  passed with 202 tests passed.
+- Verification after milestone 006 slice 14:
+  `dotnet test RadarPulse.sln --no-restore` passed with 345 tests passed and 3
+  skipped.
+- Verification after milestone 006 slice 14:
   `dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore`
   passed with 0 warnings and 0 errors.
 
@@ -2384,6 +2430,10 @@ constant and moment data blocks.
 - `src/Domain/Processing/RadarProcessingRebalanceValidationError.cs`
 - `src/Domain/Processing/RadarProcessingRebalanceValidationResult.cs`
 - `src/Domain/Processing/RadarProcessingRebalanceValidator.cs`
+- `src/Infrastructure/Processing/RadarProcessingSyntheticRebalanceWorkloadKind.cs`
+- `src/Infrastructure/Processing/RadarProcessingSyntheticRebalanceWorkload.cs`
+- `src/Infrastructure/Processing/RadarProcessingSyntheticRebalanceWorkloadResult.cs`
+- `src/Infrastructure/Processing/RadarProcessingSyntheticRebalanceWorkloadRunner.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingTopologyVersioningTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingBatchRouterTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingTelemetryTests.cs`
@@ -2399,6 +2449,7 @@ constant and moment data blocks.
 - `tests/RadarPulse.Tests/Processing/RadarProcessingStateHandoffValidatorTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingRebalanceSessionTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingRebalanceValidatorTests.cs`
+- `tests/RadarPulse.Tests/Processing/RadarProcessingSyntheticRebalanceWorkloadTests.cs`
 - `src/Domain/Processing/*`
 - `tests/RadarPulse.Tests/Processing/*`
 - `src/Domain/Streaming/DenseIdentityAllowedCharacters.cs`
