@@ -1,6 +1,6 @@
 # Milestone 005: Processing Core Architecture Plan
 
-Status: implementation near closeout.
+Status: complete.
 
 This plan implements the milestone 005 architecture defined in
 `005-processing-core-architecture.md`.
@@ -696,7 +696,7 @@ Milestone 005 is complete when:
 [x] processing validation catches missing/duplicate/out-of-order work
 [x] processing-only benchmark excludes replay construction work
 [x] CLI smoke or benchmark command can manually exercise the core
-[ ] closeout is written
+[x] closeout is written
 [x] handoff identifies milestone 006 as partition-level shard rebalance
 ```
 

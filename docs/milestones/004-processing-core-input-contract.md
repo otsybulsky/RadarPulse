@@ -87,7 +87,7 @@ The moment name is not part of the preferred source identity. `REF`, `VEL`,
 channels inside the same spatial source context. This keeps related moment data
 together for future multi-moment radar algorithms.
 
-For a one-radar prototype, the same model still reaches the desired cardinality:
+For a single-radar baseline, the same model still reaches the desired cardinality:
 
 ```text
 12 elevations x 720 azimuth buckets x 3 range bands = 25,920 sources
@@ -138,8 +138,8 @@ SourceId =
 ```
 
 `RadarOrdinal`, `ElevationSlot`, `AzimuthBucket`, and `RangeBand` are
-zero-based dense ordinals within the selected source universe. For a one-radar
-prototype, `RadarOrdinal` is always `0`.
+zero-based dense ordinals within the selected source universe. For a
+single-radar baseline, `RadarOrdinal` is always `0`.
 
 The exact bit packing or arithmetic layout can change later. The invariant is
 that the ID is stable, dense, numeric, and cheap to compute.
@@ -667,10 +667,10 @@ source-local chronology checks
 batch chronology checksum
 ```
 
-## One-Radar Prototype Strategy
+## Single-Radar Baseline Strategy
 
 A single downloaded radar volume is sufficient for the first milestone 004
-prototype because logical sources are spatial subdivisions, not physical feeds.
+baseline because logical sources are spatial subdivisions, not physical feeds.
 
 The preferred demonstration setup is:
 
@@ -682,7 +682,7 @@ Range bands: enough to reach 20-30K logical sources
 Moments: channels inside each source
 ```
 
-This lets the prototype exercise high logical-source cardinality without
+This lets the baseline exercise high logical-source cardinality without
 requiring many live radar feeds or a large historical cache.
 
 ## Architectural Boundaries

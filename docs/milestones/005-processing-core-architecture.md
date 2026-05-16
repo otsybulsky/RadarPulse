@@ -1,6 +1,6 @@
 # Milestone 005: Processing Core Architecture
 
-Status: draft.
+Status: complete.
 
 RadarPulse milestone 005 starts from the closed milestone 004 normalized stream
 contract and defines the first architecture for the high-performance processing

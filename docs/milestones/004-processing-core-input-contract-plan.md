@@ -278,7 +278,7 @@ range band layout
 source-id arithmetic
 ```
 
-For a one-radar prototype, `RadarOrdinal` can start at `0`, but the source
+For a single-radar baseline, `RadarOrdinal` can start at `0`, but the source
 universe must not assume there will only ever be one radar.
 
 Expected tests:

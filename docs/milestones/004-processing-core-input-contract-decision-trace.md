@@ -94,7 +94,8 @@ Trade-offs/debt: bucket/range layout changes require a new
 `SourceUniverseVersion`; persisted future state will need migration rules.
 
 Review explanation: "I turned one radar feed into a stable dense source
-universe, so the prototype can exercise 20K-30K logical-source behavior."
+universe, so the single-radar baseline can exercise 20K-30K logical-source
+behavior."
 
 ### Chronological Multi-Source Batches
 

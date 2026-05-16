@@ -1,4 +1,4 @@
-# Handoff: Milestone 005 Implementation Near Closeout
+# Handoff: Milestone 005 Complete
 
 ## Current Goal
 
@@ -9,24 +9,17 @@ visibility, explicit raw payload storage lifetime, sequential and ordered
 parallel replay integration, cache replay, validation, CLI smoke commands, and
 benchmarks.
 
-Milestone 005 architecture and implementation planning are drafted. The first
-processing contracts, static partition topology, dense source-local state
-store, processing payload reader, sequential core baseline, and sequential
-lifetime/parity guardrail slices are implemented. The deterministic
-partitioned-routing substrate and first synchronous `PartitionedBarrier`
-execution path are implemented. Partitioned telemetry and route-summary
-validation around shard routes are implemented. Processing-output validation
-helpers are implemented outside the hot path. The source-local handler slot
-model is implemented. The synthetic processing-only benchmark harness and
-manual CLI benchmark command are implemented for prebuilt `RadarEventBatch`
-workloads. Release processing-only benchmark numbers are captured. The current
-work is to close out milestone 005 with closeout documentation and final
-handoff while preserving the explicit payload lifetime boundary, static
-source-to-shard routing, and shard-owned dense source state.
+Milestone 005 is complete. RadarPulse now has the first static processing core
+over the closed milestone 004 stream contract: processing contracts, static
+partition topology, dense source-local state, processing payload readers,
+sequential processing, synchronous `PartitionedBarrier` routing, partition and
+shard telemetry, processing-output validation helpers, source-local handler
+slots, a synthetic processing-only benchmark harness, CLI benchmark command,
+decision trace, closeout, and Release processing-only benchmark numbers.
 
-Milestone 005 should build on the closed milestone 004 stream contract rather
-than changing it casually. Live shard rebalance is deliberately reserved for
-milestone 006 after the static processing core baseline is measured.
+The next milestone focus is partition-level shard rebalance over the measured
+static baseline, while preserving the explicit payload lifetime boundary,
+static source-to-shard ownership model, and shard-owned dense source state.
 
 ## Milestone Status
 
@@ -36,7 +29,7 @@ Done:
 - `002` NEXRAD archive inspection/decoder foundation is complete.
 - `003` historical replay publisher foundation is complete.
 - `004` processing-core input contract architecture is scoped.
-- `004` processing-core input contract implementation plan is drafted.
+- `004` processing-core input contract implementation plan is complete.
 - `004` slice 1 contract types and version constants are implemented.
 - `004` slice 2 append-only dense identity catalog is implemented.
 - `004` slice 3 dictionary version snapshots and deltas are implemented.
@@ -63,8 +56,8 @@ Done:
 - `004` normalized stream throughput now exceeds the milestone 003 count-only
   replay-publish baseline on the comparable payload-value metric.
 - `004` processing-core input contract milestone is closed.
-- `005` processing-core architecture is drafted.
-- `005` processing-core implementation plan is drafted.
+- `005` processing-core architecture is complete.
+- `005` processing-core implementation plan is complete.
 - `005` processing-core contracts are implemented and tested.
 - `005` static partition topology is implemented and tested.
 - `005` dense source-local state store is implemented and tested.
@@ -84,6 +77,7 @@ Done:
 - `005` Release processing-only benchmark baseline is captured for sequential
   and partitioned synthetic modes, with and without the counter/checksum
   handler workload.
+- `005` processing-core decision trace and closeout are written.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -95,11 +89,11 @@ Done:
 - Standard unit tests and opt-in live AWS integration tests covered the loader
   milestone at handoff time.
 
-Next work:
+Next milestone focus:
 
-- Draft milestone 005 closeout documentation.
-- Preserve the `SourceId -> PartitionId -> ShardId` ownership model so
-  milestone 006 can add partition-level shard rebalance.
+- Start milestone 006 around partition-level shard rebalance.
+- Preserve the `SourceId -> PartitionId -> ShardId` ownership model when
+  adding partition movement and source-state transfer.
 - Treat the current `archive benchmark stream` numbers as replay construction
   throughput, not as the future processing-core throughput over
   already-built `RadarEventBatch` values.
@@ -148,6 +142,7 @@ Completed in milestone 005 planning:
 - `docs/milestones/005-processing-core-architecture.md`.
 - `docs/milestones/005-processing-core-architecture-plan.md`.
 - `docs/milestones/005-processing-core-architecture-decision-trace.md`.
+- `docs/milestones/005-processing-core-architecture-closeout.md`.
 - Milestone 005 scope is the first static partitioned processing core over
   `RadarEventBatch`, not live shard rebalance or complex radar algorithms.
 - The expected result is an accepted processing-core boundary over
@@ -162,7 +157,7 @@ Completed in milestone 005 planning:
 - Milestone 006 is identified as the next milestone for partition-level shard
   rebalance after the static processing core baseline is measured.
 
-Completed in milestone 005 implementation so far:
+Completed in milestone 005 implementation:
 
 - `RadarProcessingExecutionMode`.
 - `RadarProcessingCoreOptions`.
@@ -477,7 +472,12 @@ Completed in milestone 005 implementation so far:
   Result: Release build passed; measured payload values/s were
   `2_559_218_888.23`, `2_622_669_443.85`, `1_630_968_124.27`, and
   `1_745_635_000.27` for the four commands above.
-- Commits so far:
+- Verification at milestone 005 closeout:
+  `dotnet test --no-restore` passed with 234 tests passed and 3 skipped.
+- Verification at milestone 005 closeout:
+  `dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore`
+  passed with 0 warnings and 0 errors.
+- Milestone 005 committed checkpoints before closeout:
   `d9106b0 Add processing core contracts`;
   `4639ec0 Add static processing topology`;
   `33c437a Add dense source processing state`;
@@ -492,7 +492,7 @@ Completed in milestone 005 implementation so far:
   `eb22723 Add source processing handler slots`;
   `e40aece Add processing synthetic benchmark`.
 
-Completed in milestone 004 implementation so far:
+Completed in milestone 004 implementation:
 
 - `RadarEventBatch`.
 - `RadarStreamEvent`.
@@ -735,7 +735,7 @@ Completed in milestone 004 implementation so far:
   publishes. The non-session `NexradArchiveRadarEventBatchPublisher` keeps the
   owned batch behavior for safer external capture tests and one-off publishing.
 
-Completed in milestone 003 so far:
+Completed in milestone 003:
 
 - `docs/milestones/003-historical-replay-publisher-plan.md`.
 - `docs/milestones/003-historical-replay-publisher.md`.
@@ -977,6 +977,7 @@ Deferred beyond milestone 003:
 - `docs/milestones/005-processing-core-architecture.md`
 - `docs/milestones/005-processing-core-architecture-plan.md`
 - `docs/milestones/005-processing-core-architecture-decision-trace.md`
+- `docs/milestones/005-processing-core-architecture-closeout.md`
 - `docs/handoff.md`
 
 ## Verification
@@ -1705,6 +1706,7 @@ constant and moment data blocks.
 - `docs/milestones/005-processing-core-architecture.md`
 - `docs/milestones/005-processing-core-architecture-plan.md`
 - `docs/milestones/005-processing-core-architecture-decision-trace.md`
+- `docs/milestones/005-processing-core-architecture-closeout.md`
 - `src/Domain/Processing/*`
 - `tests/RadarPulse.Tests/Processing/*`
 - `src/Domain/Streaming/DenseIdentityAllowedCharacters.cs`
