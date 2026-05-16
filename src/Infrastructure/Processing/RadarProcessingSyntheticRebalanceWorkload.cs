@@ -16,6 +16,9 @@ public sealed class RadarProcessingSyntheticRebalanceWorkload
         RadarProcessingPressureWindowOptions pressureWindowOptions,
         RadarProcessingRebalanceOptions rebalanceOptions,
         RadarEventBatch[] batches,
+        long eventsPerIteration,
+        long payloadValuesPerIteration,
+        long rawValueChecksumPerIteration,
         InitialHotPartitionClassification[] initialClassifications)
     {
         Kind = kind;
@@ -25,6 +28,9 @@ public sealed class RadarProcessingSyntheticRebalanceWorkload
         PressureWindowOptions = pressureWindowOptions;
         RebalanceOptions = rebalanceOptions;
         this.batches = Array.AsReadOnly((RadarEventBatch[])batches.Clone());
+        EventsPerIteration = eventsPerIteration;
+        PayloadValuesPerIteration = payloadValuesPerIteration;
+        RawValueChecksumPerIteration = rawValueChecksumPerIteration;
         this.initialClassifications = Array.AsReadOnly(
             (InitialHotPartitionClassification[])initialClassifications.Clone());
     }
@@ -48,6 +54,14 @@ public sealed class RadarProcessingSyntheticRebalanceWorkload
     public int PartitionCount => CoreOptions.PartitionCount;
 
     public int ShardCount => CoreOptions.ShardCount;
+
+    public long BatchesPerIteration => batches.Count;
+
+    public long EventsPerIteration { get; }
+
+    public long PayloadValuesPerIteration { get; }
+
+    public long RawValueChecksumPerIteration { get; }
 
     public static RadarProcessingSyntheticRebalanceWorkload Create(
         RadarProcessingSyntheticRebalanceWorkloadKind kind) =>
@@ -178,12 +192,21 @@ public sealed class RadarProcessingSyntheticRebalanceWorkload
             azimuthBucketCount: 4,
             rangeBandCount: 1);
         var batches = new RadarEventBatch[sourceIdsByBatch.Length];
+        var eventsPerIteration = 0L;
+        var payloadValuesPerIteration = 0L;
+        var rawValueChecksumPerIteration = 0L;
         for (var batchIndex = 0; batchIndex < batches.Length; batchIndex++)
         {
-            batches[batchIndex] = CreateBatch(
+            var batch = CreateBatch(
                 sourceUniverse.Version,
                 sourceIdsByBatch[batchIndex],
                 batchIndex);
+            var metrics = RadarEventBatchMetrics.Compute(batch);
+
+            batches[batchIndex] = batch;
+            eventsPerIteration = checked(eventsPerIteration + metrics.EventCount);
+            payloadValuesPerIteration = checked(payloadValuesPerIteration + metrics.PayloadValueCount);
+            rawValueChecksumPerIteration = checked(rawValueChecksumPerIteration + metrics.RawValueChecksum);
         }
 
         return new RadarProcessingSyntheticRebalanceWorkload(
@@ -200,6 +223,9 @@ public sealed class RadarProcessingSyntheticRebalanceWorkload
             pressureWindowOptions,
             rebalanceOptions,
             batches,
+            eventsPerIteration,
+            payloadValuesPerIteration,
+            rawValueChecksumPerIteration,
             initialClassifications);
     }
 
