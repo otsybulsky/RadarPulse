@@ -696,7 +696,7 @@ Milestone 005 is complete when:
 [x] processing validation catches missing/duplicate/out-of-order work
 [x] processing-only benchmark excludes replay construction work
 [x] CLI smoke or benchmark command can manually exercise the core
-[ ] decision trace and closeout are written
+[ ] closeout is written
 [x] handoff identifies milestone 006 as partition-level shard rebalance
 ```
 

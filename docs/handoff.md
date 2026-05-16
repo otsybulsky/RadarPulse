@@ -20,8 +20,8 @@ helpers are implemented outside the hot path. The source-local handler slot
 model is implemented. The synthetic processing-only benchmark harness and
 manual CLI benchmark command are implemented for prebuilt `RadarEventBatch`
 workloads. Release processing-only benchmark numbers are captured. The current
-work is to close out milestone 005 with decision trace, closeout documentation,
-and handoff while preserving the explicit payload lifetime boundary, static
+work is to close out milestone 005 with closeout documentation and final
+handoff while preserving the explicit payload lifetime boundary, static
 source-to-shard routing, and shard-owned dense source state.
 
 Milestone 005 should build on the closed milestone 004 stream contract rather
@@ -97,7 +97,7 @@ Done:
 
 Next work:
 
-- Draft milestone 005 decision trace and closeout documentation.
+- Draft milestone 005 closeout documentation.
 - Preserve the `SourceId -> PartitionId -> ShardId` ownership model so
   milestone 006 can add partition-level shard rebalance.
 - Treat the current `archive benchmark stream` numbers as replay construction
@@ -147,6 +147,7 @@ Completed in milestone 005 planning:
 
 - `docs/milestones/005-processing-core-architecture.md`.
 - `docs/milestones/005-processing-core-architecture-plan.md`.
+- `docs/milestones/005-processing-core-architecture-decision-trace.md`.
 - Milestone 005 scope is the first static partitioned processing core over
   `RadarEventBatch`, not live shard rebalance or complex radar algorithms.
 - The expected result is an accepted processing-core boundary over
@@ -975,6 +976,7 @@ Deferred beyond milestone 003:
 - `docs/milestones/004-processing-core-input-contract-closeout.md`
 - `docs/milestones/005-processing-core-architecture.md`
 - `docs/milestones/005-processing-core-architecture-plan.md`
+- `docs/milestones/005-processing-core-architecture-decision-trace.md`
 - `docs/handoff.md`
 
 ## Verification
@@ -1702,6 +1704,7 @@ constant and moment data blocks.
 - `docs/milestones/004-processing-core-input-contract-closeout.md`
 - `docs/milestones/005-processing-core-architecture.md`
 - `docs/milestones/005-processing-core-architecture-plan.md`
+- `docs/milestones/005-processing-core-architecture-decision-trace.md`
 - `src/Domain/Processing/*`
 - `tests/RadarPulse.Tests/Processing/*`
 - `src/Domain/Streaming/DenseIdentityAllowedCharacters.cs`
