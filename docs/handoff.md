@@ -1,4 +1,4 @@
-# Handoff: Milestone 006 Slice 4 Complete
+# Handoff: Milestone 006 Slice 5 Complete
 
 ## Current Goal
 
@@ -51,11 +51,19 @@ rebalance eligibility only after the configured minimum sample count, preserves
 latest topology version, and applies enter/exit thresholds so short spikes do
 not automatically trigger rebalance.
 
-The next implementation focus is milestone 006 slice 5: anti-churn policy
-state. The next slice should introduce deterministic cooldown, minimum
-residency, source-shard move budget, target-shard receive budget, global move
-budget, and projected-benefit gates that the future rebalance controller can
-apply before accepting any move.
+Milestone 006 slice 5 is implemented in the current working tree. RadarPulse now
+has deterministic anti-churn policy state:
+`RadarProcessingRebalancePolicyState`, rebalance options, move policy input,
+policy result/rejection contracts, partition residency/cooldown state, shard
+cooldown state, and move budgets. The policy evaluates candidate moves without
+mutating state, records only accepted moves, and applies logical-sequence based
+minimum residency, cooldown, global/source/target budget, projected-benefit,
+and target-headroom gates.
+
+The next implementation focus is milestone 006 slice 6: rebalance decision and
+skipped-reason telemetry. The next slice should introduce a decision contract
+that can explain accepted moves and no-move outcomes before the planner starts
+choosing direct hot relief or cold evacuation candidates.
 
 ## Milestone Status
 
@@ -123,6 +131,7 @@ Done:
   and tested.
 - `006` slice 4 pressure window and hysteresis tracking is implemented and
   tested.
+- `006` slice 5 anti-churn policy state is implemented and tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -136,12 +145,12 @@ Done:
 
 Next milestone focus:
 
-- Implement milestone 006 slice 5 anti-churn policy state.
-- Add deterministic cooldown, minimum partition residency, source-shard move
-  budget, target-shard receive budget, global move budget, and
-  projected-benefit gates.
-- Keep policy state logical-sequence based rather than wall-clock based for the
-  first implementation.
+- Implement milestone 006 slice 6 rebalance decision and skipped-reason
+  telemetry.
+- Add a stable decision contract for accepted moves, no-op decisions, and
+  policy/planner skipped reasons.
+- Keep skipped rebalance decisions visible through telemetry so "no move" can
+  be explained by policy gates rather than ambiguity.
 - Preserve synchronous `PartitionedBarrier` processing as the first rebalance
   correctness boundary: process one batch against one topology snapshot, then
   evaluate and apply rebalance before the next batch.
@@ -154,8 +163,6 @@ Next milestone focus:
   headroom on the target shard, cooldown, minimum residency, and move budgets.
 - Support direct hot-partition relief first, then cold-partition evacuation from
   a hot shard when the hot partition cannot move safely.
-- Make skipped rebalance decisions visible through telemetry so "no move" can
-  be explained by policy gates rather than ambiguity.
 - Treat the current `archive benchmark stream` numbers as replay construction
   throughput, not as the future processing-core throughput over
   already-built `RadarEventBatch` values.
@@ -359,6 +366,46 @@ Completed in milestone 006 implementation:
   `dotnet test RadarPulse.sln --no-restore` passed with 268 tests passed and 3
   skipped.
 - Verification after milestone 006 slice 4:
+  `dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore`
+  passed with 0 warnings and 0 errors.
+- `RadarProcessingRebalanceOptions`.
+- `RadarProcessingRebalanceBudget`.
+- `RadarProcessingPartitionResidency`.
+- `RadarProcessingPartitionCooldown`.
+- `RadarProcessingShardCooldown`.
+- `RadarProcessingRebalanceMovePolicyInput`.
+- `RadarProcessingRebalancePolicyRejection`.
+- `RadarProcessingRebalancePolicyResult`.
+- `RadarProcessingRebalancePolicyState`.
+- Rebalance options define deterministic anti-churn gates: budget window,
+  global move budget, source-shard move budget, target-shard receive budget,
+  minimum partition residency, partition move cooldown, source-shard move
+  cooldown, target-shard receive cooldown, minimum projected benefit, and
+  target headroom threshold.
+- Rebalance policy state is driven by logical `EvaluationSequence`, not wall
+  clock time.
+- `EvaluateMove` validates a candidate move and returns all active rejection
+  reasons without mutating policy state.
+- `RecordAcceptedMove` applies budget, cooldown, and residency state only when
+  the candidate passes every policy gate.
+- Policy gates cover minimum partition residency, partition cooldown,
+  source-shard cooldown, target-shard cooldown, global move budget,
+  source-shard move budget, target-shard receive budget, projected benefit, and
+  target headroom.
+- Policy state exposes read-side accessors for partition residency, partition
+  cooldown, source/target shard cooldowns, and source/target shard budgets.
+- Rebalance policy tests cover residency, cooldown expiry, source/target shard
+  cooldowns, global/source/target budgets, projected-benefit rejection, target
+  headroom rejection, non-mutating evaluation, rejected-record non-mutation,
+  deterministic evaluation advancement, accessors, option guardrails, and move
+  input guardrails.
+- Verification after milestone 006 slice 5:
+  `dotnet test RadarPulse.sln --no-restore --filter FullyQualifiedName~Processing`
+  passed with 139 tests passed.
+- Verification after milestone 006 slice 5:
+  `dotnet test RadarPulse.sln --no-restore` passed with 282 tests passed and 3
+  skipped.
+- Verification after milestone 006 slice 5:
   `dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore`
   passed with 0 warnings and 0 errors.
 
@@ -1933,12 +1980,22 @@ constant and moment data blocks.
 - `src/Domain/Processing/RadarProcessingPressureWindow.cs`
 - `src/Domain/Processing/RadarProcessingShardPressureState.cs`
 - `src/Domain/Processing/RadarProcessingPartitionPressureState.cs`
+- `src/Domain/Processing/RadarProcessingRebalanceOptions.cs`
+- `src/Domain/Processing/RadarProcessingRebalanceBudget.cs`
+- `src/Domain/Processing/RadarProcessingPartitionResidency.cs`
+- `src/Domain/Processing/RadarProcessingPartitionCooldown.cs`
+- `src/Domain/Processing/RadarProcessingShardCooldown.cs`
+- `src/Domain/Processing/RadarProcessingRebalanceMovePolicyInput.cs`
+- `src/Domain/Processing/RadarProcessingRebalancePolicyRejection.cs`
+- `src/Domain/Processing/RadarProcessingRebalancePolicyResult.cs`
+- `src/Domain/Processing/RadarProcessingRebalancePolicyState.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingTopologyVersioningTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingBatchRouterTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingTelemetryTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingContractTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingPressureSampleTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingPressureWindowTests.cs`
+- `tests/RadarPulse.Tests/Processing/RadarProcessingRebalancePolicyStateTests.cs`
 - `src/Domain/Processing/*`
 - `tests/RadarPulse.Tests/Processing/*`
 - `src/Domain/Streaming/DenseIdentityAllowedCharacters.cs`
