@@ -21,7 +21,7 @@ public static class RadarProcessingPayloadReader
     }
 
     public static RadarProcessingPayloadMetrics ComputeEventMetrics(
-        in RadarStreamEvent streamEvent,
+        RadarStreamEvent streamEvent,
         ReadOnlySpan<byte> batchPayload)
     {
         var eventPayload = GetEventPayload(streamEvent, batchPayload);
@@ -36,7 +36,7 @@ public static class RadarProcessingPayloadReader
     }
 
     public static ReadOnlySpan<byte> GetEventPayload(
-        in RadarStreamEvent streamEvent,
+        RadarStreamEvent streamEvent,
         ReadOnlySpan<byte> batchPayload)
     {
         EnsureSupportedWordSize(streamEvent.WordSize);
