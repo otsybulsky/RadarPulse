@@ -1,4 +1,4 @@
-# Handoff: Milestone 006 Slice 10 Complete
+# Handoff: Milestone 006 Slice 11 Complete
 
 ## Current Goal
 
@@ -105,10 +105,21 @@ shard ownership before publication, applies moves through
 `RadarProcessingTopologyManager`, records previous/current topology versions,
 and leaves topology unchanged on rejected or failed validation.
 
-The next implementation focus is milestone 006 slice 11: state handoff
-validation. The next slice should capture partition-owned source-state summaries
-before and after migration and validate that no source state is lost or
-duplicated.
+Milestone 006 slice 11 is implemented in the current working tree. RadarPulse
+now has state handoff validation contracts:
+`RadarProcessingPartitionStateSnapshot`,
+`RadarProcessingPartitionStateChecksum`,
+`RadarProcessingStateHandoffValidator`, validation result, and validation
+errors. The validator captures partition-owned source-state summaries before
+and after a migration and allows owner shard changes while rejecting partition
+id, source range, count, raw checksum, processing checksum, last timestamp
+checksum, and handler snapshot checksum mismatches.
+
+The next implementation focus is milestone 006 slice 12: rebalance-aware
+processing loop. The next slice should process one batch against one immutable
+topology snapshot, feed telemetry into pressure tracking, evaluate rebalance
+after the barrier, and apply at most bounded accepted migrations before the
+next batch.
 
 Planning note: quarantine is not intended to be permanent. The current slice 8
 state supports explicit clear/effective-outcome reset, but the controller
@@ -191,6 +202,7 @@ Done:
 - `006` slice 9 cold evacuation planner is implemented and tested.
 - `006` slice 10 migration lifecycle and coordinator is implemented and
   tested.
+- `006` slice 11 state handoff validation is implemented and tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -204,10 +216,11 @@ Done:
 
 Next milestone focus:
 
-- Implement milestone 006 slice 11 state handoff validation.
-- Capture partition-owned source-state summaries before and after migration and
-  validate that no source state is lost, duplicated, or assigned to the wrong
-  partition range.
+- Implement milestone 006 slice 12 rebalance-aware processing loop.
+- Process one batch against one topology snapshot, evaluate rebalance after the
+  synchronous barrier, and apply accepted migrations only between batches.
+- Preserve state handoff validation when migration is integrated into the
+  processing session.
 - Preserve migration lifecycle semantics: no partial ownership changes after
   failed validation.
 - Keep cold evacuation as a pressure-relief fallback, not general load
@@ -630,6 +643,39 @@ Completed in milestone 006 implementation:
   `dotnet test RadarPulse.sln --no-restore` passed with 320 tests passed and 3
   skipped.
 - Verification after milestone 006 slice 10:
+  `dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore`
+  passed with 0 warnings and 0 errors.
+- `RadarProcessingPartitionStateSnapshot`.
+- `RadarProcessingPartitionStateChecksum`.
+- `RadarProcessingStateHandoffValidationError`.
+- `RadarProcessingStateHandoffValidationResult`.
+- `RadarProcessingStateHandoffValidator`.
+- Partition state snapshots capture the partition id, current owner shard,
+  source range, active source count, processed event count, processed payload
+  value count, raw value checksum, aggregate processing checksum, order-sensitive
+  last message timestamp checksum, and handler snapshot checksum.
+- State handoff validation intentionally allows owner shard id changes, because
+  moving ownership is the successful handoff path.
+- State handoff validation rejects partition id, source range, active source
+  count, processed event count, processed payload value count, raw value
+  checksum, processing checksum, last timestamp checksum, and handler snapshot
+  checksum mismatches.
+- Handler snapshot checksums include active source id, snapshot field names,
+  field types, and field values so configured processing handlers participate
+  in handoff validation.
+- Empty partition source ranges with no active source state produce empty
+  handoff checksums and validate across owner shard changes.
+- State handoff validator tests cover owner-only shard changes, active source
+  count mismatch, processed event count mismatch, processed payload value count
+  mismatch, raw checksum mismatch, processing checksum mismatch, last timestamp
+  checksum mismatch, handler checksum mismatch, and empty partition handoff.
+- Verification after milestone 006 slice 11:
+  `dotnet test RadarPulse.sln --no-restore --filter FullyQualifiedName~Processing`
+  passed with 186 tests passed.
+- Verification after milestone 006 slice 11:
+  `dotnet test RadarPulse.sln --no-restore` passed with 329 tests passed and 3
+  skipped.
+- Verification after milestone 006 slice 11:
   `dotnet build -c Release src\Presentation\RadarPulse.Cli.csproj --no-restore`
   passed with 0 warnings and 0 errors.
 
@@ -2230,6 +2276,11 @@ constant and moment data blocks.
 - `src/Domain/Processing/RadarProcessingMigrationValidationResult.cs`
 - `src/Domain/Processing/RadarProcessingMigrationResult.cs`
 - `src/Domain/Processing/RadarProcessingMigrationCoordinator.cs`
+- `src/Domain/Processing/RadarProcessingPartitionStateSnapshot.cs`
+- `src/Domain/Processing/RadarProcessingPartitionStateChecksum.cs`
+- `src/Domain/Processing/RadarProcessingStateHandoffValidationError.cs`
+- `src/Domain/Processing/RadarProcessingStateHandoffValidationResult.cs`
+- `src/Domain/Processing/RadarProcessingStateHandoffValidator.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingTopologyVersioningTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingBatchRouterTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingTelemetryTests.cs`
@@ -2242,6 +2293,7 @@ constant and moment data blocks.
 - `tests/RadarPulse.Tests/Processing/RadarProcessingHotPartitionClassifierTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingColdEvacuationPlannerTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingMigrationCoordinatorTests.cs`
+- `tests/RadarPulse.Tests/Processing/RadarProcessingStateHandoffValidatorTests.cs`
 - `src/Domain/Processing/*`
 - `tests/RadarPulse.Tests/Processing/*`
 - `src/Domain/Streaming/DenseIdentityAllowedCharacters.cs`
