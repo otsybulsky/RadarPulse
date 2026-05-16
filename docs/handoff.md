@@ -10,12 +10,12 @@ parallel replay integration, cache replay, validation, CLI smoke commands, and
 benchmarks.
 
 Milestone 005 architecture and implementation planning are drafted. The first
-processing contracts, static partition topology, and dense source-local state
-store slices are implemented. The current work is to implement the first static
-partitioned processing core over already-built `RadarEventBatch` values:
-explicit payload lifetime boundary, `SourceId -> PartitionId -> ShardId`
-routing, shard-owned dense source state, source-local handler slots,
-processing-only telemetry, validation, and benchmarks.
+processing contracts, static partition topology, dense source-local state
+store, and processing payload reader slices are implemented. The current work
+is to implement the first static partitioned processing core over already-built
+`RadarEventBatch` values: explicit payload lifetime boundary, `SourceId ->
+PartitionId -> ShardId` routing, shard-owned dense source state, source-local
+handler slots, processing-only telemetry, validation, and benchmarks.
 
 Milestone 005 should build on the closed milestone 004 stream contract rather
 than changing it casually. Live shard rebalance is deliberately reserved for
@@ -61,6 +61,7 @@ Done:
 - `005` processing-core contracts are implemented and tested.
 - `005` static partition topology is implemented and tested.
 - `005` dense source-local state store is implemented and tested.
+- `005` processing payload reader helpers are implemented and tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -76,8 +77,7 @@ Next work:
 
 - Implement milestone 005 from the drafted architecture and plan:
   static partitioned processing core over `RadarEventBatch`.
-- Continue with processing payload reader helpers, then the sequential core
-  baseline.
+- Continue with the sequential core baseline.
 - Preserve the `SourceId -> PartitionId -> ShardId` ownership model so
   milestone 006 can add partition-level shard rebalance.
 - Treat the current `archive benchmark stream` numbers as replay construction
@@ -173,6 +173,14 @@ Completed in milestone 005 implementation so far:
 - Source-local timestamp regression is rejected during state updates.
 - State snapshots are read-side projections and aggregate
   `RadarProcessingMetrics` can be produced from active source state.
+- `RadarProcessingPayloadMetrics`.
+- `RadarProcessingPayloadReader`.
+- Processing payload reader helpers compute event-level and batch-level payload
+  value counts and raw value checksums.
+- Payload readers support 8-bit values and 16-bit big-endian values, matching
+  the existing `RadarEventBatchMetrics` raw-value contract.
+- Payload reader guardrails reject null batches, unsupported word sizes,
+  payload length mismatches, and out-of-range payload references.
 - Focused contract tests cover default options, invalid execution modes,
   invalid topology counts, validation result invariants, result shape, and empty
   result construction.
@@ -182,6 +190,10 @@ Completed in milestone 005 implementation so far:
 - Focused state-store tests cover source-universe sizing, single-source update
   isolation, unique active-source counting, snapshot projection, aggregate
   metrics, empty metrics, invalid inputs, and timestamp regression.
+- Focused payload-reader tests cover 8-bit payload reads, 16-bit big-endian
+  payload reads, batch-level parity with `RadarEventBatchMetrics`, empty batch
+  metrics, metric addition, null batch rejection, length mismatch rejection,
+  out-of-range payload rejection, and unsupported word size rejection.
 - Verification after slice 1:
   `dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore`
   passed with 151 tests passed and 3 skipped.
@@ -191,7 +203,13 @@ Completed in milestone 005 implementation so far:
 - Verification after slice 3:
   `dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore`
   passed with 168 tests passed and 3 skipped.
-- Commit: `d9106b0 Add processing core contracts`.
+- Verification after slice 4:
+  `dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore`
+  passed with 177 tests passed and 3 skipped.
+- Commits so far:
+  `d9106b0 Add processing core contracts`;
+  `4639ec0 Add static processing topology`;
+  `33c437a Add dense source processing state`.
 
 Completed in milestone 004 implementation so far:
 
