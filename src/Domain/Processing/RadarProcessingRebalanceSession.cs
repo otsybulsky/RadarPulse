@@ -9,6 +9,7 @@ public sealed class RadarProcessingRebalanceSession
     private readonly RadarProcessingPressureWindow pressureWindow;
     private readonly RadarProcessingRebalancePolicyState policyState;
     private readonly RadarProcessingHotPartitionClassifier hotPartitionClassifier;
+    private readonly RadarProcessingQuarantineLifecycleTracker quarantineLifecycleTracker;
     private readonly RadarProcessingDirectHotReliefPlanner directHotReliefPlanner;
     private readonly RadarProcessingColdEvacuationPlanner coldEvacuationPlanner;
     private readonly RadarProcessingMigrationCoordinator migrationCoordinator;
@@ -21,7 +22,8 @@ public sealed class RadarProcessingRebalanceSession
         RadarProcessingRebalancePolicyState? policyState = null,
         RadarProcessingHotPartitionClassifier? hotPartitionClassifier = null,
         RadarProcessingDirectHotReliefPlanner? directHotReliefPlanner = null,
-        RadarProcessingColdEvacuationPlanner? coldEvacuationPlanner = null)
+        RadarProcessingColdEvacuationPlanner? coldEvacuationPlanner = null,
+        RadarProcessingQuarantineLifecycleTracker? quarantineLifecycleTracker = null)
     {
         ArgumentNullException.ThrowIfNull(core);
 
@@ -40,11 +42,13 @@ public sealed class RadarProcessingRebalanceSession
             core.Options.ShardCount);
         this.hotPartitionClassifier = hotPartitionClassifier ??
                                       new RadarProcessingHotPartitionClassifier(core.Options.PartitionCount);
+        this.quarantineLifecycleTracker = quarantineLifecycleTracker ??
+                                          new RadarProcessingQuarantineLifecycleTracker(core.Options.PartitionCount);
         this.directHotReliefPlanner = directHotReliefPlanner ?? new RadarProcessingDirectHotReliefPlanner();
         this.coldEvacuationPlanner = coldEvacuationPlanner ?? new RadarProcessingColdEvacuationPlanner();
         migrationCoordinator = new RadarProcessingMigrationCoordinator(core.TopologyManager);
 
-        EnsureCompatibleShape(this.policyState, this.hotPartitionClassifier);
+        EnsureCompatibleShape(this.policyState, this.hotPartitionClassifier, this.quarantineLifecycleTracker);
     }
 
     public RadarProcessingCore Core => core;
@@ -57,10 +61,14 @@ public sealed class RadarProcessingRebalanceSession
 
     public RadarProcessingHotPartitionClassifier HotPartitionClassifier => hotPartitionClassifier;
 
+    public RadarProcessingQuarantineLifecycleTracker QuarantineLifecycleTracker => quarantineLifecycleTracker;
+
     public RadarProcessingRebalanceSessionResult Process(
         RadarEventBatch batch,
         CancellationToken cancellationToken = default)
     {
+        quarantineLifecycleTracker.DrainTransitions();
+
         var processingResult = core.Process(batch, cancellationToken);
         if (!processingResult.IsValid || processingResult.Telemetry is null)
         {
@@ -71,7 +79,8 @@ public sealed class RadarProcessingRebalanceSession
                 coldEvacuationDecision: null,
                 migrationResult: null,
                 handoffValidation: null,
-                core.Topology);
+                currentTopology: core.Topology,
+                quarantineTransitions: Array.Empty<RadarProcessingQuarantineTransition>());
         }
 
         var pressureSample = RadarProcessingPressureSample.FromTelemetry(
@@ -79,12 +88,14 @@ public sealed class RadarProcessingRebalanceSession
             pressureOptions);
         pressureWindow.AddSample(pressureSample);
         policyState.AdvanceEvaluation();
+        AdvanceQuarantineLifecycleBeforePlanning();
 
         var directDecision = directHotReliefPlanner.Plan(
             NextDecisionId(),
             pressureWindow,
             policyState,
-            hotPartitionClassifier);
+            hotPartitionClassifier,
+            quarantineLifecycleTracker);
         RadarProcessingRebalanceDecision? coldDecision = null;
         var selectedDecision = directDecision;
 
@@ -93,7 +104,8 @@ public sealed class RadarProcessingRebalanceSession
             coldDecision = coldEvacuationPlanner.Plan(
                 NextDecisionId(),
                 pressureWindow,
-                policyState);
+                policyState,
+                quarantineLifecycleTracker);
             selectedDecision = coldDecision;
         }
 
@@ -108,7 +120,32 @@ public sealed class RadarProcessingRebalanceSession
             coldDecision,
             migrationResult,
             handoffValidation,
-            core.Topology);
+            core.Topology,
+            quarantineLifecycleTracker.DrainTransitions());
+    }
+
+    private void AdvanceQuarantineLifecycleBeforePlanning()
+    {
+        foreach (var partition in pressureWindow.Partitions)
+        {
+            quarantineLifecycleTracker.RecordPartitionEvidence(
+                partition,
+                policyState.EvaluationSequence,
+                pressureWindow.LatestTopologyVersion,
+                GetObservedClassificationForLifecycle(partition.PartitionId));
+        }
+    }
+
+    private RadarProcessingHotPartitionClassification GetObservedClassificationForLifecycle(
+        int partitionId)
+    {
+        var lifecycleState = quarantineLifecycleTracker.GetPartition(partitionId);
+        if (lifecycleState.HasQuarantineEvidence)
+        {
+            return RadarProcessingHotPartitionClassification.None;
+        }
+
+        return hotPartitionClassifier.GetPartition(partitionId).Classification;
     }
 
     private (RadarProcessingMigrationResult? Migration, RadarProcessingStateHandoffValidationResult? Handoff)
@@ -162,7 +199,8 @@ public sealed class RadarProcessingRebalanceSession
 
     private void EnsureCompatibleShape(
         RadarProcessingRebalancePolicyState candidatePolicyState,
-        RadarProcessingHotPartitionClassifier candidateHotPartitionClassifier)
+        RadarProcessingHotPartitionClassifier candidateHotPartitionClassifier,
+        RadarProcessingQuarantineLifecycleTracker candidateQuarantineLifecycleTracker)
     {
         if (candidatePolicyState.PartitionCount != core.Options.PartitionCount)
         {
@@ -183,6 +221,13 @@ public sealed class RadarProcessingRebalanceSession
             throw new ArgumentException(
                 "Hot partition classifier partition count must match the processing core.",
                 nameof(hotPartitionClassifier));
+        }
+
+        if (candidateQuarantineLifecycleTracker.PartitionCount != core.Options.PartitionCount)
+        {
+            throw new ArgumentException(
+                "Quarantine lifecycle partition count must match the processing core.",
+                nameof(quarantineLifecycleTracker));
         }
     }
 }

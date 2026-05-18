@@ -9,7 +9,8 @@ public sealed class RadarProcessingRebalanceSessionResult
         RadarProcessingRebalanceDecision? coldEvacuationDecision,
         RadarProcessingMigrationResult? migrationResult,
         RadarProcessingStateHandoffValidationResult? handoffValidation,
-        RadarProcessingTopology? currentTopology = null)
+        RadarProcessingTopology? currentTopology = null,
+        IReadOnlyCollection<RadarProcessingQuarantineTransition>? quarantineTransitions = null)
     {
         ArgumentNullException.ThrowIfNull(processingResult);
 
@@ -28,6 +29,7 @@ public sealed class RadarProcessingRebalanceSessionResult
         ColdEvacuationDecision = coldEvacuationDecision;
         MigrationResult = migrationResult;
         HandoffValidation = handoffValidation;
+        QuarantineTransitions = CopyRequired(quarantineTransitions ?? Array.Empty<RadarProcessingQuarantineTransition>());
         Validation = currentTopology is null
             ? RadarProcessingRebalanceValidationResult.Valid()
             : RadarProcessingRebalanceValidator.ValidateSessionResult(this, currentTopology);
@@ -48,9 +50,27 @@ public sealed class RadarProcessingRebalanceSessionResult
 
     public RadarProcessingStateHandoffValidationResult? HandoffValidation { get; }
 
+    public IReadOnlyList<RadarProcessingQuarantineTransition> QuarantineTransitions { get; }
+
     public RadarProcessingRebalanceValidationResult Validation { get; }
 
     public bool EvaluatedRebalance => RebalanceDecision is not null;
 
     public bool PublishedMigration => MigrationResult?.Succeeded == true;
+
+    public bool HasQuarantineTransitions => QuarantineTransitions.Count > 0;
+
+    private static IReadOnlyList<RadarProcessingQuarantineTransition> CopyRequired(
+        IEnumerable<RadarProcessingQuarantineTransition> transitions)
+    {
+        var result = new List<RadarProcessingQuarantineTransition>();
+
+        foreach (var transition in transitions)
+        {
+            ArgumentNullException.ThrowIfNull(transition);
+            result.Add(transition);
+        }
+
+        return Array.AsReadOnly(result.ToArray());
+    }
 }

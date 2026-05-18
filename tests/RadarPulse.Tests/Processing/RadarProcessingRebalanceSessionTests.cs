@@ -60,6 +60,97 @@ public sealed class RadarProcessingRebalanceSessionTests
     }
 
     [Fact]
+    public void ActiveLifecycleQuarantineBlocksDirectMoveBeforePlanning()
+    {
+        var universe = CreateUniverse(sourceCount: 4);
+        var tracker = CreateLifecycleTracker(
+            partitionCount: universe.SourceCount,
+            quarantineTtlEvaluations: 10);
+        tracker.RecordEvidence(
+            partitionId: 0,
+            shardId: 0,
+            evaluationSequence: 0,
+            RadarProcessingTopologyVersion.Initial,
+            new RadarProcessingPressureScore(4),
+            RadarProcessingPressureBand.Warm,
+            RadarProcessingHotPartitionClassification.Quarantined);
+        var session = CreateSession(universe, quarantineLifecycleTracker: tracker);
+
+        var result = session.Process(CreateEightBitBatch(universe.Version, [0, 0, 0, 0, 1, 1, 1, 1]));
+
+        Assert.Equal(RadarProcessingRebalanceDecisionKind.AcceptedMove, result.DirectHotReliefDecision!.Kind);
+        Assert.Equal(1, result.DirectHotReliefDecision.PartitionId);
+        Assert.True(session.QuarantineLifecycleTracker.GetPartition(0).IsQuarantined);
+        Assert.Empty(result.QuarantineTransitions);
+    }
+
+    [Fact]
+    public void TtlRetryIsAdvancedBeforePlanningAndReported()
+    {
+        var universe = CreateUniverse(sourceCount: 4);
+        var tracker = CreateLifecycleTracker(
+            partitionCount: universe.SourceCount,
+            quarantineTtlEvaluations: 1);
+        tracker.RecordEvidence(
+            partitionId: 0,
+            shardId: 0,
+            evaluationSequence: 0,
+            RadarProcessingTopologyVersion.Initial,
+            new RadarProcessingPressureScore(4),
+            RadarProcessingPressureBand.Warm,
+            RadarProcessingHotPartitionClassification.Quarantined);
+        var session = CreateSession(universe, quarantineLifecycleTracker: tracker);
+
+        var result = session.Process(CreateEightBitBatch(universe.Version, [0, 0, 0, 0, 1, 1]));
+
+        Assert.Equal(RadarProcessingRebalanceDecisionKind.AcceptedMove, result.DirectHotReliefDecision!.Kind);
+        Assert.Equal(0, result.DirectHotReliefDecision.PartitionId);
+        Assert.Contains(
+            result.QuarantineTransitions,
+            transition => transition.Reason == RadarProcessingQuarantineTransitionReason.MarkedRetryEligibleByTtl);
+        Assert.Contains(
+            result.QuarantineTransitions,
+            transition => transition.Reason == RadarProcessingQuarantineTransitionReason.ClearedByEffectiveRelief);
+        Assert.Equal(
+            RadarProcessingQuarantineEffectiveClassification.MovableHot,
+            session.QuarantineLifecycleTracker.GetPartition(0).EffectiveClassification);
+        Assert.False(session.QuarantineLifecycleTracker.GetPartition(0).HasQuarantineEvidence);
+    }
+
+    [Fact]
+    public void RetryEligiblePartitionReentersQuarantineWhenRetryStillHasNoSafeTarget()
+    {
+        var universe = CreateUniverse(sourceCount: 2);
+        var tracker = CreateLifecycleTracker(
+            partitionCount: universe.SourceCount,
+            quarantineTtlEvaluations: 1);
+        tracker.RecordEvidence(
+            partitionId: 0,
+            shardId: 0,
+            evaluationSequence: 0,
+            RadarProcessingTopologyVersion.Initial,
+            new RadarProcessingPressureScore(8),
+            RadarProcessingPressureBand.Hot,
+            RadarProcessingHotPartitionClassification.Quarantined);
+        var session = CreateSession(universe, quarantineLifecycleTracker: tracker);
+
+        var result = session.Process(CreateEightBitBatch(universe.Version, [0, 0, 0, 0, 0, 0, 0, 0]));
+
+        Assert.Equal(RadarProcessingRebalanceDecisionKind.RejectedCandidate, result.DirectHotReliefDecision!.Kind);
+        Assert.Contains(
+            RadarProcessingRebalanceSkippedReason.PartitionQuarantined,
+            result.DirectHotReliefDecision.SkippedReasons);
+        Assert.Contains(
+            result.QuarantineTransitions,
+            transition => transition.Reason == RadarProcessingQuarantineTransitionReason.MarkedRetryEligibleByTtl);
+        Assert.Contains(
+            result.QuarantineTransitions,
+            transition => transition.Reason == RadarProcessingQuarantineTransitionReason.ReenteredQuarantine);
+        Assert.True(session.QuarantineLifecycleTracker.GetPartition(0).IsQuarantined);
+        Assert.Equal(1, session.QuarantineLifecycleTracker.GetPartition(0).QuarantineStartSequence);
+    }
+
+    [Fact]
     public void InvalidProcessingResultDoesNotEvaluateRebalance()
     {
         var universe = CreateUniverse(sourceCount: 4);
@@ -74,6 +165,7 @@ public sealed class RadarProcessingRebalanceSessionTests
         Assert.Null(result.ColdEvacuationDecision);
         Assert.Null(result.RebalanceDecision);
         Assert.Null(result.MigrationResult);
+        Assert.Empty(result.QuarantineTransitions);
         Assert.Equal(0, session.PressureWindow.SampleCount);
         Assert.Equal(0, session.PolicyState.EvaluationSequence);
         Assert.Equal(RadarProcessingTopologyVersion.Initial, session.CurrentTopology.Version);
@@ -87,7 +179,9 @@ public sealed class RadarProcessingRebalanceSessionTests
         Assert.Throws<ArgumentException>(() => new RadarProcessingRebalanceSession(core));
     }
 
-    private static RadarProcessingRebalanceSession CreateSession(RadarSourceUniverse universe)
+    private static RadarProcessingRebalanceSession CreateSession(
+        RadarSourceUniverse universe,
+        RadarProcessingQuarantineLifecycleTracker? quarantineLifecycleTracker = null)
     {
         var core = new RadarProcessingCore(
             universe,
@@ -125,8 +219,19 @@ public sealed class RadarProcessingRebalanceSessionTests
                     partitionMoveCooldownEvaluations: 0,
                     sourceShardMoveCooldownEvaluations: 0,
                     targetShardReceiveCooldownEvaluations: 0,
-                    minimumProjectedBenefit: 0.05)));
+                    minimumProjectedBenefit: 0.05)),
+            quarantineLifecycleTracker: quarantineLifecycleTracker);
     }
+
+    private static RadarProcessingQuarantineLifecycleTracker CreateLifecycleTracker(
+        int partitionCount,
+        int quarantineTtlEvaluations) =>
+        new(
+            partitionCount,
+            new RadarProcessingQuarantineLifecycleOptions(
+                quarantineTtlEvaluations,
+                sustainedCoolingSampleCount: 3,
+                materialPressureChangeThreshold: 1.0));
 
     private static RadarSourceUniverse CreateUniverse(int sourceCount) =>
         new(

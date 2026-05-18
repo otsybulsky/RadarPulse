@@ -42,6 +42,12 @@ public sealed class RadarProcessingQuarantineLifecycleTrackerTests
         Assert.Equal(result.State, tracker.GetPartition(1));
         Assert.Equal(new RadarProcessingTopologyVersion(3), tracker.GetPartition(1).LatestTopologyVersion);
         Assert.Equal(RadarProcessingQuarantineTransitionReason.EnteredQuarantine, result.Transition!.Reason);
+
+        var transitions = tracker.DrainTransitions();
+
+        Assert.Single(transitions);
+        Assert.Equal(result.Transition, transitions[0]);
+        Assert.Empty(tracker.DrainTransitions());
     }
 
     [Fact]

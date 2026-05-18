@@ -4,6 +4,7 @@ public sealed class RadarProcessingQuarantineLifecycleTracker
 {
     private readonly RadarProcessingQuarantineLifecycleState[] partitions;
     private readonly IReadOnlyList<RadarProcessingQuarantineLifecycleState> partitionView;
+    private readonly List<RadarProcessingQuarantineTransition> pendingTransitions = new();
     private readonly RadarProcessingQuarantineLifecycleEvaluator evaluator;
 
     public RadarProcessingQuarantineLifecycleTracker(
@@ -71,9 +72,26 @@ public sealed class RadarProcessingQuarantineLifecycleTracker
             band,
             observedClassification);
         var result = evaluator.Evaluate(partitions[partitionId], evidence);
+        if (result.Transition is not null)
+        {
+            pendingTransitions.Add(result.Transition);
+        }
 
         partitions[partitionId] = result.State;
         return result;
+    }
+
+    public IReadOnlyList<RadarProcessingQuarantineTransition> DrainTransitions()
+    {
+        if (pendingTransitions.Count == 0)
+        {
+            return Array.AsReadOnly(Array.Empty<RadarProcessingQuarantineTransition>());
+        }
+
+        var result = pendingTransitions.ToArray();
+
+        pendingTransitions.Clear();
+        return Array.AsReadOnly(result);
     }
 
     private void EnsurePartitionId(

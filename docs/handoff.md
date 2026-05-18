@@ -1,4 +1,4 @@
-# Handoff: Milestone 007 Slice 6 Complete
+# Handoff: Milestone 007 Slice 7 Complete
 
 ## Current Goal
 
@@ -320,6 +320,35 @@ Result:
 438 passed, 3 skipped for the full solution suite.
 ```
 
+Milestone 007 slice 7 is implemented in the current working tree. RadarPulse
+now advances quarantine lifecycle inside `RadarProcessingRebalanceSession`
+before direct hot relief and cold evacuation planning. The session owns a
+`RadarProcessingQuarantineLifecycleTracker`, passes it to lifecycle-aware
+planners, drains per-evaluation lifecycle transitions, and exposes those
+transitions through `RadarProcessingRebalanceSessionResult.QuarantineTransitions`.
+The tracker now has explicit transition drain behavior so session results can
+report current-evaluation transitions without retaining old detail. Focused
+tests cover active quarantine blocking before planning, TTL retry becoming
+eligible in the same evaluation, retry re-entry when no safe target exists,
+invalid processing results leaving lifecycle untouched, and transition drain
+semantics.
+
+Latest verification after milestone 007 slice 7:
+
+```powershell
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingRebalanceSession|FullyQualifiedName~RadarProcessingQuarantineLifecycleTracker"
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~Processing"
+dotnet test RadarPulse.sln --no-restore
+```
+
+Result:
+
+```text
+11 passed for focused session/tracker coverage.
+292 passed for processing-focused coverage.
+441 passed, 3 skipped for the full solution suite.
+```
+
 ## Milestone Status
 
 Done:
@@ -424,6 +453,8 @@ Done:
 - `007` slice 5 quarantine lifecycle evaluator is implemented and tested.
 - `007` slice 6 planner integration for lifecycle-effective classification is
   implemented and tested.
+- `007` slice 7 session lifecycle integration and transition result surfaces
+  are implemented and tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -440,9 +471,9 @@ Next milestone focus:
 - Implement milestone 007 from the closed architecture and plan:
   `docs/milestones/007-rebalance-production-hardening.md` and
   `docs/milestones/007-rebalance-production-hardening-plan.md`.
-- Continue milestone 007 with slice 7 session integration and result surfaces
-  so the rebalance session advances lifecycle before planning, records
-  lifecycle transitions, and exposes bounded hardening telemetry.
+- Continue milestone 007 by wiring session-level hardening telemetry summaries
+  from the existing telemetry recorder, then proceed into validation profile
+  integration.
 - Preserve the final milestone 007 performance requirement: closeout must
   include a comprehensive side-by-side comparison against milestone 005
   processing-only baselines and the accepted milestone 006 synthetic,
