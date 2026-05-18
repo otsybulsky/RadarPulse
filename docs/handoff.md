@@ -218,6 +218,21 @@ change thresholds, and diagnostic validation profile selection. Focused tests
 cover defaults, stable enum values, invalid values, counters-only zero detail
 retention, and independence between retention mode and validation profile.
 
+Milestone 007 slice 2 is implemented in the current working tree. RadarPulse
+now has bounded rebalance telemetry contracts:
+`RadarProcessingRebalanceTelemetrySummary`,
+`RadarProcessingRebalanceTelemetryCounters`,
+`RadarProcessingRebalanceSkippedReasonCounter`,
+`RadarProcessingRebalanceRecentDecision`,
+`RadarProcessingRebalanceRecentAcceptedMove`,
+`RadarProcessingRebalanceRecentValidationFailure`, and
+`RadarProcessingRebalanceRetentionStats`. The contracts preserve compact
+numeric detail, stable enum/code fields, defensive collection copies, dropped
+detail counters, and projection helpers from existing rebalance decisions and
+validation results. Focused tests cover invalid shapes, immutable/copy-safe
+summary behavior, recent accepted move projection, recent validation failure
+projection, retention stats, and empty summary behavior.
+
 ## Milestone Status
 
 Done:
@@ -313,6 +328,8 @@ Done:
 - `007` rebalance production hardening implementation plan is complete.
 - `007` slice 1 hardening options and validation/retention profile contracts
   are implemented and tested.
+- `007` slice 2 bounded rebalance telemetry contracts are implemented and
+  tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -329,9 +346,8 @@ Next milestone focus:
 - Implement milestone 007 from the closed architecture and plan:
   `docs/milestones/007-rebalance-production-hardening.md` and
   `docs/milestones/007-rebalance-production-hardening-plan.md`.
-- Continue milestone 007 with slice 2 bounded telemetry contracts, then slice 3
-  telemetry recorder and retention windows before integrating quarantine
-  lifecycle or benchmark/CLI output.
+- Continue milestone 007 with slice 3 telemetry recorder and bounded retention
+  windows before integrating quarantine lifecycle or benchmark/CLI output.
 - Preserve the final milestone 007 performance requirement: closeout must
   include a comprehensive side-by-side comparison against milestone 005
   processing-only baselines and the accepted milestone 006 synthetic,
@@ -2716,6 +2732,13 @@ constant and moment data blocks.
 - `src/Domain/Processing/RadarProcessingQuarantineLifecycleOptions.cs`
 - `src/Domain/Processing/RadarProcessingValidationProfile.cs`
 - `src/Domain/Processing/RadarProcessingDiagnosticRetentionMode.cs`
+- `src/Domain/Processing/RadarProcessingRebalanceTelemetrySummary.cs`
+- `src/Domain/Processing/RadarProcessingRebalanceTelemetryCounters.cs`
+- `src/Domain/Processing/RadarProcessingRebalanceSkippedReasonCounter.cs`
+- `src/Domain/Processing/RadarProcessingRebalanceRecentDecision.cs`
+- `src/Domain/Processing/RadarProcessingRebalanceRecentAcceptedMove.cs`
+- `src/Domain/Processing/RadarProcessingRebalanceRecentValidationFailure.cs`
+- `src/Domain/Processing/RadarProcessingRebalanceRetentionStats.cs`
 - `src/Domain/Processing/RadarProcessingTopologyVersion.cs`
 - `src/Domain/Processing/RadarProcessingTopologyManager.cs`
 - `src/Domain/Processing/RadarProcessingTopologyMoveRequest.cs`
@@ -2786,6 +2809,7 @@ constant and moment data blocks.
 - `tests/RadarPulse.Tests/Processing/RadarProcessingPressureSampleTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingPressureWindowTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingRebalanceHardeningOptionsTests.cs`
+- `tests/RadarPulse.Tests/Processing/RadarProcessingRebalanceTelemetryContractTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingRebalancePolicyStateTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingRebalanceDecisionTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingDirectHotReliefPlannerTests.cs`
