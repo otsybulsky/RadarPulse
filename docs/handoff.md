@@ -246,6 +246,22 @@ behavior, decision aggregation, accepted move aggregation, skipped-reason
 aggregation, validation failure aggregation, snapshot stability, reset, and
 invalid input.
 
+Milestone 007 slice 4 is implemented in the current working tree. RadarPulse
+now has quarantine lifecycle state and transition contracts:
+`RadarProcessingQuarantineEffectiveClassification`,
+`RadarProcessingQuarantineTransitionReason`,
+`RadarProcessingQuarantineEvidence`,
+`RadarProcessingQuarantineTransition`, and
+`RadarProcessingQuarantineLifecycleState`. The contracts retain compact
+numeric evidence only: partition/shard ids, topology version, logical
+evaluation sequence, baseline/latest pressure, pressure band, sustained cooling
+sample count, and effective classification. The lifecycle state supports
+entering quarantine, recording cooled or hot samples, marking retry eligibility,
+clearing quarantine, and re-entering quarantine with fresh evidence. Focused
+tests cover stable enum values, evidence validation, quarantine baseline
+recording, cooling/hot sample behavior, retry eligibility, clearing, re-entry,
+transition telemetry, mismatched evidence, and out-of-order evidence.
+
 ## Milestone Status
 
 Done:
@@ -345,6 +361,8 @@ Done:
   tested.
 - `007` slice 3 telemetry recorder and bounded retention windows are
   implemented and tested.
+- `007` slice 4 quarantine lifecycle state and transition contracts are
+  implemented and tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -361,8 +379,9 @@ Next milestone focus:
 - Implement milestone 007 from the closed architecture and plan:
   `docs/milestones/007-rebalance-production-hardening.md` and
   `docs/milestones/007-rebalance-production-hardening-plan.md`.
-- Continue milestone 007 with slice 4 quarantine lifecycle state and transition
-  contracts before integrating the lifecycle evaluator into planning.
+- Continue milestone 007 with slice 5 quarantine lifecycle evaluator, then
+  integrate effective classification into direct hot relief and cold evacuation
+  planning.
 - Preserve the final milestone 007 performance requirement: closeout must
   include a comprehensive side-by-side comparison against milestone 005
   processing-only baselines and the accepted milestone 006 synthetic,
@@ -2756,6 +2775,11 @@ constant and moment data blocks.
 - `src/Domain/Processing/RadarProcessingRebalanceRetentionStats.cs`
 - `src/Domain/Processing/RadarProcessingBoundedTelemetryWindow.cs`
 - `src/Domain/Processing/RadarProcessingRebalanceTelemetryRecorder.cs`
+- `src/Domain/Processing/RadarProcessingQuarantineEffectiveClassification.cs`
+- `src/Domain/Processing/RadarProcessingQuarantineTransitionReason.cs`
+- `src/Domain/Processing/RadarProcessingQuarantineEvidence.cs`
+- `src/Domain/Processing/RadarProcessingQuarantineTransition.cs`
+- `src/Domain/Processing/RadarProcessingQuarantineLifecycleState.cs`
 - `src/Domain/Processing/RadarProcessingTopologyVersion.cs`
 - `src/Domain/Processing/RadarProcessingTopologyManager.cs`
 - `src/Domain/Processing/RadarProcessingTopologyMoveRequest.cs`
@@ -2828,6 +2852,7 @@ constant and moment data blocks.
 - `tests/RadarPulse.Tests/Processing/RadarProcessingRebalanceHardeningOptionsTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingRebalanceTelemetryContractTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingRebalanceTelemetryRecorderTests.cs`
+- `tests/RadarPulse.Tests/Processing/RadarProcessingQuarantineLifecycleStateTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingRebalancePolicyStateTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingRebalanceDecisionTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingDirectHotReliefPlannerTests.cs`
