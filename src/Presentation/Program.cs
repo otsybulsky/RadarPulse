@@ -177,7 +177,7 @@ static int PrintUsage()
     Console.WriteLine("  radarpulse archive benchmark replay-publish --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse archive benchmark stream (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse processing benchmark synthetic [--mode sequential|partitioned] [--sources n] [--batches n] [--events-per-batch n] [--payload-values n] [--partitions n] [--shards n] [--handlers none|counter-checksum] [--iterations n] [--warmup-iterations n]");
-    Console.WriteLine("  radarpulse processing benchmark rebalance-synthetic [--workload balanced|hot-shard|intrinsic-hot|oscillating|cooldown-storm|all] [--mode static|sampling|rebalance|all] [--iterations n] [--warmup-iterations n]");
+    Console.WriteLine("  radarpulse processing benchmark rebalance-synthetic [--workload balanced|hot-shard|intrinsic-hot|oscillating|cooldown-storm|quarantine-ttl-retry|quarantine-cooling-clear|quarantine-pressure-change-retry|quarantine-retry-reentry|quarantine-successful-relief-clear|all] [--mode static|sampling|rebalance|all] [--iterations n] [--warmup-iterations n]");
     Console.WriteLine("  radarpulse processing benchmark rebalance-archive (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--mode static|sampling|rebalance|all] [--partitions n] [--shards n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse archive validate decompress (--file path | --cache data/nexrad [--radar KTLX] [--max-files n])");
     Console.WriteLine("  radarpulse archive validate replay-shape (--file path | --cache data/nexrad [--radar KTLX] [--max-files n]) [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
@@ -732,6 +732,15 @@ static string FormatProcessingRebalanceWorkload(RadarProcessingSyntheticRebalanc
         RadarProcessingSyntheticRebalanceWorkloadKind.IntrinsicHotPartition => "intrinsic-hot",
         RadarProcessingSyntheticRebalanceWorkloadKind.OscillatingSpike => "oscillating",
         RadarProcessingSyntheticRebalanceWorkloadKind.CooldownStorm => "cooldown-storm",
+        RadarProcessingSyntheticRebalanceWorkloadKind.QuarantineTtlRetry => "quarantine-ttl-retry",
+        RadarProcessingSyntheticRebalanceWorkloadKind.QuarantineSustainedCoolingClear =>
+            "quarantine-cooling-clear",
+        RadarProcessingSyntheticRebalanceWorkloadKind.QuarantinePressureChangeRetry =>
+            "quarantine-pressure-change-retry",
+        RadarProcessingSyntheticRebalanceWorkloadKind.QuarantineRetryReentry =>
+            "quarantine-retry-reentry",
+        RadarProcessingSyntheticRebalanceWorkloadKind.QuarantineSuccessfulReliefClear =>
+            "quarantine-successful-relief-clear",
         _ => workloadKind.ToString()
     };
 
@@ -1977,7 +1986,12 @@ public sealed record ProcessingBenchmarkRebalanceSyntheticOptions(
             RadarProcessingSyntheticRebalanceWorkloadKind.SustainedHotShard,
             RadarProcessingSyntheticRebalanceWorkloadKind.IntrinsicHotPartition,
             RadarProcessingSyntheticRebalanceWorkloadKind.OscillatingSpike,
-            RadarProcessingSyntheticRebalanceWorkloadKind.CooldownStorm
+            RadarProcessingSyntheticRebalanceWorkloadKind.CooldownStorm,
+            RadarProcessingSyntheticRebalanceWorkloadKind.QuarantineTtlRetry,
+            RadarProcessingSyntheticRebalanceWorkloadKind.QuarantineSustainedCoolingClear,
+            RadarProcessingSyntheticRebalanceWorkloadKind.QuarantinePressureChangeRetry,
+            RadarProcessingSyntheticRebalanceWorkloadKind.QuarantineRetryReentry,
+            RadarProcessingSyntheticRebalanceWorkloadKind.QuarantineSuccessfulReliefClear
         ]);
 
     private static readonly IReadOnlyList<RadarProcessingSyntheticRebalanceBenchmarkMode> AllModes =
@@ -2049,6 +2063,17 @@ public sealed record ProcessingBenchmarkRebalanceSyntheticOptions(
                 Single(RadarProcessingSyntheticRebalanceWorkloadKind.OscillatingSpike),
             "cooldown" or "cooldown-storm" =>
                 Single(RadarProcessingSyntheticRebalanceWorkloadKind.CooldownStorm),
+            "ttl-retry" or "quarantine-ttl-retry" =>
+                Single(RadarProcessingSyntheticRebalanceWorkloadKind.QuarantineTtlRetry),
+            "cooling-clear" or "sustained-cooling-clear" or "quarantine-cooling-clear" or
+                "quarantine-sustained-cooling-clear" =>
+                Single(RadarProcessingSyntheticRebalanceWorkloadKind.QuarantineSustainedCoolingClear),
+            "pressure-change-retry" or "quarantine-pressure-change-retry" =>
+                Single(RadarProcessingSyntheticRebalanceWorkloadKind.QuarantinePressureChangeRetry),
+            "retry-reentry" or "quarantine-retry-reentry" =>
+                Single(RadarProcessingSyntheticRebalanceWorkloadKind.QuarantineRetryReentry),
+            "successful-relief-clear" or "relief-clear" or "quarantine-successful-relief-clear" =>
+                Single(RadarProcessingSyntheticRebalanceWorkloadKind.QuarantineSuccessfulReliefClear),
             _ => throw new ArgumentException($"Unknown synthetic rebalance workload: {value}")
         };
 

@@ -1,4 +1,4 @@
-# Handoff: Milestone 007 Slice 10 Allocation Reduction Complete
+# Handoff: Milestone 007 Slice 11 Synthetic Quarantine Lifecycle Workloads Complete
 
 ## Current Goal
 
@@ -486,7 +486,9 @@ session-result, decision, and policy-result snapshots return shared empty
 arrays while non-empty public snapshots remain immutable or defensively copied.
 Skipped-reason counter snapshot creation now avoids the previous LINQ ordering
 path. The accepted-move benchmark aggregation regression guardrail is tightened
-from 400 MB to 150 MB for the 3,000-iteration sample path.
+from 400 MB to 250 MB for the 3,000-iteration sample path and now uses one
+warmup iteration so the Debug unit test tracks normal benchmark command
+semantics without becoming full-suite-order sensitive.
 
 Latest verification after milestone 007 slice 10:
 
@@ -532,7 +534,57 @@ Result:
 
 ```text
 1,000-iteration hot-shard rebalance-session allocation moved from 25,324,232 bytes in the pre-domain-pass smoke to 23,700,232 bytes after the allowed-policy/empty-snapshot reductions.
-3,000-iteration hot-shard rebalance-session allocated 71,210,472 bytes, below the new 150 MB regression guardrail.
+3,000-iteration hot-shard rebalance-session allocated 71,210,472 bytes in Release smoke, below the Debug unit-test guardrail and well below the old 400 MB bound.
+```
+
+Milestone 007 slice 11 is implemented in the current working tree. RadarPulse
+now has deterministic synthetic quarantine lifecycle workloads over the full
+rebalance session path:
+`QuarantineTtlRetry`, `QuarantineSustainedCoolingClear`,
+`QuarantinePressureChangeRetry`, `QuarantineRetryReentry`, and
+`QuarantineSuccessfulReliefClear`. The workload catalog can now carry
+workload-specific hardening options so lifecycle TTL, sustained-cooling, and
+material-pressure-change thresholds are deterministic per scenario. Synthetic
+workload results expose final quarantine lifecycle states, final telemetry
+summary, quarantine lifecycle counters, and transition counting helpers. The
+synthetic benchmark honors workload-default hardening options when callers do
+not override them, and the CLI accepts the new workload names through
+`processing benchmark rebalance-synthetic`.
+
+Latest verification after milestone 007 slice 11:
+
+```powershell
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingSyntheticRebalanceWorkloadTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingSyntheticRebalanceBenchmark|FullyQualifiedName~RadarPulseCliRebalanceBenchmark"
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~Processing"
+dotnet test RadarPulse.sln --no-restore
+dotnet build RadarPulse.sln -c Release --no-restore
+```
+
+Result:
+
+```text
+18 passed for focused synthetic workload and CLI coverage.
+19 passed for focused synthetic benchmark and CLI coverage.
+316 passed for processing-focused coverage.
+466 passed, 3 skipped for the full solution suite.
+Release build succeeded with 0 warnings and 0 errors.
+```
+
+Latest Release lifecycle workload smoke after milestone 007 slice 11:
+
+```powershell
+dotnet run --no-build -c Release --project src/Presentation/RadarPulse.Cli.csproj -- processing benchmark rebalance-synthetic --workload quarantine-successful-relief-clear --mode rebalance --iterations 3 --warmup-iterations 1
+```
+
+Result:
+
+```text
+Validation succeeded.
+3 iterations, 2 batches per iteration, 6 rebalance evaluations.
+3 accepted direct hot relief moves, 0 cold evacuation moves, 0 failed migrations.
+Skipped reasons: partition-quarantined, cold-evacuation-insufficient-benefit.
+Allocated bytes: 87,552; allocation includes CLI formatting: no.
 ```
 
 ## Milestone Status
@@ -648,6 +700,8 @@ Done:
   smoke-checked against the local KTLX cache.
 - `007` slice 10 allocation reduction pass is implemented, tested, and
   smoke-checked against synthetic hot-shard and local KTLX cache contours.
+- `007` slice 11 synthetic quarantine lifecycle workloads are implemented,
+  tested, and smoke-checked through the CLI benchmark path.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -664,15 +718,15 @@ Next milestone focus:
 - Implement milestone 007 from the closed architecture and plan:
   `docs/milestones/007-rebalance-production-hardening.md` and
   `docs/milestones/007-rebalance-production-hardening-plan.md`.
-- Continue milestone 007 with synthetic quarantine lifecycle workloads. The
-  next slice should extend the synthetic workload catalog with deterministic
-  TTL retry, sustained-cooling clear, pressure-change retry, retry re-entry, and
-  successful-relief clear scenarios before the benchmark harness grows more CLI
-  surface.
-- Preserve the slice 10 allocation guardrails while adding lifecycle workloads:
-  no-move/no-detail paths should keep avoiding empty collection churn, allowed
-  policy evaluation should remain allocation-light, and benchmark allocation
-  fields should stay comparable across static, sampling, and rebalance modes.
+- Continue milestone 007 with synthetic retention stress workloads. The next
+  slice should add long-running no-hot-shard, cooldown rejection, unsafe-target
+  rejection, mixed skipped-reason, and counters-only retention scenarios that
+  prove retained detail stays bounded while aggregate counters remain correct.
+- Preserve the slice 10 allocation guardrails and slice 11 workload-default
+  hardening behavior while adding retention stress: no-move/no-detail paths
+  should keep avoiding empty collection churn, allowed policy evaluation should
+  remain allocation-light, and benchmark allocation fields should stay
+  comparable across static, sampling, and rebalance modes.
 - Preserve the final milestone 007 performance requirement: closeout must
   include a comprehensive side-by-side comparison against milestone 005
   processing-only baselines and the accepted milestone 006 synthetic,

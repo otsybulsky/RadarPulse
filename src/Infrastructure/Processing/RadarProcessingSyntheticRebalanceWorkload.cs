@@ -15,6 +15,7 @@ public sealed class RadarProcessingSyntheticRebalanceWorkload
         RadarProcessingPressureOptions pressureOptions,
         RadarProcessingPressureWindowOptions pressureWindowOptions,
         RadarProcessingRebalanceOptions rebalanceOptions,
+        RadarProcessingRebalanceHardeningOptions hardeningOptions,
         RadarEventBatch[] batches,
         long eventsPerIteration,
         long payloadValuesPerIteration,
@@ -27,6 +28,7 @@ public sealed class RadarProcessingSyntheticRebalanceWorkload
         PressureOptions = pressureOptions;
         PressureWindowOptions = pressureWindowOptions;
         RebalanceOptions = rebalanceOptions;
+        HardeningOptions = hardeningOptions;
         this.batches = Array.AsReadOnly((RadarEventBatch[])batches.Clone());
         EventsPerIteration = eventsPerIteration;
         PayloadValuesPerIteration = payloadValuesPerIteration;
@@ -46,6 +48,8 @@ public sealed class RadarProcessingSyntheticRebalanceWorkload
     public RadarProcessingPressureWindowOptions PressureWindowOptions { get; }
 
     public RadarProcessingRebalanceOptions RebalanceOptions { get; }
+
+    public RadarProcessingRebalanceHardeningOptions HardeningOptions { get; }
 
     public IReadOnlyList<RadarEventBatch> Batches => batches;
 
@@ -72,6 +76,15 @@ public sealed class RadarProcessingSyntheticRebalanceWorkload
             RadarProcessingSyntheticRebalanceWorkloadKind.IntrinsicHotPartition => CreateIntrinsicHotPartition(),
             RadarProcessingSyntheticRebalanceWorkloadKind.OscillatingSpike => CreateOscillatingSpike(),
             RadarProcessingSyntheticRebalanceWorkloadKind.CooldownStorm => CreateCooldownStorm(),
+            RadarProcessingSyntheticRebalanceWorkloadKind.QuarantineTtlRetry => CreateQuarantineTtlRetry(),
+            RadarProcessingSyntheticRebalanceWorkloadKind.QuarantineSustainedCoolingClear =>
+                CreateQuarantineSustainedCoolingClear(),
+            RadarProcessingSyntheticRebalanceWorkloadKind.QuarantinePressureChangeRetry =>
+                CreateQuarantinePressureChangeRetry(),
+            RadarProcessingSyntheticRebalanceWorkloadKind.QuarantineRetryReentry =>
+                CreateQuarantineRetryReentry(),
+            RadarProcessingSyntheticRebalanceWorkloadKind.QuarantineSuccessfulReliefClear =>
+                CreateQuarantineSuccessfulReliefClear(),
             _ => throw new ArgumentOutOfRangeException(nameof(kind))
         };
 
@@ -84,13 +97,14 @@ public sealed class RadarProcessingSyntheticRebalanceWorkload
             ApplyClassification(classifier, classification);
         }
 
+        var effectiveHardeningOptions = hardeningOptions ?? HardeningOptions;
         return new RadarProcessingRebalanceSession(
             new RadarProcessingCore(SourceUniverse, CoreOptions),
             PressureOptions,
             new RadarProcessingPressureWindow(PressureWindowOptions),
             new RadarProcessingRebalancePolicyState(PartitionCount, ShardCount, RebalanceOptions),
             classifier,
-            hardeningOptions: hardeningOptions);
+            hardeningOptions: effectiveHardeningOptions);
     }
 
     private static RadarProcessingSyntheticRebalanceWorkload CreateBalanced() =>
@@ -180,12 +194,99 @@ public sealed class RadarProcessingSyntheticRebalanceWorkload
             ],
             []);
 
+    private static RadarProcessingSyntheticRebalanceWorkload CreateQuarantineTtlRetry() =>
+        Create(
+            RadarProcessingSyntheticRebalanceWorkloadKind.QuarantineTtlRetry,
+            CreateImmediateWindowOptions(),
+            CreateRelaxedRebalanceOptions(),
+            [
+                [0, 0, 0, 0, 0, 0],
+                [0]
+            ],
+            [
+                CreateInitialQuarantine()
+            ],
+            CreateLifecycleHardeningOptions(
+                quarantineTtlEvaluations: 1,
+                sustainedCoolingSampleCount: 5,
+                materialPressureChangeThreshold: 1.0));
+
+    private static RadarProcessingSyntheticRebalanceWorkload CreateQuarantineSustainedCoolingClear() =>
+        Create(
+            RadarProcessingSyntheticRebalanceWorkloadKind.QuarantineSustainedCoolingClear,
+            CreateImmediateWindowOptions(),
+            CreateRelaxedRebalanceOptions(),
+            [
+                [0, 0, 0, 0, 0, 0],
+                [],
+                []
+            ],
+            [
+                CreateInitialQuarantine()
+            ],
+            CreateLifecycleHardeningOptions(
+                quarantineTtlEvaluations: 10,
+                sustainedCoolingSampleCount: 2,
+                materialPressureChangeThreshold: 2.0));
+
+    private static RadarProcessingSyntheticRebalanceWorkload CreateQuarantinePressureChangeRetry() =>
+        Create(
+            RadarProcessingSyntheticRebalanceWorkloadKind.QuarantinePressureChangeRetry,
+            CreateImmediateWindowOptions(),
+            CreateRelaxedRebalanceOptions(),
+            [
+                [0, 0, 0, 0, 0, 0],
+                [0, 0, 0]
+            ],
+            [
+                CreateInitialQuarantine()
+            ],
+            CreateLifecycleHardeningOptions(
+                quarantineTtlEvaluations: 10,
+                sustainedCoolingSampleCount: 5,
+                materialPressureChangeThreshold: 0.25));
+
+    private static RadarProcessingSyntheticRebalanceWorkload CreateQuarantineRetryReentry() =>
+        Create(
+            RadarProcessingSyntheticRebalanceWorkloadKind.QuarantineRetryReentry,
+            CreateImmediateWindowOptions(),
+            CreateRelaxedRebalanceOptions(),
+            [
+                [0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0]
+            ],
+            [
+                CreateInitialQuarantine()
+            ],
+            CreateLifecycleHardeningOptions(
+                quarantineTtlEvaluations: 1,
+                sustainedCoolingSampleCount: 5,
+                materialPressureChangeThreshold: 1.0));
+
+    private static RadarProcessingSyntheticRebalanceWorkload CreateQuarantineSuccessfulReliefClear() =>
+        Create(
+            RadarProcessingSyntheticRebalanceWorkloadKind.QuarantineSuccessfulReliefClear,
+            CreateImmediateWindowOptions(),
+            CreateRelaxedRebalanceOptions(),
+            [
+                [0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 1, 1]
+            ],
+            [
+                CreateInitialQuarantine()
+            ],
+            CreateLifecycleHardeningOptions(
+                quarantineTtlEvaluations: 1,
+                sustainedCoolingSampleCount: 5,
+                materialPressureChangeThreshold: 1.0));
+
     private static RadarProcessingSyntheticRebalanceWorkload Create(
         RadarProcessingSyntheticRebalanceWorkloadKind kind,
         RadarProcessingPressureWindowOptions pressureWindowOptions,
         RadarProcessingRebalanceOptions rebalanceOptions,
         int[][] sourceIdsByBatch,
-        InitialHotPartitionClassification[] initialClassifications)
+        InitialHotPartitionClassification[] initialClassifications,
+        RadarProcessingRebalanceHardeningOptions? hardeningOptions = null)
     {
         var sourceUniverse = new RadarSourceUniverse(
             SourceUniverseVersion.Initial,
@@ -224,6 +325,7 @@ public sealed class RadarProcessingSyntheticRebalanceWorkload
                 rawValueChecksumWeight: 0.0),
             pressureWindowOptions,
             rebalanceOptions,
+            hardeningOptions ?? RadarProcessingRebalanceHardeningOptions.Default,
             batches,
             eventsPerIteration,
             payloadValuesPerIteration,
@@ -244,6 +346,18 @@ public sealed class RadarProcessingSyntheticRebalanceWorkload
             superHotExitThreshold: 9.0,
             superHotEnterThreshold: 10.0);
 
+    private static RadarProcessingPressureWindowOptions CreateImmediateWindowOptions() =>
+        new(
+            sampleCapacity: 1,
+            minimumSampleCount: 1,
+            coldThreshold: 0.0,
+            warmExitThreshold: 4.0,
+            warmEnterThreshold: 4.5,
+            hotExitThreshold: 4.75,
+            hotEnterThreshold: 5.0,
+            superHotExitThreshold: 9.0,
+            superHotEnterThreshold: 10.0);
+
     private static RadarProcessingRebalanceOptions CreateRelaxedRebalanceOptions() =>
         new(
             budgetWindowEvaluationCount: 4,
@@ -255,6 +369,22 @@ public sealed class RadarProcessingSyntheticRebalanceWorkload
             sourceShardMoveCooldownEvaluations: 0,
             targetShardReceiveCooldownEvaluations: 0,
             minimumProjectedBenefit: 0.05);
+
+    private static RadarProcessingRebalanceHardeningOptions CreateLifecycleHardeningOptions(
+        int quarantineTtlEvaluations,
+        int sustainedCoolingSampleCount,
+        double materialPressureChangeThreshold) =>
+        new(
+            quarantineLifecycle: new RadarProcessingQuarantineLifecycleOptions(
+                quarantineTtlEvaluations,
+                sustainedCoolingSampleCount,
+                materialPressureChangeThreshold));
+
+    private static InitialHotPartitionClassification CreateInitialQuarantine() =>
+        new(
+            PartitionId: 0,
+            ShardId: 0,
+            RadarProcessingHotPartitionClassification.Quarantined);
 
     private static RadarEventBatch CreateBatch(
         SourceUniverseVersion sourceUniverseVersion,

@@ -26,6 +26,7 @@ public sealed class RadarProcessingSyntheticRebalanceWorkloadRunner
             workload.ShardCount,
             initialTopologyVersion,
             session.CurrentTopology.Version,
-            steps);
+            steps,
+            session.QuarantineLifecycleTracker.Partitions);
     }
 }

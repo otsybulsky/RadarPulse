@@ -6,5 +6,10 @@ public enum RadarProcessingSyntheticRebalanceWorkloadKind
     SustainedHotShard,
     IntrinsicHotPartition,
     OscillatingSpike,
-    CooldownStorm
+    CooldownStorm,
+    QuarantineTtlRetry,
+    QuarantineSustainedCoolingClear,
+    QuarantinePressureChangeRetry,
+    QuarantineRetryReentry,
+    QuarantineSuccessfulReliefClear
 }

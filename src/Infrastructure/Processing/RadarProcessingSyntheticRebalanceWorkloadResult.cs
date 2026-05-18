@@ -6,6 +6,7 @@ public sealed class RadarProcessingSyntheticRebalanceWorkloadResult
 {
     private readonly IReadOnlyList<RadarProcessingRebalanceSessionResult> steps;
     private readonly IReadOnlyList<RadarProcessingRebalanceSkippedReason> skippedReasons;
+    private readonly IReadOnlyList<RadarProcessingQuarantineLifecycleState> finalQuarantineStates;
 
     public RadarProcessingSyntheticRebalanceWorkloadResult(
         RadarProcessingSyntheticRebalanceWorkloadKind kind,
@@ -14,9 +15,11 @@ public sealed class RadarProcessingSyntheticRebalanceWorkloadResult
         int shardCount,
         RadarProcessingTopologyVersion initialTopologyVersion,
         RadarProcessingTopologyVersion finalTopologyVersion,
-        IReadOnlyList<RadarProcessingRebalanceSessionResult> steps)
+        IReadOnlyList<RadarProcessingRebalanceSessionResult> steps,
+        IReadOnlyList<RadarProcessingQuarantineLifecycleState> finalQuarantineStates)
     {
         ArgumentNullException.ThrowIfNull(steps);
+        ArgumentNullException.ThrowIfNull(finalQuarantineStates);
 
         Kind = kind;
         SourceCount = sourceCount;
@@ -26,6 +29,7 @@ public sealed class RadarProcessingSyntheticRebalanceWorkloadResult
         FinalTopologyVersion = finalTopologyVersion;
         this.steps = Array.AsReadOnly(steps.ToArray());
         skippedReasons = Array.AsReadOnly(CollectSkippedReasons(steps));
+        this.finalQuarantineStates = Array.AsReadOnly(finalQuarantineStates.ToArray());
     }
 
     public RadarProcessingSyntheticRebalanceWorkloadKind Kind { get; }
@@ -44,6 +48,9 @@ public sealed class RadarProcessingSyntheticRebalanceWorkloadResult
 
     public IReadOnlyList<RadarProcessingRebalanceSkippedReason> SkippedReasons => skippedReasons;
 
+    public IReadOnlyList<RadarProcessingQuarantineLifecycleState> FinalQuarantineStates =>
+        finalQuarantineStates;
+
     public int BatchCount => steps.Count;
 
     public int AcceptedMoveCount => steps.Count(static step => step.PublishedMigration);
@@ -58,8 +65,27 @@ public sealed class RadarProcessingSyntheticRebalanceWorkloadResult
 
     public bool ValidationSucceeded => steps.All(static step => step.Validation.IsValid);
 
+    public RadarProcessingRebalanceTelemetrySummary FinalTelemetrySummary =>
+        steps.Count == 0
+            ? RadarProcessingRebalanceTelemetrySummary.Empty
+            : steps[^1].TelemetrySummary;
+
+    public long QuarantineEntryCount => FinalTelemetrySummary.Counters.QuarantineEntryCount;
+
+    public long QuarantineClearCount => FinalTelemetrySummary.Counters.QuarantineClearCount;
+
+    public long QuarantineRetryCount => FinalTelemetrySummary.Counters.QuarantineRetryCount;
+
+    public long QuarantineReentryCount => FinalTelemetrySummary.Counters.QuarantineReentryCount;
+
     public bool HasSkippedReason(RadarProcessingRebalanceSkippedReason reason) =>
         skippedReasons.Contains(reason);
+
+    public bool HasQuarantineTransition(RadarProcessingQuarantineTransitionReason reason) =>
+        CountQuarantineTransitions(reason) > 0;
+
+    public int CountQuarantineTransitions(RadarProcessingQuarantineTransitionReason reason) =>
+        steps.Sum(step => step.QuarantineTransitions.Count(transition => transition.Reason == reason));
 
     private static RadarProcessingRebalanceSkippedReason[] CollectSkippedReasons(
         IReadOnlyList<RadarProcessingRebalanceSessionResult> steps)

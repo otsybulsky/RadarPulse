@@ -31,7 +31,7 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmark
         EnsureKnownMode(mode);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(iterations);
         ArgumentOutOfRangeException.ThrowIfNegative(warmupIterations);
-        var effectiveHardeningOptions = hardeningOptions ?? RadarProcessingRebalanceHardeningOptions.Default;
+        var effectiveHardeningOptions = hardeningOptions ?? workload.HardeningOptions;
 
         for (var warmupIteration = 0; warmupIteration < warmupIterations; warmupIteration++)
         {

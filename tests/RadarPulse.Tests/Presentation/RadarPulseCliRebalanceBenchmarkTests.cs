@@ -31,6 +31,25 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
     }
 
     [Fact]
+    public void RebalanceBenchmarkOptionsParseLifecycleWorkload()
+    {
+        var options = global::ProcessingBenchmarkRebalanceSyntheticOptions.Parse(
+        [
+            "--workload",
+            "quarantine-successful-relief-clear",
+            "--mode",
+            "rebalance"
+        ]);
+
+        Assert.Equal(
+            [RadarProcessingSyntheticRebalanceWorkloadKind.QuarantineSuccessfulReliefClear],
+            options.Workloads);
+        Assert.Equal(
+            [RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession],
+            options.Modes);
+    }
+
+    [Fact]
     public void RebalanceBenchmarkOptionsRejectSequentialMode()
     {
         var exception = Assert.Throws<ArgumentException>(
