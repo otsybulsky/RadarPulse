@@ -874,12 +874,13 @@ docs/milestones/007-rebalance-production-hardening-closeout.md
 docs/handoff.md update
 ```
 
-Decision trace status after slice 18:
+Documentation status after final performance gate:
 
 ```text
 docs/milestones/007-rebalance-production-hardening-decision-trace.md is written
-closeout remains pending until final comprehensive performance comparison is
-captured and interpreted
+docs/milestones/007-rebalance-production-hardening-closeout.md is written
+docs/handoff.md records the closed milestone 007 state and next milestone input
+final comprehensive performance comparison is captured and interpreted
 ```
 
 Decision trace should record:
@@ -1009,25 +1010,25 @@ the throughput and allocation shape established by milestones 005 and 006.
 Milestone 007 completion criteria are satisfied when:
 
 ```text
-[ ] hardening options and profiles are implemented and tested
-[ ] bounded telemetry contracts are implemented and tested
-[ ] telemetry recorder retains counters and bounded recent detail
-[ ] quarantine lifecycle state and transitions are implemented and tested
-[ ] lifecycle evaluator advances quarantine before planning
-[ ] direct hot relief and cold evacuation honor effective classification
-[ ] rebalance session exposes hardening telemetry and retention stats
-[ ] validation profiles are implemented and tested
-[ ] allocation attribution is reported by benchmark contours
-[ ] avoidable control-plane allocation is reduced or explicitly justified
-[ ] lifecycle synthetic workloads are implemented and tested
-[ ] retention stress workloads are implemented and tested
-[ ] synthetic and archive benchmark harnesses expose hardening fields
-[ ] CLI exposes validation, retention, and quarantine options
-[ ] policy defaults are audited against workloads and real-data contours
-[ ] decision trace is written
-[ ] closeout is written
-[ ] handoff is updated
-[ ] final comprehensive performance comparison is captured and interpreted
+[x] hardening options and profiles are implemented and tested
+[x] bounded telemetry contracts are implemented and tested
+[x] telemetry recorder retains counters and bounded recent detail
+[x] quarantine lifecycle state and transitions are implemented and tested
+[x] lifecycle evaluator advances quarantine before planning
+[x] direct hot relief and cold evacuation honor effective classification
+[x] rebalance session exposes hardening telemetry and retention stats
+[x] validation profiles are implemented and tested
+[x] allocation attribution is reported by benchmark contours
+[x] avoidable control-plane allocation is reduced or explicitly justified
+[x] lifecycle synthetic workloads are implemented and tested
+[x] retention stress workloads are implemented and tested
+[x] synthetic and archive benchmark harnesses expose hardening fields
+[x] CLI exposes validation, retention, and quarantine options
+[x] policy defaults are audited against workloads and real-data contours
+[x] decision trace is written
+[x] closeout is written
+[x] handoff is updated
+[x] final comprehensive performance comparison is captured and interpreted
 ```
 
 ## Non-Goals

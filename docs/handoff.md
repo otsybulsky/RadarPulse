@@ -1,4 +1,4 @@
-# Handoff: Milestone 007 Slice 18 Decision Trace Complete
+# Handoff: Milestone 007 Closeout Complete
 
 ## Current Goal
 
@@ -205,6 +205,19 @@ lifecycle, bounded telemetry retention, validation profiles, allocation
 attribution/reduction, broader real-data contours, and a final comprehensive
 performance comparison gate. The synchronous `PartitionedBarrier` path remains
 the reference correctness boundary.
+
+Milestone 007 is complete. The closeout is written in
+`docs/milestones/007-rebalance-production-hardening-closeout.md`, and the
+decision trace is written in
+`docs/milestones/007-rebalance-production-hardening-decision-trace.md`.
+The final Release performance gate passed: cache-wide no-skew rebalance over
+the local KTLX cache processed `8,513,587,200` payload values with `2` accepted
+direct-hot-relief moves, `436` skipped decisions, successful validation, zero
+failed migrations, `3.36B` processing callback payload values/s, `0.03`
+callback allocated bytes/payload, and bounded recent telemetry retention.
+Counters-only validation profile sweeps preserved the same checksum and
+decision counts, and the explicit hot-shard skew stress accepted `20` moves at
+`3.24B` callback payload values/s with `0.04` callback allocated bytes/payload.
 
 Milestone 007 slice 1 is implemented in the current working tree. RadarPulse
 now has the first hardening option/profile contracts:
@@ -1021,6 +1034,9 @@ Done:
   007 implementation plan.
 - `007` slice 18 decision trace is written and linked from the milestone 007
   implementation plan.
+- `007` closeout is written, the final comprehensive performance comparison is
+  captured and interpreted, the implementation plan completion criteria are
+  checked off, and this handoff now records the closed milestone 007 baseline.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -1034,12 +1050,15 @@ Done:
 
 Next milestone focus:
 
-- Implement milestone 007 from the closed architecture and plan:
-  `docs/milestones/007-rebalance-production-hardening.md` and
-  `docs/milestones/007-rebalance-production-hardening-plan.md`.
-- Continue milestone 007 with closeout preparation and the final comprehensive
-  performance comparison gate now that decision trace is written, benchmark CLI
-  hardening surfaces are exposed, and default policy has been audited.
+- Start the next milestone from the closed milestone 007 baseline:
+  `docs/milestones/007-rebalance-production-hardening.md`,
+  `docs/milestones/007-rebalance-production-hardening-plan.md`,
+  `docs/milestones/007-rebalance-production-hardening-decision-trace.md`, and
+  `docs/milestones/007-rebalance-production-hardening-closeout.md`.
+- Recommended next milestone focus is retained async worker transport over the
+  hardened synchronous rebalance boundary. Preserve the synchronous path as the
+  correctness oracle while designing retained payload lifetime, worker-local
+  state handoff, scheduling, cancellation, and failure semantics.
 - Use pressure skew only as an explicit benchmark contour. Baseline real-data
   performance and correctness captures must keep `--skew-profile none`; skewed
   runs should be reported as "real archive with synthetic pressure overlay."
@@ -1049,17 +1068,18 @@ Next milestone focus:
   should remain allocation-light, retained detail must stay bounded, and
   benchmark allocation fields should stay comparable across static, sampling,
   and rebalance modes.
-- Preserve the final milestone 007 performance requirement: closeout must
-  include a comprehensive side-by-side comparison against milestone 005
-  processing-only baselines and the accepted milestone 006 synthetic,
-  single-file real-data, comparable parallel real-data, and cache-wide
-  real-data baselines.
+- Treat the final milestone 007 closeout performance table as the accepted
+  baseline for future async-worker comparisons. The primary no-skew real-data
+  row is cache-wide rebalance at `3.36B` callback payload values/s and `0.03`
+  callback allocated bytes/payload.
 - Carry forward the captured benchmark caveat: the milestone 006 rebalance
   catalog uses tiny deterministic behavioral workloads, so same-run static
   ratios are the meaningful overhead signal and milestone 005 throughput ratios
   are diagnostic only.
-- Treat Release synthetic, single-file real-data, comparable parallel real-data,
-  and cache-wide real-data measurements as the accepted 006 baseline.
+- Carry forward the milestone 007 benchmark caveat: lifecycle and retention
+  synthetic workloads are behavioral microscopes, not production throughput
+  shapes. Archive processing callback timing is the production-shaped rebalance
+  performance signal.
 - Preserve migration lifecycle semantics: no partial ownership changes after
   failed validation.
 - Keep cold evacuation as a pressure-relief fallback, not general load
