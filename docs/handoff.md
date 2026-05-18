@@ -1,4 +1,4 @@
-# Handoff: Milestone 007 Slice 15 Validation Profile CLI Options Complete
+# Handoff: Milestone 007 Slice 16 Quarantine Lifecycle CLI Options Complete
 
 ## Current Goal
 
@@ -782,6 +782,47 @@ Release build succeeded with 0 warnings and 0 errors.
 Release CLI smoke printed Validation profile: off and Telemetry retention mode: counters.
 ```
 
+Milestone 007 slice 16 is implemented in the current working tree. The
+rebalance benchmark CLI now exposes quarantine lifecycle tuning for synthetic
+and archive benchmark contours:
+
+```text
+--quarantine-ttl-evaluations n
+--quarantine-sustained-cooling-samples n
+--quarantine-material-pressure-change n
+```
+
+The flags are additive and optional. For `rebalance-synthetic`, partial
+overrides are merged into the selected workload's existing hardening options,
+so workload-specific retention and quarantine lifecycle defaults are preserved
+unless a particular lifecycle value is explicitly overridden. For
+`rebalance-archive`, the overrides are merged into the default quarantine
+lifecycle options alongside the selected validation profile and telemetry
+retention settings. Synthetic and archive benchmark result contracts, plus CLI
+output, now print the effective quarantine TTL, sustained-cooling sample count,
+and material pressure-change threshold.
+
+Latest verification after milestone 007 slice 16:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingSyntheticRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests"
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~Processing|FullyQualifiedName~Presentation"
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+dotnet build RadarPulse.sln --configuration Release --no-restore
+dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-synthetic --workload quarantine-ttl-retry --mode sampling --quarantine-sustained-cooling-samples 7 --iterations 1 --warmup-iterations 0
+```
+
+Result:
+
+```text
+30 passed for focused CLI/synthetic/allocation coverage.
+338 passed for processing/presentation-focused coverage.
+481 passed, 3 skipped for the full test suite.
+Release build succeeded with 0 warnings and 0 errors.
+Release CLI smoke printed Quarantine TTL evaluations: 1, Quarantine sustained cooling samples: 7,
+and Quarantine material pressure change: 1.00.
+```
+
 ## Milestone Status
 
 Done:
@@ -908,6 +949,8 @@ Done:
   tested, and smoke-checked against the full local cache.
 - `007` slice 15 validation profile CLI options are implemented and tested for
   synthetic and archive rebalance benchmark commands.
+- `007` slice 16 quarantine lifecycle CLI options are implemented and tested
+  for synthetic and archive rebalance benchmark commands.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -924,10 +967,9 @@ Next milestone focus:
 - Implement milestone 007 from the closed architecture and plan:
   `docs/milestones/007-rebalance-production-hardening.md` and
   `docs/milestones/007-rebalance-production-hardening-plan.md`.
-- Continue milestone 007 with the remaining CLI hardening surfaces: quarantine
-  lifecycle option flags for synthetic/archive benchmark commands. Keep these
-  additive so existing benchmark commands retain their defaults and comparable
-  baselines.
+- Continue milestone 007 with policy-default audit and closeout preparation now
+  that the benchmark CLI exposes validation profile, telemetry retention,
+  pressure skew, and quarantine lifecycle hardening surfaces.
 - Use pressure skew only as an explicit benchmark contour. Baseline real-data
   performance and correctness captures must keep `--skew-profile none`; skewed
   runs should be reported as "real archive with synthetic pressure overlay."

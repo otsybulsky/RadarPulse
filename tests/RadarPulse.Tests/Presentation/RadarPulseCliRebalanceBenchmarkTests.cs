@@ -17,6 +17,12 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             "rebalance",
             "--validation-profile",
             "benchmark",
+            "--quarantine-ttl-evaluations",
+            "9",
+            "--quarantine-sustained-cooling-samples",
+            "7",
+            "--quarantine-material-pressure-change",
+            "0.5",
             "--iterations",
             "2",
             "--warmup-iterations",
@@ -30,6 +36,11 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             [RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession],
             options.Modes);
         Assert.Equal(RadarProcessingValidationProfile.Benchmark, options.ValidationProfile);
+        var quarantineLifecycle = options.QuarantineLifecycleOverrides.ApplyTo(
+            RadarProcessingQuarantineLifecycleOptions.Default);
+        Assert.Equal(9, quarantineLifecycle.QuarantineTtlEvaluations);
+        Assert.Equal(7, quarantineLifecycle.SustainedCoolingSampleCount);
+        Assert.Equal(0.5, quarantineLifecycle.MaterialPressureChangeThreshold);
         Assert.Equal(2, options.Iterations);
         Assert.Equal(0, options.WarmupIterations);
     }
@@ -88,6 +99,13 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             ]));
 
         Assert.Contains("Unknown synthetic rebalance validation profile", validationException.Message);
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => global::ProcessingBenchmarkRebalanceSyntheticOptions.Parse(
+            [
+                "--quarantine-ttl-evaluations",
+                "0"
+            ]));
     }
 
     [Fact]
@@ -146,6 +164,32 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
     }
 
     [Fact]
+    public void RebalanceBenchmarkCommandAppliesPartialQuarantineLifecycleOverride()
+    {
+        var result = RunCli(
+            "processing",
+            "benchmark",
+            "rebalance-synthetic",
+            "--workload",
+            "quarantine-ttl-retry",
+            "--mode",
+            "sampling",
+            "--quarantine-sustained-cooling-samples",
+            "7",
+            "--iterations",
+            "1",
+            "--warmup-iterations",
+            "0");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Workload: quarantine-ttl-retry", result.StandardOutput);
+        Assert.Contains("Quarantine TTL evaluations: 1", result.StandardOutput);
+        Assert.Contains("Quarantine sustained cooling samples: 7", result.StandardOutput);
+        Assert.Contains("Quarantine material pressure change: 1.00", result.StandardOutput);
+        Assert.Equal(string.Empty, result.StandardError);
+    }
+
+    [Fact]
     public void ArchiveRebalanceBenchmarkOptionsParseFileModeAndTopology()
     {
         var options = global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
@@ -162,6 +206,12 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             "2",
             "--validation-profile",
             "essential",
+            "--quarantine-ttl-evaluations",
+            "12",
+            "--quarantine-sustained-cooling-samples",
+            "5",
+            "--quarantine-material-pressure-change",
+            "0.75",
             "--warmup-iterations",
             "1",
             "--parallelism",
@@ -178,6 +228,11 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
         Assert.Equal(1, options.WarmupIterations);
         Assert.Equal(2, options.Parallelism);
         Assert.Equal(RadarProcessingValidationProfile.Essential, options.ValidationProfile);
+        var quarantineLifecycle = options.QuarantineLifecycleOverrides.ApplyTo(
+            RadarProcessingQuarantineLifecycleOptions.Default);
+        Assert.Equal(12, quarantineLifecycle.QuarantineTtlEvaluations);
+        Assert.Equal(5, quarantineLifecycle.SustainedCoolingSampleCount);
+        Assert.Equal(0.75, quarantineLifecycle.MaterialPressureChangeThreshold);
         Assert.Equal(RadarProcessingDiagnosticRetentionMode.Recent, options.TelemetryRetention.RetentionMode);
     }
 
@@ -298,6 +353,14 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
                 "data/nexrad",
                 "--validation-profile",
                 "verbose"
+            ]));
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
+            [
+                "--cache",
+                "data/nexrad",
+                "--quarantine-material-pressure-change",
+                "-0.1"
             ]));
         Assert.Throws<ArgumentOutOfRangeException>(
             () => global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(

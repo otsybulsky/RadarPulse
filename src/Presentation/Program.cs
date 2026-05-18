@@ -177,8 +177,8 @@ static int PrintUsage()
     Console.WriteLine("  radarpulse archive benchmark replay-publish --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse archive benchmark stream (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse processing benchmark synthetic [--mode sequential|partitioned] [--sources n] [--batches n] [--events-per-batch n] [--payload-values n] [--partitions n] [--shards n] [--handlers none|counter-checksum] [--iterations n] [--warmup-iterations n]");
-    Console.WriteLine("  radarpulse processing benchmark rebalance-synthetic [--workload balanced|hot-shard|intrinsic-hot|oscillating|cooldown-storm|quarantine-ttl-retry|quarantine-cooling-clear|quarantine-pressure-change-retry|quarantine-retry-reentry|quarantine-successful-relief-clear|long-no-hot-shard|long-cooldown-rejection|long-unsafe-target-rejection|long-mixed-skipped-reasons|counters-only-retention|all] [--mode static|sampling|rebalance|all] [--validation-profile off|essential|diagnostic|benchmark] [--iterations n] [--warmup-iterations n]");
-    Console.WriteLine("  radarpulse processing benchmark rebalance-archive (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--mode static|sampling|rebalance|all] [--partitions n] [--shards n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress] [--validation-profile off|essential|diagnostic|benchmark] [--retention-mode counters|recent|diagnostic] [--max-retained-decisions n] [--max-retained-transitions n] [--max-retained-accepted-moves n] [--max-retained-validation-failures n] [--skew-profile none|hot-shard|rotating-hot-shard|hot-partition|target-starvation|budget-storm] [--skew-factor n] [--skew-period n]");
+    Console.WriteLine("  radarpulse processing benchmark rebalance-synthetic [--workload balanced|hot-shard|intrinsic-hot|oscillating|cooldown-storm|quarantine-ttl-retry|quarantine-cooling-clear|quarantine-pressure-change-retry|quarantine-retry-reentry|quarantine-successful-relief-clear|long-no-hot-shard|long-cooldown-rejection|long-unsafe-target-rejection|long-mixed-skipped-reasons|counters-only-retention|all] [--mode static|sampling|rebalance|all] [--validation-profile off|essential|diagnostic|benchmark] [--quarantine-ttl-evaluations n] [--quarantine-sustained-cooling-samples n] [--quarantine-material-pressure-change n] [--iterations n] [--warmup-iterations n]");
+    Console.WriteLine("  radarpulse processing benchmark rebalance-archive (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--mode static|sampling|rebalance|all] [--partitions n] [--shards n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress] [--validation-profile off|essential|diagnostic|benchmark] [--quarantine-ttl-evaluations n] [--quarantine-sustained-cooling-samples n] [--quarantine-material-pressure-change n] [--retention-mode counters|recent|diagnostic] [--max-retained-decisions n] [--max-retained-transitions n] [--max-retained-accepted-moves n] [--max-retained-validation-failures n] [--skew-profile none|hot-shard|rotating-hot-shard|hot-partition|target-starvation|budget-storm] [--skew-factor n] [--skew-period n]");
     Console.WriteLine("  radarpulse archive validate decompress (--file path | --cache data/nexrad [--radar KTLX] [--max-files n])");
     Console.WriteLine("  radarpulse archive validate replay-shape (--file path | --cache data/nexrad [--radar KTLX] [--max-files n]) [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     return 2;
@@ -401,7 +401,8 @@ static int BenchmarkProcessingRebalanceSynthetic(string[] args)
         var workload = RadarProcessingSyntheticRebalanceWorkload.Create(workloadKind);
         var hardeningOptions = CreateProcessingRebalanceSyntheticHardeningOptions(
             workload,
-            options.ValidationProfile);
+            options.ValidationProfile,
+            options.QuarantineLifecycleOverrides);
 
         foreach (var mode in options.Modes)
         {
@@ -428,10 +429,11 @@ static int BenchmarkProcessingRebalanceSynthetic(string[] args)
 
 static RadarProcessingRebalanceHardeningOptions CreateProcessingRebalanceSyntheticHardeningOptions(
     RadarProcessingSyntheticRebalanceWorkload workload,
-    RadarProcessingValidationProfile validationProfile) =>
+    RadarProcessingValidationProfile validationProfile,
+    ProcessingBenchmarkQuarantineLifecycleOptionOverrides quarantineLifecycleOverrides) =>
     new(
         telemetryRetention: workload.HardeningOptions.TelemetryRetention,
-        quarantineLifecycle: workload.HardeningOptions.QuarantineLifecycle,
+        quarantineLifecycle: quarantineLifecycleOverrides.ApplyTo(workload.HardeningOptions.QuarantineLifecycle),
         validationProfile: validationProfile);
 
 static int BenchmarkProcessingRebalanceArchive(string[] args)
@@ -441,6 +443,8 @@ static int BenchmarkProcessingRebalanceArchive(string[] args)
         ArchiveBZip2Decompressors.Create(options.Decompressor));
     var hardeningOptions = new RadarProcessingRebalanceHardeningOptions(
         telemetryRetention: options.TelemetryRetention,
+        quarantineLifecycle: options.QuarantineLifecycleOverrides.ApplyTo(
+            RadarProcessingQuarantineLifecycleOptions.Default),
         validationProfile: options.ValidationProfile);
     var printedResult = false;
 
@@ -535,6 +539,10 @@ static void PrintProcessingRebalanceBenchmarkResult(RadarProcessingSyntheticReba
     Console.WriteLine($"Benchmark mode: {FormatProcessingRebalanceMode(result.Mode)}");
     Console.WriteLine($"Validation profile: {FormatProcessingValidationProfile(result.ValidationProfile)}");
     Console.WriteLine($"Telemetry retention mode: {FormatProcessingRetentionMode(result.RetentionMode)}");
+    PrintProcessingQuarantineLifecycle(
+        result.QuarantineTtlEvaluations,
+        result.QuarantineSustainedCoolingSampleCount,
+        result.QuarantineMaterialPressureChangeThreshold);
     Console.WriteLine($"Partitions: {FormatNumber(result.PartitionCount)}");
     Console.WriteLine($"Shards: {FormatNumber(result.ShardCount)}");
     Console.WriteLine($"Iterations: {FormatNumber(result.Iterations)}");
@@ -580,6 +588,10 @@ static void PrintProcessingArchiveRebalanceBenchmarkResult(RadarProcessingArchiv
     Console.WriteLine($"Benchmark mode: {FormatProcessingRebalanceMode(result.Mode)}");
     Console.WriteLine($"Validation profile: {FormatProcessingValidationProfile(result.ValidationProfile)}");
     Console.WriteLine($"Telemetry retention mode: {FormatProcessingRetentionMode(result.RetentionMode)}");
+    PrintProcessingQuarantineLifecycle(
+        result.QuarantineTtlEvaluations,
+        result.QuarantineSustainedCoolingSampleCount,
+        result.QuarantineMaterialPressureChangeThreshold);
     Console.WriteLine($"Max retained decisions: {FormatNumber(result.MaxRetainedDecisions)}");
     Console.WriteLine($"Max retained lifecycle transitions: {FormatNumber(result.MaxRetainedLifecycleTransitions)}");
     Console.WriteLine($"Max retained accepted moves: {FormatNumber(result.MaxRetainedAcceptedMoves)}");
@@ -656,6 +668,10 @@ static void PrintProcessingArchiveRebalanceCacheBenchmarkResult(RadarProcessingA
     Console.WriteLine($"Benchmark mode: {FormatProcessingRebalanceMode(result.Mode)}");
     Console.WriteLine($"Validation profile: {FormatProcessingValidationProfile(result.ValidationProfile)}");
     Console.WriteLine($"Telemetry retention mode: {FormatProcessingRetentionMode(result.RetentionMode)}");
+    PrintProcessingQuarantineLifecycle(
+        result.QuarantineTtlEvaluations,
+        result.QuarantineSustainedCoolingSampleCount,
+        result.QuarantineMaterialPressureChangeThreshold);
     Console.WriteLine($"Max retained decisions: {FormatNumber(result.MaxRetainedDecisions)}");
     Console.WriteLine($"Max retained lifecycle transitions: {FormatNumber(result.MaxRetainedLifecycleTransitions)}");
     Console.WriteLine($"Max retained accepted moves: {FormatNumber(result.MaxRetainedAcceptedMoves)}");
@@ -754,6 +770,16 @@ static void PrintProcessingRebalanceRetentionStats(
     Console.WriteLine($"Dropped accepted move details: {FormatNumber(stats.DroppedAcceptedMoveCount)}");
     Console.WriteLine($"Retained validation failures: {FormatNumber(stats.RetainedValidationFailureCount)}");
     Console.WriteLine($"Dropped validation failure details: {FormatNumber(stats.DroppedValidationFailureCount)}");
+}
+
+static void PrintProcessingQuarantineLifecycle(
+    int quarantineTtlEvaluations,
+    int sustainedCoolingSampleCount,
+    double materialPressureChangeThreshold)
+{
+    Console.WriteLine($"Quarantine TTL evaluations: {FormatNumber(quarantineTtlEvaluations)}");
+    Console.WriteLine($"Quarantine sustained cooling samples: {FormatNumber(sustainedCoolingSampleCount)}");
+    Console.WriteLine($"Quarantine material pressure change: {FormatDecimal(materialPressureChangeThreshold)}");
 }
 
 static void PrintProcessingPressureSkew(
@@ -2056,10 +2082,39 @@ internal sealed record ProcessingBenchmarkSyntheticOptions(
     }
 }
 
+public sealed record ProcessingBenchmarkQuarantineLifecycleOptionOverrides(
+    int? QuarantineTtlEvaluations,
+    int? SustainedCoolingSampleCount,
+    double? MaterialPressureChangeThreshold)
+{
+    public static ProcessingBenchmarkQuarantineLifecycleOptionOverrides None { get; } = new(null, null, null);
+
+    public bool HasOverrides =>
+        QuarantineTtlEvaluations is not null ||
+        SustainedCoolingSampleCount is not null ||
+        MaterialPressureChangeThreshold is not null;
+
+    public RadarProcessingQuarantineLifecycleOptions ApplyTo(
+        RadarProcessingQuarantineLifecycleOptions baseline)
+    {
+        ArgumentNullException.ThrowIfNull(baseline);
+        if (!HasOverrides)
+        {
+            return baseline;
+        }
+
+        return new RadarProcessingQuarantineLifecycleOptions(
+            QuarantineTtlEvaluations ?? baseline.QuarantineTtlEvaluations,
+            SustainedCoolingSampleCount ?? baseline.SustainedCoolingSampleCount,
+            MaterialPressureChangeThreshold ?? baseline.MaterialPressureChangeThreshold);
+    }
+}
+
 public sealed record ProcessingBenchmarkRebalanceSyntheticOptions(
     IReadOnlyList<RadarProcessingSyntheticRebalanceWorkloadKind> Workloads,
     IReadOnlyList<RadarProcessingSyntheticRebalanceBenchmarkMode> Modes,
     RadarProcessingValidationProfile ValidationProfile,
+    ProcessingBenchmarkQuarantineLifecycleOptionOverrides QuarantineLifecycleOverrides,
     int Iterations,
     int WarmupIterations)
 {
@@ -2099,6 +2154,9 @@ public sealed record ProcessingBenchmarkRebalanceSyntheticOptions(
         ]);
         IReadOnlyList<RadarProcessingSyntheticRebalanceBenchmarkMode> modes = AllModes;
         var validationProfile = RadarProcessingValidationProfile.Diagnostic;
+        int? quarantineTtlEvaluations = null;
+        int? sustainedCoolingSampleCount = null;
+        double? materialPressureChangeThreshold = null;
         var iterations = 3;
         var warmupIterations = 1;
 
@@ -2114,6 +2172,20 @@ public sealed record ProcessingBenchmarkRebalanceSyntheticOptions(
                     break;
                 case "--validation-profile":
                     validationProfile = ParseValidationProfile(RequireValue(args, ref i, "--validation-profile"));
+                    break;
+                case "--quarantine-ttl":
+                case "--quarantine-ttl-evaluations":
+                    quarantineTtlEvaluations = int.Parse(RequireValue(args, ref i, args[i]));
+                    break;
+                case "--quarantine-sustained-cooling-samples":
+                case "--quarantine-sustained-cooling-sample-count":
+                    sustainedCoolingSampleCount = int.Parse(RequireValue(args, ref i, args[i]));
+                    break;
+                case "--quarantine-material-pressure-change":
+                case "--quarantine-material-pressure-change-threshold":
+                    materialPressureChangeThreshold = double.Parse(
+                        RequireValue(args, ref i, args[i]),
+                        CultureInfo.InvariantCulture);
                     break;
                 case "--iterations":
                     iterations = int.Parse(RequireValue(args, ref i, "--iterations"));
@@ -2136,10 +2208,17 @@ public sealed record ProcessingBenchmarkRebalanceSyntheticOptions(
             throw new InvalidOperationException("--warmup-iterations cannot be negative.");
         }
 
+        var quarantineLifecycleOverrides = new ProcessingBenchmarkQuarantineLifecycleOptionOverrides(
+            quarantineTtlEvaluations,
+            sustainedCoolingSampleCount,
+            materialPressureChangeThreshold);
+        _ = quarantineLifecycleOverrides.ApplyTo(RadarProcessingQuarantineLifecycleOptions.Default);
+
         return new ProcessingBenchmarkRebalanceSyntheticOptions(
             workloads,
             modes,
             validationProfile,
+            quarantineLifecycleOverrides,
             iterations,
             warmupIterations);
     }
@@ -2232,6 +2311,7 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
     int Parallelism,
     string Decompressor,
     RadarProcessingValidationProfile ValidationProfile,
+    ProcessingBenchmarkQuarantineLifecycleOptionOverrides QuarantineLifecycleOverrides,
     RadarProcessingTelemetryRetentionOptions TelemetryRetention,
     RadarProcessingPressureSkewOptions PressureSkew)
 {
@@ -2256,6 +2336,9 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
         var parallelism = 1;
         var decompressor = ArchiveBZip2Decompressors.DefaultName;
         var validationProfile = RadarProcessingValidationProfile.Diagnostic;
+        int? quarantineTtlEvaluations = null;
+        int? sustainedCoolingSampleCount = null;
+        double? materialPressureChangeThreshold = null;
         var retentionMode = RadarProcessingTelemetryRetentionOptions.Default.RetentionMode;
         var maxRetainedDecisions = RadarProcessingTelemetryRetentionOptions.Default.MaxRetainedDecisions;
         var maxRetainedTransitions = RadarProcessingTelemetryRetentionOptions.Default.MaxRetainedLifecycleTransitions;
@@ -2309,6 +2392,20 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
                     break;
                 case "--validation-profile":
                     validationProfile = ParseValidationProfile(RequireValue(args, ref i, "--validation-profile"));
+                    break;
+                case "--quarantine-ttl":
+                case "--quarantine-ttl-evaluations":
+                    quarantineTtlEvaluations = int.Parse(RequireValue(args, ref i, args[i]));
+                    break;
+                case "--quarantine-sustained-cooling-samples":
+                case "--quarantine-sustained-cooling-sample-count":
+                    sustainedCoolingSampleCount = int.Parse(RequireValue(args, ref i, args[i]));
+                    break;
+                case "--quarantine-material-pressure-change":
+                case "--quarantine-material-pressure-change-threshold":
+                    materialPressureChangeThreshold = double.Parse(
+                        RequireValue(args, ref i, args[i]),
+                        CultureInfo.InvariantCulture);
                     break;
                 case "--retention-mode":
                     retentionMode = ParseRetentionMode(RequireValue(args, ref i, "--retention-mode"));
@@ -2403,6 +2500,11 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
             skewProfile,
             skewFactor,
             skewPeriod);
+        var quarantineLifecycleOverrides = new ProcessingBenchmarkQuarantineLifecycleOptionOverrides(
+            quarantineTtlEvaluations,
+            sustainedCoolingSampleCount,
+            materialPressureChangeThreshold);
+        _ = quarantineLifecycleOverrides.ApplyTo(RadarProcessingQuarantineLifecycleOptions.Default);
 
         return new ProcessingBenchmarkArchiveRebalanceOptions(
             filePath,
@@ -2418,6 +2520,7 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
             parallelism,
             decompressor,
             validationProfile,
+            quarantineLifecycleOverrides,
             telemetryRetention,
             pressureSkew);
     }

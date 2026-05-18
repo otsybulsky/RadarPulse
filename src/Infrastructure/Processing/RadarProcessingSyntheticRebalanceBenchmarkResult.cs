@@ -29,6 +29,9 @@ public sealed record RadarProcessingSyntheticRebalanceBenchmarkResult(
     long AllocatedBytes,
     RadarProcessingValidationProfile ValidationProfile = RadarProcessingValidationProfile.Diagnostic,
     RadarProcessingDiagnosticRetentionMode RetentionMode = RadarProcessingDiagnosticRetentionMode.Recent,
+    int QuarantineTtlEvaluations = 64,
+    int QuarantineSustainedCoolingSampleCount = 3,
+    double QuarantineMaterialPressureChangeThreshold = 0.25,
     RadarProcessingRebalanceAllocationSummary AllocationSummary = default)
 {
     public long TotalBatches => BatchesPerIteration * Iterations;

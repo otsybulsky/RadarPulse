@@ -90,6 +90,9 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmark
             allocatedBytes,
             effectiveHardeningOptions.ValidationProfile,
             effectiveHardeningOptions.TelemetryRetention.RetentionMode,
+            effectiveHardeningOptions.QuarantineLifecycle.QuarantineTtlEvaluations,
+            effectiveHardeningOptions.QuarantineLifecycle.SustainedCoolingSampleCount,
+            effectiveHardeningOptions.QuarantineLifecycle.MaterialPressureChangeThreshold,
             allocationSummary);
     }
 
