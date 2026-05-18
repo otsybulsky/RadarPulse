@@ -145,6 +145,217 @@ public sealed class RadarProcessingDirectHotReliefPlannerTests
     }
 
     [Fact]
+    public void ActiveLifecycleQuarantineIsNotSelectedForDirectMovement()
+    {
+        var window = CreateWindow(
+            partitionCount: 4,
+            shardCount: 2,
+            samples:
+            [
+                [0, 0, 0, 0, 1, 1, 1, 1],
+                [0, 0, 0, 0, 1, 1, 1, 1]
+            ]);
+        var policyState = CreatePolicyState(partitionCount: 4, shardCount: 2);
+        var lifecycle = new RadarProcessingQuarantineLifecycleTracker(partitionCount: 4);
+        lifecycle.RecordEvidence(
+            partitionId: 0,
+            shardId: 0,
+            evaluationSequence: 0,
+            window.LatestTopologyVersion,
+            new RadarProcessingPressureScore(4),
+            RadarProcessingPressureBand.Hot,
+            RadarProcessingHotPartitionClassification.Quarantined);
+        var planner = new RadarProcessingDirectHotReliefPlanner();
+
+        var decision = planner.Plan(
+            33,
+            window,
+            policyState,
+            quarantineLifecycleTracker: lifecycle);
+
+        Assert.Equal(RadarProcessingRebalanceDecisionKind.AcceptedMove, decision.Kind);
+        Assert.Equal(1, decision.PartitionId);
+        Assert.True(lifecycle.GetPartition(0).IsQuarantined);
+        Assert.Equal(RadarProcessingQuarantineEffectiveClassification.MovableHot, lifecycle.GetPartition(1).EffectiveClassification);
+    }
+
+    [Fact]
+    public void ActiveLifecycleQuarantineReportsExplicitSkippedReasonWhenEveryHotPartitionIsBlocked()
+    {
+        var window = CreateWindow(
+            partitionCount: 2,
+            shardCount: 2,
+            samples:
+            [
+                [0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0]
+            ]);
+        var policyState = CreatePolicyState(partitionCount: 2, shardCount: 2);
+        var lifecycle = new RadarProcessingQuarantineLifecycleTracker(partitionCount: 2);
+        lifecycle.RecordEvidence(
+            partitionId: 0,
+            shardId: 0,
+            evaluationSequence: 0,
+            window.LatestTopologyVersion,
+            new RadarProcessingPressureScore(8),
+            RadarProcessingPressureBand.SuperHot,
+            RadarProcessingHotPartitionClassification.Quarantined);
+        var planner = new RadarProcessingDirectHotReliefPlanner();
+
+        var decision = planner.Plan(
+            34,
+            window,
+            policyState,
+            quarantineLifecycleTracker: lifecycle);
+
+        Assert.Equal(RadarProcessingRebalanceDecisionKind.NoAction, decision.Kind);
+        Assert.Contains(
+            RadarProcessingRebalanceSkippedReason.PartitionQuarantined,
+            decision.SkippedReasons);
+        Assert.DoesNotContain(
+            RadarProcessingRebalanceSkippedReason.PartitionClassifiedIntrinsicHot,
+            decision.SkippedReasons);
+    }
+
+    [Fact]
+    public void RetryEligibleLifecyclePartitionCanBeReconsideredForDirectMovement()
+    {
+        var window = CreateWindow(
+            partitionCount: 4,
+            shardCount: 2,
+            samples:
+            [
+                [0, 0, 0, 0, 1, 1, 1, 1],
+                [0, 0, 0, 0, 1, 1, 1, 1]
+            ]);
+        var policyState = CreatePolicyState(partitionCount: 4, shardCount: 2);
+        Advance(policyState, 2);
+        var lifecycle = CreateRetryEligibleLifecycle(
+            partitionCount: 4,
+            partitionId: 0,
+            shardId: 0,
+            pressure: 4,
+            band: RadarProcessingPressureBand.Hot,
+            topologyVersion: window.LatestTopologyVersion);
+        var planner = new RadarProcessingDirectHotReliefPlanner();
+
+        var decision = planner.Plan(
+            35,
+            window,
+            policyState,
+            quarantineLifecycleTracker: lifecycle);
+
+        Assert.Equal(RadarProcessingRebalanceDecisionKind.AcceptedMove, decision.Kind);
+        Assert.Equal(0, decision.PartitionId);
+        Assert.Equal(RadarProcessingQuarantineEffectiveClassification.MovableHot, lifecycle.GetPartition(0).EffectiveClassification);
+        Assert.False(lifecycle.GetPartition(0).HasQuarantineEvidence);
+    }
+
+    [Fact]
+    public void RetryEligibleLifecyclePartitionReentersQuarantineWhenNoSafeTargetExists()
+    {
+        var window = CreateWindow(
+            partitionCount: 2,
+            shardCount: 2,
+            samples:
+            [
+                [0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0]
+            ]);
+        var policyState = CreatePolicyState(partitionCount: 2, shardCount: 2);
+        Advance(policyState, 2);
+        var lifecycle = CreateRetryEligibleLifecycle(
+            partitionCount: 2,
+            partitionId: 0,
+            shardId: 0,
+            pressure: 8,
+            band: RadarProcessingPressureBand.SuperHot,
+            topologyVersion: window.LatestTopologyVersion);
+        var planner = new RadarProcessingDirectHotReliefPlanner();
+
+        var decision = planner.Plan(
+            36,
+            window,
+            policyState,
+            quarantineLifecycleTracker: lifecycle);
+
+        Assert.Equal(RadarProcessingRebalanceDecisionKind.RejectedCandidate, decision.Kind);
+        Assert.Equal(0, decision.PartitionId);
+        Assert.True(lifecycle.GetPartition(0).IsQuarantined);
+        Assert.Equal(2, lifecycle.GetPartition(0).QuarantineStartSequence);
+        Assert.Contains(
+            RadarProcessingRebalanceSkippedReason.DirectHotPartitionHasNoSafeTarget,
+            decision.SkippedReasons);
+        Assert.Contains(
+            RadarProcessingRebalanceSkippedReason.TargetWouldBecomeHot,
+            decision.SkippedReasons);
+        Assert.Contains(
+            RadarProcessingRebalanceSkippedReason.PartitionQuarantined,
+            decision.SkippedReasons);
+        Assert.DoesNotContain(
+            RadarProcessingRebalanceSkippedReason.PartitionClassifiedIntrinsicHot,
+            decision.SkippedReasons);
+    }
+
+    [Fact]
+    public void ClearedLifecycleQuarantineDoesNotReportStaleSkippedReason()
+    {
+        var window = CreateWindow(
+            partitionCount: 4,
+            shardCount: 2,
+            samples:
+            [
+                [0, 0, 0, 0, 1, 1, 1, 1],
+                [0, 0, 0, 0, 1, 1, 1, 1]
+            ]);
+        var policyState = CreatePolicyState(partitionCount: 4, shardCount: 2);
+        Advance(policyState, 3);
+        var lifecycle = new RadarProcessingQuarantineLifecycleTracker(
+            partitionCount: 4,
+            new RadarProcessingQuarantineLifecycleOptions(
+                quarantineTtlEvaluations: 10,
+                sustainedCoolingSampleCount: 2,
+                materialPressureChangeThreshold: 1.0));
+        lifecycle.RecordEvidence(
+            partitionId: 0,
+            shardId: 0,
+            evaluationSequence: 0,
+            window.LatestTopologyVersion,
+            new RadarProcessingPressureScore(4),
+            RadarProcessingPressureBand.Hot,
+            RadarProcessingHotPartitionClassification.Quarantined);
+        lifecycle.RecordEvidence(
+            partitionId: 0,
+            shardId: 0,
+            evaluationSequence: 1,
+            window.LatestTopologyVersion,
+            new RadarProcessingPressureScore(1),
+            RadarProcessingPressureBand.Normal,
+            RadarProcessingHotPartitionClassification.None);
+        lifecycle.RecordEvidence(
+            partitionId: 0,
+            shardId: 0,
+            evaluationSequence: 2,
+            window.LatestTopologyVersion,
+            RadarProcessingPressureScore.Zero,
+            RadarProcessingPressureBand.Cold,
+            RadarProcessingHotPartitionClassification.None);
+        var planner = new RadarProcessingDirectHotReliefPlanner();
+
+        var decision = planner.Plan(
+            37,
+            window,
+            policyState,
+            quarantineLifecycleTracker: lifecycle);
+
+        Assert.Equal(RadarProcessingRebalanceDecisionKind.AcceptedMove, decision.Kind);
+        Assert.Equal(0, decision.PartitionId);
+        Assert.DoesNotContain(
+            RadarProcessingRebalanceSkippedReason.PartitionQuarantined,
+            decision.SkippedReasons);
+    }
+
+    [Fact]
     public void CandidateIsRejectedWhenProjectedReliefIsTooSmall()
     {
         var window = CreateWindow(
@@ -276,6 +487,51 @@ public sealed class RadarProcessingDirectHotReliefPlannerTests
         Assert.Contains(
             RadarProcessingRebalanceSkippedReason.NoHotShard,
             decision.SkippedReasons);
+    }
+
+    private static RadarProcessingQuarantineLifecycleTracker CreateRetryEligibleLifecycle(
+        int partitionCount,
+        int partitionId,
+        int shardId,
+        double pressure,
+        RadarProcessingPressureBand band,
+        RadarProcessingTopologyVersion topologyVersion)
+    {
+        var lifecycle = new RadarProcessingQuarantineLifecycleTracker(
+            partitionCount,
+            new RadarProcessingQuarantineLifecycleOptions(
+                quarantineTtlEvaluations: 2,
+                sustainedCoolingSampleCount: 5,
+                materialPressureChangeThreshold: 1.0));
+        lifecycle.RecordEvidence(
+            partitionId,
+            shardId,
+            evaluationSequence: 0,
+            topologyVersion,
+            new RadarProcessingPressureScore(pressure),
+            band,
+            RadarProcessingHotPartitionClassification.Quarantined);
+        lifecycle.RecordEvidence(
+            partitionId,
+            shardId,
+            evaluationSequence: 2,
+            topologyVersion,
+            new RadarProcessingPressureScore(pressure),
+            band,
+            RadarProcessingHotPartitionClassification.None);
+
+        Assert.True(lifecycle.GetPartition(partitionId).IsRetryEligible);
+        return lifecycle;
+    }
+
+    private static void Advance(
+        RadarProcessingRebalancePolicyState policyState,
+        int count)
+    {
+        for (var i = 0; i < count; i++)
+        {
+            policyState.AdvanceEvaluation();
+        }
     }
 
     private static RadarProcessingRebalancePolicyState CreatePolicyState(

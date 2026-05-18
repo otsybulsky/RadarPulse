@@ -5,7 +5,8 @@ public sealed class RadarProcessingColdEvacuationPlanner
     public RadarProcessingRebalanceDecision Plan(
         long decisionId,
         RadarProcessingPressureWindow pressureWindow,
-        RadarProcessingRebalancePolicyState policyState)
+        RadarProcessingRebalancePolicyState policyState,
+        RadarProcessingQuarantineLifecycleTracker? quarantineLifecycleTracker = null)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(decisionId);
         ArgumentNullException.ThrowIfNull(pressureWindow);
@@ -20,7 +21,7 @@ public sealed class RadarProcessingColdEvacuationPlanner
                 [RadarProcessingRebalanceSkippedReason.NoSustainedPressure]);
         }
 
-        EnsureCompatibleShape(pressureWindow, policyState);
+        EnsureCompatibleShape(pressureWindow, policyState, quarantineLifecycleTracker);
 
         var hotShards = pressureWindow.Shards
             .Where(shard => shard.IsHot)
@@ -209,7 +210,8 @@ public sealed class RadarProcessingColdEvacuationPlanner
 
     private static void EnsureCompatibleShape(
         RadarProcessingPressureWindow pressureWindow,
-        RadarProcessingRebalancePolicyState policyState)
+        RadarProcessingRebalancePolicyState policyState,
+        RadarProcessingQuarantineLifecycleTracker? quarantineLifecycleTracker)
     {
         if (pressureWindow.Partitions.Count != policyState.PartitionCount)
         {
@@ -222,6 +224,14 @@ public sealed class RadarProcessingColdEvacuationPlanner
         {
             throw new ArgumentException(
                 "Pressure window shard count must match rebalance policy state.",
+                nameof(pressureWindow));
+        }
+
+        if (quarantineLifecycleTracker is not null &&
+            pressureWindow.Partitions.Count != quarantineLifecycleTracker.PartitionCount)
+        {
+            throw new ArgumentException(
+                "Pressure window partition count must match quarantine lifecycle state.",
                 nameof(pressureWindow));
         }
     }

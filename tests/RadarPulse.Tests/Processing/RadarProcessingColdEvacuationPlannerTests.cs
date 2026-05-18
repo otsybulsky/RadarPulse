@@ -42,6 +42,49 @@ public sealed class RadarProcessingColdEvacuationPlannerTests
     }
 
     [Fact]
+    public void LifecycleQuarantineDirectBlockStillAllowsColdEvacuationFallback()
+    {
+        var window = CreateWindow(
+            partitionCount: 4,
+            shardCount: 2,
+            samples:
+            [
+                [0, 0, 0, 0, 0, 0, 0, 0, 1],
+                [0, 0, 0, 0, 0, 0, 0, 0, 1]
+            ]);
+        var policyState = CreatePolicyState(partitionCount: 4, shardCount: 2);
+        var lifecycle = new RadarProcessingQuarantineLifecycleTracker(partitionCount: 4);
+        lifecycle.RecordEvidence(
+            partitionId: 1,
+            shardId: 0,
+            evaluationSequence: 0,
+            window.LatestTopologyVersion,
+            new RadarProcessingPressureScore(1),
+            RadarProcessingPressureBand.Cold,
+            RadarProcessingHotPartitionClassification.Quarantined);
+        var directPlanner = new RadarProcessingDirectHotReliefPlanner();
+        var coldPlanner = new RadarProcessingColdEvacuationPlanner();
+
+        var directDecision = directPlanner.Plan(
+            11,
+            window,
+            policyState,
+            quarantineLifecycleTracker: lifecycle);
+        var coldDecision = coldPlanner.Plan(
+            12,
+            window,
+            policyState,
+            lifecycle);
+
+        Assert.Equal(RadarProcessingRebalanceDecisionKind.RejectedCandidate, directDecision.Kind);
+        Assert.True(lifecycle.GetPartition(0).BlocksDirectMove);
+        Assert.True(lifecycle.GetPartition(1).IsQuarantined);
+        Assert.Equal(RadarProcessingRebalanceDecisionKind.AcceptedMove, coldDecision.Kind);
+        Assert.Equal(RadarProcessingRebalanceMoveKind.ColdEvacuation, coldDecision.MoveKind);
+        Assert.Equal(1, coldDecision.PartitionId);
+    }
+
+    [Fact]
     public void SmallestUsefulColdPartitionIsSelectedDeterministically()
     {
         var window = CreateWindow(
