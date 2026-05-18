@@ -177,8 +177,8 @@ static int PrintUsage()
     Console.WriteLine("  radarpulse archive benchmark replay-publish --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse archive benchmark stream (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse processing benchmark synthetic [--mode sequential|partitioned] [--sources n] [--batches n] [--events-per-batch n] [--payload-values n] [--partitions n] [--shards n] [--handlers none|counter-checksum] [--iterations n] [--warmup-iterations n]");
-    Console.WriteLine("  radarpulse processing benchmark rebalance-synthetic [--workload balanced|hot-shard|intrinsic-hot|oscillating|cooldown-storm|quarantine-ttl-retry|quarantine-cooling-clear|quarantine-pressure-change-retry|quarantine-retry-reentry|quarantine-successful-relief-clear|long-no-hot-shard|long-cooldown-rejection|long-unsafe-target-rejection|long-mixed-skipped-reasons|counters-only-retention|all] [--mode static|sampling|rebalance|all] [--iterations n] [--warmup-iterations n]");
-    Console.WriteLine("  radarpulse processing benchmark rebalance-archive (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--mode static|sampling|rebalance|all] [--partitions n] [--shards n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress] [--retention-mode counters|recent|diagnostic] [--max-retained-decisions n] [--max-retained-transitions n] [--max-retained-accepted-moves n] [--max-retained-validation-failures n] [--skew-profile none|hot-shard|rotating-hot-shard|hot-partition|target-starvation|budget-storm] [--skew-factor n] [--skew-period n]");
+    Console.WriteLine("  radarpulse processing benchmark rebalance-synthetic [--workload balanced|hot-shard|intrinsic-hot|oscillating|cooldown-storm|quarantine-ttl-retry|quarantine-cooling-clear|quarantine-pressure-change-retry|quarantine-retry-reentry|quarantine-successful-relief-clear|long-no-hot-shard|long-cooldown-rejection|long-unsafe-target-rejection|long-mixed-skipped-reasons|counters-only-retention|all] [--mode static|sampling|rebalance|all] [--validation-profile off|essential|diagnostic|benchmark] [--iterations n] [--warmup-iterations n]");
+    Console.WriteLine("  radarpulse processing benchmark rebalance-archive (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--mode static|sampling|rebalance|all] [--partitions n] [--shards n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress] [--validation-profile off|essential|diagnostic|benchmark] [--retention-mode counters|recent|diagnostic] [--max-retained-decisions n] [--max-retained-transitions n] [--max-retained-accepted-moves n] [--max-retained-validation-failures n] [--skew-profile none|hot-shard|rotating-hot-shard|hot-partition|target-starvation|budget-storm] [--skew-factor n] [--skew-period n]");
     Console.WriteLine("  radarpulse archive validate decompress (--file path | --cache data/nexrad [--radar KTLX] [--max-files n])");
     Console.WriteLine("  radarpulse archive validate replay-shape (--file path | --cache data/nexrad [--radar KTLX] [--max-files n]) [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     return 2;
@@ -396,8 +396,13 @@ static int BenchmarkProcessingRebalanceSynthetic(string[] args)
     var benchmark = new RadarProcessingSyntheticRebalanceBenchmark();
     var printedResult = false;
 
-    foreach (var workload in options.Workloads)
+    foreach (var workloadKind in options.Workloads)
     {
+        var workload = RadarProcessingSyntheticRebalanceWorkload.Create(workloadKind);
+        var hardeningOptions = CreateProcessingRebalanceSyntheticHardeningOptions(
+            workload,
+            options.ValidationProfile);
+
         foreach (var mode in options.Modes)
         {
             if (printedResult)
@@ -410,7 +415,8 @@ static int BenchmarkProcessingRebalanceSynthetic(string[] args)
                 mode,
                 options.Iterations,
                 options.WarmupIterations,
-                CancellationToken.None);
+                CancellationToken.None,
+                hardeningOptions);
 
             PrintProcessingRebalanceBenchmarkResult(result);
             printedResult = true;
@@ -420,13 +426,22 @@ static int BenchmarkProcessingRebalanceSynthetic(string[] args)
     return 0;
 }
 
+static RadarProcessingRebalanceHardeningOptions CreateProcessingRebalanceSyntheticHardeningOptions(
+    RadarProcessingSyntheticRebalanceWorkload workload,
+    RadarProcessingValidationProfile validationProfile) =>
+    new(
+        telemetryRetention: workload.HardeningOptions.TelemetryRetention,
+        quarantineLifecycle: workload.HardeningOptions.QuarantineLifecycle,
+        validationProfile: validationProfile);
+
 static int BenchmarkProcessingRebalanceArchive(string[] args)
 {
     var options = ProcessingBenchmarkArchiveRebalanceOptions.Parse(args);
     var benchmark = new RadarProcessingArchiveRebalanceBenchmark(
         ArchiveBZip2Decompressors.Create(options.Decompressor));
     var hardeningOptions = new RadarProcessingRebalanceHardeningOptions(
-        telemetryRetention: options.TelemetryRetention);
+        telemetryRetention: options.TelemetryRetention,
+        validationProfile: options.ValidationProfile);
     var printedResult = false;
 
     foreach (var mode in options.Modes)
@@ -2044,6 +2059,7 @@ internal sealed record ProcessingBenchmarkSyntheticOptions(
 public sealed record ProcessingBenchmarkRebalanceSyntheticOptions(
     IReadOnlyList<RadarProcessingSyntheticRebalanceWorkloadKind> Workloads,
     IReadOnlyList<RadarProcessingSyntheticRebalanceBenchmarkMode> Modes,
+    RadarProcessingValidationProfile ValidationProfile,
     int Iterations,
     int WarmupIterations)
 {
@@ -2082,6 +2098,7 @@ public sealed record ProcessingBenchmarkRebalanceSyntheticOptions(
             RadarProcessingSyntheticRebalanceWorkloadKind.Balanced
         ]);
         IReadOnlyList<RadarProcessingSyntheticRebalanceBenchmarkMode> modes = AllModes;
+        var validationProfile = RadarProcessingValidationProfile.Diagnostic;
         var iterations = 3;
         var warmupIterations = 1;
 
@@ -2094,6 +2111,9 @@ public sealed record ProcessingBenchmarkRebalanceSyntheticOptions(
                     break;
                 case "--mode":
                     modes = ParseMode(RequireValue(args, ref i, "--mode"));
+                    break;
+                case "--validation-profile":
+                    validationProfile = ParseValidationProfile(RequireValue(args, ref i, "--validation-profile"));
                     break;
                 case "--iterations":
                     iterations = int.Parse(RequireValue(args, ref i, "--iterations"));
@@ -2119,6 +2139,7 @@ public sealed record ProcessingBenchmarkRebalanceSyntheticOptions(
         return new ProcessingBenchmarkRebalanceSyntheticOptions(
             workloads,
             modes,
+            validationProfile,
             iterations,
             warmupIterations);
     }
@@ -2173,6 +2194,16 @@ public sealed record ProcessingBenchmarkRebalanceSyntheticOptions(
             _ => throw new ArgumentException($"Unknown synthetic rebalance benchmark mode: {value}")
         };
 
+    private static RadarProcessingValidationProfile ParseValidationProfile(string value) =>
+        value.ToLowerInvariant() switch
+        {
+            "off" => RadarProcessingValidationProfile.Off,
+            "essential" => RadarProcessingValidationProfile.Essential,
+            "diagnostic" or "diagnostics" => RadarProcessingValidationProfile.Diagnostic,
+            "benchmark" => RadarProcessingValidationProfile.Benchmark,
+            _ => throw new ArgumentException($"Unknown synthetic rebalance validation profile: {value}")
+        };
+
     private static IReadOnlyList<T> Single<T>(T value) => Array.AsReadOnly([value]);
 
     private static string RequireValue(string[] args, ref int index, string option)
@@ -2200,6 +2231,7 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
     int WarmupIterations,
     int Parallelism,
     string Decompressor,
+    RadarProcessingValidationProfile ValidationProfile,
     RadarProcessingTelemetryRetentionOptions TelemetryRetention,
     RadarProcessingPressureSkewOptions PressureSkew)
 {
@@ -2223,6 +2255,7 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
         var warmupIterations = 0;
         var parallelism = 1;
         var decompressor = ArchiveBZip2Decompressors.DefaultName;
+        var validationProfile = RadarProcessingValidationProfile.Diagnostic;
         var retentionMode = RadarProcessingTelemetryRetentionOptions.Default.RetentionMode;
         var maxRetainedDecisions = RadarProcessingTelemetryRetentionOptions.Default.MaxRetainedDecisions;
         var maxRetainedTransitions = RadarProcessingTelemetryRetentionOptions.Default.MaxRetainedLifecycleTransitions;
@@ -2273,6 +2306,9 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
                     break;
                 case "--decompressor":
                     decompressor = RequireValue(args, ref i, "--decompressor");
+                    break;
+                case "--validation-profile":
+                    validationProfile = ParseValidationProfile(RequireValue(args, ref i, "--validation-profile"));
                     break;
                 case "--retention-mode":
                     retentionMode = ParseRetentionMode(RequireValue(args, ref i, "--retention-mode"));
@@ -2381,6 +2417,7 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
             warmupIterations,
             parallelism,
             decompressor,
+            validationProfile,
             telemetryRetention,
             pressureSkew);
     }
@@ -2413,6 +2450,16 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
             "diagnostic" or "diagnostics" =>
                 RadarProcessingDiagnosticRetentionMode.Diagnostic,
             _ => throw new ArgumentException($"Unknown archive rebalance telemetry retention mode: {value}")
+        };
+
+    private static RadarProcessingValidationProfile ParseValidationProfile(string value) =>
+        value.ToLowerInvariant() switch
+        {
+            "off" => RadarProcessingValidationProfile.Off,
+            "essential" => RadarProcessingValidationProfile.Essential,
+            "diagnostic" or "diagnostics" => RadarProcessingValidationProfile.Diagnostic,
+            "benchmark" => RadarProcessingValidationProfile.Benchmark,
+            _ => throw new ArgumentException($"Unknown archive rebalance validation profile: {value}")
         };
 
     private static RadarProcessingPressureSkewProfile ParsePressureSkewProfile(string value) =>

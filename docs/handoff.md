@@ -1,4 +1,4 @@
-# Handoff: Milestone 007 Slice 14 Archive Pressure Skew Overlay Complete
+# Handoff: Milestone 007 Slice 15 Validation Profile CLI Options Complete
 
 ## Current Goal
 
@@ -745,6 +745,43 @@ Skipped reason counters: no-hot-shard=128, source-shard-move-budget-exhausted=27
 Validation succeeded. Processing callback throughput was 3.26B payload values/s with 0.04 callback allocated bytes/payload.
 ```
 
+Milestone 007 slice 15 is implemented in the current working tree. The
+rebalance benchmark CLI now exposes validation profile selection for both
+synthetic and archive benchmark contours:
+
+```text
+processing benchmark rebalance-synthetic --validation-profile off|essential|diagnostic|benchmark
+processing benchmark rebalance-archive --validation-profile off|essential|diagnostic|benchmark
+```
+
+The default remains `diagnostic`, so existing benchmark commands keep their
+previous behavior. For synthetic workloads, the CLI override only changes the
+validation profile and preserves each workload's own hardening defaults,
+including retention stress and quarantine lifecycle options. This protects the
+slice 11-12 workload guarantees while making validation cost directly
+measurable from the CLI. Archive benchmark hardening now carries the selected
+validation profile alongside existing telemetry retention options.
+
+Latest verification after milestone 007 slice 15:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingSyntheticRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests"
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~Processing|FullyQualifiedName~Presentation"
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+dotnet build RadarPulse.sln --configuration Release --no-restore
+dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-synthetic --workload counters-only-retention --mode rebalance --validation-profile off --iterations 1 --warmup-iterations 0
+```
+
+Result:
+
+```text
+29 passed for focused CLI/synthetic/allocation coverage.
+337 passed for processing/presentation-focused coverage.
+480 passed, 3 skipped for the full test suite.
+Release build succeeded with 0 warnings and 0 errors.
+Release CLI smoke printed Validation profile: off and Telemetry retention mode: counters.
+```
+
 ## Milestone Status
 
 Done:
@@ -869,6 +906,8 @@ Done:
   smoke-checked against the full local cache.
 - `007` slice 14 archive benchmark pressure skew overlay is implemented,
   tested, and smoke-checked against the full local cache.
+- `007` slice 15 validation profile CLI options are implemented and tested for
+  synthetic and archive rebalance benchmark commands.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -885,10 +924,10 @@ Next milestone focus:
 - Implement milestone 007 from the closed architecture and plan:
   `docs/milestones/007-rebalance-production-hardening.md` and
   `docs/milestones/007-rebalance-production-hardening-plan.md`.
-- Continue milestone 007 with the remaining CLI hardening surfaces: validation
-  profile options and quarantine lifecycle option flags for synthetic/archive
-  benchmark commands. Keep these additive so existing benchmark commands retain
-  their defaults and comparable baselines.
+- Continue milestone 007 with the remaining CLI hardening surfaces: quarantine
+  lifecycle option flags for synthetic/archive benchmark commands. Keep these
+  additive so existing benchmark commands retain their defaults and comparable
+  baselines.
 - Use pressure skew only as an explicit benchmark contour. Baseline real-data
   performance and correctness captures must keep `--skew-profile none`; skewed
   runs should be reported as "real archive with synthetic pressure overlay."

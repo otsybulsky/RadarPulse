@@ -15,6 +15,8 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             "hot-shard",
             "--mode",
             "rebalance",
+            "--validation-profile",
+            "benchmark",
             "--iterations",
             "2",
             "--warmup-iterations",
@@ -27,6 +29,7 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
         Assert.Equal(
             [RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession],
             options.Modes);
+        Assert.Equal(RadarProcessingValidationProfile.Benchmark, options.ValidationProfile);
         Assert.Equal(2, options.Iterations);
         Assert.Equal(0, options.WarmupIterations);
     }
@@ -76,6 +79,15 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             () => global::ProcessingBenchmarkRebalanceSyntheticOptions.Parse(["--mode", "sequential"]));
 
         Assert.Contains("Unknown synthetic rebalance benchmark mode", exception.Message);
+
+        var validationException = Assert.Throws<ArgumentException>(
+            () => global::ProcessingBenchmarkRebalanceSyntheticOptions.Parse(
+            [
+                "--validation-profile",
+                "verbose"
+            ]));
+
+        Assert.Contains("Unknown synthetic rebalance validation profile", validationException.Message);
     }
 
     [Fact]
@@ -109,6 +121,31 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
     }
 
     [Fact]
+    public void RebalanceBenchmarkCommandAppliesValidationProfileWithoutReplacingWorkloadRetention()
+    {
+        var result = RunCli(
+            "processing",
+            "benchmark",
+            "rebalance-synthetic",
+            "--workload",
+            "counters-only-retention",
+            "--mode",
+            "rebalance",
+            "--validation-profile",
+            "benchmark",
+            "--iterations",
+            "1",
+            "--warmup-iterations",
+            "0");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Workload: counters-only-retention", result.StandardOutput);
+        Assert.Contains("Validation profile: benchmark", result.StandardOutput);
+        Assert.Contains("Telemetry retention mode: counters", result.StandardOutput);
+        Assert.Equal(string.Empty, result.StandardError);
+    }
+
+    [Fact]
     public void ArchiveRebalanceBenchmarkOptionsParseFileModeAndTopology()
     {
         var options = global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
@@ -123,6 +160,8 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             "4",
             "--iterations",
             "2",
+            "--validation-profile",
+            "essential",
             "--warmup-iterations",
             "1",
             "--parallelism",
@@ -138,6 +177,7 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
         Assert.Equal(2, options.Iterations);
         Assert.Equal(1, options.WarmupIterations);
         Assert.Equal(2, options.Parallelism);
+        Assert.Equal(RadarProcessingValidationProfile.Essential, options.ValidationProfile);
         Assert.Equal(RadarProcessingDiagnosticRetentionMode.Recent, options.TelemetryRetention.RetentionMode);
     }
 
@@ -250,6 +290,14 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
                 "data/nexrad",
                 "--retention-mode",
                 "forever"
+            ]));
+        Assert.Throws<ArgumentException>(
+            () => global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
+            [
+                "--cache",
+                "data/nexrad",
+                "--validation-profile",
+                "verbose"
             ]));
         Assert.Throws<ArgumentOutOfRangeException>(
             () => global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
