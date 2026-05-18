@@ -1,4 +1,4 @@
-# Handoff: Milestone 006 Closeout Complete
+# Handoff: Milestone 007 Planning Complete
 
 ## Current Goal
 
@@ -193,11 +193,18 @@ cache-wide results, the same-run static overhead interpretation, and the caveat
 that the milestone 006 synthetic rebalance catalog is a tiny behavioral contour
 rather than the large milestone 005 throughput shape.
 
-Planning note: quarantine is not intended to be permanent. The current slice 8
-state supports explicit clear/effective-outcome reset, but the controller
-integration should add automatic lifecycle handling on logical evaluations:
-quarantine TTL, sustained cooled-sample reset, or downgrade when pressure has
-changed enough that retrying is safe.
+Milestone 007 architecture and implementation planning are complete. The
+architecture is written in
+`docs/milestones/007-rebalance-production-hardening.md`, and the implementation
+plan is written in
+`docs/milestones/007-rebalance-production-hardening-plan.md`.
+
+Milestone 007 scope is production hardening for the synchronous rebalance
+control plane before retained async worker transport: automatic quarantine
+lifecycle, bounded telemetry retention, validation profiles, allocation
+attribution/reduction, broader real-data contours, and a final comprehensive
+performance comparison gate. The synchronous `PartitionedBarrier` path remains
+the reference correctness boundary.
 
 ## Milestone Status
 
@@ -290,6 +297,8 @@ Done:
   compared with milestone 005 processing-only throughput.
 - `006` partition-level shard rebalance decision trace is written.
 - `006` partition-level shard rebalance closeout is written.
+- `007` rebalance production hardening architecture is complete.
+- `007` rebalance production hardening implementation plan is complete.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -303,10 +312,17 @@ Done:
 
 Next milestone focus:
 
-- Plan milestone 007 from the closed milestone 006 baseline.
-- Decide whether milestone 007 is rebalance production hardening
-  (allocation/telemetry/quarantine lifecycle) or the first real async worker
-  transport over the validated topology boundary.
+- Implement milestone 007 from the closed architecture and plan:
+  `docs/milestones/007-rebalance-production-hardening.md` and
+  `docs/milestones/007-rebalance-production-hardening-plan.md`.
+- Start with hardening options/profiles, bounded telemetry contracts, telemetry
+  retention windows, and automatic quarantine lifecycle state before touching
+  benchmark/CLI output.
+- Preserve the final milestone 007 performance requirement: closeout must
+  include a comprehensive side-by-side comparison against milestone 005
+  processing-only baselines and the accepted milestone 006 synthetic,
+  single-file real-data, comparable parallel real-data, and cache-wide
+  real-data baselines.
 - Carry forward the captured benchmark caveat: the milestone 006 rebalance
   catalog uses tiny deterministic behavioral workloads, so same-run static
   ratios are the meaningful overhead signal and milestone 005 throughput ratios
@@ -322,6 +338,9 @@ Next milestone focus:
   not become an eternal ban.
 - Keep skipped rebalance decisions visible through telemetry so "no move" can
   be explained by policy gates rather than ambiguity.
+- Bound skipped-decision detail with aggregate counters plus capped recent
+  windows; long-running milestone 007 sessions must not become unbounded
+  in-memory decision logs.
 - Preserve synchronous `PartitionedBarrier` processing as the first rebalance
   correctness boundary: process one batch against one topology snapshot, then
   evaluate and apply rebalance before the next batch.
@@ -422,6 +441,23 @@ Completed in milestone 006 documentation and planning:
   closeout/handoff.
 - The first implementation slice added versioned topology contracts while
   preserving the existing contiguous source-range partition mapping.
+
+Completed in milestone 007 documentation and planning:
+
+- `docs/milestones/007-rebalance-production-hardening.md`.
+- `docs/milestones/007-rebalance-production-hardening-plan.md`.
+- Milestone 007 scope is production hardening of the synchronous rebalance
+  control plane before retained async worker transport.
+- The architecture preserves the milestone 006 synchronous correctness
+  boundary while adding automatic quarantine lifecycle, bounded telemetry
+  retention, validation profiles, allocation attribution, real-data contour
+  expansion, and a final performance regression gate.
+- The implementation plan is broken into hardening options, telemetry
+  contracts, telemetry recorder, quarantine lifecycle state, lifecycle
+  evaluator, planner integration, session result surfaces, validation profiles,
+  allocation attribution, allocation reduction, lifecycle workloads, retention
+  stress workloads, benchmark harness extensions, CLI updates, policy-default
+  audit, documentation, and final comprehensive performance comparison.
 
 Completed in milestone 006 implementation:
 
@@ -2657,6 +2693,10 @@ constant and moment data blocks.
 - `docs/milestones/005-processing-core-architecture-closeout.md`
 - `docs/milestones/006-partition-level-shard-rebalance.md`
 - `docs/milestones/006-partition-level-shard-rebalance-plan.md`
+- `docs/milestones/006-partition-level-shard-rebalance-decision-trace.md`
+- `docs/milestones/006-partition-level-shard-rebalance-closeout.md`
+- `docs/milestones/007-rebalance-production-hardening.md`
+- `docs/milestones/007-rebalance-production-hardening-plan.md`
 - `src/Domain/Processing/RadarProcessingTopologyVersion.cs`
 - `src/Domain/Processing/RadarProcessingTopologyManager.cs`
 - `src/Domain/Processing/RadarProcessingTopologyMoveRequest.cs`
