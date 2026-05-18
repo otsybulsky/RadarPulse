@@ -71,9 +71,14 @@ public sealed class RadarProcessingRebalanceSessionResult
     public bool HasQuarantineTransitions => QuarantineTransitions.Count > 0;
 
     private static IReadOnlyList<RadarProcessingQuarantineTransition> CopyRequired(
-        IEnumerable<RadarProcessingQuarantineTransition> transitions)
+        IReadOnlyCollection<RadarProcessingQuarantineTransition> transitions)
     {
-        var result = new List<RadarProcessingQuarantineTransition>();
+        if (transitions.Count == 0)
+        {
+            return Array.Empty<RadarProcessingQuarantineTransition>();
+        }
+
+        var result = new List<RadarProcessingQuarantineTransition>(transitions.Count);
 
         foreach (var transition in transitions)
         {

@@ -182,26 +182,31 @@ public sealed class RadarProcessingRebalanceDecision
     }
 
     private static IReadOnlyList<RadarProcessingRebalanceSkippedReason> CopySkippedReasons(
-        IReadOnlyCollection<RadarProcessingRebalanceSkippedReason> reasons)
-    {
-        var copy = CopyDistinct(reasons, RadarProcessingRebalanceSkippedReason.None, nameof(reasons));
-        return Array.AsReadOnly(copy);
-    }
+        IReadOnlyCollection<RadarProcessingRebalanceSkippedReason> reasons) =>
+        CopyDistinct(
+            reasons,
+            RadarProcessingRebalanceSkippedReason.None,
+            nameof(reasons));
 
     private static IReadOnlyList<RadarProcessingRebalancePolicyRejection> CopyPolicyRejections(
-        IReadOnlyCollection<RadarProcessingRebalancePolicyRejection> rejections)
-    {
-        var copy = CopyDistinct(rejections, RadarProcessingRebalancePolicyRejection.None, nameof(rejections));
-        return Array.AsReadOnly(copy);
-    }
+        IReadOnlyCollection<RadarProcessingRebalancePolicyRejection> rejections) =>
+        CopyDistinct(
+            rejections,
+            RadarProcessingRebalancePolicyRejection.None,
+            nameof(rejections));
 
-    private static T[] CopyDistinct<T>(
-        IEnumerable<T> values,
+    private static IReadOnlyList<T> CopyDistinct<T>(
+        IReadOnlyCollection<T> values,
         T disallowedValue,
         string paramName)
         where T : struct, Enum
     {
-        var result = new List<T>();
+        if (values.Count == 0)
+        {
+            return Array.Empty<T>();
+        }
+
+        var result = new List<T>(values.Count);
         var seen = new HashSet<T>();
 
         foreach (var value in values)
@@ -217,7 +222,7 @@ public sealed class RadarProcessingRebalanceDecision
             }
         }
 
-        return result.ToArray();
+        return Array.AsReadOnly(result.ToArray());
     }
 
     private static RadarProcessingRebalanceSkippedReason[] MapPolicyRejections(

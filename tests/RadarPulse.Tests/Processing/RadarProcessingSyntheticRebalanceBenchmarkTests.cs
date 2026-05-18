@@ -183,7 +183,7 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmarkTests
         Assert.Equal(3_000, result.AcceptedMoveCount);
         Assert.Equal(3_000, result.AcceptedMovePressures.Count);
         Assert.True(
-            result.AllocatedBytes < 400_000_000,
+            result.AllocatedBytes < 150_000_000,
             $"Expected bounded benchmark aggregation allocation, got {result.AllocatedBytes} bytes.");
     }
 

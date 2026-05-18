@@ -55,54 +55,72 @@ public sealed class RadarProcessingRebalancePolicyState
     {
         EnsureInputShape(input);
 
-        var rejections = new List<RadarProcessingRebalancePolicyRejection>();
+        List<RadarProcessingRebalancePolicyRejection>? rejections = null;
 
         if (!GetPartitionResidency(input.PartitionId).IsSatisfied)
         {
-            rejections.Add(RadarProcessingRebalancePolicyRejection.PartitionBelowMinimumResidency);
+            AddRejection(
+                ref rejections,
+                RadarProcessingRebalancePolicyRejection.PartitionBelowMinimumResidency);
         }
 
         if (GetPartitionCooldown(input.PartitionId).IsActive)
         {
-            rejections.Add(RadarProcessingRebalancePolicyRejection.PartitionInCooldown);
+            AddRejection(
+                ref rejections,
+                RadarProcessingRebalancePolicyRejection.PartitionInCooldown);
         }
 
         if (GetSourceShardCooldown(input.SourceShardId).IsActive)
         {
-            rejections.Add(RadarProcessingRebalancePolicyRejection.SourceShardInCooldown);
+            AddRejection(
+                ref rejections,
+                RadarProcessingRebalancePolicyRejection.SourceShardInCooldown);
         }
 
         if (GetTargetShardCooldown(input.TargetShardId).IsActive)
         {
-            rejections.Add(RadarProcessingRebalancePolicyRejection.TargetShardInCooldown);
+            AddRejection(
+                ref rejections,
+                RadarProcessingRebalancePolicyRejection.TargetShardInCooldown);
         }
 
         if (GlobalMoveBudget.IsExhausted)
         {
-            rejections.Add(RadarProcessingRebalancePolicyRejection.GlobalMoveBudgetExhausted);
+            AddRejection(
+                ref rejections,
+                RadarProcessingRebalancePolicyRejection.GlobalMoveBudgetExhausted);
         }
 
         if (GetSourceShardMoveBudget(input.SourceShardId).IsExhausted)
         {
-            rejections.Add(RadarProcessingRebalancePolicyRejection.SourceShardMoveBudgetExhausted);
+            AddRejection(
+                ref rejections,
+                RadarProcessingRebalancePolicyRejection.SourceShardMoveBudgetExhausted);
         }
 
         if (GetTargetShardReceiveBudget(input.TargetShardId).IsExhausted)
         {
-            rejections.Add(RadarProcessingRebalancePolicyRejection.TargetShardReceiveBudgetExhausted);
+            AddRejection(
+                ref rejections,
+                RadarProcessingRebalancePolicyRejection.TargetShardReceiveBudgetExhausted);
         }
 
         if (input.ProjectedBenefit < Options.MinimumProjectedBenefit)
         {
-            rejections.Add(RadarProcessingRebalancePolicyRejection.InsufficientProjectedBenefit);
+            AddRejection(
+                ref rejections,
+                RadarProcessingRebalancePolicyRejection.InsufficientProjectedBenefit);
         }
 
         if (input.TargetProjectedPressure.Value > Options.TargetHeadroomThreshold)
         {
-            rejections.Add(RadarProcessingRebalancePolicyRejection.TargetHeadroomExceeded);
+            AddRejection(
+                ref rejections,
+                RadarProcessingRebalancePolicyRejection.TargetHeadroomExceeded);
         }
 
-        return rejections.Count == 0
+        return rejections is null
             ? RadarProcessingRebalancePolicyResult.Allowed(input)
             : RadarProcessingRebalancePolicyResult.Rejected(input, rejections);
     }
@@ -216,6 +234,14 @@ public sealed class RadarProcessingRebalancePolicyState
         EnsurePartitionId(input.PartitionId);
         EnsureShardId(input.SourceShardId);
         EnsureShardId(input.TargetShardId);
+    }
+
+    private static void AddRejection(
+        ref List<RadarProcessingRebalancePolicyRejection>? rejections,
+        RadarProcessingRebalancePolicyRejection rejection)
+    {
+        rejections ??= new List<RadarProcessingRebalancePolicyRejection>();
+        rejections.Add(rejection);
     }
 
     private void EnsurePartitionId(int partitionId)

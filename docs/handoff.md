@@ -1,4 +1,4 @@
-# Handoff: Milestone 007 Slice 9 Allocation Attribution Complete
+# Handoff: Milestone 007 Slice 10 Allocation Reduction Complete
 
 ## Current Goal
 
@@ -475,6 +475,66 @@ is not part of `SourceId`. The full local cache therefore carries 10.6B payload
 values through 7.1M stream events over 6,480 active logical sources rather than
 materializing every gate value as a separate logical source event.
 
+Milestone 007 slice 10 is implemented in the current working tree. RadarPulse
+now has a first allocation-reduction pass over the rebalance control plane and
+benchmark aggregation paths. Synthetic and archive rebalance benchmark telemetry
+now creates skipped-reason and accepted-move pressure lists only when those
+details exist, so static/sampling and no-move archive callback paths avoid
+empty `List<T>` churn. Rebalance policy evaluation now avoids allocating a
+rejection list for allowed moves. Empty bounded-window, telemetry-summary,
+session-result, decision, and policy-result snapshots return shared empty
+arrays while non-empty public snapshots remain immutable or defensively copied.
+Skipped-reason counter snapshot creation now avoids the previous LINQ ordering
+path. The accepted-move benchmark aggregation regression guardrail is tightened
+from 400 MB to 150 MB for the 3,000-iteration sample path.
+
+Latest verification after milestone 007 slice 10:
+
+```powershell
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~AcceptedMovePressureAggregationDoesNotCopyPreviousIterations|FullyQualifiedName~RadarProcessingRebalancePolicy|FullyQualifiedName~RadarProcessingRebalanceTelemetry|FullyQualifiedName~RadarProcessingRebalanceDecision|FullyQualifiedName~RadarProcessingRebalanceSession"
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~Processing"
+dotnet test RadarPulse.sln --no-restore
+dotnet build RadarPulse.sln -c Release --no-restore
+```
+
+Result:
+
+```text
+65 passed for focused allocation/policy/telemetry/decision/session coverage.
+311 passed for processing-focused coverage.
+460 passed, 3 skipped for the full solution suite.
+Release build succeeded with 0 warnings and 0 errors.
+```
+
+Latest Release cache performance smoke after milestone 007 slice 10:
+
+```powershell
+dotnet run --no-build -c Release --project src/Presentation/RadarPulse.Cli.csproj -- processing benchmark rebalance-archive --cache data/nexrad --radar KTLX --max-files 20 --mode all --partitions 24 --shards 4 --iterations 1 --warmup-iterations 1 --parallelism 24 --decompressor radarpulse
+```
+
+Result on the local KTLX cache slice:
+
+```text
+20 examined files, 18 published base-data files, 2 skipped files.
+Static:    461.83M end-to-end payload values/s, 3.20B processing payload values/s, 0.03 callback allocated bytes/payload.
+Sampling:  471.18M end-to-end payload values/s, 3.34B processing payload values/s, 0.03 callback allocated bytes/payload.
+Rebalance: 464.80M end-to-end payload values/s, 3.33B processing payload values/s, 0.03 callback allocated bytes/payload.
+```
+
+Additional synthetic allocation smoke after milestone 007 slice 10:
+
+```powershell
+dotnet run --no-build -c Release --project src/Presentation/RadarPulse.Cli.csproj -- processing benchmark rebalance-synthetic --workload hot-shard --mode all --iterations 1000 --warmup-iterations 100
+dotnet run --no-build -c Release --project src/Presentation/RadarPulse.Cli.csproj -- processing benchmark rebalance-synthetic --workload hot-shard --mode rebalance --iterations 3000 --warmup-iterations 0
+```
+
+Result:
+
+```text
+1,000-iteration hot-shard rebalance-session allocation moved from 25,324,232 bytes in the pre-domain-pass smoke to 23,700,232 bytes after the allowed-policy/empty-snapshot reductions.
+3,000-iteration hot-shard rebalance-session allocated 71,210,472 bytes, below the new 150 MB regression guardrail.
+```
+
 ## Milestone Status
 
 Done:
@@ -586,6 +646,8 @@ Done:
 - `007` slice 8 validation profiles are implemented and tested.
 - `007` slice 9 allocation attribution baseline is implemented, tested, and
   smoke-checked against the local KTLX cache.
+- `007` slice 10 allocation reduction pass is implemented, tested, and
+  smoke-checked against synthetic hot-shard and local KTLX cache contours.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -602,10 +664,15 @@ Next milestone focus:
 - Implement milestone 007 from the closed architecture and plan:
   `docs/milestones/007-rebalance-production-hardening.md` and
   `docs/milestones/007-rebalance-production-hardening-plan.md`.
-- Continue milestone 007 with the allocation reduction pass, using the new
-  allocation attribution fields to target no-action/skipped-decision churn,
-  telemetry summary snapshots, bounded recent-detail windows, validation failure
-  reporting, accepted move summaries, and any avoidable benchmark output cost.
+- Continue milestone 007 with synthetic quarantine lifecycle workloads. The
+  next slice should extend the synthetic workload catalog with deterministic
+  TTL retry, sustained-cooling clear, pressure-change retry, retry re-entry, and
+  successful-relief clear scenarios before the benchmark harness grows more CLI
+  surface.
+- Preserve the slice 10 allocation guardrails while adding lifecycle workloads:
+  no-move/no-detail paths should keep avoiding empty collection churn, allowed
+  policy evaluation should remain allocation-light, and benchmark allocation
+  fields should stay comparable across static, sampling, and rebalance modes.
 - Preserve the final milestone 007 performance requirement: closeout must
   include a comprehensive side-by-side comparison against milestone 005
   processing-only baselines and the accepted milestone 006 synthetic,

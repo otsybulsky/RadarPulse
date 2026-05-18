@@ -259,13 +259,21 @@ public sealed class RadarProcessingRebalanceTelemetryRecorder
     {
         if (skippedReasonCounts.Count == 0)
         {
-            return Array.AsReadOnly(Array.Empty<RadarProcessingRebalanceSkippedReasonCounter>());
+            return Array.Empty<RadarProcessingRebalanceSkippedReasonCounter>();
         }
 
-        var counters = skippedReasonCounts
-            .OrderBy(static pair => (int)pair.Key)
-            .Select(static pair => new RadarProcessingRebalanceSkippedReasonCounter(pair.Key, pair.Value))
-            .ToArray();
+        var reasons = new RadarProcessingRebalanceSkippedReason[skippedReasonCounts.Count];
+        skippedReasonCounts.Keys.CopyTo(reasons, 0);
+        Array.Sort(reasons);
+
+        var counters = new RadarProcessingRebalanceSkippedReasonCounter[reasons.Length];
+        for (var index = 0; index < reasons.Length; index++)
+        {
+            var reason = reasons[index];
+            counters[index] = new RadarProcessingRebalanceSkippedReasonCounter(
+                reason,
+                skippedReasonCounts[reason]);
+        }
 
         return Array.AsReadOnly(counters);
     }

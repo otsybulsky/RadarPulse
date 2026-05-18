@@ -11,7 +11,9 @@ public sealed class RadarProcessingRebalancePolicyResult
         ArgumentNullException.ThrowIfNull(rejections);
 
         Input = input;
-        this.rejections = Array.AsReadOnly((RadarProcessingRebalancePolicyRejection[])rejections.Clone());
+        this.rejections = rejections.Length == 0
+            ? Array.Empty<RadarProcessingRebalancePolicyRejection>()
+            : Array.AsReadOnly((RadarProcessingRebalancePolicyRejection[])rejections.Clone());
     }
 
     public RadarProcessingRebalanceMovePolicyInput Input { get; }

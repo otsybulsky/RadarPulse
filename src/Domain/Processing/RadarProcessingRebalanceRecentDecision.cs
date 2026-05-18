@@ -117,12 +117,17 @@ public sealed class RadarProcessingRebalanceRecentDecision
     }
 
     private static IReadOnlyList<T> CopyExplicitValues<T>(
-        IEnumerable<T> values,
+        IReadOnlyCollection<T> values,
         T disallowedValue,
         string paramName)
         where T : struct, Enum
     {
-        var result = new List<T>();
+        if (values.Count == 0)
+        {
+            return Array.Empty<T>();
+        }
+
+        var result = new List<T>(values.Count);
         var seen = new HashSet<T>();
 
         foreach (var value in values)

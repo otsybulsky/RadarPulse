@@ -64,9 +64,14 @@ public sealed class RadarProcessingRebalanceTelemetrySummary
             new RadarProcessingRebalanceRetentionStats());
 
     private static IReadOnlyList<RadarProcessingRebalanceSkippedReasonCounter> CopySkippedReasonCounters(
-        IEnumerable<RadarProcessingRebalanceSkippedReasonCounter> counters)
+        IReadOnlyCollection<RadarProcessingRebalanceSkippedReasonCounter> counters)
     {
-        var result = new List<RadarProcessingRebalanceSkippedReasonCounter>();
+        if (counters.Count == 0)
+        {
+            return Array.Empty<RadarProcessingRebalanceSkippedReasonCounter>();
+        }
+
+        var result = new List<RadarProcessingRebalanceSkippedReasonCounter>(counters.Count);
         var seen = new HashSet<RadarProcessingRebalanceSkippedReason>();
 
         foreach (var counter in counters)
@@ -85,11 +90,16 @@ public sealed class RadarProcessingRebalanceTelemetrySummary
     }
 
     private static IReadOnlyList<T> CopyRequired<T>(
-        IEnumerable<T> values,
+        IReadOnlyCollection<T> values,
         string paramName)
         where T : class
     {
-        var result = new List<T>();
+        if (values.Count == 0)
+        {
+            return Array.Empty<T>();
+        }
+
+        var result = new List<T>(values.Count);
 
         foreach (var value in values)
         {

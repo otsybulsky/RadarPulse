@@ -59,7 +59,7 @@ public sealed class RadarProcessingBoundedTelemetryWindow<T>
     {
         if (count == 0)
         {
-            return Array.AsReadOnly(Array.Empty<T>());
+            return Array.Empty<T>();
         }
 
         var snapshot = new T[count];
