@@ -12,10 +12,11 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmark
         RadarProcessingSyntheticRebalanceBenchmarkMode mode,
         int iterations,
         int warmupIterations,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        RadarProcessingRebalanceHardeningOptions? hardeningOptions = null)
     {
         var workload = RadarProcessingSyntheticRebalanceWorkload.Create(workloadKind);
-        return Measure(workload, mode, iterations, warmupIterations, cancellationToken);
+        return Measure(workload, mode, iterations, warmupIterations, cancellationToken, hardeningOptions);
     }
 
     public RadarProcessingSyntheticRebalanceBenchmarkResult Measure(
@@ -23,20 +24,22 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmark
         RadarProcessingSyntheticRebalanceBenchmarkMode mode,
         int iterations,
         int warmupIterations,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        RadarProcessingRebalanceHardeningOptions? hardeningOptions = null)
     {
         ArgumentNullException.ThrowIfNull(workload);
         EnsureKnownMode(mode);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(iterations);
         ArgumentOutOfRangeException.ThrowIfNegative(warmupIterations);
+        var effectiveHardeningOptions = hardeningOptions ?? RadarProcessingRebalanceHardeningOptions.Default;
 
         for (var warmupIteration = 0; warmupIteration < warmupIterations; warmupIteration++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            RunIteration(workload, mode, cancellationToken);
+            RunIteration(workload, mode, effectiveHardeningOptions, cancellationToken);
         }
 
-        var allocatedBytesBefore = GC.GetTotalAllocatedBytes(precise: true);
+        var allocationBefore = RadarProcessingBenchmarkAllocationSnapshot.Capture();
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
         IterationTelemetry? expectedIteration = null;
@@ -44,7 +47,7 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmark
         for (var iteration = 0; iteration < iterations; iteration++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var iterationTelemetry = RunIteration(workload, mode, cancellationToken);
+            var iterationTelemetry = RunIteration(workload, mode, effectiveHardeningOptions, cancellationToken);
             if (expectedIteration.HasValue && !expectedIteration.Value.HasSameStableTotals(iterationTelemetry))
             {
                 throw new InvalidDataException("Synthetic rebalance benchmark produced inconsistent iteration totals.");
@@ -55,7 +58,8 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmark
         }
 
         stopwatch.Stop();
-        var allocatedBytes = GC.GetTotalAllocatedBytes(precise: true) - allocatedBytesBefore;
+        var allocatedBytes = RadarProcessingBenchmarkAllocationSnapshot.Capture().DeltaSince(allocationBefore);
+        var allocationSummary = RadarProcessingRebalanceAllocationSummary.ForProcessingOnly(allocatedBytes);
         var measuredIteration = expectedIteration ??
                                 throw new InvalidOperationException("Synthetic rebalance benchmark did not run.");
 
@@ -83,12 +87,16 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmark
             Array.AsReadOnly(aggregate.SkippedReasons.ToArray()),
             Array.AsReadOnly(aggregate.AcceptedMovePressures.ToArray()),
             stopwatch.Elapsed,
-            allocatedBytes);
+            allocatedBytes,
+            effectiveHardeningOptions.ValidationProfile,
+            effectiveHardeningOptions.TelemetryRetention.RetentionMode,
+            allocationSummary);
     }
 
     private static IterationTelemetry RunIteration(
         RadarProcessingSyntheticRebalanceWorkload workload,
         RadarProcessingSyntheticRebalanceBenchmarkMode mode,
+        RadarProcessingRebalanceHardeningOptions hardeningOptions,
         CancellationToken cancellationToken) =>
         mode switch
         {
@@ -97,7 +105,7 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmark
             RadarProcessingSyntheticRebalanceBenchmarkMode.PressureSamplingOnly =>
                 RunPressureSamplingIteration(workload, cancellationToken),
             RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession =>
-                RunRebalanceSessionIteration(workload, cancellationToken),
+                RunRebalanceSessionIteration(workload, hardeningOptions, cancellationToken),
             _ => throw new ArgumentOutOfRangeException(nameof(mode))
         };
 
@@ -145,9 +153,10 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmark
 
     private static IterationTelemetry RunRebalanceSessionIteration(
         RadarProcessingSyntheticRebalanceWorkload workload,
+        RadarProcessingRebalanceHardeningOptions hardeningOptions,
         CancellationToken cancellationToken)
     {
-        var session = workload.CreateSession();
+        var session = workload.CreateSession(hardeningOptions);
         var initialTopologyVersion = session.CurrentTopology.Version;
         var telemetry = IterationTelemetry.Empty;
 

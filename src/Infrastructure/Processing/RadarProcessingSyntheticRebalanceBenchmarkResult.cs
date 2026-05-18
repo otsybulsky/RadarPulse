@@ -26,7 +26,10 @@ public sealed record RadarProcessingSyntheticRebalanceBenchmarkResult(
     IReadOnlyList<RadarProcessingRebalanceSkippedReason> SkippedReasons,
     IReadOnlyList<RadarProcessingSyntheticRebalanceMovePressure> AcceptedMovePressures,
     TimeSpan Elapsed,
-    long AllocatedBytes)
+    long AllocatedBytes,
+    RadarProcessingValidationProfile ValidationProfile = RadarProcessingValidationProfile.Diagnostic,
+    RadarProcessingDiagnosticRetentionMode RetentionMode = RadarProcessingDiagnosticRetentionMode.Recent,
+    RadarProcessingRebalanceAllocationSummary AllocationSummary = default)
 {
     public long TotalBatches => BatchesPerIteration * Iterations;
 
@@ -44,7 +47,17 @@ public sealed record RadarProcessingSyntheticRebalanceBenchmarkResult(
 
     public double AllocatedBytesPerStreamEvent => Ratio(AllocatedBytes, TotalEvents);
 
+    public double AllocatedBytesPerPayloadValue => Ratio(AllocatedBytes, TotalPayloadValues);
+
     public double AllocatedBytesPerRebalanceEvaluation => Ratio(AllocatedBytes, RebalanceEvaluationCount);
+
+    public long ProcessingCallbackAllocatedBytes => AllocationSummary.ProcessingCallbackAllocatedBytes;
+
+    public double ProcessingCallbackAllocatedBytesPerPayloadValue =>
+        AllocationSummary.ProcessingCallbackAllocatedBytesPerPayloadValue(TotalPayloadValues);
+
+    public double ProcessingCallbackAllocatedBytesPerRebalanceEvaluation =>
+        AllocationSummary.ProcessingCallbackAllocatedBytesPerRebalanceEvaluation(RebalanceEvaluationCount);
 
     private static double PerSecond(
         long value,

@@ -59,6 +59,9 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
         Assert.Contains("Processing benchmark: rebalance-synthetic", result.StandardOutput);
         Assert.Contains("Workload: hot-shard", result.StandardOutput);
         Assert.Contains("Benchmark mode: rebalance-session", result.StandardOutput);
+        Assert.Contains("Validation profile: diagnostic", result.StandardOutput);
+        Assert.Contains("Telemetry retention mode: recent", result.StandardOutput);
+        Assert.Contains("Allocation includes CLI formatting: no", result.StandardOutput);
         Assert.Contains("Topology versions per iteration:", result.StandardOutput);
         Assert.Contains("Accepted moves:", result.StandardOutput);
         Assert.Contains("Skipped reasons:", result.StandardOutput);

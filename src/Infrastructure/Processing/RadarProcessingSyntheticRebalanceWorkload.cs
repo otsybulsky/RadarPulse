@@ -75,7 +75,8 @@ public sealed class RadarProcessingSyntheticRebalanceWorkload
             _ => throw new ArgumentOutOfRangeException(nameof(kind))
         };
 
-    public RadarProcessingRebalanceSession CreateSession()
+    public RadarProcessingRebalanceSession CreateSession(
+        RadarProcessingRebalanceHardeningOptions? hardeningOptions = null)
     {
         var classifier = new RadarProcessingHotPartitionClassifier(PartitionCount);
         foreach (var classification in initialClassifications)
@@ -88,7 +89,8 @@ public sealed class RadarProcessingSyntheticRebalanceWorkload
             PressureOptions,
             new RadarProcessingPressureWindow(PressureWindowOptions),
             new RadarProcessingRebalancePolicyState(PartitionCount, ShardCount, RebalanceOptions),
-            classifier);
+            classifier,
+            hardeningOptions: hardeningOptions);
     }
 
     private static RadarProcessingSyntheticRebalanceWorkload CreateBalanced() =>

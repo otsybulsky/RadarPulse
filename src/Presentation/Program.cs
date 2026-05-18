@@ -512,6 +512,8 @@ static void PrintProcessingRebalanceBenchmarkResult(RadarProcessingSyntheticReba
     Console.WriteLine("Execution mode: partitioned");
     Console.WriteLine($"Workload: {FormatProcessingRebalanceWorkload(result.WorkloadKind)}");
     Console.WriteLine($"Benchmark mode: {FormatProcessingRebalanceMode(result.Mode)}");
+    Console.WriteLine($"Validation profile: {FormatProcessingValidationProfile(result.ValidationProfile)}");
+    Console.WriteLine($"Telemetry retention mode: {FormatProcessingRetentionMode(result.RetentionMode)}");
     Console.WriteLine($"Partitions: {FormatNumber(result.PartitionCount)}");
     Console.WriteLine($"Shards: {FormatNumber(result.ShardCount)}");
     Console.WriteLine($"Iterations: {FormatNumber(result.Iterations)}");
@@ -537,7 +539,9 @@ static void PrintProcessingRebalanceBenchmarkResult(RadarProcessingSyntheticReba
     Console.WriteLine($"Payload values/s: {FormatDecimal(result.PayloadValuesPerSecond)}");
     Console.WriteLine($"Rebalance evaluations/s: {FormatDecimal(result.RebalanceEvaluationsPerSecond)}");
     Console.WriteLine($"Allocated bytes: {FormatNumber(result.AllocatedBytes)}");
+    Console.WriteLine($"Allocation includes CLI formatting: {FormatBoolean(result.AllocationSummary.IncludesCliFormatting)}");
     Console.WriteLine($"Allocated bytes / stream event: {FormatDecimal(result.AllocatedBytesPerStreamEvent)}");
+    Console.WriteLine($"Allocated bytes / payload value: {FormatDecimal(result.AllocatedBytesPerPayloadValue)}");
     Console.WriteLine($"Allocated bytes / rebalance evaluation: {FormatDecimal(result.AllocatedBytesPerRebalanceEvaluation)}");
     PrintProcessingRebalanceMovePressures(result.AcceptedMovePressures);
 }
@@ -553,6 +557,8 @@ static void PrintProcessingArchiveRebalanceBenchmarkResult(RadarProcessingArchiv
     Console.WriteLine($"Archive parallelism: {FormatNumber(result.DegreeOfParallelism)}");
     Console.WriteLine("Execution mode: partitioned");
     Console.WriteLine($"Benchmark mode: {FormatProcessingRebalanceMode(result.Mode)}");
+    Console.WriteLine($"Validation profile: {FormatProcessingValidationProfile(result.ValidationProfile)}");
+    Console.WriteLine($"Telemetry retention mode: {FormatProcessingRetentionMode(result.RetentionMode)}");
     Console.WriteLine($"Source count: {FormatNumber(result.SourceCount)}");
     Console.WriteLine($"Partitions: {FormatNumber(result.PartitionCount)}");
     Console.WriteLine($"Shards: {FormatNumber(result.ShardCount)}");
@@ -587,10 +593,15 @@ static void PrintProcessingArchiveRebalanceBenchmarkResult(RadarProcessingArchiv
     Console.WriteLine($"Processing stream events/s: {FormatDecimal(result.ProcessingEventsPerSecond)}");
     Console.WriteLine($"Processing payload values/s: {FormatDecimal(result.ProcessingPayloadValuesPerSecond)}");
     Console.WriteLine($"Rebalance evaluations/s: {FormatDecimal(result.RebalanceEvaluationsPerSecond)}");
-    Console.WriteLine($"Allocated bytes: {FormatNumber(result.AllocatedBytes)}");
-    Console.WriteLine($"Allocated bytes / stream event: {FormatDecimal(result.AllocatedBytesPerStreamEvent)}");
-    Console.WriteLine($"Allocated bytes / payload value: {FormatDecimal(result.AllocatedBytesPerPayloadValue)}");
-    Console.WriteLine($"Allocated bytes / rebalance evaluation: {FormatDecimal(result.AllocatedBytesPerRebalanceEvaluation)}");
+    Console.WriteLine($"End-to-end allocated bytes: {FormatNumber(result.AllocatedBytes)}");
+    Console.WriteLine($"Processing callback allocated bytes: {FormatNumber(result.ProcessingCallbackAllocatedBytes)}");
+    Console.WriteLine($"Replay and batch construction allocated bytes: {FormatNumber(result.ReplayAndBatchConstructionAllocatedBytes)}");
+    Console.WriteLine($"Allocation includes CLI formatting: {FormatBoolean(result.AllocationSummary.IncludesCliFormatting)}");
+    Console.WriteLine($"End-to-end allocated bytes / stream event: {FormatDecimal(result.AllocatedBytesPerStreamEvent)}");
+    Console.WriteLine($"End-to-end allocated bytes / payload value: {FormatDecimal(result.AllocatedBytesPerPayloadValue)}");
+    Console.WriteLine($"Processing callback allocated bytes / payload value: {FormatDecimal(result.ProcessingCallbackAllocatedBytesPerPayloadValue)}");
+    Console.WriteLine($"Processing callback allocated bytes / rebalance evaluation: {FormatDecimal(result.ProcessingCallbackAllocatedBytesPerRebalanceEvaluation)}");
+    Console.WriteLine($"Replay and batch construction allocated bytes / payload value: {FormatDecimal(result.ReplayAndBatchConstructionAllocatedBytesPerPayloadValue)}");
     PrintProcessingRebalanceMovePressures(result.AcceptedMovePressures);
 }
 
@@ -615,6 +626,8 @@ static void PrintProcessingArchiveRebalanceCacheBenchmarkResult(RadarProcessingA
     Console.WriteLine($"Archive parallelism: {FormatNumber(result.DegreeOfParallelism)}");
     Console.WriteLine("Execution mode: partitioned");
     Console.WriteLine($"Benchmark mode: {FormatProcessingRebalanceMode(result.Mode)}");
+    Console.WriteLine($"Validation profile: {FormatProcessingValidationProfile(result.ValidationProfile)}");
+    Console.WriteLine($"Telemetry retention mode: {FormatProcessingRetentionMode(result.RetentionMode)}");
     Console.WriteLine($"Source count: {FormatNumber(result.SourceCount)}");
     Console.WriteLine($"Partitions: {FormatNumber(result.PartitionCount)}");
     Console.WriteLine($"Shards: {FormatNumber(result.ShardCount)}");
@@ -653,10 +666,15 @@ static void PrintProcessingArchiveRebalanceCacheBenchmarkResult(RadarProcessingA
     Console.WriteLine($"Processing stream events/s: {FormatDecimal(result.ProcessingEventsPerSecond)}");
     Console.WriteLine($"Processing payload values/s: {FormatDecimal(result.ProcessingPayloadValuesPerSecond)}");
     Console.WriteLine($"Rebalance evaluations/s: {FormatDecimal(result.RebalanceEvaluationsPerSecond)}");
-    Console.WriteLine($"Allocated bytes: {FormatNumber(result.AllocatedBytes)}");
-    Console.WriteLine($"Allocated bytes / stream event: {FormatDecimal(result.AllocatedBytesPerStreamEvent)}");
-    Console.WriteLine($"Allocated bytes / payload value: {FormatDecimal(result.AllocatedBytesPerPayloadValue)}");
-    Console.WriteLine($"Allocated bytes / rebalance evaluation: {FormatDecimal(result.AllocatedBytesPerRebalanceEvaluation)}");
+    Console.WriteLine($"End-to-end allocated bytes: {FormatNumber(result.AllocatedBytes)}");
+    Console.WriteLine($"Processing callback allocated bytes: {FormatNumber(result.ProcessingCallbackAllocatedBytes)}");
+    Console.WriteLine($"Replay and batch construction allocated bytes: {FormatNumber(result.ReplayAndBatchConstructionAllocatedBytes)}");
+    Console.WriteLine($"Allocation includes CLI formatting: {FormatBoolean(result.AllocationSummary.IncludesCliFormatting)}");
+    Console.WriteLine($"End-to-end allocated bytes / stream event: {FormatDecimal(result.AllocatedBytesPerStreamEvent)}");
+    Console.WriteLine($"End-to-end allocated bytes / payload value: {FormatDecimal(result.AllocatedBytesPerPayloadValue)}");
+    Console.WriteLine($"Processing callback allocated bytes / payload value: {FormatDecimal(result.ProcessingCallbackAllocatedBytesPerPayloadValue)}");
+    Console.WriteLine($"Processing callback allocated bytes / rebalance evaluation: {FormatDecimal(result.ProcessingCallbackAllocatedBytesPerRebalanceEvaluation)}");
+    Console.WriteLine($"Replay and batch construction allocated bytes / payload value: {FormatDecimal(result.ReplayAndBatchConstructionAllocatedBytesPerPayloadValue)}");
     PrintProcessingRebalanceMovePressures(result.AcceptedMovePressures);
 }
 
@@ -725,6 +743,28 @@ static string FormatProcessingRebalanceMode(RadarProcessingSyntheticRebalanceBen
         RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession => "rebalance-session",
         _ => mode.ToString()
     };
+
+static string FormatProcessingValidationProfile(RadarProcessingValidationProfile profile) =>
+    profile switch
+    {
+        RadarProcessingValidationProfile.Off => "off",
+        RadarProcessingValidationProfile.Essential => "essential",
+        RadarProcessingValidationProfile.Diagnostic => "diagnostic",
+        RadarProcessingValidationProfile.Benchmark => "benchmark",
+        _ => profile.ToString()
+    };
+
+static string FormatProcessingRetentionMode(RadarProcessingDiagnosticRetentionMode retentionMode) =>
+    retentionMode switch
+    {
+        RadarProcessingDiagnosticRetentionMode.Counters => "counters",
+        RadarProcessingDiagnosticRetentionMode.Recent => "recent",
+        RadarProcessingDiagnosticRetentionMode.Diagnostic => "diagnostic",
+        _ => retentionMode.ToString()
+    };
+
+static string FormatBoolean(bool value) =>
+    value ? "yes" : "no";
 
 static string FormatProcessingRebalanceMoveKind(RadarProcessingRebalanceMoveKind moveKind) =>
     moveKind switch

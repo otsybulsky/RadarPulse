@@ -1,4 +1,4 @@
-# Handoff: Milestone 007 Slice 8 Validation Profiles Complete
+# Handoff: Milestone 007 Slice 9 Allocation Attribution Complete
 
 ## Current Goal
 
@@ -410,6 +410,71 @@ Result:
 450 passed, 3 skipped for the full solution suite.
 ```
 
+Milestone 007 slice 9 is implemented in the current working tree. RadarPulse now
+has allocation attribution contracts and benchmark result surfaces:
+`RadarProcessingBenchmarkAllocationSnapshot` and
+`RadarProcessingRebalanceAllocationSummary`. Synthetic rebalance benchmark
+results report validation profile, telemetry retention mode, and processing-only
+allocation summary. Archive rebalance benchmark results keep the existing
+end-to-end `AllocatedBytes` field for compatibility while also exposing
+processing callback allocation and replay/batch-construction allocation
+separately. CLI output prints validation profile, retention mode, allocation
+scope, and callback/replay allocation fields so static, sampling, and rebalance
+contours can be compared without confusing archive replay cost with processing
+callback cost.
+
+Latest verification after milestone 007 slice 9:
+
+```powershell
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingRebalanceAllocationSummary|FullyQualifiedName~RadarProcessingSyntheticRebalanceBenchmark|FullyQualifiedName~RadarPulseCliRebalanceBenchmark"
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~Processing"
+dotnet test RadarPulse.sln --no-restore
+dotnet build RadarPulse.sln -c Release --no-restore
+```
+
+Result:
+
+```text
+24 passed for focused allocation/benchmark/CLI coverage.
+311 passed for processing-focused coverage.
+460 passed, 3 skipped for the full solution suite.
+Release build succeeded with 0 warnings and 0 errors.
+```
+
+Latest Release cache performance smoke after milestone 007 slice 9:
+
+```powershell
+dotnet run --no-build -c Release --project src/Presentation/RadarPulse.Cli.csproj -- processing benchmark rebalance-archive --cache data/nexrad --radar KTLX --max-files 20 --mode all --partitions 24 --shards 4 --iterations 1 --warmup-iterations 1 --parallelism 24 --decompressor radarpulse
+```
+
+Result on the local KTLX cache slice:
+
+```text
+20 examined files, 18 published base-data files, 2 skipped files.
+Static:    451.46M end-to-end payload values/s, 3.13B processing payload values/s, 0.03 callback allocated bytes/payload.
+Sampling:  454.95M end-to-end payload values/s, 3.34B processing payload values/s, 0.03 callback allocated bytes/payload.
+Rebalance: 462.49M end-to-end payload values/s, 3.43B processing payload values/s, 0.03 callback allocated bytes/payload.
+```
+
+Exploratory full-cache logical-source histogram after milestone 007 slice 9:
+
+```text
+244 examined files, 220 published base-data files, 24 skipped files.
+23_040 possible logical sources.
+6_480 active logical sources.
+16_560 inactive logical sources.
+7_114_560 stream events.
+10_599_423_360 payload values.
+Average stream events per active logical source: 1_097.926.
+Min/median/max stream events per active logical source: 660 / 1_100 / 1_540.
+```
+
+Interpretation: the current pipeline keeps logical-source processing compact.
+`SourceId` is `radarOrdinal/elevationSlot/azimuthBucket/rangeBand`; `momentId`
+is not part of `SourceId`. The full local cache therefore carries 10.6B payload
+values through 7.1M stream events over 6,480 active logical sources rather than
+materializing every gate value as a separate logical source event.
+
 ## Milestone Status
 
 Done:
@@ -519,6 +584,8 @@ Done:
 - `007` slice 7 session-level hardening telemetry summary wiring is implemented
   and tested.
 - `007` slice 8 validation profiles are implemented and tested.
+- `007` slice 9 allocation attribution baseline is implemented, tested, and
+  smoke-checked against the local KTLX cache.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -535,9 +602,10 @@ Next milestone focus:
 - Implement milestone 007 from the closed architecture and plan:
   `docs/milestones/007-rebalance-production-hardening.md` and
   `docs/milestones/007-rebalance-production-hardening-plan.md`.
-- Continue milestone 007 with allocation attribution baseline so benchmark
-  output can report validation profile, retention mode, callback allocation,
-  and comparable static/sampling/rebalance allocation contours explicitly.
+- Continue milestone 007 with the allocation reduction pass, using the new
+  allocation attribution fields to target no-action/skipped-decision churn,
+  telemetry summary snapshots, bounded recent-detail windows, validation failure
+  reporting, accepted move summaries, and any avoidable benchmark output cost.
 - Preserve the final milestone 007 performance requirement: closeout must
   include a comprehensive side-by-side comparison against milestone 005
   processing-only baselines and the accepted milestone 006 synthetic,
@@ -2922,6 +2990,8 @@ constant and moment data blocks.
 - `src/Domain/Processing/RadarProcessingQuarantineLifecycleOptions.cs`
 - `src/Domain/Processing/RadarProcessingValidationProfile.cs`
 - `src/Domain/Processing/RadarProcessingDiagnosticRetentionMode.cs`
+- `src/Domain/Processing/RadarProcessingBenchmarkAllocationSnapshot.cs`
+- `src/Domain/Processing/RadarProcessingRebalanceAllocationSummary.cs`
 - `src/Domain/Processing/RadarProcessingRebalanceTelemetrySummary.cs`
 - `src/Domain/Processing/RadarProcessingRebalanceTelemetryCounters.cs`
 - `src/Domain/Processing/RadarProcessingRebalanceSkippedReasonCounter.cs`
@@ -3003,6 +3073,9 @@ constant and moment data blocks.
 - `src/Infrastructure/Processing/RadarProcessingSyntheticRebalanceMovePressure.cs`
 - `src/Infrastructure/Processing/RadarProcessingSyntheticRebalanceBenchmarkResult.cs`
 - `src/Infrastructure/Processing/RadarProcessingSyntheticRebalanceBenchmark.cs`
+- `src/Infrastructure/Processing/RadarProcessingArchiveRebalanceBenchmarkResult.cs`
+- `src/Infrastructure/Processing/RadarProcessingArchiveRebalanceCacheBenchmarkResult.cs`
+- `src/Infrastructure/Processing/RadarProcessingArchiveRebalanceBenchmark.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingTopologyVersioningTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingBatchRouterTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingTelemetryTests.cs`
@@ -3024,8 +3097,10 @@ constant and moment data blocks.
 - `tests/RadarPulse.Tests/Processing/RadarProcessingStateHandoffValidatorTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingRebalanceSessionTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingRebalanceValidatorTests.cs`
+- `tests/RadarPulse.Tests/Processing/RadarProcessingRebalanceAllocationSummaryTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingSyntheticRebalanceWorkloadTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingSyntheticRebalanceBenchmarkTests.cs`
+- `tests/RadarPulse.Tests/Presentation/RadarPulseCliRebalanceBenchmarkTests.cs`
 - `src/Domain/Processing/*`
 - `tests/RadarPulse.Tests/Processing/*`
 - `src/Domain/Streaming/DenseIdentityAllowedCharacters.cs`

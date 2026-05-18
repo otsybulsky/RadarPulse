@@ -39,7 +39,10 @@ public sealed record RadarProcessingArchiveRebalanceCacheBenchmarkResult(
     IReadOnlyList<RadarProcessingSyntheticRebalanceMovePressure> AcceptedMovePressures,
     TimeSpan Elapsed,
     TimeSpan ProcessingElapsed,
-    long AllocatedBytes)
+    long AllocatedBytes,
+    RadarProcessingValidationProfile ValidationProfile = RadarProcessingValidationProfile.Diagnostic,
+    RadarProcessingDiagnosticRetentionMode RetentionMode = RadarProcessingDiagnosticRetentionMode.Recent,
+    RadarProcessingRebalanceAllocationSummary AllocationSummary = default)
 {
     public long TotalExaminedFiles => ExaminedFilesPerIteration * Iterations;
 
@@ -89,6 +92,20 @@ public sealed record RadarProcessingArchiveRebalanceCacheBenchmarkResult(
     public double AllocatedBytesPerPayloadValue => Ratio(AllocatedBytes, TotalPayloadValues);
 
     public double AllocatedBytesPerRebalanceEvaluation => Ratio(AllocatedBytes, RebalanceEvaluationCount);
+
+    public long ProcessingCallbackAllocatedBytes => AllocationSummary.ProcessingCallbackAllocatedBytes;
+
+    public long ReplayAndBatchConstructionAllocatedBytes =>
+        AllocationSummary.ReplayAndBatchConstructionAllocatedBytes;
+
+    public double ProcessingCallbackAllocatedBytesPerPayloadValue =>
+        AllocationSummary.ProcessingCallbackAllocatedBytesPerPayloadValue(TotalPayloadValues);
+
+    public double ProcessingCallbackAllocatedBytesPerRebalanceEvaluation =>
+        AllocationSummary.ProcessingCallbackAllocatedBytesPerRebalanceEvaluation(RebalanceEvaluationCount);
+
+    public double ReplayAndBatchConstructionAllocatedBytesPerPayloadValue =>
+        AllocationSummary.ReplayAndBatchConstructionAllocatedBytesPerPayloadValue(TotalPayloadValues);
 
     private static double MegabytesPerSecond(
         long bytes,
