@@ -874,6 +874,14 @@ docs/milestones/007-rebalance-production-hardening-closeout.md
 docs/handoff.md update
 ```
 
+Decision trace status after slice 18:
+
+```text
+docs/milestones/007-rebalance-production-hardening-decision-trace.md is written
+closeout remains pending until final comprehensive performance comparison is
+captured and interpreted
+```
+
 Decision trace should record:
 
 ```text

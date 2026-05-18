@@ -1,4 +1,4 @@
-# Handoff: Milestone 007 Slice 17 Policy Default Audit Complete
+# Handoff: Milestone 007 Slice 18 Decision Trace Complete
 
 ## Current Goal
 
@@ -855,6 +855,40 @@ Result:
 No whitespace errors. Tests were not rerun because this slice is documentation-only.
 ```
 
+Milestone 007 slice 18 is implemented in the current working tree. The decision
+trace is written in
+`docs/milestones/007-rebalance-production-hardening-decision-trace.md`, and the
+implementation plan now records that decision trace is complete while closeout
+remains pending.
+
+Decision trace coverage:
+
+```text
+why hardening preceded async worker transport
+temporary evidence-based quarantine lifecycle
+bounded telemetry retention
+validation profile split
+allocation attribution and allocation reduction decisions
+synthetic workload interpretation
+archive pressure skew as benchmark-only overlay
+policy defaults remaining conservative after audit
+additive CLI hardening surface
+final performance gate contour separation
+remaining risks and deferred async worker transport
+```
+
+Latest verification after milestone 007 slice 18:
+
+```powershell
+git diff --check
+```
+
+Result:
+
+```text
+No whitespace errors. Tests were not rerun because this slice is documentation-only.
+```
+
 ## Milestone Status
 
 Done:
@@ -985,6 +1019,8 @@ Done:
   for synthetic and archive rebalance benchmark commands.
 - `007` slice 17 policy-default audit is written and linked from the milestone
   007 implementation plan.
+- `007` slice 18 decision trace is written and linked from the milestone 007
+  implementation plan.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -1001,10 +1037,9 @@ Next milestone focus:
 - Implement milestone 007 from the closed architecture and plan:
   `docs/milestones/007-rebalance-production-hardening.md` and
   `docs/milestones/007-rebalance-production-hardening-plan.md`.
-- Continue milestone 007 with decision trace, closeout preparation, and the
-  final comprehensive performance comparison gate now that the benchmark CLI
-  exposes validation profile, telemetry retention, pressure skew, and
-  quarantine lifecycle hardening surfaces and default policy has been audited.
+- Continue milestone 007 with closeout preparation and the final comprehensive
+  performance comparison gate now that decision trace is written, benchmark CLI
+  hardening surfaces are exposed, and default policy has been audited.
 - Use pressure skew only as an explicit benchmark contour. Baseline real-data
   performance and correctness captures must keep `--skew-profile none`; skewed
   runs should be reported as "real archive with synthetic pressure overlay."
