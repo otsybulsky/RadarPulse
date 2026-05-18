@@ -78,8 +78,24 @@ public sealed class RadarProcessingSyntheticRebalanceWorkloadResult
 
     public long QuarantineReentryCount => FinalTelemetrySummary.Counters.QuarantineReentryCount;
 
+    public RadarProcessingRebalanceRetentionStats RetentionStats =>
+        FinalTelemetrySummary.RetentionStats;
+
     public bool HasSkippedReason(RadarProcessingRebalanceSkippedReason reason) =>
         skippedReasons.Contains(reason);
+
+    public long CountSkippedReason(RadarProcessingRebalanceSkippedReason reason)
+    {
+        foreach (var counter in FinalTelemetrySummary.SkippedReasonCounters)
+        {
+            if (counter.Reason == reason)
+            {
+                return counter.Count;
+            }
+        }
+
+        return 0;
+    }
 
     public bool HasQuarantineTransition(RadarProcessingQuarantineTransitionReason reason) =>
         CountQuarantineTransitions(reason) > 0;

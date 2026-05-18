@@ -177,8 +177,8 @@ static int PrintUsage()
     Console.WriteLine("  radarpulse archive benchmark replay-publish --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse archive benchmark stream (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse processing benchmark synthetic [--mode sequential|partitioned] [--sources n] [--batches n] [--events-per-batch n] [--payload-values n] [--partitions n] [--shards n] [--handlers none|counter-checksum] [--iterations n] [--warmup-iterations n]");
-    Console.WriteLine("  radarpulse processing benchmark rebalance-synthetic [--workload balanced|hot-shard|intrinsic-hot|oscillating|cooldown-storm|quarantine-ttl-retry|quarantine-cooling-clear|quarantine-pressure-change-retry|quarantine-retry-reentry|quarantine-successful-relief-clear|all] [--mode static|sampling|rebalance|all] [--iterations n] [--warmup-iterations n]");
-    Console.WriteLine("  radarpulse processing benchmark rebalance-archive (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--mode static|sampling|rebalance|all] [--partitions n] [--shards n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
+    Console.WriteLine("  radarpulse processing benchmark rebalance-synthetic [--workload balanced|hot-shard|intrinsic-hot|oscillating|cooldown-storm|quarantine-ttl-retry|quarantine-cooling-clear|quarantine-pressure-change-retry|quarantine-retry-reentry|quarantine-successful-relief-clear|long-no-hot-shard|long-cooldown-rejection|long-unsafe-target-rejection|long-mixed-skipped-reasons|counters-only-retention|all] [--mode static|sampling|rebalance|all] [--iterations n] [--warmup-iterations n]");
+    Console.WriteLine("  radarpulse processing benchmark rebalance-archive (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--mode static|sampling|rebalance|all] [--partitions n] [--shards n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress] [--retention-mode counters|recent|diagnostic] [--max-retained-decisions n] [--max-retained-transitions n] [--max-retained-accepted-moves n] [--max-retained-validation-failures n]");
     Console.WriteLine("  radarpulse archive validate decompress (--file path | --cache data/nexrad [--radar KTLX] [--max-files n])");
     Console.WriteLine("  radarpulse archive validate replay-shape (--file path | --cache data/nexrad [--radar KTLX] [--max-files n]) [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     return 2;
@@ -425,6 +425,8 @@ static int BenchmarkProcessingRebalanceArchive(string[] args)
     var options = ProcessingBenchmarkArchiveRebalanceOptions.Parse(args);
     var benchmark = new RadarProcessingArchiveRebalanceBenchmark(
         ArchiveBZip2Decompressors.Create(options.Decompressor));
+    var hardeningOptions = new RadarProcessingRebalanceHardeningOptions(
+        telemetryRetention: options.TelemetryRetention);
     var printedResult = false;
 
     foreach (var mode in options.Modes)
@@ -447,7 +449,8 @@ static int BenchmarkProcessingRebalanceArchive(string[] args)
                 options.PartitionCount,
                 options.ShardCount,
                 options.Parallelism,
-                CancellationToken.None);
+                CancellationToken.None,
+                hardeningOptions);
             PrintProcessingArchiveRebalanceCacheBenchmarkResult(cacheResult);
         }
         else
@@ -460,7 +463,8 @@ static int BenchmarkProcessingRebalanceArchive(string[] args)
                 options.PartitionCount,
                 options.ShardCount,
                 options.Parallelism,
-                CancellationToken.None);
+                CancellationToken.None,
+                hardeningOptions);
             PrintProcessingArchiveRebalanceBenchmarkResult(result);
         }
 
@@ -559,6 +563,10 @@ static void PrintProcessingArchiveRebalanceBenchmarkResult(RadarProcessingArchiv
     Console.WriteLine($"Benchmark mode: {FormatProcessingRebalanceMode(result.Mode)}");
     Console.WriteLine($"Validation profile: {FormatProcessingValidationProfile(result.ValidationProfile)}");
     Console.WriteLine($"Telemetry retention mode: {FormatProcessingRetentionMode(result.RetentionMode)}");
+    Console.WriteLine($"Max retained decisions: {FormatNumber(result.MaxRetainedDecisions)}");
+    Console.WriteLine($"Max retained lifecycle transitions: {FormatNumber(result.MaxRetainedLifecycleTransitions)}");
+    Console.WriteLine($"Max retained accepted moves: {FormatNumber(result.MaxRetainedAcceptedMoves)}");
+    Console.WriteLine($"Max retained validation failures: {FormatNumber(result.MaxRetainedValidationFailures)}");
     Console.WriteLine($"Source count: {FormatNumber(result.SourceCount)}");
     Console.WriteLine($"Partitions: {FormatNumber(result.PartitionCount)}");
     Console.WriteLine($"Shards: {FormatNumber(result.ShardCount)}");
@@ -583,6 +591,7 @@ static void PrintProcessingArchiveRebalanceBenchmarkResult(RadarProcessingArchiv
     Console.WriteLine($"Validation: {(result.ValidationSucceeded ? "succeeded" : "failed")}");
     Console.WriteLine($"Validation checksum: {FormatUnsignedNumber(result.ValidationChecksum)}");
     Console.WriteLine($"Skipped reasons: {FormatProcessingRebalanceSkippedReasons(result.SkippedReasons)}");
+    PrintProcessingRebalanceRetentionStats(result.RetentionStats);
     Console.WriteLine($"End-to-end elapsed ms: {FormatDecimal(result.Elapsed.TotalMilliseconds)}");
     Console.WriteLine($"Processing callback elapsed ms: {FormatDecimal(result.ProcessingElapsed.TotalMilliseconds)}");
     Console.WriteLine($"Replay and batch construction elapsed ms: {FormatDecimal(result.ReplayAndBatchConstructionElapsed.TotalMilliseconds)}");
@@ -628,6 +637,10 @@ static void PrintProcessingArchiveRebalanceCacheBenchmarkResult(RadarProcessingA
     Console.WriteLine($"Benchmark mode: {FormatProcessingRebalanceMode(result.Mode)}");
     Console.WriteLine($"Validation profile: {FormatProcessingValidationProfile(result.ValidationProfile)}");
     Console.WriteLine($"Telemetry retention mode: {FormatProcessingRetentionMode(result.RetentionMode)}");
+    Console.WriteLine($"Max retained decisions: {FormatNumber(result.MaxRetainedDecisions)}");
+    Console.WriteLine($"Max retained lifecycle transitions: {FormatNumber(result.MaxRetainedLifecycleTransitions)}");
+    Console.WriteLine($"Max retained accepted moves: {FormatNumber(result.MaxRetainedAcceptedMoves)}");
+    Console.WriteLine($"Max retained validation failures: {FormatNumber(result.MaxRetainedValidationFailures)}");
     Console.WriteLine($"Source count: {FormatNumber(result.SourceCount)}");
     Console.WriteLine($"Partitions: {FormatNumber(result.PartitionCount)}");
     Console.WriteLine($"Shards: {FormatNumber(result.ShardCount)}");
@@ -655,6 +668,7 @@ static void PrintProcessingArchiveRebalanceCacheBenchmarkResult(RadarProcessingA
     Console.WriteLine($"Validation: {(result.ValidationSucceeded ? "succeeded" : "failed")}");
     Console.WriteLine($"Validation checksum: {FormatUnsignedNumber(result.ValidationChecksum)}");
     Console.WriteLine($"Skipped reasons: {FormatProcessingRebalanceSkippedReasons(result.SkippedReasons)}");
+    PrintProcessingRebalanceRetentionStats(result.RetentionStats);
     Console.WriteLine($"End-to-end elapsed ms: {FormatDecimal(result.Elapsed.TotalMilliseconds)}");
     Console.WriteLine($"Processing callback elapsed ms: {FormatDecimal(result.ProcessingElapsed.TotalMilliseconds)}");
     Console.WriteLine($"Replay and batch construction elapsed ms: {FormatDecimal(result.ReplayAndBatchConstructionElapsed.TotalMilliseconds)}");
@@ -708,6 +722,19 @@ static void PrintProcessingRebalanceMovePressures(
     }
 }
 
+static void PrintProcessingRebalanceRetentionStats(
+    RadarProcessingRebalanceRetentionStats stats)
+{
+    Console.WriteLine($"Retained decisions: {FormatNumber(stats.RetainedDecisionCount)}");
+    Console.WriteLine($"Dropped decision details: {FormatNumber(stats.DroppedDecisionCount)}");
+    Console.WriteLine($"Retained lifecycle transitions: {FormatNumber(stats.RetainedLifecycleTransitionCount)}");
+    Console.WriteLine($"Dropped lifecycle transition details: {FormatNumber(stats.DroppedLifecycleTransitionCount)}");
+    Console.WriteLine($"Retained accepted moves: {FormatNumber(stats.RetainedAcceptedMoveCount)}");
+    Console.WriteLine($"Dropped accepted move details: {FormatNumber(stats.DroppedAcceptedMoveCount)}");
+    Console.WriteLine($"Retained validation failures: {FormatNumber(stats.RetainedValidationFailureCount)}");
+    Console.WriteLine($"Dropped validation failure details: {FormatNumber(stats.DroppedValidationFailureCount)}");
+}
+
 static string FormatProcessingMode(RadarProcessingExecutionMode executionMode) =>
     executionMode switch
     {
@@ -741,6 +768,13 @@ static string FormatProcessingRebalanceWorkload(RadarProcessingSyntheticRebalanc
             "quarantine-retry-reentry",
         RadarProcessingSyntheticRebalanceWorkloadKind.QuarantineSuccessfulReliefClear =>
             "quarantine-successful-relief-clear",
+        RadarProcessingSyntheticRebalanceWorkloadKind.LongNoHotShard => "long-no-hot-shard",
+        RadarProcessingSyntheticRebalanceWorkloadKind.LongCooldownRejection => "long-cooldown-rejection",
+        RadarProcessingSyntheticRebalanceWorkloadKind.LongUnsafeTargetRejection =>
+            "long-unsafe-target-rejection",
+        RadarProcessingSyntheticRebalanceWorkloadKind.LongMixedSkippedReasons =>
+            "long-mixed-skipped-reasons",
+        RadarProcessingSyntheticRebalanceWorkloadKind.CountersOnlyRetention => "counters-only-retention",
         _ => workloadKind.ToString()
     };
 
@@ -1991,7 +2025,12 @@ public sealed record ProcessingBenchmarkRebalanceSyntheticOptions(
             RadarProcessingSyntheticRebalanceWorkloadKind.QuarantineSustainedCoolingClear,
             RadarProcessingSyntheticRebalanceWorkloadKind.QuarantinePressureChangeRetry,
             RadarProcessingSyntheticRebalanceWorkloadKind.QuarantineRetryReentry,
-            RadarProcessingSyntheticRebalanceWorkloadKind.QuarantineSuccessfulReliefClear
+            RadarProcessingSyntheticRebalanceWorkloadKind.QuarantineSuccessfulReliefClear,
+            RadarProcessingSyntheticRebalanceWorkloadKind.LongNoHotShard,
+            RadarProcessingSyntheticRebalanceWorkloadKind.LongCooldownRejection,
+            RadarProcessingSyntheticRebalanceWorkloadKind.LongUnsafeTargetRejection,
+            RadarProcessingSyntheticRebalanceWorkloadKind.LongMixedSkippedReasons,
+            RadarProcessingSyntheticRebalanceWorkloadKind.CountersOnlyRetention
         ]);
 
     private static readonly IReadOnlyList<RadarProcessingSyntheticRebalanceBenchmarkMode> AllModes =
@@ -2074,6 +2113,16 @@ public sealed record ProcessingBenchmarkRebalanceSyntheticOptions(
                 Single(RadarProcessingSyntheticRebalanceWorkloadKind.QuarantineRetryReentry),
             "successful-relief-clear" or "relief-clear" or "quarantine-successful-relief-clear" =>
                 Single(RadarProcessingSyntheticRebalanceWorkloadKind.QuarantineSuccessfulReliefClear),
+            "long-no-hot" or "long-no-hot-shard" =>
+                Single(RadarProcessingSyntheticRebalanceWorkloadKind.LongNoHotShard),
+            "long-cooldown" or "long-cooldown-rejection" =>
+                Single(RadarProcessingSyntheticRebalanceWorkloadKind.LongCooldownRejection),
+            "long-unsafe-target" or "long-unsafe-target-rejection" =>
+                Single(RadarProcessingSyntheticRebalanceWorkloadKind.LongUnsafeTargetRejection),
+            "long-mixed" or "long-mixed-skipped" or "long-mixed-skipped-reasons" =>
+                Single(RadarProcessingSyntheticRebalanceWorkloadKind.LongMixedSkippedReasons),
+            "counters-only" or "counters-only-retention" =>
+                Single(RadarProcessingSyntheticRebalanceWorkloadKind.CountersOnlyRetention),
             _ => throw new ArgumentException($"Unknown synthetic rebalance workload: {value}")
         };
 
@@ -2116,7 +2165,8 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
     int Iterations,
     int WarmupIterations,
     int Parallelism,
-    string Decompressor)
+    string Decompressor,
+    RadarProcessingTelemetryRetentionOptions TelemetryRetention)
 {
     public static ProcessingBenchmarkArchiveRebalanceOptions Parse(string[] args)
     {
@@ -2138,6 +2188,12 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
         var warmupIterations = 0;
         var parallelism = 1;
         var decompressor = ArchiveBZip2Decompressors.DefaultName;
+        var retentionMode = RadarProcessingTelemetryRetentionOptions.Default.RetentionMode;
+        var maxRetainedDecisions = RadarProcessingTelemetryRetentionOptions.Default.MaxRetainedDecisions;
+        var maxRetainedTransitions = RadarProcessingTelemetryRetentionOptions.Default.MaxRetainedLifecycleTransitions;
+        var maxRetainedAcceptedMoves = RadarProcessingTelemetryRetentionOptions.Default.MaxRetainedAcceptedMoves;
+        var maxRetainedValidationFailures =
+            RadarProcessingTelemetryRetentionOptions.Default.MaxRetainedValidationFailures;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -2179,6 +2235,23 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
                     break;
                 case "--decompressor":
                     decompressor = RequireValue(args, ref i, "--decompressor");
+                    break;
+                case "--retention-mode":
+                    retentionMode = ParseRetentionMode(RequireValue(args, ref i, "--retention-mode"));
+                    break;
+                case "--max-retained-decisions":
+                    maxRetainedDecisions = int.Parse(RequireValue(args, ref i, "--max-retained-decisions"));
+                    break;
+                case "--max-retained-transitions":
+                case "--max-retained-lifecycle-transitions":
+                    maxRetainedTransitions = int.Parse(RequireValue(args, ref i, args[i]));
+                    break;
+                case "--max-retained-accepted-moves":
+                    maxRetainedAcceptedMoves = int.Parse(RequireValue(args, ref i, "--max-retained-accepted-moves"));
+                    break;
+                case "--max-retained-validation-failures":
+                    maxRetainedValidationFailures = int.Parse(
+                        RequireValue(args, ref i, "--max-retained-validation-failures"));
                     break;
                 default:
                     throw new ArgumentException($"Unknown option: {args[i]}");
@@ -2232,6 +2305,12 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
         }
 
         ArchiveBZip2Decompressors.Create(decompressor);
+        var telemetryRetention = new RadarProcessingTelemetryRetentionOptions(
+            retentionMode,
+            maxRetainedDecisions,
+            maxRetainedTransitions,
+            maxRetainedAcceptedMoves,
+            maxRetainedValidationFailures);
 
         return new ProcessingBenchmarkArchiveRebalanceOptions(
             filePath,
@@ -2245,7 +2324,8 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
             iterations,
             warmupIterations,
             parallelism,
-            decompressor);
+            decompressor,
+            telemetryRetention);
     }
 
     private static IReadOnlyList<RadarProcessingSyntheticRebalanceBenchmarkMode> ParseMode(string value) =>
@@ -2264,6 +2344,18 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
             "rebalance" or "session" or "rebalance-session" =>
                 Single(RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession),
             _ => throw new ArgumentException($"Unknown archive rebalance benchmark mode: {value}")
+        };
+
+    private static RadarProcessingDiagnosticRetentionMode ParseRetentionMode(string value) =>
+        value.ToLowerInvariant() switch
+        {
+            "counters" or "counter" or "counters-only" =>
+                RadarProcessingDiagnosticRetentionMode.Counters,
+            "recent" or "recent-detail" =>
+                RadarProcessingDiagnosticRetentionMode.Recent,
+            "diagnostic" or "diagnostics" =>
+                RadarProcessingDiagnosticRetentionMode.Diagnostic,
+            _ => throw new ArgumentException($"Unknown archive rebalance telemetry retention mode: {value}")
         };
 
     private static IReadOnlyList<T> Single<T>(T value) => Array.AsReadOnly([value]);

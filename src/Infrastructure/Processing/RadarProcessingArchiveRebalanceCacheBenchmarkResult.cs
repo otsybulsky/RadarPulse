@@ -37,13 +37,28 @@ public sealed record RadarProcessingArchiveRebalanceCacheBenchmarkResult(
     ulong ValidationChecksum,
     IReadOnlyList<RadarProcessingRebalanceSkippedReason> SkippedReasons,
     IReadOnlyList<RadarProcessingSyntheticRebalanceMovePressure> AcceptedMovePressures,
+    RadarProcessingRebalanceRetentionStats RetentionStats,
     TimeSpan Elapsed,
     TimeSpan ProcessingElapsed,
     long AllocatedBytes,
     RadarProcessingValidationProfile ValidationProfile = RadarProcessingValidationProfile.Diagnostic,
     RadarProcessingDiagnosticRetentionMode RetentionMode = RadarProcessingDiagnosticRetentionMode.Recent,
+    int MaxRetainedDecisions = 128,
+    int MaxRetainedLifecycleTransitions = 64,
+    int MaxRetainedAcceptedMoves = 64,
+    int MaxRetainedValidationFailures = 32,
     RadarProcessingRebalanceAllocationSummary AllocationSummary = default)
 {
+    public RadarProcessingRebalanceRetentionStats RetentionStats { get; init; } = RetentionStats;
+
+    public int MaxRetainedDecisions { get; init; } = MaxRetainedDecisions;
+
+    public int MaxRetainedLifecycleTransitions { get; init; } = MaxRetainedLifecycleTransitions;
+
+    public int MaxRetainedAcceptedMoves { get; init; } = MaxRetainedAcceptedMoves;
+
+    public int MaxRetainedValidationFailures { get; init; } = MaxRetainedValidationFailures;
+
     public long TotalExaminedFiles => ExaminedFilesPerIteration * Iterations;
 
     public long TotalSkippedFiles => SkippedFilesPerIteration * Iterations;

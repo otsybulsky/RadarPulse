@@ -91,11 +91,18 @@ public sealed class RadarProcessingRebalanceAllocationSummaryTests
             ValidationChecksum: 1,
             SkippedReasons: Array.Empty<RadarProcessingRebalanceSkippedReason>(),
             AcceptedMovePressures: Array.Empty<RadarProcessingSyntheticRebalanceMovePressure>(),
+            RetentionStats: new RadarProcessingRebalanceRetentionStats(
+                retainedDecisionCount: 4,
+                droppedDecisionCount: 8),
             Elapsed: TimeSpan.FromMilliseconds(10),
             ProcessingElapsed: TimeSpan.FromMilliseconds(4),
             AllocatedBytes: 1_000,
             ValidationProfile: RadarProcessingValidationProfile.Benchmark,
             RetentionMode: RadarProcessingDiagnosticRetentionMode.Counters,
+            MaxRetainedDecisions: 4,
+            MaxRetainedLifecycleTransitions: 3,
+            MaxRetainedAcceptedMoves: 2,
+            MaxRetainedValidationFailures: 1,
             AllocationSummary: RadarProcessingRebalanceAllocationSummary.ForArchiveReplay(1_000, 400));
 
         Assert.Equal(1_000, result.AllocatedBytes);
@@ -103,6 +110,8 @@ public sealed class RadarProcessingRebalanceAllocationSummaryTests
         Assert.Equal(600, result.ReplayAndBatchConstructionAllocatedBytes);
         Assert.Equal(RadarProcessingValidationProfile.Benchmark, result.ValidationProfile);
         Assert.Equal(RadarProcessingDiagnosticRetentionMode.Counters, result.RetentionMode);
+        Assert.Equal(4, result.MaxRetainedDecisions);
+        Assert.Equal(8, result.RetentionStats.DroppedDecisionCount);
         Assert.True(result.AllocationSummary.IncludesArchiveReplayAndBatchConstruction);
         Assert.False(result.AllocationSummary.IncludesCliFormatting);
     }

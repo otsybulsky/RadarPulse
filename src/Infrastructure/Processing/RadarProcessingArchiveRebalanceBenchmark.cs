@@ -150,11 +150,16 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             aggregate.ValidationChecksum,
             CreateReadOnlyList(aggregate.SkippedReasons),
             CreateReadOnlyList(aggregate.AcceptedMovePressures),
+            aggregate.RetentionStats,
             stopwatch.Elapsed,
             aggregate.ProcessingElapsed,
             allocatedBytes,
             effectiveHardeningOptions.ValidationProfile,
             effectiveHardeningOptions.TelemetryRetention.RetentionMode,
+            effectiveHardeningOptions.TelemetryRetention.MaxRetainedDecisions,
+            effectiveHardeningOptions.TelemetryRetention.MaxRetainedLifecycleTransitions,
+            effectiveHardeningOptions.TelemetryRetention.MaxRetainedAcceptedMoves,
+            effectiveHardeningOptions.TelemetryRetention.MaxRetainedValidationFailures,
             allocationSummary);
     }
 
@@ -303,11 +308,16 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             aggregate.ValidationChecksum,
             CreateReadOnlyList(aggregate.SkippedReasons),
             CreateReadOnlyList(aggregate.AcceptedMovePressures),
+            aggregate.RetentionStats,
             stopwatch.Elapsed,
             aggregate.ProcessingElapsed,
             allocatedBytes,
             effectiveHardeningOptions.ValidationProfile,
             effectiveHardeningOptions.TelemetryRetention.RetentionMode,
+            effectiveHardeningOptions.TelemetryRetention.MaxRetainedDecisions,
+            effectiveHardeningOptions.TelemetryRetention.MaxRetainedLifecycleTransitions,
+            effectiveHardeningOptions.TelemetryRetention.MaxRetainedAcceptedMoves,
+            effectiveHardeningOptions.TelemetryRetention.MaxRetainedValidationFailures,
             allocationSummary);
     }
 
@@ -585,14 +595,16 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             telemetry.WithPublishResult(
                 publishResult,
                 processingStopwatch.Elapsed,
-                processingCallbackAllocatedBytes);
+                processingCallbackAllocatedBytes)
+                .WithRetentionStats(CreateRetentionStats());
 
         public ArchiveIterationTelemetry BuildTelemetry(
             CacheIterationTotals totals) =>
             telemetry.WithPublishTotals(
                 totals,
                 processingStopwatch.Elapsed,
-                processingCallbackAllocatedBytes);
+                processingCallbackAllocatedBytes)
+                .WithRetentionStats(CreateRetentionStats());
 
         private ArchiveIterationTelemetry ProcessStatic(
             RadarEventBatch batch,
@@ -651,6 +663,10 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 throw new InvalidDataException("Archive rebalance benchmark requires partitioned telemetry.");
             }
         }
+
+        private RadarProcessingRebalanceRetentionStats CreateRetentionStats() =>
+            rebalanceSession?.TelemetryRecorder.CreateSummary().RetentionStats ??
+            new RadarProcessingRebalanceRetentionStats();
     }
 
     private readonly record struct ArchiveIterationTelemetry(
@@ -677,6 +693,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         ulong ValidationChecksum,
         List<RadarProcessingRebalanceSkippedReason>? SkippedReasons,
         List<RadarProcessingSyntheticRebalanceMovePressure>? AcceptedMovePressures,
+        RadarProcessingRebalanceRetentionStats RetentionStats,
         TimeSpan ProcessingElapsed,
         long ProcessingCallbackAllocatedBytes)
     {
@@ -705,6 +722,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 ValidationChecksum: ChecksumInitial,
                 SkippedReasons: null,
                 AcceptedMovePressures: null,
+                RetentionStats: new RadarProcessingRebalanceRetentionStats(),
                 ProcessingElapsed: TimeSpan.Zero,
                 ProcessingCallbackAllocatedBytes: 0);
 
@@ -821,6 +839,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 ValidationChecksum = AppendUInt64(ValidationChecksum, other.ValidationChecksum),
                 SkippedReasons = skippedReasons,
                 AcceptedMovePressures = movePressures,
+                RetentionStats = AddRetentionStats(RetentionStats, other.RetentionStats),
                 ProcessingElapsed = ProcessingElapsed + other.ProcessingElapsed,
                 ProcessingCallbackAllocatedBytes = checked(
                     ProcessingCallbackAllocatedBytes + other.ProcessingCallbackAllocatedBytes)
@@ -848,6 +867,17 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 ProcessingElapsed = processingElapsed,
                 ProcessingCallbackAllocatedBytes = processingCallbackAllocatedBytes
             };
+
+        public ArchiveIterationTelemetry WithRetentionStats(
+            RadarProcessingRebalanceRetentionStats retentionStats)
+        {
+            ArgumentNullException.ThrowIfNull(retentionStats);
+
+            return this with
+            {
+                RetentionStats = retentionStats
+            };
+        }
 
         public ArchiveIterationTelemetry WithPublishTotals(
             CacheIterationTotals totals,
@@ -914,7 +944,35 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             ColdEvacuationCount == other.ColdEvacuationCount &&
             FailedMigrationCount == other.FailedMigrationCount &&
             ValidationSucceeded == other.ValidationSucceeded &&
-            ValidationChecksum == other.ValidationChecksum;
+            ValidationChecksum == other.ValidationChecksum &&
+            HasSameRetentionStats(RetentionStats, other.RetentionStats);
+
+        private static RadarProcessingRebalanceRetentionStats AddRetentionStats(
+            RadarProcessingRebalanceRetentionStats current,
+            RadarProcessingRebalanceRetentionStats other) =>
+            new(
+                Math.Max(current.RetainedDecisionCount, other.RetainedDecisionCount),
+                checked(current.DroppedDecisionCount + other.DroppedDecisionCount),
+                Math.Max(
+                    current.RetainedLifecycleTransitionCount,
+                    other.RetainedLifecycleTransitionCount),
+                checked(current.DroppedLifecycleTransitionCount + other.DroppedLifecycleTransitionCount),
+                Math.Max(current.RetainedAcceptedMoveCount, other.RetainedAcceptedMoveCount),
+                checked(current.DroppedAcceptedMoveCount + other.DroppedAcceptedMoveCount),
+                Math.Max(current.RetainedValidationFailureCount, other.RetainedValidationFailureCount),
+                checked(current.DroppedValidationFailureCount + other.DroppedValidationFailureCount));
+
+        private static bool HasSameRetentionStats(
+            RadarProcessingRebalanceRetentionStats current,
+            RadarProcessingRebalanceRetentionStats other) =>
+            current.RetainedDecisionCount == other.RetainedDecisionCount &&
+            current.DroppedDecisionCount == other.DroppedDecisionCount &&
+            current.RetainedLifecycleTransitionCount == other.RetainedLifecycleTransitionCount &&
+            current.DroppedLifecycleTransitionCount == other.DroppedLifecycleTransitionCount &&
+            current.RetainedAcceptedMoveCount == other.RetainedAcceptedMoveCount &&
+            current.DroppedAcceptedMoveCount == other.DroppedAcceptedMoveCount &&
+            current.RetainedValidationFailureCount == other.RetainedValidationFailureCount &&
+            current.DroppedValidationFailureCount == other.DroppedValidationFailureCount;
 
         private static void AddDecision(
             RadarProcessingRebalanceDecision? decision,

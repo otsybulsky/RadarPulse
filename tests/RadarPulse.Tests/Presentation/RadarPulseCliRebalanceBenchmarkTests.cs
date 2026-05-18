@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using RadarPulse.Domain.Processing;
 using RadarPulse.Infrastructure.Processing;
 
 namespace RadarPulse.Tests.Presentation;
@@ -43,6 +44,25 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
 
         Assert.Equal(
             [RadarProcessingSyntheticRebalanceWorkloadKind.QuarantineSuccessfulReliefClear],
+            options.Workloads);
+        Assert.Equal(
+            [RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession],
+            options.Modes);
+    }
+
+    [Fact]
+    public void RebalanceBenchmarkOptionsParseRetentionStressWorkload()
+    {
+        var options = global::ProcessingBenchmarkRebalanceSyntheticOptions.Parse(
+        [
+            "--workload",
+            "counters-only-retention",
+            "--mode",
+            "rebalance"
+        ]);
+
+        Assert.Equal(
+            [RadarProcessingSyntheticRebalanceWorkloadKind.CountersOnlyRetention],
             options.Workloads);
         Assert.Equal(
             [RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession],
@@ -118,6 +138,7 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
         Assert.Equal(2, options.Iterations);
         Assert.Equal(1, options.WarmupIterations);
         Assert.Equal(2, options.Parallelism);
+        Assert.Equal(RadarProcessingDiagnosticRetentionMode.Recent, options.TelemetryRetention.RetentionMode);
     }
 
     [Fact]
@@ -148,6 +169,36 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
     }
 
     [Fact]
+    public void ArchiveRebalanceBenchmarkOptionsParseRetentionSettings()
+    {
+        var options = global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
+        [
+            "--cache",
+            "data/nexrad",
+            "--mode",
+            "rebalance",
+            "--retention-mode",
+            "counters",
+            "--max-retained-decisions",
+            "4",
+            "--max-retained-transitions",
+            "3",
+            "--max-retained-accepted-moves",
+            "2",
+            "--max-retained-validation-failures",
+            "1"
+        ]);
+
+        Assert.Equal(
+            RadarProcessingDiagnosticRetentionMode.Counters,
+            options.TelemetryRetention.RetentionMode);
+        Assert.Equal(4, options.TelemetryRetention.MaxRetainedDecisions);
+        Assert.Equal(3, options.TelemetryRetention.MaxRetainedLifecycleTransitions);
+        Assert.Equal(2, options.TelemetryRetention.MaxRetainedAcceptedMoves);
+        Assert.Equal(1, options.TelemetryRetention.MaxRetainedValidationFailures);
+    }
+
+    [Fact]
     public void ArchiveRebalanceBenchmarkOptionsRequireFileAndCompatibleTopology()
     {
         Assert.Throws<InvalidOperationException>(
@@ -169,6 +220,22 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
                 "2",
                 "--shards",
                 "4"
+            ]));
+        Assert.Throws<ArgumentException>(
+            () => global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
+            [
+                "--cache",
+                "data/nexrad",
+                "--retention-mode",
+                "forever"
+            ]));
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
+            [
+                "--cache",
+                "data/nexrad",
+                "--max-retained-decisions",
+                "-1"
             ]));
     }
 

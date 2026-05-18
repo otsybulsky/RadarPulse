@@ -11,5 +11,10 @@ public enum RadarProcessingSyntheticRebalanceWorkloadKind
     QuarantineSustainedCoolingClear,
     QuarantinePressureChangeRetry,
     QuarantineRetryReentry,
-    QuarantineSuccessfulReliefClear
+    QuarantineSuccessfulReliefClear,
+    LongNoHotShard,
+    LongCooldownRejection,
+    LongUnsafeTargetRejection,
+    LongMixedSkippedReasons,
+    CountersOnlyRetention
 }

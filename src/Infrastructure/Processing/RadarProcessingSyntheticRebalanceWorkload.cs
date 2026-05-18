@@ -5,6 +5,9 @@ namespace RadarPulse.Infrastructure.Processing;
 
 public sealed class RadarProcessingSyntheticRebalanceWorkload
 {
+    private const int RetentionStressBatchCount = 16;
+    private const int RetentionStressDecisionLimit = 4;
+
     private readonly IReadOnlyList<RadarEventBatch> batches;
     private readonly IReadOnlyList<InitialHotPartitionClassification> initialClassifications;
 
@@ -85,6 +88,15 @@ public sealed class RadarProcessingSyntheticRebalanceWorkload
                 CreateQuarantineRetryReentry(),
             RadarProcessingSyntheticRebalanceWorkloadKind.QuarantineSuccessfulReliefClear =>
                 CreateQuarantineSuccessfulReliefClear(),
+            RadarProcessingSyntheticRebalanceWorkloadKind.LongNoHotShard => CreateLongNoHotShard(),
+            RadarProcessingSyntheticRebalanceWorkloadKind.LongCooldownRejection =>
+                CreateLongCooldownRejection(),
+            RadarProcessingSyntheticRebalanceWorkloadKind.LongUnsafeTargetRejection =>
+                CreateLongUnsafeTargetRejection(),
+            RadarProcessingSyntheticRebalanceWorkloadKind.LongMixedSkippedReasons =>
+                CreateLongMixedSkippedReasons(),
+            RadarProcessingSyntheticRebalanceWorkloadKind.CountersOnlyRetention =>
+                CreateCountersOnlyRetention(),
             _ => throw new ArgumentOutOfRangeException(nameof(kind))
         };
 
@@ -280,6 +292,67 @@ public sealed class RadarProcessingSyntheticRebalanceWorkload
                 sustainedCoolingSampleCount: 5,
                 materialPressureChangeThreshold: 1.0));
 
+    private static RadarProcessingSyntheticRebalanceWorkload CreateLongNoHotShard() =>
+        Create(
+            RadarProcessingSyntheticRebalanceWorkloadKind.LongNoHotShard,
+            CreateImmediateWindowOptions(),
+            CreateRelaxedRebalanceOptions(),
+            RepeatBatch(RetentionStressBatchCount, [0, 1, 2, 3]),
+            [],
+            CreateRetentionStressHardeningOptions());
+
+    private static RadarProcessingSyntheticRebalanceWorkload CreateLongCooldownRejection() =>
+        Create(
+            RadarProcessingSyntheticRebalanceWorkloadKind.LongCooldownRejection,
+            CreateImmediateWindowOptions(),
+            CreateCooldownRejectionOptions(),
+            PrependBatch(
+                [0, 0, 0, 0, 1, 1],
+                RepeatBatch(RetentionStressBatchCount - 1, [0, 0, 0, 0, 2, 2])),
+            [],
+            CreateRetentionStressHardeningOptions());
+
+    private static RadarProcessingSyntheticRebalanceWorkload CreateLongUnsafeTargetRejection() =>
+        Create(
+            RadarProcessingSyntheticRebalanceWorkloadKind.LongUnsafeTargetRejection,
+            CreateImmediateWindowOptions(),
+            CreateRelaxedRebalanceOptions(),
+            RepeatPattern(
+                RetentionStressBatchCount,
+                [
+                    [0, 0, 0, 0, 0, 0, 0, 0],
+                    [1, 1, 1, 1, 1, 1, 1, 1],
+                    [2, 2, 2, 2, 2, 2, 2, 2],
+                    [3, 3, 3, 3, 3, 3, 3, 3]
+                ]),
+            [],
+            CreateRetentionStressHardeningOptions());
+
+    private static RadarProcessingSyntheticRebalanceWorkload CreateLongMixedSkippedReasons() =>
+        Create(
+            RadarProcessingSyntheticRebalanceWorkloadKind.LongMixedSkippedReasons,
+            CreateImmediateWindowOptions(),
+            CreateCooldownRejectionOptions(),
+            RepeatPattern(
+                RetentionStressBatchCount,
+                [
+                    [0, 1, 2, 3],
+                    [0, 0, 0, 0, 1, 1],
+                    [0, 0, 0, 0, 2, 2],
+                    [3, 3, 3, 3, 3, 3, 3, 3]
+                ]),
+            [],
+            CreateRetentionStressHardeningOptions());
+
+    private static RadarProcessingSyntheticRebalanceWorkload CreateCountersOnlyRetention() =>
+        Create(
+            RadarProcessingSyntheticRebalanceWorkloadKind.CountersOnlyRetention,
+            CreateImmediateWindowOptions(),
+            CreateRelaxedRebalanceOptions(),
+            RepeatBatch(RetentionStressBatchCount, [0, 1, 2, 3]),
+            [],
+            CreateRetentionStressHardeningOptions(RadarProcessingDiagnosticRetentionMode.Counters));
+
     private static RadarProcessingSyntheticRebalanceWorkload Create(
         RadarProcessingSyntheticRebalanceWorkloadKind kind,
         RadarProcessingPressureWindowOptions pressureWindowOptions,
@@ -370,6 +443,18 @@ public sealed class RadarProcessingSyntheticRebalanceWorkload
             targetShardReceiveCooldownEvaluations: 0,
             minimumProjectedBenefit: 0.05);
 
+    private static RadarProcessingRebalanceOptions CreateCooldownRejectionOptions() =>
+        new(
+            budgetWindowEvaluationCount: RetentionStressBatchCount * 4,
+            globalMoveBudgetPerWindow: 1,
+            sourceShardMoveBudgetPerWindow: 4,
+            targetShardReceiveBudgetPerWindow: 4,
+            minimumPartitionResidencyEvaluations: 0,
+            partitionMoveCooldownEvaluations: RetentionStressBatchCount * 4,
+            sourceShardMoveCooldownEvaluations: 0,
+            targetShardReceiveCooldownEvaluations: 0,
+            minimumProjectedBenefit: 0.05);
+
     private static RadarProcessingRebalanceHardeningOptions CreateLifecycleHardeningOptions(
         int quarantineTtlEvaluations,
         int sustainedCoolingSampleCount,
@@ -380,11 +465,61 @@ public sealed class RadarProcessingSyntheticRebalanceWorkload
                 sustainedCoolingSampleCount,
                 materialPressureChangeThreshold));
 
+    private static RadarProcessingRebalanceHardeningOptions CreateRetentionStressHardeningOptions(
+        RadarProcessingDiagnosticRetentionMode retentionMode = RadarProcessingDiagnosticRetentionMode.Recent) =>
+        new(
+            telemetryRetention: new RadarProcessingTelemetryRetentionOptions(
+                retentionMode,
+                maxRetainedDecisions: RetentionStressDecisionLimit,
+                maxRetainedLifecycleTransitions: RetentionStressDecisionLimit,
+                maxRetainedAcceptedMoves: RetentionStressDecisionLimit,
+                maxRetainedValidationFailures: RetentionStressDecisionLimit));
+
     private static InitialHotPartitionClassification CreateInitialQuarantine() =>
         new(
             PartitionId: 0,
             ShardId: 0,
             RadarProcessingHotPartitionClassification.Quarantined);
+
+    private static int[][] RepeatBatch(
+        int count,
+        int[] sourceIds)
+    {
+        var result = new int[count][];
+        for (var index = 0; index < result.Length; index++)
+        {
+            result[index] = (int[])sourceIds.Clone();
+        }
+
+        return result;
+    }
+
+    private static int[][] RepeatPattern(
+        int count,
+        int[][] pattern)
+    {
+        var result = new int[count][];
+        for (var index = 0; index < result.Length; index++)
+        {
+            result[index] = (int[])pattern[index % pattern.Length].Clone();
+        }
+
+        return result;
+    }
+
+    private static int[][] PrependBatch(
+        int[] first,
+        int[][] rest)
+    {
+        var result = new int[rest.Length + 1][];
+        result[0] = (int[])first.Clone();
+        for (var index = 0; index < rest.Length; index++)
+        {
+            result[index + 1] = rest[index];
+        }
+
+        return result;
+    }
 
     private static RadarEventBatch CreateBatch(
         SourceUniverseVersion sourceUniverseVersion,
