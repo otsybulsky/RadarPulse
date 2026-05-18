@@ -1,4 +1,4 @@
-# Handoff: Milestone 007 Slice 16 Quarantine Lifecycle CLI Options Complete
+# Handoff: Milestone 007 Slice 17 Policy Default Audit Complete
 
 ## Current Goal
 
@@ -823,6 +823,38 @@ Release CLI smoke printed Quarantine TTL evaluations: 1, Quarantine sustained co
 and Quarantine material pressure change: 1.00.
 ```
 
+Milestone 007 slice 17 is implemented in the current working tree. The policy
+default audit is written in
+`docs/milestones/007-rebalance-production-hardening-policy-default-audit.md`,
+and the implementation plan now links to it from the policy-default audit
+section.
+
+Audit decision:
+
+```text
+No code default changes are required before closeout.
+Current defaults are accepted as conservative, bounded, and observable.
+Validation remains diagnostic by default for tests and closeout benchmarks.
+Telemetry retention remains recent-detail with bounded caps.
+Quarantine lifecycle remains 64 TTL evaluations, 3 sustained cooling samples,
+and 0.25 material pressure-change threshold.
+Archive pressure skew remains disabled unless explicitly requested.
+Release comparison commands should keep passing explicit topology, parallelism,
+retention, validation, and skew settings.
+```
+
+Latest verification after milestone 007 slice 17:
+
+```powershell
+git diff --check
+```
+
+Result:
+
+```text
+No whitespace errors. Tests were not rerun because this slice is documentation-only.
+```
+
 ## Milestone Status
 
 Done:
@@ -951,6 +983,8 @@ Done:
   synthetic and archive rebalance benchmark commands.
 - `007` slice 16 quarantine lifecycle CLI options are implemented and tested
   for synthetic and archive rebalance benchmark commands.
+- `007` slice 17 policy-default audit is written and linked from the milestone
+  007 implementation plan.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -967,9 +1001,10 @@ Next milestone focus:
 - Implement milestone 007 from the closed architecture and plan:
   `docs/milestones/007-rebalance-production-hardening.md` and
   `docs/milestones/007-rebalance-production-hardening-plan.md`.
-- Continue milestone 007 with policy-default audit and closeout preparation now
-  that the benchmark CLI exposes validation profile, telemetry retention,
-  pressure skew, and quarantine lifecycle hardening surfaces.
+- Continue milestone 007 with decision trace, closeout preparation, and the
+  final comprehensive performance comparison gate now that the benchmark CLI
+  exposes validation profile, telemetry retention, pressure skew, and
+  quarantine lifecycle hardening surfaces and default policy has been audited.
 - Use pressure skew only as an explicit benchmark contour. Baseline real-data
   performance and correctness captures must keep `--skew-profile none`; skewed
   runs should be reported as "real archive with synthetic pressure overlay."

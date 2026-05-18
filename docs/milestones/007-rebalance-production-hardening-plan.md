@@ -845,6 +845,22 @@ benchmark or lifecycle test. If no evidence exists, keep the milestone 006
 default behavior.
 ```
 
+Audit artifact:
+
+```text
+docs/milestones/007-rebalance-production-hardening-policy-default-audit.md
+```
+
+Audit decision after slice 16:
+
+```text
+current defaults are accepted without code changes
+hardening defaults remain diagnostic, bounded, and conservative
+pressure skew remains opt-in and must not be part of baseline real-data runs
+release comparisons should keep passing explicit topology, parallelism,
+retention, validation, and skew settings
+```
+
 ### 16. Documentation, Decision Trace, And Handoff
 
 Close the milestone with documentation once implementation and benchmarks are
