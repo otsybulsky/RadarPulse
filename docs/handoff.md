@@ -1,4 +1,4 @@
-# Handoff: Milestone 007 Slice 13 Archive Skipped-Reason Counters Complete
+# Handoff: Milestone 007 Slice 14 Archive Pressure Skew Overlay Complete
 
 ## Current Goal
 
@@ -688,6 +688,63 @@ Validation succeeded with the same checksum as the slice 12 recent/counters comp
 Processing callback throughput was 2.68B payload values/s with 0.03 callback allocated bytes/payload.
 ```
 
+Milestone 007 slice 14 is implemented in the current working tree. RadarPulse
+now has a benchmark-only pressure skew overlay for archive rebalance runs:
+`RadarProcessingPressureSkewProfile`, `RadarProcessingPressureSkewOptions`,
+and `RadarProcessingPressureSkewTransformer`. The overlay keeps archive payload
+and observed processing telemetry unchanged, while feeding an effective
+synthetic pressure sample into pressure windows and rebalance planning. This
+lets real archive replay exercise more active rebalance contours without
+rewriting cached files or confusing observed telemetry validation. Supported
+profiles are `none`, `hot-shard`, `rotating-hot-shard`, `hot-partition`,
+`target-starvation`, and `budget-storm`.
+
+`processing benchmark rebalance-archive` now accepts:
+
+```text
+--skew-profile none|hot-shard|rotating-hot-shard|hot-partition|target-starvation|budget-storm
+--skew-factor n
+--skew-period n
+```
+
+Archive benchmark results and CLI output mark whether the synthetic pressure
+overlay is active and print the active profile, factor, and period.
+
+Latest verification after milestone 007 slice 14:
+
+```powershell
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingPressureSkewTransformerTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests"
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~Processing|FullyQualifiedName~Presentation"
+dotnet test RadarPulse.sln --no-restore
+dotnet build RadarPulse.sln -c Release --no-restore
+```
+
+Result:
+
+```text
+21 passed for focused skew/CLI/allocation coverage.
+336 passed for processing/presentation-focused coverage.
+479 passed, 3 skipped for the full solution suite.
+Release build succeeded with 0 warnings and 0 errors.
+```
+
+Latest Release full-cache pressure-skew smoke after milestone 007 slice 14:
+
+```powershell
+dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --cache data\nexrad --max-files 1000000 --mode rebalance --partitions 96 --shards 4 --iterations 1 --warmup-iterations 0 --parallelism 24 --decompressor radarpulse --retention-mode counters --skew-profile hot-shard
+```
+
+Result on the local full cache:
+
+```text
+244 examined files, 220 published base-data files, 24 skipped files.
+8,513,587,200 payload values, 7,114,560 stream events.
+Synthetic pressure overlay: yes; profile: hot-shard; factor: 1.00; period: 8.
+220 rebalance evaluations, 20 accepted direct-hot-relief moves, 400 skipped decisions, 0 failed migrations.
+Skipped reason counters: no-hot-shard=128, source-shard-move-budget-exhausted=272, target-shard-receive-budget-exhausted=272, global-move-budget-exhausted=272.
+Validation succeeded. Processing callback throughput was 3.26B payload values/s with 0.04 callback allocated bytes/payload.
+```
+
 ## Milestone Status
 
 Done:
@@ -810,6 +867,8 @@ Done:
   implemented and tested.
 - `007` slice 13 archive skipped-reason counters are implemented, tested, and
   smoke-checked against the full local cache.
+- `007` slice 14 archive benchmark pressure skew overlay is implemented,
+  tested, and smoke-checked against the full local cache.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -830,6 +889,9 @@ Next milestone focus:
   profile options and quarantine lifecycle option flags for synthetic/archive
   benchmark commands. Keep these additive so existing benchmark commands retain
   their defaults and comparable baselines.
+- Use pressure skew only as an explicit benchmark contour. Baseline real-data
+  performance and correctness captures must keep `--skew-profile none`; skewed
+  runs should be reported as "real archive with synthetic pressure overlay."
 - Preserve the slice 10 allocation guardrails, slice 11 workload-default
   hardening behavior, and slice 12 retention stress guarantees: no-move/no-detail
   paths should keep avoiding empty collection churn, allowed policy evaluation

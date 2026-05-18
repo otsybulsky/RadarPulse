@@ -199,6 +199,28 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
     }
 
     [Fact]
+    public void ArchiveRebalanceBenchmarkOptionsParsePressureSkewSettings()
+    {
+        var options = global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
+        [
+            "--cache",
+            "data/nexrad",
+            "--mode",
+            "rebalance",
+            "--skew-profile",
+            "rotating-hot-shard",
+            "--skew-factor",
+            "2.5",
+            "--skew-period",
+            "4"
+        ]);
+
+        Assert.Equal(RadarProcessingPressureSkewProfile.RotatingHotShard, options.PressureSkew.Profile);
+        Assert.Equal(2.5, options.PressureSkew.Factor);
+        Assert.Equal(4, options.PressureSkew.Period);
+    }
+
+    [Fact]
     public void ArchiveRebalanceBenchmarkOptionsRequireFileAndCompatibleTopology()
     {
         Assert.Throws<InvalidOperationException>(
@@ -236,6 +258,22 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
                 "data/nexrad",
                 "--max-retained-decisions",
                 "-1"
+            ]));
+        Assert.Throws<ArgumentException>(
+            () => global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
+            [
+                "--cache",
+                "data/nexrad",
+                "--skew-profile",
+                "random"
+            ]));
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
+            [
+                "--cache",
+                "data/nexrad",
+                "--skew-period",
+                "0"
             ]));
     }
 

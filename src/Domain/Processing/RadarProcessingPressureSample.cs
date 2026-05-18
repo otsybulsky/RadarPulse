@@ -42,6 +42,22 @@ public sealed class RadarProcessingPressureSample
 
     public IReadOnlyList<RadarProcessingPartitionPressureSample> Partitions => partitions;
 
+    public static RadarProcessingPressureSample Create(
+        RadarProcessingTopologyVersion topologyVersion,
+        RadarProcessingRouteMetrics batchMetrics,
+        IReadOnlyList<RadarProcessingShardPressureSample> shards,
+        IReadOnlyList<RadarProcessingPartitionPressureSample> partitions)
+    {
+        ArgumentNullException.ThrowIfNull(shards);
+        ArgumentNullException.ThrowIfNull(partitions);
+
+        return new RadarProcessingPressureSample(
+            topologyVersion,
+            batchMetrics,
+            shards.ToArray(),
+            partitions.ToArray());
+    }
+
     public static RadarProcessingPressureSample FromTelemetry(
         RadarProcessingTelemetry telemetry,
         RadarProcessingPressureOptions? options = null)

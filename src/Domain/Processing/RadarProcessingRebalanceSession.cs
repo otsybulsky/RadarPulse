@@ -12,6 +12,7 @@ public sealed class RadarProcessingRebalanceSession
     private readonly RadarProcessingQuarantineLifecycleTracker quarantineLifecycleTracker;
     private readonly RadarProcessingRebalanceTelemetryRecorder telemetryRecorder;
     private readonly RadarProcessingRebalanceHardeningOptions hardeningOptions;
+    private readonly RadarProcessingPressureSkewTransformer? pressureSkewTransformer;
     private readonly RadarProcessingDirectHotReliefPlanner directHotReliefPlanner;
     private readonly RadarProcessingColdEvacuationPlanner coldEvacuationPlanner;
     private readonly RadarProcessingMigrationCoordinator migrationCoordinator;
@@ -27,7 +28,8 @@ public sealed class RadarProcessingRebalanceSession
         RadarProcessingColdEvacuationPlanner? coldEvacuationPlanner = null,
         RadarProcessingQuarantineLifecycleTracker? quarantineLifecycleTracker = null,
         RadarProcessingRebalanceTelemetryRecorder? telemetryRecorder = null,
-        RadarProcessingRebalanceHardeningOptions? hardeningOptions = null)
+        RadarProcessingRebalanceHardeningOptions? hardeningOptions = null,
+        RadarProcessingPressureSkewOptions? pressureSkewOptions = null)
     {
         ArgumentNullException.ThrowIfNull(core);
 
@@ -40,6 +42,9 @@ public sealed class RadarProcessingRebalanceSession
 
         this.core = core;
         this.hardeningOptions = hardeningOptions ?? RadarProcessingRebalanceHardeningOptions.Default;
+        pressureSkewTransformer = pressureSkewOptions?.IsEnabled == true
+            ? new RadarProcessingPressureSkewTransformer(pressureSkewOptions)
+            : null;
         this.pressureOptions = pressureOptions ?? RadarProcessingPressureOptions.Default;
         this.pressureWindow = pressureWindow ?? new RadarProcessingPressureWindow();
         this.policyState = policyState ?? new RadarProcessingRebalancePolicyState(
@@ -113,7 +118,11 @@ public sealed class RadarProcessingRebalanceSession
         var pressureSample = RadarProcessingPressureSample.FromTelemetry(
             processingResult.Telemetry,
             pressureOptions);
-        pressureWindow.AddSample(pressureSample);
+        var effectivePressureSample = pressureSkewTransformer?.Apply(
+            pressureSample,
+            policyState.EvaluationSequence + 1,
+            pressureWindow.Options) ?? pressureSample;
+        pressureWindow.AddSample(effectivePressureSample);
         policyState.AdvanceEvaluation();
         AdvanceQuarantineLifecycleBeforePlanning();
 

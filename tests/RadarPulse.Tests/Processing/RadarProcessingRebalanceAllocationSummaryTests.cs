@@ -119,6 +119,7 @@ public sealed class RadarProcessingRebalanceAllocationSummaryTests
         Assert.Equal(4, result.MaxRetainedDecisions);
         Assert.Equal(8, result.RetentionStats.DroppedDecisionCount);
         Assert.Equal(3, result.SkippedReasonCounters.Single().Count);
+        Assert.Equal(RadarProcessingPressureSkewProfile.None, result.PressureSkew.Profile);
         Assert.True(result.AllocationSummary.IncludesArchiveReplayAndBatchConstruction);
         Assert.False(result.AllocationSummary.IncludesCliFormatting);
     }

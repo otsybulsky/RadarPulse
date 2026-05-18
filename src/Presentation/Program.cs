@@ -178,7 +178,7 @@ static int PrintUsage()
     Console.WriteLine("  radarpulse archive benchmark stream (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse processing benchmark synthetic [--mode sequential|partitioned] [--sources n] [--batches n] [--events-per-batch n] [--payload-values n] [--partitions n] [--shards n] [--handlers none|counter-checksum] [--iterations n] [--warmup-iterations n]");
     Console.WriteLine("  radarpulse processing benchmark rebalance-synthetic [--workload balanced|hot-shard|intrinsic-hot|oscillating|cooldown-storm|quarantine-ttl-retry|quarantine-cooling-clear|quarantine-pressure-change-retry|quarantine-retry-reentry|quarantine-successful-relief-clear|long-no-hot-shard|long-cooldown-rejection|long-unsafe-target-rejection|long-mixed-skipped-reasons|counters-only-retention|all] [--mode static|sampling|rebalance|all] [--iterations n] [--warmup-iterations n]");
-    Console.WriteLine("  radarpulse processing benchmark rebalance-archive (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--mode static|sampling|rebalance|all] [--partitions n] [--shards n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress] [--retention-mode counters|recent|diagnostic] [--max-retained-decisions n] [--max-retained-transitions n] [--max-retained-accepted-moves n] [--max-retained-validation-failures n]");
+    Console.WriteLine("  radarpulse processing benchmark rebalance-archive (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--mode static|sampling|rebalance|all] [--partitions n] [--shards n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress] [--retention-mode counters|recent|diagnostic] [--max-retained-decisions n] [--max-retained-transitions n] [--max-retained-accepted-moves n] [--max-retained-validation-failures n] [--skew-profile none|hot-shard|rotating-hot-shard|hot-partition|target-starvation|budget-storm] [--skew-factor n] [--skew-period n]");
     Console.WriteLine("  radarpulse archive validate decompress (--file path | --cache data/nexrad [--radar KTLX] [--max-files n])");
     Console.WriteLine("  radarpulse archive validate replay-shape (--file path | --cache data/nexrad [--radar KTLX] [--max-files n]) [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     return 2;
@@ -450,7 +450,8 @@ static int BenchmarkProcessingRebalanceArchive(string[] args)
                 options.ShardCount,
                 options.Parallelism,
                 CancellationToken.None,
-                hardeningOptions);
+                hardeningOptions,
+                options.PressureSkew);
             PrintProcessingArchiveRebalanceCacheBenchmarkResult(cacheResult);
         }
         else
@@ -464,7 +465,8 @@ static int BenchmarkProcessingRebalanceArchive(string[] args)
                 options.ShardCount,
                 options.Parallelism,
                 CancellationToken.None,
-                hardeningOptions);
+                hardeningOptions,
+                options.PressureSkew);
             PrintProcessingArchiveRebalanceBenchmarkResult(result);
         }
 
@@ -567,6 +569,7 @@ static void PrintProcessingArchiveRebalanceBenchmarkResult(RadarProcessingArchiv
     Console.WriteLine($"Max retained lifecycle transitions: {FormatNumber(result.MaxRetainedLifecycleTransitions)}");
     Console.WriteLine($"Max retained accepted moves: {FormatNumber(result.MaxRetainedAcceptedMoves)}");
     Console.WriteLine($"Max retained validation failures: {FormatNumber(result.MaxRetainedValidationFailures)}");
+    PrintProcessingPressureSkew(result.PressureSkew);
     Console.WriteLine($"Source count: {FormatNumber(result.SourceCount)}");
     Console.WriteLine($"Partitions: {FormatNumber(result.PartitionCount)}");
     Console.WriteLine($"Shards: {FormatNumber(result.ShardCount)}");
@@ -642,6 +645,7 @@ static void PrintProcessingArchiveRebalanceCacheBenchmarkResult(RadarProcessingA
     Console.WriteLine($"Max retained lifecycle transitions: {FormatNumber(result.MaxRetainedLifecycleTransitions)}");
     Console.WriteLine($"Max retained accepted moves: {FormatNumber(result.MaxRetainedAcceptedMoves)}");
     Console.WriteLine($"Max retained validation failures: {FormatNumber(result.MaxRetainedValidationFailures)}");
+    PrintProcessingPressureSkew(result.PressureSkew);
     Console.WriteLine($"Source count: {FormatNumber(result.SourceCount)}");
     Console.WriteLine($"Partitions: {FormatNumber(result.PartitionCount)}");
     Console.WriteLine($"Shards: {FormatNumber(result.ShardCount)}");
@@ -737,6 +741,15 @@ static void PrintProcessingRebalanceRetentionStats(
     Console.WriteLine($"Dropped validation failure details: {FormatNumber(stats.DroppedValidationFailureCount)}");
 }
 
+static void PrintProcessingPressureSkew(
+    RadarProcessingPressureSkewOptions options)
+{
+    Console.WriteLine($"Synthetic pressure overlay: {FormatBoolean(options.IsEnabled)}");
+    Console.WriteLine($"Pressure skew profile: {FormatProcessingPressureSkewProfile(options.Profile)}");
+    Console.WriteLine($"Pressure skew factor: {FormatDecimal(options.Factor)}");
+    Console.WriteLine($"Pressure skew period: {FormatNumber(options.Period)}");
+}
+
 static string FormatProcessingMode(RadarProcessingExecutionMode executionMode) =>
     executionMode switch
     {
@@ -806,6 +819,18 @@ static string FormatProcessingRetentionMode(RadarProcessingDiagnosticRetentionMo
         RadarProcessingDiagnosticRetentionMode.Recent => "recent",
         RadarProcessingDiagnosticRetentionMode.Diagnostic => "diagnostic",
         _ => retentionMode.ToString()
+    };
+
+static string FormatProcessingPressureSkewProfile(RadarProcessingPressureSkewProfile profile) =>
+    profile switch
+    {
+        RadarProcessingPressureSkewProfile.None => "none",
+        RadarProcessingPressureSkewProfile.HotShard => "hot-shard",
+        RadarProcessingPressureSkewProfile.RotatingHotShard => "rotating-hot-shard",
+        RadarProcessingPressureSkewProfile.HotPartition => "hot-partition",
+        RadarProcessingPressureSkewProfile.TargetStarvation => "target-starvation",
+        RadarProcessingPressureSkewProfile.BudgetStorm => "budget-storm",
+        _ => profile.ToString()
     };
 
 static string FormatBoolean(bool value) =>
@@ -2175,7 +2200,8 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
     int WarmupIterations,
     int Parallelism,
     string Decompressor,
-    RadarProcessingTelemetryRetentionOptions TelemetryRetention)
+    RadarProcessingTelemetryRetentionOptions TelemetryRetention,
+    RadarProcessingPressureSkewOptions PressureSkew)
 {
     public static ProcessingBenchmarkArchiveRebalanceOptions Parse(string[] args)
     {
@@ -2203,6 +2229,9 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
         var maxRetainedAcceptedMoves = RadarProcessingTelemetryRetentionOptions.Default.MaxRetainedAcceptedMoves;
         var maxRetainedValidationFailures =
             RadarProcessingTelemetryRetentionOptions.Default.MaxRetainedValidationFailures;
+        var skewProfile = RadarProcessingPressureSkewOptions.None.Profile;
+        var skewFactor = RadarProcessingPressureSkewOptions.None.Factor;
+        var skewPeriod = RadarProcessingPressureSkewOptions.None.Period;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -2262,6 +2291,20 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
                     maxRetainedValidationFailures = int.Parse(
                         RequireValue(args, ref i, "--max-retained-validation-failures"));
                     break;
+                case "--skew-profile":
+                case "--pressure-skew-profile":
+                    skewProfile = ParsePressureSkewProfile(RequireValue(args, ref i, args[i]));
+                    break;
+                case "--skew-factor":
+                case "--pressure-skew-factor":
+                    skewFactor = double.Parse(
+                        RequireValue(args, ref i, args[i]),
+                        CultureInfo.InvariantCulture);
+                    break;
+                case "--skew-period":
+                case "--pressure-skew-period":
+                    skewPeriod = int.Parse(RequireValue(args, ref i, args[i]));
+                    break;
                 default:
                     throw new ArgumentException($"Unknown option: {args[i]}");
             }
@@ -2320,6 +2363,10 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
             maxRetainedTransitions,
             maxRetainedAcceptedMoves,
             maxRetainedValidationFailures);
+        var pressureSkew = new RadarProcessingPressureSkewOptions(
+            skewProfile,
+            skewFactor,
+            skewPeriod);
 
         return new ProcessingBenchmarkArchiveRebalanceOptions(
             filePath,
@@ -2334,7 +2381,8 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
             warmupIterations,
             parallelism,
             decompressor,
-            telemetryRetention);
+            telemetryRetention,
+            pressureSkew);
     }
 
     private static IReadOnlyList<RadarProcessingSyntheticRebalanceBenchmarkMode> ParseMode(string value) =>
@@ -2365,6 +2413,20 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
             "diagnostic" or "diagnostics" =>
                 RadarProcessingDiagnosticRetentionMode.Diagnostic,
             _ => throw new ArgumentException($"Unknown archive rebalance telemetry retention mode: {value}")
+        };
+
+    private static RadarProcessingPressureSkewProfile ParsePressureSkewProfile(string value) =>
+        value.ToLowerInvariant() switch
+        {
+            "none" or "off" => RadarProcessingPressureSkewProfile.None,
+            "hot-shard" => RadarProcessingPressureSkewProfile.HotShard,
+            "rotating-hot-shard" or "rotating-shard" =>
+                RadarProcessingPressureSkewProfile.RotatingHotShard,
+            "hot-partition" => RadarProcessingPressureSkewProfile.HotPartition,
+            "target-starvation" or "no-cold-target" =>
+                RadarProcessingPressureSkewProfile.TargetStarvation,
+            "budget-storm" => RadarProcessingPressureSkewProfile.BudgetStorm,
+            _ => throw new ArgumentException($"Unknown archive rebalance pressure skew profile: {value}")
         };
 
     private static IReadOnlyList<T> Single<T>(T value) => Array.AsReadOnly([value]);

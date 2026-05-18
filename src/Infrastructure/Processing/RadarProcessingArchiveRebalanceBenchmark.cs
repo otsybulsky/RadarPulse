@@ -32,7 +32,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         int shardCount,
         int degreeOfParallelism,
         CancellationToken cancellationToken = default,
-        RadarProcessingRebalanceHardeningOptions? hardeningOptions = null)
+        RadarProcessingRebalanceHardeningOptions? hardeningOptions = null,
+        RadarProcessingPressureSkewOptions? pressureSkewOptions = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         EnsureKnownMode(mode);
@@ -83,6 +84,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 partitionCount,
                 shardCount,
                 effectiveHardeningOptions,
+                pressureSkewOptions ?? RadarProcessingPressureSkewOptions.None,
                 cancellationToken);
         }
 
@@ -102,6 +104,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 partitionCount,
                 shardCount,
                 effectiveHardeningOptions,
+                pressureSkewOptions ?? RadarProcessingPressureSkewOptions.None,
                 cancellationToken);
             if (expectedIteration.HasValue && !expectedIteration.Value.HasSameStableTotals(iterationTelemetry))
             {
@@ -161,6 +164,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             effectiveHardeningOptions.TelemetryRetention.MaxRetainedLifecycleTransitions,
             effectiveHardeningOptions.TelemetryRetention.MaxRetainedAcceptedMoves,
             effectiveHardeningOptions.TelemetryRetention.MaxRetainedValidationFailures,
+            pressureSkewOptions ?? RadarProcessingPressureSkewOptions.None,
             allocationSummary);
     }
 
@@ -176,7 +180,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         int shardCount,
         int degreeOfParallelism,
         CancellationToken cancellationToken = default,
-        RadarProcessingRebalanceHardeningOptions? hardeningOptions = null)
+        RadarProcessingRebalanceHardeningOptions? hardeningOptions = null,
+        RadarProcessingPressureSkewOptions? pressureSkewOptions = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(cachePath);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxFiles);
@@ -234,6 +239,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 partitionCount,
                 shardCount,
                 effectiveHardeningOptions,
+                pressureSkewOptions ?? RadarProcessingPressureSkewOptions.None,
                 cancellationToken);
         }
 
@@ -256,6 +262,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 partitionCount,
                 shardCount,
                 effectiveHardeningOptions,
+                pressureSkewOptions ?? RadarProcessingPressureSkewOptions.None,
                 cancellationToken);
             if (expectedIteration.HasValue && !expectedIteration.Value.HasSameStableTotals(iterationTelemetry))
             {
@@ -320,6 +327,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             effectiveHardeningOptions.TelemetryRetention.MaxRetainedLifecycleTransitions,
             effectiveHardeningOptions.TelemetryRetention.MaxRetainedAcceptedMoves,
             effectiveHardeningOptions.TelemetryRetention.MaxRetainedValidationFailures,
+            pressureSkewOptions ?? RadarProcessingPressureSkewOptions.None,
             allocationSummary);
     }
 
@@ -331,6 +339,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         int partitionCount,
         int shardCount,
         RadarProcessingRebalanceHardeningOptions hardeningOptions,
+        RadarProcessingPressureSkewOptions pressureSkewOptions,
         CancellationToken cancellationToken)
     {
         var processor = new ArchiveRebalanceBatchProcessor(
@@ -338,7 +347,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             mode,
             partitionCount,
             shardCount,
-            hardeningOptions);
+            hardeningOptions,
+            pressureSkewOptions);
         var publishResult = archiveSession.PublishFile(filePath, processor, cancellationToken);
         return processor.BuildTelemetry(publishResult);
     }
@@ -354,6 +364,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         int partitionCount,
         int shardCount,
         RadarProcessingRebalanceHardeningOptions hardeningOptions,
+        RadarProcessingPressureSkewOptions pressureSkewOptions,
         CancellationToken cancellationToken)
     {
         var processor = new ArchiveRebalanceBatchProcessor(
@@ -361,7 +372,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             mode,
             partitionCount,
             shardCount,
-            hardeningOptions);
+            hardeningOptions,
+            pressureSkewOptions);
         var totals = CacheIterationTotals.Empty;
 
         foreach (var fileInfo in directoryInfo.EnumerateFiles("*", SearchOption.AllDirectories).OrderBy(file => file.FullName))
@@ -521,6 +533,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         private readonly RadarProcessingCore? core;
         private readonly RadarProcessingPressureWindow? pressureWindow;
         private readonly RadarProcessingRebalanceSession? rebalanceSession;
+        private readonly RadarProcessingPressureSkewTransformer? pressureSkewTransformer;
         private readonly System.Diagnostics.Stopwatch processingStopwatch = new();
         private ArchiveIterationTelemetry telemetry = ArchiveIterationTelemetry.Empty;
         private long processingCallbackAllocatedBytes;
@@ -530,11 +543,16 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             RadarProcessingSyntheticRebalanceBenchmarkMode mode,
             int partitionCount,
             int shardCount,
-            RadarProcessingRebalanceHardeningOptions hardeningOptions)
+            RadarProcessingRebalanceHardeningOptions hardeningOptions,
+            RadarProcessingPressureSkewOptions pressureSkewOptions)
         {
             ArgumentNullException.ThrowIfNull(hardeningOptions);
+            ArgumentNullException.ThrowIfNull(pressureSkewOptions);
 
             this.mode = mode;
+            pressureSkewTransformer = pressureSkewOptions.IsEnabled
+                ? new RadarProcessingPressureSkewTransformer(pressureSkewOptions)
+                : null;
             var coreOptions = new RadarProcessingCoreOptions(
                 RadarProcessingExecutionMode.PartitionedBarrier,
                 partitionCount,
@@ -572,7 +590,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                                 partitionMoveCooldownEvaluations: 4,
                                 sourceShardMoveCooldownEvaluations: 1,
                                 targetShardReceiveCooldownEvaluations: 1)),
-                        hardeningOptions: hardeningOptions);
+                        hardeningOptions: hardeningOptions,
+                        pressureSkewOptions: pressureSkewOptions);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(mode));
@@ -644,7 +663,12 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             EnsureValidProcessingResult(result);
             var telemetryResult = result.Telemetry ??
                                   throw new InvalidDataException("Archive pressure sampling requires telemetry.");
-            candidatePressureWindow.AddSample(RadarProcessingPressureSample.FromTelemetry(telemetryResult));
+            var pressureSample = RadarProcessingPressureSample.FromTelemetry(telemetryResult);
+            var effectivePressureSample = pressureSkewTransformer?.Apply(
+                pressureSample,
+                telemetry.RebalanceEvaluationCount + 1,
+                candidatePressureWindow.Options) ?? pressureSample;
+            candidatePressureWindow.AddSample(effectivePressureSample);
             return ArchiveIterationTelemetry.FromMetrics(
                 candidateCore.CreateMetrics(),
                 topologyVersionCount: 1,

@@ -43,6 +43,7 @@ public sealed record RadarProcessingArchiveRebalanceBenchmarkResult(
     int MaxRetainedLifecycleTransitions = 64,
     int MaxRetainedAcceptedMoves = 64,
     int MaxRetainedValidationFailures = 32,
+    RadarProcessingPressureSkewOptions? PressureSkew = null,
     RadarProcessingRebalanceAllocationSummary AllocationSummary = default)
 {
     public IReadOnlyList<RadarProcessingRebalanceSkippedReasonCounter> SkippedReasonCounters { get; init; } =
@@ -57,6 +58,9 @@ public sealed record RadarProcessingArchiveRebalanceBenchmarkResult(
     public int MaxRetainedAcceptedMoves { get; init; } = MaxRetainedAcceptedMoves;
 
     public int MaxRetainedValidationFailures { get; init; } = MaxRetainedValidationFailures;
+
+    public RadarProcessingPressureSkewOptions PressureSkew { get; init; } =
+        PressureSkew ?? RadarProcessingPressureSkewOptions.None;
 
     public long TotalFileSizeBytes => FileSizeBytesPerIteration * Iterations;
 
