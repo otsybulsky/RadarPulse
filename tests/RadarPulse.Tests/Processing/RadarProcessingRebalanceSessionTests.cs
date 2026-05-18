@@ -194,6 +194,23 @@ public sealed class RadarProcessingRebalanceSessionTests
     }
 
     [Fact]
+    public void SessionResultReportsSelectedValidationProfile()
+    {
+        var universe = CreateUniverse(sourceCount: 4);
+        var session = CreateSession(
+            universe,
+            hardeningOptions: new RadarProcessingRebalanceHardeningOptions(
+                validationProfile: RadarProcessingValidationProfile.Off));
+
+        var result = session.Process(CreateEmptyBatch(universe.Version));
+
+        Assert.Equal(RadarProcessingValidationProfile.Off, session.ValidationProfile);
+        Assert.Equal(RadarProcessingValidationProfile.Off, result.ValidationProfile);
+        Assert.True(result.Validation.IsValid);
+        Assert.Equal(0, result.TelemetrySummary.Counters.ValidationFailureCount);
+    }
+
+    [Fact]
     public void SequentialCoreIsRejectedForRebalanceSession()
     {
         var core = new RadarProcessingCore(CreateUniverse(sourceCount: 1));
@@ -203,7 +220,8 @@ public sealed class RadarProcessingRebalanceSessionTests
 
     private static RadarProcessingRebalanceSession CreateSession(
         RadarSourceUniverse universe,
-        RadarProcessingQuarantineLifecycleTracker? quarantineLifecycleTracker = null)
+        RadarProcessingQuarantineLifecycleTracker? quarantineLifecycleTracker = null,
+        RadarProcessingRebalanceHardeningOptions? hardeningOptions = null)
     {
         var core = new RadarProcessingCore(
             universe,
@@ -249,7 +267,8 @@ public sealed class RadarProcessingRebalanceSessionTests
                     maxRetainedLifecycleTransitions: 8,
                     maxRetainedAcceptedMoves: 8,
                     maxRetainedValidationFailures: 8)),
-            quarantineLifecycleTracker: quarantineLifecycleTracker);
+            quarantineLifecycleTracker: quarantineLifecycleTracker,
+            hardeningOptions: hardeningOptions);
     }
 
     private static RadarProcessingQuarantineLifecycleTracker CreateLifecycleTracker(

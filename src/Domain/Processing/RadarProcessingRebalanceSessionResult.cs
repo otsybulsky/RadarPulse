@@ -11,9 +11,12 @@ public sealed class RadarProcessingRebalanceSessionResult
         RadarProcessingStateHandoffValidationResult? handoffValidation,
         RadarProcessingTopology? currentTopology = null,
         IReadOnlyCollection<RadarProcessingQuarantineTransition>? quarantineTransitions = null,
-        RadarProcessingRebalanceTelemetrySummary? telemetrySummary = null)
+        RadarProcessingRebalanceTelemetrySummary? telemetrySummary = null,
+        RadarProcessingValidationProfile validationProfile = RadarProcessingValidationProfile.Diagnostic,
+        RadarProcessingRebalanceValidationResult? validation = null)
     {
         ArgumentNullException.ThrowIfNull(processingResult);
+        RadarProcessingRebalanceHardeningOptions.EnsureKnownValidationProfile(validationProfile);
 
         if (migrationResult is not null &&
             (directHotReliefDecision?.HasAcceptedMove != true &&
@@ -32,9 +35,10 @@ public sealed class RadarProcessingRebalanceSessionResult
         HandoffValidation = handoffValidation;
         QuarantineTransitions = CopyRequired(quarantineTransitions ?? Array.Empty<RadarProcessingQuarantineTransition>());
         TelemetrySummary = telemetrySummary ?? RadarProcessingRebalanceTelemetrySummary.Empty;
-        Validation = currentTopology is null
+        ValidationProfile = validationProfile;
+        Validation = validation ?? (currentTopology is null
             ? RadarProcessingRebalanceValidationResult.Valid()
-            : RadarProcessingRebalanceValidator.ValidateSessionResult(this, currentTopology);
+            : RadarProcessingRebalanceValidator.ValidateSessionResult(this, currentTopology, validationProfile));
     }
 
     public RadarProcessingResult ProcessingResult { get; }
@@ -55,6 +59,8 @@ public sealed class RadarProcessingRebalanceSessionResult
     public IReadOnlyList<RadarProcessingQuarantineTransition> QuarantineTransitions { get; }
 
     public RadarProcessingRebalanceTelemetrySummary TelemetrySummary { get; }
+
+    public RadarProcessingValidationProfile ValidationProfile { get; }
 
     public RadarProcessingRebalanceValidationResult Validation { get; }
 

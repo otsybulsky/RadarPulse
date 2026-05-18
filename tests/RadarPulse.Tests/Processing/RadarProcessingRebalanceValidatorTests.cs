@@ -124,6 +124,76 @@ public sealed class RadarProcessingRebalanceValidatorTests
     }
 
     [Fact]
+    public void OffProfileSkipsSessionReadSideValidation()
+    {
+        var universe = CreateUniverse(sourceCount: 4);
+        var core = new RadarProcessingCore(universe, CreateOptions(partitionCount: 4, shardCount: 2));
+        var processingResult = core.Process(CreateEmptyBatch(universe.Version));
+
+        var result = new RadarProcessingRebalanceSessionResult(
+            processingResult,
+            pressureSample: null,
+            directHotReliefDecision: null,
+            coldEvacuationDecision: null,
+            migrationResult: null,
+            handoffValidation: null,
+            currentTopology: core.Topology,
+            validationProfile: RadarProcessingValidationProfile.Off);
+
+        Assert.Equal(RadarProcessingValidationProfile.Off, result.ValidationProfile);
+        Assert.True(result.Validation.IsValid);
+    }
+
+    [Theory]
+    [InlineData(RadarProcessingValidationProfile.Diagnostic)]
+    [InlineData(RadarProcessingValidationProfile.Benchmark)]
+    public void DiagnosticProfilesPreserveSessionReadSideValidation(
+        RadarProcessingValidationProfile validationProfile)
+    {
+        var universe = CreateUniverse(sourceCount: 4);
+        var core = new RadarProcessingCore(universe, CreateOptions(partitionCount: 4, shardCount: 2));
+        var processingResult = core.Process(CreateEmptyBatch(universe.Version));
+
+        var result = new RadarProcessingRebalanceSessionResult(
+            processingResult,
+            pressureSample: null,
+            directHotReliefDecision: null,
+            coldEvacuationDecision: null,
+            migrationResult: null,
+            handoffValidation: null,
+            currentTopology: core.Topology,
+            validationProfile: validationProfile);
+
+        Assert.Equal(validationProfile, result.ValidationProfile);
+        AssertInvalid(result.Validation, RadarProcessingRebalanceValidationError.PressureSampleTelemetryMismatch);
+    }
+
+    [Fact]
+    public void EssentialProfileReportsStateHandoffFailureWithoutPressureDiagnostics()
+    {
+        var universe = CreateUniverse(sourceCount: 4);
+        var core = new RadarProcessingCore(universe, CreateOptions(partitionCount: 4, shardCount: 2));
+        var processingResult = core.Process(CreateEmptyBatch(universe.Version));
+        var handoff = CreateInvalidStateHandoff();
+
+        var result = new RadarProcessingRebalanceSessionResult(
+            processingResult,
+            pressureSample: null,
+            directHotReliefDecision: CreateAcceptedDecision(core.Topology.Version),
+            coldEvacuationDecision: null,
+            migrationResult: null,
+            handoffValidation: handoff,
+            currentTopology: core.Topology,
+            validationProfile: RadarProcessingValidationProfile.Essential);
+
+        Assert.Equal(RadarProcessingValidationProfile.Essential, result.ValidationProfile);
+        AssertInvalid(result.Validation, RadarProcessingRebalanceValidationError.StateHandoffValidationFailed);
+        Assert.Equal(
+            RadarProcessingStateHandoffValidationError.ActiveSourceCountMismatch,
+            result.Validation.HandoffError);
+    }
+
+    [Fact]
     public void InvalidStateHandoffIsReportedWithDiagnostics()
     {
         var universe = CreateUniverse(sourceCount: 4);
@@ -200,6 +270,54 @@ public sealed class RadarProcessingRebalanceValidatorTests
         Assert.False(result.IsValid);
         Assert.Equal(expectedError, result.Error);
         Assert.False(string.IsNullOrWhiteSpace(result.Message));
+    }
+
+    private static RadarProcessingRebalanceDecision CreateAcceptedDecision(
+        RadarProcessingTopologyVersion topologyVersion) =>
+        RadarProcessingRebalanceDecision.AcceptedMove(
+            decisionId: 10,
+            evaluationSequence: 1,
+            topologyVersion,
+            pressureWindowSampleCount: 1,
+            new RadarProcessingRebalanceCandidate(
+                RadarProcessingRebalanceMoveKind.DirectHotRelief,
+                partitionId: 0,
+                sourceShardId: 0,
+                targetShardId: 1,
+                new RadarProcessingProjectedPressure(
+                    new RadarProcessingPressureScore(5.0),
+                    RadarProcessingPressureScore.Zero,
+                    new RadarProcessingPressureScore(4.0),
+                    new RadarProcessingPressureScore(1.0)),
+                expectedRelief: 1.0));
+
+    private static RadarProcessingStateHandoffValidationResult CreateInvalidStateHandoff()
+    {
+        var before = new RadarProcessingPartitionStateSnapshot(
+            partitionId: 0,
+            shardId: 0,
+            sourceIdStart: 0,
+            sourceIdEndExclusive: 1,
+            activeSourceCount: 1,
+            processedEventCount: 1,
+            processedPayloadValueCount: 1,
+            rawValueChecksum: 1,
+            new RadarProcessingPartitionStateChecksum(
+                ProcessingChecksum: 1,
+                LastMessageTimestampChecksum: 2,
+                HandlerSnapshotChecksum: 0));
+        var after = new RadarProcessingPartitionStateSnapshot(
+            partitionId: 0,
+            shardId: 1,
+            sourceIdStart: 0,
+            sourceIdEndExclusive: 1,
+            activeSourceCount: 0,
+            processedEventCount: 1,
+            processedPayloadValueCount: 1,
+            rawValueChecksum: 1,
+            before.Checksum);
+
+        return RadarProcessingStateHandoffValidator.Validate(before, after);
     }
 
     private static RadarProcessingTopologyManager CreateManager(

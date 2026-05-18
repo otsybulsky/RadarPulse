@@ -92,6 +92,12 @@ public sealed class RadarProcessingRebalanceTelemetryRecorder
             failedMigrationCount++;
         }
 
+        if (!recentValidationFailures.CanRetain)
+        {
+            recentValidationFailures.Drop();
+            return;
+        }
+
         recentValidationFailures.Add(
             RadarProcessingRebalanceRecentValidationFailure.FromResult(
                 evaluationSequence,

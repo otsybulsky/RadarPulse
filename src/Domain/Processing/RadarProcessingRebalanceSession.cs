@@ -11,6 +11,7 @@ public sealed class RadarProcessingRebalanceSession
     private readonly RadarProcessingHotPartitionClassifier hotPartitionClassifier;
     private readonly RadarProcessingQuarantineLifecycleTracker quarantineLifecycleTracker;
     private readonly RadarProcessingRebalanceTelemetryRecorder telemetryRecorder;
+    private readonly RadarProcessingRebalanceHardeningOptions hardeningOptions;
     private readonly RadarProcessingDirectHotReliefPlanner directHotReliefPlanner;
     private readonly RadarProcessingColdEvacuationPlanner coldEvacuationPlanner;
     private readonly RadarProcessingMigrationCoordinator migrationCoordinator;
@@ -25,7 +26,8 @@ public sealed class RadarProcessingRebalanceSession
         RadarProcessingDirectHotReliefPlanner? directHotReliefPlanner = null,
         RadarProcessingColdEvacuationPlanner? coldEvacuationPlanner = null,
         RadarProcessingQuarantineLifecycleTracker? quarantineLifecycleTracker = null,
-        RadarProcessingRebalanceTelemetryRecorder? telemetryRecorder = null)
+        RadarProcessingRebalanceTelemetryRecorder? telemetryRecorder = null,
+        RadarProcessingRebalanceHardeningOptions? hardeningOptions = null)
     {
         ArgumentNullException.ThrowIfNull(core);
 
@@ -37,6 +39,7 @@ public sealed class RadarProcessingRebalanceSession
         }
 
         this.core = core;
+        this.hardeningOptions = hardeningOptions ?? RadarProcessingRebalanceHardeningOptions.Default;
         this.pressureOptions = pressureOptions ?? RadarProcessingPressureOptions.Default;
         this.pressureWindow = pressureWindow ?? new RadarProcessingPressureWindow();
         this.policyState = policyState ?? new RadarProcessingRebalancePolicyState(
@@ -45,8 +48,11 @@ public sealed class RadarProcessingRebalanceSession
         this.hotPartitionClassifier = hotPartitionClassifier ??
                                       new RadarProcessingHotPartitionClassifier(core.Options.PartitionCount);
         this.quarantineLifecycleTracker = quarantineLifecycleTracker ??
-                                          new RadarProcessingQuarantineLifecycleTracker(core.Options.PartitionCount);
-        this.telemetryRecorder = telemetryRecorder ?? new RadarProcessingRebalanceTelemetryRecorder();
+                                          new RadarProcessingQuarantineLifecycleTracker(
+                                              core.Options.PartitionCount,
+                                              this.hardeningOptions.QuarantineLifecycle);
+        this.telemetryRecorder = telemetryRecorder ??
+                                 new RadarProcessingRebalanceTelemetryRecorder(this.hardeningOptions.TelemetryRetention);
         this.directHotReliefPlanner = directHotReliefPlanner ?? new RadarProcessingDirectHotReliefPlanner();
         this.coldEvacuationPlanner = coldEvacuationPlanner ?? new RadarProcessingColdEvacuationPlanner();
         migrationCoordinator = new RadarProcessingMigrationCoordinator(core.TopologyManager);
@@ -68,6 +74,10 @@ public sealed class RadarProcessingRebalanceSession
 
     public RadarProcessingRebalanceTelemetryRecorder TelemetryRecorder => telemetryRecorder;
 
+    public RadarProcessingRebalanceHardeningOptions HardeningOptions => hardeningOptions;
+
+    public RadarProcessingValidationProfile ValidationProfile => hardeningOptions.ValidationProfile;
+
     public RadarProcessingRebalanceSessionResult Process(
         RadarEventBatch batch,
         CancellationToken cancellationToken = default)
@@ -77,6 +87,15 @@ public sealed class RadarProcessingRebalanceSession
         var processingResult = core.Process(batch, cancellationToken);
         if (!processingResult.IsValid || processingResult.Telemetry is null)
         {
+            var validation = ValidateSessionResult(
+                processingResult,
+                pressureSample: null,
+                directHotReliefDecision: null,
+                coldEvacuationDecision: null,
+                migrationResult: null,
+                handoffValidation: null);
+            RecordValidationResult(processingResult, validation);
+
             return new RadarProcessingRebalanceSessionResult(
                 processingResult,
                 pressureSample: null,
@@ -86,7 +105,9 @@ public sealed class RadarProcessingRebalanceSession
                 handoffValidation: null,
                 currentTopology: core.Topology,
                 quarantineTransitions: Array.Empty<RadarProcessingQuarantineTransition>(),
-                telemetrySummary: telemetryRecorder.CreateSummary());
+                telemetrySummary: telemetryRecorder.CreateSummary(),
+                validationProfile: ValidationProfile,
+                validation: validation);
         }
 
         var pressureSample = RadarProcessingPressureSample.FromTelemetry(
@@ -126,6 +147,14 @@ public sealed class RadarProcessingRebalanceSession
             : (null, null);
         var quarantineTransitions = quarantineLifecycleTracker.DrainTransitions();
         RecordQuarantineTransitions(quarantineTransitions);
+        var sessionValidation = ValidateSessionResult(
+            processingResult,
+            pressureSample,
+            directDecision,
+            coldDecision,
+            migrationResult,
+            handoffValidation);
+        RecordValidationResult(processingResult, sessionValidation);
 
         return new RadarProcessingRebalanceSessionResult(
             processingResult,
@@ -136,7 +165,36 @@ public sealed class RadarProcessingRebalanceSession
             handoffValidation,
             core.Topology,
             quarantineTransitions,
-            telemetryRecorder.CreateSummary());
+            telemetryRecorder.CreateSummary(),
+            ValidationProfile,
+            sessionValidation);
+    }
+
+    private RadarProcessingRebalanceValidationResult ValidateSessionResult(
+        RadarProcessingResult processingResult,
+        RadarProcessingPressureSample? pressureSample,
+        RadarProcessingRebalanceDecision? directHotReliefDecision,
+        RadarProcessingRebalanceDecision? coldEvacuationDecision,
+        RadarProcessingMigrationResult? migrationResult,
+        RadarProcessingStateHandoffValidationResult? handoffValidation) =>
+        RadarProcessingRebalanceValidator.ValidateSessionResult(
+            processingResult,
+            pressureSample,
+            directHotReliefDecision,
+            coldEvacuationDecision,
+            migrationResult,
+            handoffValidation,
+            core.Topology,
+            ValidationProfile);
+
+    private void RecordValidationResult(
+        RadarProcessingResult processingResult,
+        RadarProcessingRebalanceValidationResult validation)
+    {
+        telemetryRecorder.RecordValidationResult(
+            policyState.EvaluationSequence,
+            processingResult.TopologyVersion,
+            validation);
     }
 
     private void RecordQuarantineTransitions(

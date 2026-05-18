@@ -1,4 +1,4 @@
-# Handoff: Milestone 007 Slice 7 Telemetry Wiring Complete
+# Handoff: Milestone 007 Slice 8 Validation Profiles Complete
 
 ## Current Goal
 
@@ -359,9 +359,9 @@ detail is retained through the bounded
 `RadarProcessingRebalanceRecentLifecycleTransition` contract, while
 `RadarProcessingBoundedTelemetryWindow<T>.CanRetain` and `Drop()` let
 counters-only or zero-retention paths count dropped detail without constructing
-unneeded recent-detail objects. Validation-failure recording is intentionally
-deferred to validation profile integration so that validation cost and summary
-snapshot timing stay explicit.
+unneeded recent-detail objects. At this point validation-failure recording was
+left for validation profile integration so that validation cost and summary
+snapshot timing would stay explicit.
 
 Latest verification after milestone 007 slice 7 telemetry wiring:
 
@@ -377,6 +377,37 @@ Result:
 41 passed for focused telemetry/session coverage.
 296 passed for processing-focused coverage.
 445 passed, 3 skipped for the full solution suite.
+```
+
+Milestone 007 slice 8 is implemented in the current working tree. RadarPulse now
+has profile-aware rebalance session validation. `RadarProcessingRebalanceSession`
+uses `RadarProcessingRebalanceHardeningOptions`, exposes the active
+`ValidationProfile`, validates session results through that profile, records
+validation failures into the bounded telemetry recorder before the final
+`TelemetrySummary` snapshot, and passes the precomputed validation result into
+`RadarProcessingRebalanceSessionResult` so result construction does not need a
+second validation pass. `RadarProcessingRebalanceValidator` now supports
+`Off`, `Essential`, `Diagnostic`, and `Benchmark` session validation paths:
+`Off` skips read-side diagnostics, `Essential` checks migration and handoff
+failures without full pressure/telemetry diagnostics, and `Diagnostic` plus
+`Benchmark` preserve the existing milestone 006 read-side behavior. The
+telemetry recorder now avoids constructing recent validation-failure detail when
+the retention window cannot keep it.
+
+Latest verification after milestone 007 slice 8:
+
+```powershell
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingRebalanceValidator|FullyQualifiedName~RadarProcessingRebalanceSession|FullyQualifiedName~RadarProcessingRebalanceTelemetryRecorder"
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~Processing"
+dotnet test RadarPulse.sln --no-restore
+```
+
+Result:
+
+```text
+32 passed for focused validator/session/recorder coverage.
+301 passed for processing-focused coverage.
+450 passed, 3 skipped for the full solution suite.
 ```
 
 ## Milestone Status
@@ -487,6 +518,7 @@ Done:
   are implemented and tested.
 - `007` slice 7 session-level hardening telemetry summary wiring is implemented
   and tested.
+- `007` slice 8 validation profiles are implemented and tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -503,9 +535,9 @@ Next milestone focus:
 - Implement milestone 007 from the closed architecture and plan:
   `docs/milestones/007-rebalance-production-hardening.md` and
   `docs/milestones/007-rebalance-production-hardening-plan.md`.
-- Continue milestone 007 with validation profile integration; hook validation
-  failure recording there so validation cost, result construction, and telemetry
-  snapshot allocation stay explicit.
+- Continue milestone 007 with allocation attribution baseline so benchmark
+  output can report validation profile, retention mode, callback allocation,
+  and comparable static/sampling/rebalance allocation contours explicitly.
 - Preserve the final milestone 007 performance requirement: closeout must
   include a comprehensive side-by-side comparison against milestone 005
   processing-only baselines and the accepted milestone 006 synthetic,
