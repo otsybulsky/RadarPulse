@@ -149,6 +149,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             aggregate.ValidationSucceeded,
             aggregate.ValidationChecksum,
             CreateReadOnlyList(aggregate.SkippedReasons),
+            CreateSortedSkippedReasonCounters(aggregate.SkippedReasonCounters),
             CreateReadOnlyList(aggregate.AcceptedMovePressures),
             aggregate.RetentionStats,
             stopwatch.Elapsed,
@@ -307,6 +308,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             aggregate.ValidationSucceeded,
             aggregate.ValidationChecksum,
             CreateReadOnlyList(aggregate.SkippedReasons),
+            CreateSortedSkippedReasonCounters(aggregate.SkippedReasonCounters),
             CreateReadOnlyList(aggregate.AcceptedMovePressures),
             aggregate.RetentionStats,
             stopwatch.Elapsed,
@@ -500,6 +502,19 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             ? Array.AsReadOnly(values.ToArray())
             : Array.Empty<T>();
 
+    private static IReadOnlyList<RadarProcessingRebalanceSkippedReasonCounter> CreateSortedSkippedReasonCounters(
+        List<RadarProcessingRebalanceSkippedReasonCounter>? values)
+    {
+        if (values is not { Count: > 0 })
+        {
+            return Array.Empty<RadarProcessingRebalanceSkippedReasonCounter>();
+        }
+
+        var result = values.ToArray();
+        Array.Sort(result, (left, right) => left.Reason.CompareTo(right.Reason));
+        return Array.AsReadOnly(result);
+    }
+
     private sealed class ArchiveRebalanceBatchProcessor : IArchiveRadarEventBatchPublisher
     {
         private readonly RadarProcessingSyntheticRebalanceBenchmarkMode mode;
@@ -692,6 +707,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         bool ValidationSucceeded,
         ulong ValidationChecksum,
         List<RadarProcessingRebalanceSkippedReason>? SkippedReasons,
+        List<RadarProcessingRebalanceSkippedReasonCounter>? SkippedReasonCounters,
         List<RadarProcessingSyntheticRebalanceMovePressure>? AcceptedMovePressures,
         RadarProcessingRebalanceRetentionStats RetentionStats,
         TimeSpan ProcessingElapsed,
@@ -721,6 +737,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 ValidationSucceeded: true,
                 ValidationChecksum: ChecksumInitial,
                 SkippedReasons: null,
+                SkippedReasonCounters: null,
                 AcceptedMovePressures: null,
                 RetentionStats: new RadarProcessingRebalanceRetentionStats(),
                 ProcessingElapsed: TimeSpan.Zero,
@@ -749,6 +766,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             RadarProcessingRebalanceSessionResult result)
         {
             List<RadarProcessingRebalanceSkippedReason>? skippedReasons = null;
+            List<RadarProcessingRebalanceSkippedReasonCounter>? skippedReasonCounters = null;
             List<RadarProcessingSyntheticRebalanceMovePressure>? movePressures = null;
             var skippedDecisionCount = 0L;
             var acceptedMoveCount = 0L;
@@ -756,8 +774,16 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             var coldEvacuationCount = 0L;
             var failedMigrationCount = 0L;
 
-            AddDecision(result.DirectHotReliefDecision, ref skippedReasons, ref skippedDecisionCount);
-            AddDecision(result.ColdEvacuationDecision, ref skippedReasons, ref skippedDecisionCount);
+            AddDecision(
+                result.DirectHotReliefDecision,
+                ref skippedReasons,
+                ref skippedReasonCounters,
+                ref skippedDecisionCount);
+            AddDecision(
+                result.ColdEvacuationDecision,
+                ref skippedReasons,
+                ref skippedReasonCounters,
+                ref skippedDecisionCount);
 
             if (result.PublishedMigration)
             {
@@ -791,6 +817,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 FailedMigrationCount = failedMigrationCount,
                 ValidationSucceeded = result.Validation.IsValid,
                 SkippedReasons = skippedReasons,
+                SkippedReasonCounters = skippedReasonCounters,
                 AcceptedMovePressures = movePressures
             };
         }
@@ -803,6 +830,15 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 foreach (var reason in otherSkippedReasons)
                 {
                     AddSkippedReason(ref skippedReasons, reason);
+                }
+            }
+
+            var skippedReasonCounters = SkippedReasonCounters;
+            if (other.SkippedReasonCounters is { Count: > 0 } otherSkippedReasonCounters)
+            {
+                foreach (var counter in otherSkippedReasonCounters)
+                {
+                    AddSkippedReasonCounter(ref skippedReasonCounters, counter.Reason, counter.Count);
                 }
             }
 
@@ -838,6 +874,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 ValidationSucceeded = ValidationSucceeded && other.ValidationSucceeded,
                 ValidationChecksum = AppendUInt64(ValidationChecksum, other.ValidationChecksum),
                 SkippedReasons = skippedReasons,
+                SkippedReasonCounters = skippedReasonCounters,
                 AcceptedMovePressures = movePressures,
                 RetentionStats = AddRetentionStats(RetentionStats, other.RetentionStats),
                 ProcessingElapsed = ProcessingElapsed + other.ProcessingElapsed,
@@ -945,7 +982,37 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             FailedMigrationCount == other.FailedMigrationCount &&
             ValidationSucceeded == other.ValidationSucceeded &&
             ValidationChecksum == other.ValidationChecksum &&
+            HasSameSkippedReasonCounters(SkippedReasonCounters, other.SkippedReasonCounters) &&
             HasSameRetentionStats(RetentionStats, other.RetentionStats);
+
+        private static bool HasSameSkippedReasonCounters(
+            IReadOnlyList<RadarProcessingRebalanceSkippedReasonCounter>? current,
+            IReadOnlyList<RadarProcessingRebalanceSkippedReasonCounter>? other)
+        {
+            var currentCount = current?.Count ?? 0;
+            if (currentCount != (other?.Count ?? 0))
+            {
+                return false;
+            }
+
+            if (currentCount == 0)
+            {
+                return true;
+            }
+
+            var currentSorted = current!.OrderBy(counter => counter.Reason).ToArray();
+            var otherSorted = other!.OrderBy(counter => counter.Reason).ToArray();
+            for (var index = 0; index < currentSorted.Length; index++)
+            {
+                if (currentSorted[index].Reason != otherSorted[index].Reason ||
+                    currentSorted[index].Count != otherSorted[index].Count)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
 
         private static RadarProcessingRebalanceRetentionStats AddRetentionStats(
             RadarProcessingRebalanceRetentionStats current,
@@ -977,6 +1044,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         private static void AddDecision(
             RadarProcessingRebalanceDecision? decision,
             ref List<RadarProcessingRebalanceSkippedReason>? skippedReasons,
+            ref List<RadarProcessingRebalanceSkippedReasonCounter>? skippedReasonCounters,
             ref long skippedDecisionCount)
         {
             if (decision is null || decision.HasAcceptedMove)
@@ -988,6 +1056,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             foreach (var reason in decision.SkippedReasons)
             {
                 AddSkippedReason(ref skippedReasons, reason);
+                AddSkippedReasonCounter(ref skippedReasonCounters, reason, count: 1);
             }
         }
 
@@ -1000,6 +1069,34 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             {
                 skippedReasons.Add(reason);
             }
+        }
+
+        private static void AddSkippedReasonCounter(
+            ref List<RadarProcessingRebalanceSkippedReasonCounter>? skippedReasonCounters,
+            RadarProcessingRebalanceSkippedReason reason,
+            long count)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegative(count);
+            if (count == 0)
+            {
+                return;
+            }
+
+            skippedReasonCounters ??= new List<RadarProcessingRebalanceSkippedReasonCounter>();
+            for (var index = 0; index < skippedReasonCounters.Count; index++)
+            {
+                if (skippedReasonCounters[index].Reason != reason)
+                {
+                    continue;
+                }
+
+                skippedReasonCounters[index] = new RadarProcessingRebalanceSkippedReasonCounter(
+                    reason,
+                    checked(skippedReasonCounters[index].Count + count));
+                return;
+            }
+
+            skippedReasonCounters.Add(new RadarProcessingRebalanceSkippedReasonCounter(reason, count));
         }
 
         private static RadarProcessingSyntheticRebalanceMovePressure CreateMovePressure(

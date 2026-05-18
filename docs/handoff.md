@@ -1,4 +1,4 @@
-# Handoff: Milestone 007 Slice 12 Retention Stress And Archive Gate Complete
+# Handoff: Milestone 007 Slice 13 Archive Skipped-Reason Counters Complete
 
 ## Current Goal
 
@@ -645,6 +645,49 @@ Counters: validation succeeded, 0 retained decisions, 438 dropped decision detai
 Both modes produced the same validation checksum and accepted only two cautious direct-hot-relief moves on the full cache.
 ```
 
+Milestone 007 slice 13 is implemented in the current working tree. Archive
+rebalance benchmark results now expose counted skipped-reason telemetry through
+`SkippedReasonCounters` for both file and cache runs, and CLI output prints
+those counters alongside the existing distinct skipped-reason set. The archive
+aggregation path counts skipped reasons directly from decisions, so the
+diagnostic survives counters-only retention and does not depend on retained
+decision detail.
+
+Latest verification after milestone 007 slice 13:
+
+```powershell
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~Processing|FullyQualifiedName~Presentation"
+dotnet test RadarPulse.sln --no-restore
+dotnet build RadarPulse.sln -c Release --no-restore
+```
+
+Result:
+
+```text
+15 passed for focused archive allocation/result and CLI coverage.
+330 passed for processing/presentation-focused coverage.
+473 passed, 3 skipped for the full solution suite.
+Release build succeeded with 0 warnings and 0 errors.
+```
+
+Latest Release full-cache skipped-reason counter smoke after milestone 007
+slice 13:
+
+```powershell
+dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --cache data\nexrad --max-files 1000000 --mode rebalance --partitions 24 --shards 4 --iterations 1 --warmup-iterations 0 --parallelism 24 --decompressor radarpulse --retention-mode counters
+```
+
+Result on the local full cache:
+
+```text
+244 examined files, 220 published base-data files, 24 skipped files.
+220 rebalance evaluations, 2 accepted direct-hot-relief moves, 436 skipped decisions, 0 failed migrations.
+Skipped reason counters: no-hot-shard=420, no-cold-target-shard=4, source-shard-move-budget-exhausted=12, global-move-budget-exhausted=12.
+Validation succeeded with the same checksum as the slice 12 recent/counters comparison.
+Processing callback throughput was 2.68B payload values/s with 0.03 callback allocated bytes/payload.
+```
+
 ## Milestone Status
 
 Done:
@@ -765,6 +808,8 @@ Done:
 - `007` archive rebalance benchmark retention options, retention result
   fields, CLI output, and full-cache recent/counters comparison gate are
   implemented and tested.
+- `007` slice 13 archive skipped-reason counters are implemented, tested, and
+  smoke-checked against the full local cache.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -781,11 +826,10 @@ Next milestone focus:
 - Implement milestone 007 from the closed architecture and plan:
   `docs/milestones/007-rebalance-production-hardening.md` and
   `docs/milestones/007-rebalance-production-hardening-plan.md`.
-- Continue milestone 007 with archive skipped-reason counter reporting and
-  remaining CLI hardening surfaces. The archive benchmark currently prints the
-  distinct skipped-reason set; the next useful diagnostic upgrade is to expose
-  counted skipped reasons so full-cache "why only N moves?" questions can be
-  answered without inspecting retained decision detail.
+- Continue milestone 007 with the remaining CLI hardening surfaces: validation
+  profile options and quarantine lifecycle option flags for synthetic/archive
+  benchmark commands. Keep these additive so existing benchmark commands retain
+  their defaults and comparable baselines.
 - Preserve the slice 10 allocation guardrails, slice 11 workload-default
   hardening behavior, and slice 12 retention stress guarantees: no-move/no-detail
   paths should keep avoiding empty collection churn, allowed policy evaluation

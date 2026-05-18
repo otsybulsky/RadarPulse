@@ -31,6 +31,7 @@ public sealed record RadarProcessingArchiveRebalanceBenchmarkResult(
     bool ValidationSucceeded,
     ulong ValidationChecksum,
     IReadOnlyList<RadarProcessingRebalanceSkippedReason> SkippedReasons,
+    IReadOnlyList<RadarProcessingRebalanceSkippedReasonCounter> SkippedReasonCounters,
     IReadOnlyList<RadarProcessingSyntheticRebalanceMovePressure> AcceptedMovePressures,
     RadarProcessingRebalanceRetentionStats RetentionStats,
     TimeSpan Elapsed,
@@ -44,6 +45,9 @@ public sealed record RadarProcessingArchiveRebalanceBenchmarkResult(
     int MaxRetainedValidationFailures = 32,
     RadarProcessingRebalanceAllocationSummary AllocationSummary = default)
 {
+    public IReadOnlyList<RadarProcessingRebalanceSkippedReasonCounter> SkippedReasonCounters { get; init; } =
+        SkippedReasonCounters;
+
     public RadarProcessingRebalanceRetentionStats RetentionStats { get; init; } = RetentionStats;
 
     public int MaxRetainedDecisions { get; init; } = MaxRetainedDecisions;

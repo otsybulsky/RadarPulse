@@ -591,6 +591,7 @@ static void PrintProcessingArchiveRebalanceBenchmarkResult(RadarProcessingArchiv
     Console.WriteLine($"Validation: {(result.ValidationSucceeded ? "succeeded" : "failed")}");
     Console.WriteLine($"Validation checksum: {FormatUnsignedNumber(result.ValidationChecksum)}");
     Console.WriteLine($"Skipped reasons: {FormatProcessingRebalanceSkippedReasons(result.SkippedReasons)}");
+    Console.WriteLine($"Skipped reason counters: {FormatProcessingRebalanceSkippedReasonCounters(result.SkippedReasonCounters)}");
     PrintProcessingRebalanceRetentionStats(result.RetentionStats);
     Console.WriteLine($"End-to-end elapsed ms: {FormatDecimal(result.Elapsed.TotalMilliseconds)}");
     Console.WriteLine($"Processing callback elapsed ms: {FormatDecimal(result.ProcessingElapsed.TotalMilliseconds)}");
@@ -668,6 +669,7 @@ static void PrintProcessingArchiveRebalanceCacheBenchmarkResult(RadarProcessingA
     Console.WriteLine($"Validation: {(result.ValidationSucceeded ? "succeeded" : "failed")}");
     Console.WriteLine($"Validation checksum: {FormatUnsignedNumber(result.ValidationChecksum)}");
     Console.WriteLine($"Skipped reasons: {FormatProcessingRebalanceSkippedReasons(result.SkippedReasons)}");
+    Console.WriteLine($"Skipped reason counters: {FormatProcessingRebalanceSkippedReasonCounters(result.SkippedReasonCounters)}");
     PrintProcessingRebalanceRetentionStats(result.RetentionStats);
     Console.WriteLine($"End-to-end elapsed ms: {FormatDecimal(result.Elapsed.TotalMilliseconds)}");
     Console.WriteLine($"Processing callback elapsed ms: {FormatDecimal(result.ProcessingElapsed.TotalMilliseconds)}");
@@ -823,6 +825,13 @@ static string FormatProcessingRebalanceSkippedReasons(
     skippedReasons.Count == 0
         ? "(none)"
         : string.Join(", ", skippedReasons.Select(FormatProcessingRebalanceSkippedReason));
+
+static string FormatProcessingRebalanceSkippedReasonCounters(
+    IReadOnlyList<RadarProcessingRebalanceSkippedReasonCounter> counters) =>
+    counters.Count == 0
+        ? "(none)"
+        : string.Join(", ", counters.Select(counter =>
+            $"{FormatProcessingRebalanceSkippedReason(counter.Reason)}={FormatNumber(counter.Count)}"));
 
 static string FormatProcessingRebalanceSkippedReason(RadarProcessingRebalanceSkippedReason reason) =>
     reason switch
