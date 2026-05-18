@@ -182,6 +182,51 @@ public sealed class RadarProcessingQuarantineLifecycleStateTests
     }
 
     [Fact]
+    public void RecordClassificationEvidenceUpdatesNonQuarantineClassification()
+    {
+        var state = RadarProcessingQuarantineLifecycleState
+            .Unclassified(partitionId: 1)
+            .RecordClassificationEvidence(
+                CreateEvidence(
+                    partitionId: 1,
+                    shardId: 2,
+                    evaluationSequence: 10,
+                    pressure: 50,
+                    observedClassification: RadarProcessingHotPartitionClassification.IntrinsicHot),
+                RadarProcessingQuarantineEffectiveClassification.IntrinsicHot);
+
+        Assert.Equal(RadarProcessingQuarantineEffectiveClassification.IntrinsicHot, state.EffectiveClassification);
+        Assert.True(state.BlocksDirectMove);
+        Assert.False(state.HasQuarantineEvidence);
+        Assert.Equal(2, state.ShardId);
+        Assert.Equal(10, state.LatestEvidenceSequence);
+        Assert.Equal(new RadarProcessingPressureScore(50), state.LatestPressure);
+    }
+
+    [Fact]
+    public void ClearToClassificationRemovesQuarantineEvidenceAndKeepsObservedClassification()
+    {
+        var state = RadarProcessingQuarantineLifecycleState
+            .Unclassified(partitionId: 1)
+            .EnterQuarantine(CreateEvidence(partitionId: 1, evaluationSequence: 10, pressure: 100))
+            .ClearToClassification(
+                CreateEvidence(
+                    partitionId: 1,
+                    evaluationSequence: 20,
+                    pressure: 70,
+                    observedClassification: RadarProcessingHotPartitionClassification.MovableHot),
+                RadarProcessingQuarantineEffectiveClassification.MovableHot,
+                RadarProcessingQuarantineTransitionReason.ClearedByEffectiveRelief);
+
+        Assert.Equal(RadarProcessingQuarantineEffectiveClassification.MovableHot, state.EffectiveClassification);
+        Assert.False(state.BlocksDirectMove);
+        Assert.False(state.HasQuarantineEvidence);
+        Assert.Null(state.QuarantineStartSequence);
+        Assert.Null(state.BaselinePressure);
+        Assert.Equal(0, state.SustainedCoolingSampleCount);
+    }
+
+    [Fact]
     public void ReenterQuarantineOverwritesStaleEvidence()
     {
         var state = RadarProcessingQuarantineLifecycleState
@@ -226,6 +271,15 @@ public sealed class RadarProcessingQuarantineLifecycleStateTests
             state.Clear(
                 CreateEvidence(partitionId: 1, evaluationSequence: 11),
                 RadarProcessingQuarantineTransitionReason.MarkedRetryEligibleByTtl));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            state.RecordClassificationEvidence(
+                CreateEvidence(partitionId: 1, evaluationSequence: 11),
+                RadarProcessingQuarantineEffectiveClassification.Quarantined));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            state.ClearToClassification(
+                CreateEvidence(partitionId: 1, evaluationSequence: 11),
+                RadarProcessingQuarantineEffectiveClassification.RetryEligible,
+                RadarProcessingQuarantineTransitionReason.ClearedByEffectiveRelief));
     }
 
     [Fact]

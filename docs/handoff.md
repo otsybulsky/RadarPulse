@@ -1,4 +1,4 @@
-# Handoff: Milestone 007 Planning Complete
+# Handoff: Milestone 007 Slice 5 Complete
 
 ## Current Goal
 
@@ -262,6 +262,34 @@ tests cover stable enum values, evidence validation, quarantine baseline
 recording, cooling/hot sample behavior, retry eligibility, clearing, re-entry,
 transition telemetry, mismatched evidence, and out-of-order evidence.
 
+Milestone 007 slice 5 is implemented in the current working tree. RadarPulse
+now has a deterministic quarantine lifecycle evaluator:
+`RadarProcessingQuarantineLifecycleEvaluator` and
+`RadarProcessingQuarantineLifecycleEvaluationResult`. The evaluator advances
+compact partition evidence before planning, records current non-quarantine
+classification, enters quarantine, clears after sustained cooling, marks stale
+quarantine evidence retry-eligible after TTL expiry or material pressure
+change, and supports retry re-entry with fresh baseline pressure. Focused tests
+cover default options, active quarantine entry, insufficient cooling, sustained
+cooling clear, hot-sample cooling reset, TTL retry, material pressure increase
+and drop retry, immaterial pressure changes, retry re-entry, clearing to
+observed effective classification, transition result validation, and invalid
+inputs.
+
+Latest verification after milestone 007 slice 5:
+
+```powershell
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingQuarantineLifecycle"
+dotnet test RadarPulse.sln --no-restore
+```
+
+Result:
+
+```text
+31 passed for the focused quarantine lifecycle suite.
+428 passed, 3 skipped for the full solution suite.
+```
+
 ## Milestone Status
 
 Done:
@@ -363,6 +391,7 @@ Done:
   implemented and tested.
 - `007` slice 4 quarantine lifecycle state and transition contracts are
   implemented and tested.
+- `007` slice 5 quarantine lifecycle evaluator is implemented and tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -379,9 +408,9 @@ Next milestone focus:
 - Implement milestone 007 from the closed architecture and plan:
   `docs/milestones/007-rebalance-production-hardening.md` and
   `docs/milestones/007-rebalance-production-hardening-plan.md`.
-- Continue milestone 007 with slice 5 quarantine lifecycle evaluator, then
-  integrate effective classification into direct hot relief and cold evacuation
-  planning.
+- Continue milestone 007 with slice 6 planner integration so direct hot relief
+  and cold evacuation consume lifecycle-effective classification before making
+  movement decisions.
 - Preserve the final milestone 007 performance requirement: closeout must
   include a comprehensive side-by-side comparison against milestone 005
   processing-only baselines and the accepted milestone 006 synthetic,
@@ -2780,6 +2809,8 @@ constant and moment data blocks.
 - `src/Domain/Processing/RadarProcessingQuarantineEvidence.cs`
 - `src/Domain/Processing/RadarProcessingQuarantineTransition.cs`
 - `src/Domain/Processing/RadarProcessingQuarantineLifecycleState.cs`
+- `src/Domain/Processing/RadarProcessingQuarantineLifecycleEvaluationResult.cs`
+- `src/Domain/Processing/RadarProcessingQuarantineLifecycleEvaluator.cs`
 - `src/Domain/Processing/RadarProcessingTopologyVersion.cs`
 - `src/Domain/Processing/RadarProcessingTopologyManager.cs`
 - `src/Domain/Processing/RadarProcessingTopologyMoveRequest.cs`
@@ -2853,6 +2884,7 @@ constant and moment data blocks.
 - `tests/RadarPulse.Tests/Processing/RadarProcessingRebalanceTelemetryContractTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingRebalanceTelemetryRecorderTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingQuarantineLifecycleStateTests.cs`
+- `tests/RadarPulse.Tests/Processing/RadarProcessingQuarantineLifecycleEvaluatorTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingRebalancePolicyStateTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingRebalanceDecisionTests.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingDirectHotReliefPlannerTests.cs`

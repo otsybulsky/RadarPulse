@@ -147,6 +147,21 @@ public sealed class RadarProcessingQuarantineLifecycleState
             sustainedCoolingSampleCount: 0);
     }
 
+    public RadarProcessingQuarantineLifecycleState RecordClassificationEvidence(
+        RadarProcessingQuarantineEvidence evidence,
+        RadarProcessingQuarantineEffectiveClassification effectiveClassification)
+    {
+        EnsureMatchingEvidence(evidence);
+        EnsureNonQuarantineClassification(effectiveClassification, nameof(effectiveClassification));
+
+        return FromEvidence(
+            evidence,
+            effectiveClassification,
+            quarantineStartSequence: null,
+            baselinePressure: null,
+            sustainedCoolingSampleCount: 0);
+    }
+
     public RadarProcessingQuarantineLifecycleState MarkRetryEligible(
         RadarProcessingQuarantineEvidence evidence,
         RadarProcessingQuarantineTransitionReason reason)
@@ -164,14 +179,24 @@ public sealed class RadarProcessingQuarantineLifecycleState
 
     public RadarProcessingQuarantineLifecycleState Clear(
         RadarProcessingQuarantineEvidence evidence,
+        RadarProcessingQuarantineTransitionReason reason) =>
+        ClearToClassification(
+            evidence,
+            RadarProcessingQuarantineEffectiveClassification.None,
+            reason);
+
+    public RadarProcessingQuarantineLifecycleState ClearToClassification(
+        RadarProcessingQuarantineEvidence evidence,
+        RadarProcessingQuarantineEffectiveClassification effectiveClassification,
         RadarProcessingQuarantineTransitionReason reason)
     {
         EnsureMatchingEvidence(evidence);
+        EnsureNonQuarantineClassification(effectiveClassification, nameof(effectiveClassification));
         EnsureClearReason(reason);
 
         return FromEvidence(
             evidence,
-            RadarProcessingQuarantineEffectiveClassification.None,
+            effectiveClassification,
             quarantineStartSequence: null,
             baselinePressure: null,
             sustainedCoolingSampleCount: 0);
@@ -246,6 +271,22 @@ public sealed class RadarProcessingQuarantineLifecycleState
             not RadarProcessingQuarantineTransitionReason.ClearedExplicitly)
         {
             throw new ArgumentOutOfRangeException(nameof(reason), reason, "Reason must describe quarantine clearing.");
+        }
+    }
+
+    private static void EnsureNonQuarantineClassification(
+        RadarProcessingQuarantineEffectiveClassification classification,
+        string paramName)
+    {
+        RadarProcessingQuarantineTransition.EnsureKnownClassification(classification, paramName);
+
+        if (classification is RadarProcessingQuarantineEffectiveClassification.Quarantined or
+            RadarProcessingQuarantineEffectiveClassification.RetryEligible)
+        {
+            throw new ArgumentOutOfRangeException(
+                paramName,
+                classification,
+                "Classification must not retain quarantine evidence.");
         }
     }
 }
