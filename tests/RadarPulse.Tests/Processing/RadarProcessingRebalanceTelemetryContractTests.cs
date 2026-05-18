@@ -332,6 +332,78 @@ public sealed class RadarProcessingRebalanceTelemetryContractTests
     }
 
     [Fact]
+    public void RecentLifecycleTransitionCarriesCompactTransitionState()
+    {
+        var transition = new RadarProcessingRebalanceRecentLifecycleTransition(
+            partitionId: 1,
+            shardId: 2,
+            evaluationSequence: 3,
+            new RadarProcessingTopologyVersion(4),
+            RadarProcessingQuarantineEffectiveClassification.Quarantined,
+            RadarProcessingQuarantineEffectiveClassification.RetryEligible,
+            RadarProcessingQuarantineTransitionReason.MarkedRetryEligibleByTtl,
+            new RadarProcessingPressureScore(5),
+            quarantineAgeEvaluations: 6);
+
+        Assert.Equal(1, transition.PartitionId);
+        Assert.Equal(2, transition.ShardId);
+        Assert.Equal(3, transition.EvaluationSequence);
+        Assert.Equal(new RadarProcessingTopologyVersion(4), transition.TopologyVersion);
+        Assert.Equal(RadarProcessingQuarantineEffectiveClassification.Quarantined, transition.PreviousClassification);
+        Assert.Equal(RadarProcessingQuarantineEffectiveClassification.RetryEligible, transition.CurrentClassification);
+        Assert.Equal(RadarProcessingQuarantineTransitionReason.MarkedRetryEligibleByTtl, transition.Reason);
+        Assert.Equal(new RadarProcessingPressureScore(5), transition.Pressure);
+        Assert.Equal(6, transition.QuarantineAgeEvaluations);
+    }
+
+    [Fact]
+    public void RecentLifecycleTransitionRejectsInvalidShape()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            CreateLifecycleTransition(partitionId: -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            CreateLifecycleTransition(shardId: -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            CreateLifecycleTransition(evaluationSequence: -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            CreateLifecycleTransition(previousClassification: (RadarProcessingQuarantineEffectiveClassification)255));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            CreateLifecycleTransition(currentClassification: (RadarProcessingQuarantineEffectiveClassification)255));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            CreateLifecycleTransition(reason: RadarProcessingQuarantineTransitionReason.None));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            CreateLifecycleTransition(reason: (RadarProcessingQuarantineTransitionReason)255));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            CreateLifecycleTransition(quarantineAgeEvaluations: -1));
+    }
+
+    [Fact]
+    public void RecentLifecycleTransitionCanBeProjectedFromTransition()
+    {
+        var transition = new RadarProcessingQuarantineTransition(
+            partitionId: 1,
+            shardId: 2,
+            evaluationSequence: 3,
+            new RadarProcessingTopologyVersion(4),
+            RadarProcessingQuarantineEffectiveClassification.Quarantined,
+            RadarProcessingQuarantineEffectiveClassification.RetryEligible,
+            RadarProcessingQuarantineTransitionReason.MarkedRetryEligibleByPressureChange,
+            new RadarProcessingPressureScore(5),
+            quarantineAgeEvaluations: 6);
+
+        var recent = RadarProcessingRebalanceRecentLifecycleTransition.FromTransition(transition);
+
+        Assert.Equal(transition.PartitionId, recent.PartitionId);
+        Assert.Equal(transition.ShardId, recent.ShardId);
+        Assert.Equal(transition.EvaluationSequence, recent.EvaluationSequence);
+        Assert.Equal(transition.TopologyVersion, recent.TopologyVersion);
+        Assert.Equal(transition.Reason, recent.Reason);
+        Assert.Equal(transition.QuarantineAgeEvaluations, recent.QuarantineAgeEvaluations);
+        Assert.Throws<ArgumentNullException>(() =>
+            RadarProcessingRebalanceRecentLifecycleTransition.FromTransition(null!));
+    }
+
+    [Fact]
     public void RetentionStatsExposeDroppedDetail()
     {
         var stats = new RadarProcessingRebalanceRetentionStats(
@@ -387,6 +459,10 @@ public sealed class RadarProcessingRebalanceTelemetryContractTests
         {
             CreateAcceptedMove()
         };
+        var lifecycleTransitions = new List<RadarProcessingRebalanceRecentLifecycleTransition>
+        {
+            CreateLifecycleTransition()
+        };
         var validationFailures = new List<RadarProcessingRebalanceRecentValidationFailure>
         {
             new(
@@ -401,18 +477,21 @@ public sealed class RadarProcessingRebalanceTelemetryContractTests
             decisions,
             acceptedMoves,
             validationFailures,
-            new RadarProcessingRebalanceRetentionStats(retainedDecisionCount: 1));
+            new RadarProcessingRebalanceRetentionStats(retainedDecisionCount: 1),
+            lifecycleTransitions);
 
         skippedCounters.Add(new RadarProcessingRebalanceSkippedReasonCounter(
             RadarProcessingRebalanceSkippedReason.NoColdTargetShard,
             1));
         decisions.Clear();
         acceptedMoves.Clear();
+        lifecycleTransitions.Clear();
         validationFailures.Clear();
 
         Assert.Equal(5, summary.Counters.EvaluationCount);
         Assert.Single(summary.SkippedReasonCounters);
         Assert.Single(summary.RecentDecisions);
+        Assert.Single(summary.RecentLifecycleTransitions);
         Assert.Single(summary.RecentAcceptedMoves);
         Assert.Single(summary.RecentValidationFailures);
         Assert.Equal(1, summary.RetentionStats.RetainedDecisionCount);
@@ -443,6 +522,7 @@ public sealed class RadarProcessingRebalanceTelemetryContractTests
         Assert.Equal(0, summary.Counters.EvaluationCount);
         Assert.Empty(summary.SkippedReasonCounters);
         Assert.Empty(summary.RecentDecisions);
+        Assert.Empty(summary.RecentLifecycleTransitions);
         Assert.Empty(summary.RecentAcceptedMoves);
         Assert.Empty(summary.RecentValidationFailures);
         Assert.False(summary.RetentionStats.HasDroppedDetail);
@@ -473,4 +553,26 @@ public sealed class RadarProcessingRebalanceTelemetryContractTests
             targetShardId,
             CreateProjectedPressure(),
             expectedRelief);
+
+    private static RadarProcessingRebalanceRecentLifecycleTransition CreateLifecycleTransition(
+        int partitionId = 1,
+        int shardId = 0,
+        long evaluationSequence = 2,
+        RadarProcessingQuarantineEffectiveClassification previousClassification =
+            RadarProcessingQuarantineEffectiveClassification.Quarantined,
+        RadarProcessingQuarantineEffectiveClassification currentClassification =
+            RadarProcessingQuarantineEffectiveClassification.RetryEligible,
+        RadarProcessingQuarantineTransitionReason reason =
+            RadarProcessingQuarantineTransitionReason.MarkedRetryEligibleByTtl,
+        long quarantineAgeEvaluations = 3) =>
+        new(
+            partitionId,
+            shardId,
+            evaluationSequence,
+            RadarProcessingTopologyVersion.Initial,
+            previousClassification,
+            currentClassification,
+            reason,
+            new RadarProcessingPressureScore(1),
+            quarantineAgeEvaluations);
 }

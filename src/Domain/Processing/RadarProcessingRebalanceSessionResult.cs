@@ -10,7 +10,8 @@ public sealed class RadarProcessingRebalanceSessionResult
         RadarProcessingMigrationResult? migrationResult,
         RadarProcessingStateHandoffValidationResult? handoffValidation,
         RadarProcessingTopology? currentTopology = null,
-        IReadOnlyCollection<RadarProcessingQuarantineTransition>? quarantineTransitions = null)
+        IReadOnlyCollection<RadarProcessingQuarantineTransition>? quarantineTransitions = null,
+        RadarProcessingRebalanceTelemetrySummary? telemetrySummary = null)
     {
         ArgumentNullException.ThrowIfNull(processingResult);
 
@@ -30,6 +31,7 @@ public sealed class RadarProcessingRebalanceSessionResult
         MigrationResult = migrationResult;
         HandoffValidation = handoffValidation;
         QuarantineTransitions = CopyRequired(quarantineTransitions ?? Array.Empty<RadarProcessingQuarantineTransition>());
+        TelemetrySummary = telemetrySummary ?? RadarProcessingRebalanceTelemetrySummary.Empty;
         Validation = currentTopology is null
             ? RadarProcessingRebalanceValidationResult.Valid()
             : RadarProcessingRebalanceValidator.ValidateSessionResult(this, currentTopology);
@@ -51,6 +53,8 @@ public sealed class RadarProcessingRebalanceSessionResult
     public RadarProcessingStateHandoffValidationResult? HandoffValidation { get; }
 
     public IReadOnlyList<RadarProcessingQuarantineTransition> QuarantineTransitions { get; }
+
+    public RadarProcessingRebalanceTelemetrySummary TelemetrySummary { get; }
 
     public RadarProcessingRebalanceValidationResult Validation { get; }
 

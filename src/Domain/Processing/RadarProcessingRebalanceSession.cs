@@ -10,6 +10,7 @@ public sealed class RadarProcessingRebalanceSession
     private readonly RadarProcessingRebalancePolicyState policyState;
     private readonly RadarProcessingHotPartitionClassifier hotPartitionClassifier;
     private readonly RadarProcessingQuarantineLifecycleTracker quarantineLifecycleTracker;
+    private readonly RadarProcessingRebalanceTelemetryRecorder telemetryRecorder;
     private readonly RadarProcessingDirectHotReliefPlanner directHotReliefPlanner;
     private readonly RadarProcessingColdEvacuationPlanner coldEvacuationPlanner;
     private readonly RadarProcessingMigrationCoordinator migrationCoordinator;
@@ -23,7 +24,8 @@ public sealed class RadarProcessingRebalanceSession
         RadarProcessingHotPartitionClassifier? hotPartitionClassifier = null,
         RadarProcessingDirectHotReliefPlanner? directHotReliefPlanner = null,
         RadarProcessingColdEvacuationPlanner? coldEvacuationPlanner = null,
-        RadarProcessingQuarantineLifecycleTracker? quarantineLifecycleTracker = null)
+        RadarProcessingQuarantineLifecycleTracker? quarantineLifecycleTracker = null,
+        RadarProcessingRebalanceTelemetryRecorder? telemetryRecorder = null)
     {
         ArgumentNullException.ThrowIfNull(core);
 
@@ -44,6 +46,7 @@ public sealed class RadarProcessingRebalanceSession
                                       new RadarProcessingHotPartitionClassifier(core.Options.PartitionCount);
         this.quarantineLifecycleTracker = quarantineLifecycleTracker ??
                                           new RadarProcessingQuarantineLifecycleTracker(core.Options.PartitionCount);
+        this.telemetryRecorder = telemetryRecorder ?? new RadarProcessingRebalanceTelemetryRecorder();
         this.directHotReliefPlanner = directHotReliefPlanner ?? new RadarProcessingDirectHotReliefPlanner();
         this.coldEvacuationPlanner = coldEvacuationPlanner ?? new RadarProcessingColdEvacuationPlanner();
         migrationCoordinator = new RadarProcessingMigrationCoordinator(core.TopologyManager);
@@ -63,6 +66,8 @@ public sealed class RadarProcessingRebalanceSession
 
     public RadarProcessingQuarantineLifecycleTracker QuarantineLifecycleTracker => quarantineLifecycleTracker;
 
+    public RadarProcessingRebalanceTelemetryRecorder TelemetryRecorder => telemetryRecorder;
+
     public RadarProcessingRebalanceSessionResult Process(
         RadarEventBatch batch,
         CancellationToken cancellationToken = default)
@@ -80,7 +85,8 @@ public sealed class RadarProcessingRebalanceSession
                 migrationResult: null,
                 handoffValidation: null,
                 currentTopology: core.Topology,
-                quarantineTransitions: Array.Empty<RadarProcessingQuarantineTransition>());
+                quarantineTransitions: Array.Empty<RadarProcessingQuarantineTransition>(),
+                telemetrySummary: telemetryRecorder.CreateSummary());
         }
 
         var pressureSample = RadarProcessingPressureSample.FromTelemetry(
@@ -109,9 +115,17 @@ public sealed class RadarProcessingRebalanceSession
             selectedDecision = coldDecision;
         }
 
+        telemetryRecorder.RecordDecision(directDecision);
+        if (coldDecision is not null)
+        {
+            telemetryRecorder.RecordDecision(coldDecision);
+        }
+
         var (migrationResult, handoffValidation) = selectedDecision.HasAcceptedMove
             ? ApplyAcceptedMove(selectedDecision)
             : (null, null);
+        var quarantineTransitions = quarantineLifecycleTracker.DrainTransitions();
+        RecordQuarantineTransitions(quarantineTransitions);
 
         return new RadarProcessingRebalanceSessionResult(
             processingResult,
@@ -121,7 +135,17 @@ public sealed class RadarProcessingRebalanceSession
             migrationResult,
             handoffValidation,
             core.Topology,
-            quarantineLifecycleTracker.DrainTransitions());
+            quarantineTransitions,
+            telemetryRecorder.CreateSummary());
+    }
+
+    private void RecordQuarantineTransitions(
+        IReadOnlyList<RadarProcessingQuarantineTransition> transitions)
+    {
+        foreach (var transition in transitions)
+        {
+            telemetryRecorder.RecordQuarantineTransition(transition);
+        }
     }
 
     private void AdvanceQuarantineLifecycleBeforePlanning()

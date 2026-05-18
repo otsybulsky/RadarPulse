@@ -5,6 +5,7 @@ public sealed class RadarProcessingRebalanceTelemetryRecorder
     private readonly RadarProcessingTelemetryRetentionOptions options;
     private readonly Dictionary<RadarProcessingRebalanceSkippedReason, long> skippedReasonCounts = new();
     private readonly RadarProcessingBoundedTelemetryWindow<RadarProcessingRebalanceRecentDecision> recentDecisions;
+    private readonly RadarProcessingBoundedTelemetryWindow<RadarProcessingRebalanceRecentLifecycleTransition> recentLifecycleTransitions;
     private readonly RadarProcessingBoundedTelemetryWindow<RadarProcessingRebalanceRecentAcceptedMove> recentAcceptedMoves;
     private readonly RadarProcessingBoundedTelemetryWindow<RadarProcessingRebalanceRecentValidationFailure> recentValidationFailures;
 
@@ -29,6 +30,8 @@ public sealed class RadarProcessingRebalanceTelemetryRecorder
         var retainDetail = this.options.RetentionMode is not RadarProcessingDiagnosticRetentionMode.Counters;
         recentDecisions = new RadarProcessingBoundedTelemetryWindow<RadarProcessingRebalanceRecentDecision>(
             retainDetail ? this.options.MaxRetainedDecisions : 0);
+        recentLifecycleTransitions = new RadarProcessingBoundedTelemetryWindow<RadarProcessingRebalanceRecentLifecycleTransition>(
+            retainDetail ? this.options.MaxRetainedLifecycleTransitions : 0);
         recentAcceptedMoves = new RadarProcessingBoundedTelemetryWindow<RadarProcessingRebalanceRecentAcceptedMove>(
             retainDetail ? this.options.MaxRetainedAcceptedMoves : 0);
         recentValidationFailures = new RadarProcessingBoundedTelemetryWindow<RadarProcessingRebalanceRecentValidationFailure>(
@@ -66,7 +69,7 @@ public sealed class RadarProcessingRebalanceTelemetryRecorder
         }
 
         RecordSkippedReasons(decision.SkippedReasons);
-        recentDecisions.Add(RadarProcessingRebalanceRecentDecision.FromDecision(decision));
+        AddRecentDecision(decision);
     }
 
     public void RecordValidationResult(
@@ -108,6 +111,36 @@ public sealed class RadarProcessingRebalanceTelemetryRecorder
     public void RecordQuarantineReentry() =>
         quarantineReentryCount++;
 
+    public void RecordQuarantineTransition(
+        RadarProcessingQuarantineTransition transition)
+    {
+        ArgumentNullException.ThrowIfNull(transition);
+
+        switch (transition.Reason)
+        {
+            case RadarProcessingQuarantineTransitionReason.EnteredQuarantine:
+                quarantineEntryCount++;
+                break;
+            case RadarProcessingQuarantineTransitionReason.ClearedBySustainedCooling:
+            case RadarProcessingQuarantineTransitionReason.ClearedByEffectiveRelief:
+            case RadarProcessingQuarantineTransitionReason.ClearedExplicitly:
+                quarantineClearCount++;
+                break;
+            case RadarProcessingQuarantineTransitionReason.MarkedRetryEligibleByTtl:
+            case RadarProcessingQuarantineTransitionReason.MarkedRetryEligibleBySustainedCooling:
+            case RadarProcessingQuarantineTransitionReason.MarkedRetryEligibleByPressureChange:
+                quarantineRetryCount++;
+                break;
+            case RadarProcessingQuarantineTransitionReason.ReenteredQuarantine:
+                quarantineReentryCount++;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(transition), transition.Reason, "Unsupported quarantine transition reason.");
+        }
+
+        AddRecentLifecycleTransition(transition);
+    }
+
     public RadarProcessingRebalanceTelemetrySummary CreateSummary() =>
         new(
             CreateCounters(),
@@ -115,7 +148,8 @@ public sealed class RadarProcessingRebalanceTelemetryRecorder
             recentDecisions.Snapshot(),
             recentAcceptedMoves.Snapshot(),
             recentValidationFailures.Snapshot(),
-            CreateRetentionStats());
+            CreateRetentionStats(),
+            recentLifecycleTransitions.Snapshot());
 
     public void Reset()
     {
@@ -133,16 +167,27 @@ public sealed class RadarProcessingRebalanceTelemetryRecorder
         quarantineReentryCount = 0;
         skippedReasonCounts.Clear();
         recentDecisions.Clear();
+        recentLifecycleTransitions.Clear();
         recentAcceptedMoves.Clear();
         recentValidationFailures.Clear();
+    }
+
+    private void AddRecentDecision(
+        RadarProcessingRebalanceDecision decision)
+    {
+        if (!recentDecisions.CanRetain)
+        {
+            recentDecisions.Drop();
+            return;
+        }
+
+        recentDecisions.Add(RadarProcessingRebalanceRecentDecision.FromDecision(decision));
     }
 
     private void RecordAcceptedMove(
         RadarProcessingRebalanceDecision decision)
     {
-        var move = RadarProcessingRebalanceRecentAcceptedMove.FromDecision(decision);
-
-        switch (move.MoveKind)
+        switch (decision.MoveKind)
         {
             case RadarProcessingRebalanceMoveKind.DirectHotRelief:
                 directHotReliefMoveCount++;
@@ -153,10 +198,28 @@ public sealed class RadarProcessingRebalanceTelemetryRecorder
             case RadarProcessingRebalanceMoveKind.RoomMakingReserved:
                 break;
             default:
-                throw new ArgumentOutOfRangeException(nameof(decision), move.MoveKind, "Unsupported move kind.");
+                throw new ArgumentOutOfRangeException(nameof(decision), decision.MoveKind, "Unsupported move kind.");
         }
 
-        recentAcceptedMoves.Add(move);
+        if (!recentAcceptedMoves.CanRetain)
+        {
+            recentAcceptedMoves.Drop();
+            return;
+        }
+
+        recentAcceptedMoves.Add(RadarProcessingRebalanceRecentAcceptedMove.FromDecision(decision));
+    }
+
+    private void AddRecentLifecycleTransition(
+        RadarProcessingQuarantineTransition transition)
+    {
+        if (!recentLifecycleTransitions.CanRetain)
+        {
+            recentLifecycleTransitions.Drop();
+            return;
+        }
+
+        recentLifecycleTransitions.Add(RadarProcessingRebalanceRecentLifecycleTransition.FromTransition(transition));
     }
 
     private void RecordSkippedReasons(
@@ -205,8 +268,8 @@ public sealed class RadarProcessingRebalanceTelemetryRecorder
         new(
             recentDecisions.Count,
             recentDecisions.DroppedCount,
-            retainedLifecycleTransitionCount: 0,
-            droppedLifecycleTransitionCount: 0,
+            recentLifecycleTransitions.Count,
+            recentLifecycleTransitions.DroppedCount,
             recentAcceptedMoves.Count,
             recentAcceptedMoves.DroppedCount,
             recentValidationFailures.Count,

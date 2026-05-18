@@ -24,6 +24,8 @@ public sealed class RadarProcessingBoundedTelemetryWindow<T>
 
     public long DroppedCount { get; private set; }
 
+    public bool CanRetain => Capacity > 0;
+
     public void Add(
         T item)
     {
@@ -45,6 +47,11 @@ public sealed class RadarProcessingBoundedTelemetryWindow<T>
 
         items[startIndex] = item;
         startIndex = (startIndex + 1) % Capacity;
+        DroppedCount++;
+    }
+
+    public void Drop()
+    {
         DroppedCount++;
     }
 

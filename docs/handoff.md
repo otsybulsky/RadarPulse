@@ -1,4 +1,4 @@
-# Handoff: Milestone 007 Slice 7 Complete
+# Handoff: Milestone 007 Slice 7 Telemetry Wiring Complete
 
 ## Current Goal
 
@@ -349,6 +349,36 @@ Result:
 441 passed, 3 skipped for the full solution suite.
 ```
 
+Milestone 007 slice 7 telemetry wiring follow-up is implemented in the current
+working tree. `RadarProcessingRebalanceSession` now owns a
+`RadarProcessingRebalanceTelemetryRecorder`, records direct and cold rebalance
+decisions, records drained quarantine lifecycle transitions, and exposes the
+immutable session snapshot through
+`RadarProcessingRebalanceSessionResult.TelemetrySummary`. Lifecycle transition
+detail is retained through the bounded
+`RadarProcessingRebalanceRecentLifecycleTransition` contract, while
+`RadarProcessingBoundedTelemetryWindow<T>.CanRetain` and `Drop()` let
+counters-only or zero-retention paths count dropped detail without constructing
+unneeded recent-detail objects. Validation-failure recording is intentionally
+deferred to validation profile integration so that validation cost and summary
+snapshot timing stay explicit.
+
+Latest verification after milestone 007 slice 7 telemetry wiring:
+
+```powershell
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingRebalanceTelemetry|FullyQualifiedName~RadarProcessingRebalanceSession"
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~Processing"
+dotnet test RadarPulse.sln --no-restore
+```
+
+Result:
+
+```text
+41 passed for focused telemetry/session coverage.
+296 passed for processing-focused coverage.
+445 passed, 3 skipped for the full solution suite.
+```
+
 ## Milestone Status
 
 Done:
@@ -455,6 +485,8 @@ Done:
   implemented and tested.
 - `007` slice 7 session lifecycle integration and transition result surfaces
   are implemented and tested.
+- `007` slice 7 session-level hardening telemetry summary wiring is implemented
+  and tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -471,9 +503,9 @@ Next milestone focus:
 - Implement milestone 007 from the closed architecture and plan:
   `docs/milestones/007-rebalance-production-hardening.md` and
   `docs/milestones/007-rebalance-production-hardening-plan.md`.
-- Continue milestone 007 by wiring session-level hardening telemetry summaries
-  from the existing telemetry recorder, then proceed into validation profile
-  integration.
+- Continue milestone 007 with validation profile integration; hook validation
+  failure recording there so validation cost, result construction, and telemetry
+  snapshot allocation stay explicit.
 - Preserve the final milestone 007 performance requirement: closeout must
   include a comprehensive side-by-side comparison against milestone 005
   processing-only baselines and the accepted milestone 006 synthetic,
@@ -2864,6 +2896,7 @@ constant and moment data blocks.
 - `src/Domain/Processing/RadarProcessingRebalanceRecentDecision.cs`
 - `src/Domain/Processing/RadarProcessingRebalanceRecentAcceptedMove.cs`
 - `src/Domain/Processing/RadarProcessingRebalanceRecentValidationFailure.cs`
+- `src/Domain/Processing/RadarProcessingRebalanceRecentLifecycleTransition.cs`
 - `src/Domain/Processing/RadarProcessingRebalanceRetentionStats.cs`
 - `src/Domain/Processing/RadarProcessingBoundedTelemetryWindow.cs`
 - `src/Domain/Processing/RadarProcessingRebalanceTelemetryRecorder.cs`

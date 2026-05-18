@@ -4,6 +4,7 @@ public sealed class RadarProcessingRebalanceTelemetrySummary
 {
     private readonly IReadOnlyList<RadarProcessingRebalanceSkippedReasonCounter> skippedReasonCounters;
     private readonly IReadOnlyList<RadarProcessingRebalanceRecentDecision> recentDecisions;
+    private readonly IReadOnlyList<RadarProcessingRebalanceRecentLifecycleTransition> recentLifecycleTransitions;
     private readonly IReadOnlyList<RadarProcessingRebalanceRecentAcceptedMove> recentAcceptedMoves;
     private readonly IReadOnlyList<RadarProcessingRebalanceRecentValidationFailure> recentValidationFailures;
 
@@ -13,7 +14,8 @@ public sealed class RadarProcessingRebalanceTelemetrySummary
         IReadOnlyCollection<RadarProcessingRebalanceRecentDecision> recentDecisions,
         IReadOnlyCollection<RadarProcessingRebalanceRecentAcceptedMove> recentAcceptedMoves,
         IReadOnlyCollection<RadarProcessingRebalanceRecentValidationFailure> recentValidationFailures,
-        RadarProcessingRebalanceRetentionStats retentionStats)
+        RadarProcessingRebalanceRetentionStats retentionStats,
+        IReadOnlyCollection<RadarProcessingRebalanceRecentLifecycleTransition>? recentLifecycleTransitions = null)
     {
         ArgumentNullException.ThrowIfNull(counters);
         ArgumentNullException.ThrowIfNull(skippedReasonCounters);
@@ -25,6 +27,9 @@ public sealed class RadarProcessingRebalanceTelemetrySummary
         Counters = counters;
         this.skippedReasonCounters = CopySkippedReasonCounters(skippedReasonCounters);
         this.recentDecisions = CopyRequired(recentDecisions, nameof(recentDecisions));
+        this.recentLifecycleTransitions = CopyRequired(
+            recentLifecycleTransitions ?? Array.Empty<RadarProcessingRebalanceRecentLifecycleTransition>(),
+            nameof(recentLifecycleTransitions));
         this.recentAcceptedMoves = CopyRequired(recentAcceptedMoves, nameof(recentAcceptedMoves));
         this.recentValidationFailures = CopyRequired(recentValidationFailures, nameof(recentValidationFailures));
         RetentionStats = retentionStats;
@@ -37,6 +42,9 @@ public sealed class RadarProcessingRebalanceTelemetrySummary
 
     public IReadOnlyList<RadarProcessingRebalanceRecentDecision> RecentDecisions =>
         recentDecisions;
+
+    public IReadOnlyList<RadarProcessingRebalanceRecentLifecycleTransition> RecentLifecycleTransitions =>
+        recentLifecycleTransitions;
 
     public IReadOnlyList<RadarProcessingRebalanceRecentAcceptedMove> RecentAcceptedMoves =>
         recentAcceptedMoves;

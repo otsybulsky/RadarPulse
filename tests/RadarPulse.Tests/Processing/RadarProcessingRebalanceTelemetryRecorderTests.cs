@@ -170,6 +170,7 @@ public sealed class RadarProcessingRebalanceTelemetryRecorderTests
         Assert.Single(summary.RecentValidationFailures);
         Assert.Equal(RadarProcessingRebalanceValidationError.StateHandoffValidationFailed, summary.RecentValidationFailures[0].Error);
         Assert.Equal(1, summary.RetentionStats.DroppedDecisionCount);
+        Assert.Equal(0, summary.RetentionStats.DroppedLifecycleTransitionCount);
         Assert.Equal(0, summary.RetentionStats.DroppedAcceptedMoveCount);
         Assert.Equal(1, summary.RetentionStats.DroppedValidationFailureCount);
         Assert.True(summary.RetentionStats.HasDroppedDetail);
@@ -187,6 +188,7 @@ public sealed class RadarProcessingRebalanceTelemetryRecorderTests
                 maxRetainedValidationFailures: 10));
 
         recorder.RecordDecision(CreateAcceptedDecision(1, RadarProcessingRebalanceMoveKind.DirectHotRelief));
+        recorder.RecordQuarantineTransition(CreateQuarantineTransition(RadarProcessingQuarantineTransitionReason.EnteredQuarantine));
         recorder.RecordValidationResult(
             evaluationSequence: 1,
             RadarProcessingTopologyVersion.Initial,
@@ -200,9 +202,11 @@ public sealed class RadarProcessingRebalanceTelemetryRecorderTests
         Assert.Equal(1, summary.Counters.AcceptedMoveCount);
         Assert.Equal(1, summary.Counters.ValidationFailureCount);
         Assert.Empty(summary.RecentDecisions);
+        Assert.Empty(summary.RecentLifecycleTransitions);
         Assert.Empty(summary.RecentAcceptedMoves);
         Assert.Empty(summary.RecentValidationFailures);
         Assert.Equal(1, summary.RetentionStats.DroppedDecisionCount);
+        Assert.Equal(1, summary.RetentionStats.DroppedLifecycleTransitionCount);
         Assert.Equal(1, summary.RetentionStats.DroppedAcceptedMoveCount);
         Assert.Equal(1, summary.RetentionStats.DroppedValidationFailureCount);
     }
@@ -257,10 +261,14 @@ public sealed class RadarProcessingRebalanceTelemetryRecorderTests
     {
         var recorder = new RadarProcessingRebalanceTelemetryRecorder();
 
-        recorder.RecordQuarantineEntry();
-        recorder.RecordQuarantineClear();
-        recorder.RecordQuarantineRetry();
-        recorder.RecordQuarantineReentry();
+        recorder.RecordQuarantineTransition(
+            CreateQuarantineTransition(RadarProcessingQuarantineTransitionReason.EnteredQuarantine));
+        recorder.RecordQuarantineTransition(
+            CreateQuarantineTransition(RadarProcessingQuarantineTransitionReason.ClearedBySustainedCooling));
+        recorder.RecordQuarantineTransition(
+            CreateQuarantineTransition(RadarProcessingQuarantineTransitionReason.MarkedRetryEligibleByTtl));
+        recorder.RecordQuarantineTransition(
+            CreateQuarantineTransition(RadarProcessingQuarantineTransitionReason.ReenteredQuarantine));
 
         var summary = recorder.CreateSummary();
 
@@ -268,6 +276,42 @@ public sealed class RadarProcessingRebalanceTelemetryRecorderTests
         Assert.Equal(1, summary.Counters.QuarantineClearCount);
         Assert.Equal(1, summary.Counters.QuarantineRetryCount);
         Assert.Equal(1, summary.Counters.QuarantineReentryCount);
+        Assert.Equal(4, summary.RecentLifecycleTransitions.Count);
+        Assert.Equal(RadarProcessingQuarantineTransitionReason.EnteredQuarantine, summary.RecentLifecycleTransitions[0].Reason);
+    }
+
+    [Fact]
+    public void RecorderBoundsRecentLifecycleTransitions()
+    {
+        var recorder = new RadarProcessingRebalanceTelemetryRecorder(
+            new RadarProcessingTelemetryRetentionOptions(
+                RadarProcessingDiagnosticRetentionMode.Recent,
+                maxRetainedDecisions: 0,
+                maxRetainedLifecycleTransitions: 2,
+                maxRetainedAcceptedMoves: 0,
+                maxRetainedValidationFailures: 0));
+
+        recorder.RecordQuarantineTransition(
+            CreateQuarantineTransition(
+                RadarProcessingQuarantineTransitionReason.EnteredQuarantine,
+                evaluationSequence: 1));
+        recorder.RecordQuarantineTransition(
+            CreateQuarantineTransition(
+                RadarProcessingQuarantineTransitionReason.MarkedRetryEligibleByTtl,
+                evaluationSequence: 2));
+        recorder.RecordQuarantineTransition(
+            CreateQuarantineTransition(
+                RadarProcessingQuarantineTransitionReason.ReenteredQuarantine,
+                evaluationSequence: 3));
+
+        var summary = recorder.CreateSummary();
+
+        Assert.Equal(1, summary.Counters.QuarantineEntryCount);
+        Assert.Equal(1, summary.Counters.QuarantineRetryCount);
+        Assert.Equal(1, summary.Counters.QuarantineReentryCount);
+        Assert.Equal(new long[] { 2, 3 }, summary.RecentLifecycleTransitions.Select(static transition => transition.EvaluationSequence));
+        Assert.Equal(2, summary.RetentionStats.RetainedLifecycleTransitionCount);
+        Assert.Equal(1, summary.RetentionStats.DroppedLifecycleTransitionCount);
     }
 
     [Fact]
@@ -291,6 +335,7 @@ public sealed class RadarProcessingRebalanceTelemetryRecorderTests
         Assert.Equal(0, summary.Counters.ValidationFailureCount);
         Assert.Empty(summary.SkippedReasonCounters);
         Assert.Empty(summary.RecentDecisions);
+        Assert.Empty(summary.RecentLifecycleTransitions);
         Assert.Empty(summary.RecentAcceptedMoves);
         Assert.Empty(summary.RecentValidationFailures);
         Assert.False(summary.RetentionStats.HasDroppedDetail);
@@ -302,6 +347,7 @@ public sealed class RadarProcessingRebalanceTelemetryRecorderTests
         var recorder = new RadarProcessingRebalanceTelemetryRecorder();
 
         Assert.Throws<ArgumentNullException>(() => recorder.RecordDecision(null!));
+        Assert.Throws<ArgumentNullException>(() => recorder.RecordQuarantineTransition(null!));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             recorder.RecordValidationResult(
                 evaluationSequence: -1,
@@ -332,6 +378,30 @@ public sealed class RadarProcessingRebalanceTelemetryRecorderTests
             RadarProcessingTopologyVersion.Initial,
             pressureWindowSampleCount: 3,
             CreateCandidate(moveKind));
+
+    private static RadarProcessingQuarantineTransition CreateQuarantineTransition(
+        RadarProcessingQuarantineTransitionReason reason,
+        long evaluationSequence = 1) =>
+        new(
+            partitionId: 1,
+            shardId: 0,
+            evaluationSequence,
+            RadarProcessingTopologyVersion.Initial,
+            RadarProcessingQuarantineEffectiveClassification.Quarantined,
+            reason switch
+            {
+                RadarProcessingQuarantineTransitionReason.EnteredQuarantine or
+                    RadarProcessingQuarantineTransitionReason.ReenteredQuarantine =>
+                    RadarProcessingQuarantineEffectiveClassification.Quarantined,
+                RadarProcessingQuarantineTransitionReason.ClearedBySustainedCooling or
+                    RadarProcessingQuarantineTransitionReason.ClearedByEffectiveRelief or
+                    RadarProcessingQuarantineTransitionReason.ClearedExplicitly =>
+                    RadarProcessingQuarantineEffectiveClassification.None,
+                _ => RadarProcessingQuarantineEffectiveClassification.RetryEligible
+            },
+            reason,
+            new RadarProcessingPressureScore(5),
+            quarantineAgeEvaluations: evaluationSequence);
 
     private static RadarProcessingRebalanceCandidate CreateCandidate(
         RadarProcessingRebalanceMoveKind moveKind = RadarProcessingRebalanceMoveKind.DirectHotRelief) =>

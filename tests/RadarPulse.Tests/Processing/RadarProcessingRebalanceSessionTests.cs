@@ -23,6 +23,11 @@ public sealed class RadarProcessingRebalanceSessionTests
         Assert.True(first.PublishedMigration);
         Assert.True(first.HandoffValidation!.IsValid);
         Assert.Equal(0, first.RebalanceDecision.PartitionId);
+        Assert.Equal(1, first.TelemetrySummary.Counters.EvaluationCount);
+        Assert.Equal(1, first.TelemetrySummary.Counters.AcceptedMoveCount);
+        Assert.Equal(1, first.TelemetrySummary.Counters.DirectHotReliefMoveCount);
+        Assert.Single(first.TelemetrySummary.RecentDecisions);
+        Assert.Single(first.TelemetrySummary.RecentAcceptedMoves);
         Assert.Equal(1, session.CurrentTopology.GetShardIdForPartition(0));
         Assert.Equal(RadarProcessingTopologyVersion.Initial.Next(), session.CurrentTopology.Version);
 
@@ -55,6 +60,13 @@ public sealed class RadarProcessingRebalanceSessionTests
         Assert.True(result.Validation.IsValid);
         Assert.True(result.HandoffValidation!.IsValid);
         Assert.Equal(1, result.RebalanceDecision.PartitionId);
+        Assert.Equal(2, result.TelemetrySummary.Counters.EvaluationCount);
+        Assert.Equal(1, result.TelemetrySummary.Counters.RejectedCandidateCount);
+        Assert.Equal(1, result.TelemetrySummary.Counters.AcceptedMoveCount);
+        Assert.Equal(1, result.TelemetrySummary.Counters.ColdEvacuationMoveCount);
+        Assert.Contains(
+            result.TelemetrySummary.SkippedReasonCounters,
+            counter => counter.Reason == RadarProcessingRebalanceSkippedReason.DirectHotPartitionHasNoSafeTarget);
         Assert.Equal(1, session.CurrentTopology.GetShardIdForPartition(1));
         Assert.True(session.HotPartitionClassifier.GetPartition(0).IsIntrinsicHot);
     }
@@ -111,6 +123,10 @@ public sealed class RadarProcessingRebalanceSessionTests
         Assert.Contains(
             result.QuarantineTransitions,
             transition => transition.Reason == RadarProcessingQuarantineTransitionReason.ClearedByEffectiveRelief);
+        Assert.Equal(1, result.TelemetrySummary.Counters.AcceptedMoveCount);
+        Assert.Equal(1, result.TelemetrySummary.Counters.QuarantineRetryCount);
+        Assert.Equal(1, result.TelemetrySummary.Counters.QuarantineClearCount);
+        Assert.Equal(2, result.TelemetrySummary.RecentLifecycleTransitions.Count);
         Assert.Equal(
             RadarProcessingQuarantineEffectiveClassification.MovableHot,
             session.QuarantineLifecycleTracker.GetPartition(0).EffectiveClassification);
@@ -146,6 +162,10 @@ public sealed class RadarProcessingRebalanceSessionTests
         Assert.Contains(
             result.QuarantineTransitions,
             transition => transition.Reason == RadarProcessingQuarantineTransitionReason.ReenteredQuarantine);
+        Assert.Equal(1, result.TelemetrySummary.Counters.RejectedCandidateCount);
+        Assert.Equal(1, result.TelemetrySummary.Counters.QuarantineRetryCount);
+        Assert.Equal(1, result.TelemetrySummary.Counters.QuarantineReentryCount);
+        Assert.Equal(2, result.TelemetrySummary.RecentLifecycleTransitions.Count);
         Assert.True(session.QuarantineLifecycleTracker.GetPartition(0).IsQuarantined);
         Assert.Equal(1, session.QuarantineLifecycleTracker.GetPartition(0).QuarantineStartSequence);
     }
@@ -166,6 +186,8 @@ public sealed class RadarProcessingRebalanceSessionTests
         Assert.Null(result.RebalanceDecision);
         Assert.Null(result.MigrationResult);
         Assert.Empty(result.QuarantineTransitions);
+        Assert.Equal(0, result.TelemetrySummary.Counters.EvaluationCount);
+        Assert.Empty(result.TelemetrySummary.RecentDecisions);
         Assert.Equal(0, session.PressureWindow.SampleCount);
         Assert.Equal(0, session.PolicyState.EvaluationSequence);
         Assert.Equal(RadarProcessingTopologyVersion.Initial, session.CurrentTopology.Version);
@@ -220,6 +242,13 @@ public sealed class RadarProcessingRebalanceSessionTests
                     sourceShardMoveCooldownEvaluations: 0,
                     targetShardReceiveCooldownEvaluations: 0,
                     minimumProjectedBenefit: 0.05)),
+            telemetryRecorder: new RadarProcessingRebalanceTelemetryRecorder(
+                new RadarProcessingTelemetryRetentionOptions(
+                    RadarProcessingDiagnosticRetentionMode.Recent,
+                    maxRetainedDecisions: 8,
+                    maxRetainedLifecycleTransitions: 8,
+                    maxRetainedAcceptedMoves: 8,
+                    maxRetainedValidationFailures: 8)),
             quarantineLifecycleTracker: quarantineLifecycleTracker);
     }
 
