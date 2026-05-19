@@ -75,6 +75,8 @@ public sealed class RadarProcessingRetainedPayloadContractTests
         Assert.Equal(RadarProcessingRetainedPayloadRetentionStatus.Succeeded, succeeded.Status);
         Assert.Equal(RadarProcessingRetainedPayloadStrategy.SnapshotCopy, succeeded.Strategy);
         Assert.Same(ownedBatch, succeeded.Batch);
+        Assert.Equal(RadarProcessingRetainedPayloadStrategy.SnapshotCopy, succeeded.Resource!.Strategy);
+        Assert.Equal(RadarProcessingRetainedPayloadReleaseStatus.NotRequired, succeeded.Resource.Release().Status);
         Assert.Equal(TimeSpan.FromMilliseconds(3), succeeded.Elapsed);
         Assert.Equal(128, succeeded.AllocatedBytes);
         Assert.Equal(1, succeeded.EventCount);

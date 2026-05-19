@@ -11,12 +11,13 @@ implementation plan is recorded in
 Milestone 010 starts from the closed milestone 009 owned-provider boundary:
 `queued-owned` is correct and measurable, but still opt-in because owned
 snapshot allocation is the dominant cost and the current archive benchmark does
-not overlap replay with processing. Milestone 010 slices 1 through 3 are now
+not overlap replay with processing. Milestone 010 slices 1 through 4 are now
 complete: the milestone 009 cost anchors are confirmed, retained payload
 strategy contracts are implemented and tested, and the resource-owned queued
-batch lifecycle is implemented and tested. The next implementation work should
-start slice 4 by adding one lower-allocation retention implementation while
-keeping snapshot-copy behavior available as the baseline.
+batch lifecycle plus one lower-allocation retained payload implementation are
+implemented and tested. The next implementation work should start slice 5 by
+adding retained-byte-aware queue window accounting and preparing the retained
+resource path for runtime queue integration.
 
 `blocking-borrowed` remains the default provider mode and same-run oracle.
 `queued-owned` remains an explicit validation and measurement mode until the
@@ -797,6 +798,54 @@ Recorded result:
 13 passed, 0 failed, 0 skipped.
 36 passed, 0 failed, 0 skipped for retained payload/resource plus queue/session-adjacent coverage.
 673 passed, 3 skipped for the full test project.
+```
+
+Milestone 010 slice 4 lower-allocation retained payload implementation is
+implemented in the current working tree. New infrastructure and contract
+extension:
+
+```text
+RadarProcessingRetainedPayloadRetentionResult
+  -> successful retention now carries the retained resource handle alongside
+     the owned RadarEventBatch, defaulting to a not-required resource for
+     snapshot-compatible paths
+
+RadarProcessingRetainedPayloadFactory
+  -> keeps SnapshotCopy as the default compatibility strategy through
+     RadarEventBatch.ToOwnedSnapshot()
+  -> implements PooledCopy by copying leased event and payload memory into
+     rented arrays, preserving stream schema, dictionary version,
+     source-universe version, event order, payload offsets, precomputed payload
+     metrics, owned lifetime, and payload stability after builder reuse
+  -> returns rented arrays through a RadarProcessingRetainedBatchResource
+     release callback after the consumer lifecycle finishes
+  -> avoids rentals for owned input and empty leased batches
+  -> reports unsupported BuilderTransfer explicitly until ownership-transfer
+     semantics are proven
+  -> returns rented storage before reporting copy failure when a pool rent or
+     copy path throws
+```
+
+This slice intentionally keeps `RadarProcessingOwnedBatchQueue`,
+`RadarProcessingQueuedProcessingSession`,
+`RadarProcessingQueuedRebalanceSession`,
+`ArchiveOwnedRadarEventBatchQueueingPublisher`, benchmark behavior, and CLI
+output unchanged. The lower-allocation retained batch factory is available for
+the next queue-window and runtime-integration slices, while snapshot-copy
+remains the current wired provider behavior.
+
+Latest verification after milestone 010 slice 4:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests|FullyQualifiedName~RadarProcessingRetainedPayloadContractTests|FullyQualifiedName~RadarProcessingRetainedBatchResourceTests"
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+21 passed, 0 failed, 0 skipped for retained payload factory/contracts/resource coverage.
+681 passed, 3 skipped for the full test project.
 ```
 
 Milestone 008 slice 1 is implemented in the current working tree. RadarPulse

@@ -8,6 +8,7 @@ public sealed record RadarProcessingRetainedPayloadRetentionResult
         RadarProcessingRetainedPayloadRetentionStatus status,
         RadarProcessingRetainedPayloadStrategy strategy,
         RadarEventBatch? batch,
+        RadarProcessingRetainedBatchResource? resource,
         TimeSpan elapsed,
         long allocatedBytes,
         string message)
@@ -29,15 +30,18 @@ public sealed record RadarProcessingRetainedPayloadRetentionResult
             {
                 throw new ArgumentException("Successful retained payload results require owned batches.", nameof(batch));
             }
+
+            resource ??= RadarProcessingRetainedBatchResource.NotRequired(strategy);
         }
-        else if (batch is not null)
+        else if (batch is not null || resource is not null)
         {
-            throw new ArgumentException("Failed retained payload results must not carry a batch.", nameof(batch));
+            throw new ArgumentException("Failed retained payload results must not carry a batch or retained resource.", nameof(batch));
         }
 
         Status = status;
         Strategy = strategy;
         Batch = batch;
+        Resource = resource;
         Elapsed = elapsed;
         AllocatedBytes = allocatedBytes;
         Message = message;
@@ -60,6 +64,8 @@ public sealed record RadarProcessingRetainedPayloadRetentionResult
 
     public RadarEventBatch? Batch { get; }
 
+    public RadarProcessingRetainedBatchResource? Resource { get; }
+
     public TimeSpan Elapsed { get; }
 
     public long AllocatedBytes { get; }
@@ -79,15 +85,24 @@ public sealed record RadarProcessingRetainedPayloadRetentionResult
     public static RadarProcessingRetainedPayloadRetentionResult Succeeded(
         RadarProcessingRetainedPayloadStrategy strategy,
         RadarEventBatch batch,
+        RadarProcessingRetainedBatchResource? resource = null,
         TimeSpan elapsed = default,
         long allocatedBytes = 0) =>
         new(
             RadarProcessingRetainedPayloadRetentionStatus.Succeeded,
             strategy,
             batch,
+            resource,
             elapsed,
             allocatedBytes,
             string.Empty);
+
+    public static RadarProcessingRetainedPayloadRetentionResult Succeeded(
+        RadarProcessingRetainedPayloadStrategy strategy,
+        RadarEventBatch batch,
+        TimeSpan elapsed,
+        long allocatedBytes = 0) =>
+        Succeeded(strategy, batch, resource: null, elapsed, allocatedBytes);
 
     public static RadarProcessingRetainedPayloadRetentionResult UnsupportedStrategy(
         RadarProcessingRetainedPayloadStrategy strategy,
@@ -138,5 +153,5 @@ public sealed record RadarProcessingRetainedPayloadRetentionResult
         RadarProcessingRetainedPayloadRetentionStatus status,
         RadarProcessingRetainedPayloadStrategy strategy,
         string message) =>
-        new(status, strategy, null, TimeSpan.Zero, allocatedBytes: 0, message);
+        new(status, strategy, null, null, TimeSpan.Zero, allocatedBytes: 0, message);
 }
