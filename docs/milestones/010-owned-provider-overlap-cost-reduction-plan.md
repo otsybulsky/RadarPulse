@@ -791,7 +791,7 @@ implementation.
 ```text
 [x] milestone 009 cost anchors are confirmed and preserved as comparison fields
 [x] retained payload strategy contracts are implemented and tested
-[ ] retained resource lifecycle is implemented and tested
+[x] retained resource lifecycle is implemented and tested
 [ ] one lower-allocation retained payload strategy is implemented and tested
 [ ] retained-byte-aware queue window is implemented and tested where practical
 [ ] producer/consumer archive overlap runner is implemented and tested

@@ -11,11 +11,12 @@ implementation plan is recorded in
 Milestone 010 starts from the closed milestone 009 owned-provider boundary:
 `queued-owned` is correct and measurable, but still opt-in because owned
 snapshot allocation is the dominant cost and the current archive benchmark does
-not overlap replay with processing. Milestone 010 slices 1 and 2 are now
-complete: the milestone 009 cost anchors are confirmed, and retained payload
-strategy contracts are implemented and tested. The next implementation work
-should start slice 3 by adding the resource-owned queued batch lifecycle before
-changing retention mechanics.
+not overlap replay with processing. Milestone 010 slices 1 through 3 are now
+complete: the milestone 009 cost anchors are confirmed, retained payload
+strategy contracts are implemented and tested, and the resource-owned queued
+batch lifecycle is implemented and tested. The next implementation work should
+start slice 4 by adding one lower-allocation retention implementation while
+keeping snapshot-copy behavior available as the baseline.
 
 `blocking-borrowed` remains the default provider mode and same-run oracle.
 `queued-owned` remains an explicit validation and measurement mode until the
@@ -746,6 +747,56 @@ Recorded result:
 5 passed, 0 failed, 0 skipped.
 16 passed, 0 failed, 0 skipped for retained payload plus provider queue contract coverage.
 665 passed, 3 skipped for the full test project.
+```
+
+Milestone 010 slice 3 resource-owned queued batch lifecycle is implemented in
+the current working tree. New domain contracts:
+
+```text
+RadarProcessingRetainedBatchResourceState
+  -> ProviderOwned, QueueOwned, ConsumerOwned, Released, ReleaseFailed
+
+RadarProcessingRetainedBatchResource
+  -> owns a retained payload release callback, tracks strategy/payload bytes,
+     transfers provider ownership to queue ownership and queue ownership to
+     consumer ownership, releases exactly once, records terminal state, and
+     reports release failure without reinvoking cleanup callbacks
+
+RadarProcessingRetainedQueuedBatch
+  -> wraps an existing RadarProcessingQueuedBatch with a retained resource and
+     transfers accepted provider ownership into queue ownership
+
+RadarProcessingRetainedBatchLease
+  -> exposes the processing-facing RadarEventBatch while holding consumer
+     ownership and releases retained resources on explicit release or dispose
+
+RadarProcessingRetainedResourceCleanupResult
+  -> copies release result snapshots, counts released/already-released/failed/
+     not-required outcomes, and provides ReleaseAll() for pending queue cleanup
+```
+
+This slice intentionally keeps `RadarProcessingOwnedBatchQueue`,
+`RadarProcessingQueuedProcessingSession`,
+`RadarProcessingQueuedRebalanceSession`,
+`ArchiveOwnedRadarEventBatchQueueingPublisher`, benchmark behavior, and CLI
+output unchanged. The new lifecycle wrapper is ready for slice 4 to connect a
+lower-allocation retained payload implementation without weakening the current
+snapshot-copy baseline.
+
+Latest verification after milestone 010 slice 3:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingRetainedPayloadContractTests|FullyQualifiedName~RadarProcessingRetainedBatchResourceTests"
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingRetainedPayloadContractTests|FullyQualifiedName~RadarProcessingRetainedBatchResourceTests|FullyQualifiedName~RadarProcessingOwnedBatchQueueTests|FullyQualifiedName~RadarProcessingQueuedProcessingSessionTests|FullyQualifiedName~RadarProcessingQueuedRebalanceSessionTests"
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+13 passed, 0 failed, 0 skipped.
+36 passed, 0 failed, 0 skipped for retained payload/resource plus queue/session-adjacent coverage.
+673 passed, 3 skipped for the full test project.
 ```
 
 Milestone 008 slice 1 is implemented in the current working tree. RadarPulse
