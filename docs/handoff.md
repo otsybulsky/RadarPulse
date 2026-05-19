@@ -560,6 +560,33 @@ Recorded result:
 660 passed, 3 skipped for the full test project.
 ```
 
+Milestone 009 performance gate is captured separately, without writing the
+milestone closeout or decision trace yet:
+`docs/milestones/009-owned-payload-provider-decoupling-performance-gate.md`.
+The gate used a Release CLI build and compared blocking-borrowed sync,
+blocking-borrowed async, queued-owned sync, and queued-owned async on both a
+single KTLX Archive Two file and the local KTLX cache. The cache contour used
+`data\nexrad --date 2026-05-04 --radar KTLX --max-files 220`, examined 220
+files, skipped 22 non-base-data files, and published 198 Archive Two
+base-data files.
+
+The gate preserved deterministic parity across all provider and execution
+contours: full-cache payload values stayed at `7_660_888_320`, validation
+checksum stayed at `7_480_064_646_096_449_000`, accepted moves stayed at `2`,
+skipped decisions stayed at `392`, and failed migrations stayed at `0`.
+Queued-owned exposed the expected owned-copy cost: about `9.95 GB` of owned
+snapshot allocation and about `529-576 ms` owned snapshot time on the full
+cache. Provider enqueue wait was negligible at about `2 ms` total, while queue
+depth high-water mark stayed at `1` for both queue capacity `1` and `8`.
+
+Performance gate conclusion: queued-owned is acceptable as an explicit
+correctness-preserving provider-decoupling measurement and validation substrate,
+but it should not become the default path yet. The current benchmark drains
+after each file, so larger queue capacity validates bounded behavior but does
+not produce provider/processing overlap. Next optimization targets are reducing
+owned snapshot allocation, adding a producer/consumer overlap contour, and
+keeping blocking-borrowed as the default until those costs improve.
+
 Milestone 008 slice 1 is implemented in the current working tree. RadarPulse
 now has the first async execution option contracts:
 `RadarProcessingExecutionMode.AsyncShardTransport`,
