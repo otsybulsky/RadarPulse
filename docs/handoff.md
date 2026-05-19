@@ -1,6 +1,21 @@
-# Handoff: Milestone 009 Planning Started
+# Handoff: Milestone 009 Complete
 
 ## Current Goal
+
+Milestone 009 is complete. RadarPulse now has the first explicit owned-payload
+provider decoupling substrate: archive replay can remain on the borrowed
+blocking path by default, or opt into `queued-owned` provider mode where leased
+`RadarEventBatch` values are converted to owned snapshots, enqueued into a
+bounded provider-to-processing queue, drained in provider sequence order, and
+validated against the borrowed reference. The performance gate accepted
+queued-owned as an explicit measurement and validation mode, but not as the
+default path yet because owned snapshot allocation is still the dominant cost
+and the current archive benchmark does not overlap replay with processing.
+
+Milestone 010 should start from the closeout recommendation: reduce owned
+snapshot allocation, add a true producer/consumer overlap contour, and preserve
+borrowed-reference parity while moving toward real queued replay/processing
+overlap.
 
 Milestone 004 is complete. RadarPulse now has a compact, deterministic,
 normalized `RadarEventBatch` stream with append-only dense identity catalogs, an
@@ -596,7 +611,14 @@ and rebalance sessions, explicit provider mode CLI/benchmark surface,
 bounded telemetry, borrowed-reference validation, deferral of true
 producer/consumer overlap, and the performance-gate conclusion that
 queued-owned is accepted as an explicit substrate but not the default path.
-Milestone 009 closeout remains pending.
+
+Milestone 009 closeout is written:
+`docs/milestones/009-owned-payload-provider-decoupling-closeout.md`. It records
+the final implemented scope, non-goals, checklist, latest full-suite
+verification, Release performance gate summary, decision trace, and next
+milestone input. The recommended next milestone focus is reducing owned
+snapshot allocation and adding a real producer/consumer overlap contour while
+keeping `blocking-borrowed` as the default provider mode.
 
 Milestone 008 slice 1 is implemented in the current working tree. RadarPulse
 now has the first async execution option contracts:

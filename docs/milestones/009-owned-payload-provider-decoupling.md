@@ -1,6 +1,8 @@
 # Milestone 009: Owned Payload Provider Decoupling Architecture
 
-Status: draft.
+Status: complete.
+
+Closeout: `009-owned-payload-provider-decoupling-closeout.md`.
 
 RadarPulse milestone 009 starts from the closed milestone 008 retained async
 shard transport and defines the architecture for the first explicit owned

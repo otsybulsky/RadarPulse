@@ -1,8 +1,8 @@
 # Milestone 009: Decision Trace
 
-Status: implementation substantially complete; final closeout pending.
+Status: complete.
 
-Closeout: `009-owned-payload-provider-decoupling-closeout.md` (pending).
+Closeout: `009-owned-payload-provider-decoupling-closeout.md`.
 
 Performance gate:
 `009-owned-payload-provider-decoupling-performance-gate.md`.

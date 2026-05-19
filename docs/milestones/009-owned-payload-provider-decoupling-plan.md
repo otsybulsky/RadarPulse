@@ -1,6 +1,6 @@
 # Milestone 009: Owned Payload Provider Decoupling Plan
 
-Status: draft.
+Status: complete.
 
 This plan implements the milestone 009 architecture defined in
 `009-owned-payload-provider-decoupling.md`.
@@ -711,8 +711,8 @@ implementation.
 [x] same-run full-cache comparisons are captured where local data is available
 [x] performance assessment interprets owned-copy, queue, worker, and rebalance costs
 [x] decision trace is written
-[ ] closeout is written
-[ ] handoff is updated for the next milestone
+[x] closeout is written
+[x] handoff is updated for the next milestone
 ```
 
 ## Non-Goals
