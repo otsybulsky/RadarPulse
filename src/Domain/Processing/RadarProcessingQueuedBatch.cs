@@ -8,7 +8,8 @@ public sealed class RadarProcessingQueuedBatch
         RadarProcessingQueuedBatchSequence sequence,
         RadarEventBatch batch,
         TimeSpan ownedSnapshotTime = default,
-        long ownedSnapshotAllocatedBytes = 0)
+        long ownedSnapshotAllocatedBytes = 0,
+        long enqueuedTimestamp = 0)
     {
         ArgumentNullException.ThrowIfNull(batch);
         if (batch.Lifetime != RadarEventBatchLifetime.Owned)
@@ -22,11 +23,18 @@ public sealed class RadarProcessingQueuedBatch
         }
 
         ArgumentOutOfRangeException.ThrowIfNegative(ownedSnapshotAllocatedBytes);
+        ArgumentOutOfRangeException.ThrowIfNegative(enqueuedTimestamp);
 
         Sequence = sequence;
         Batch = batch;
         OwnedSnapshotTime = ownedSnapshotTime;
         OwnedSnapshotAllocatedBytes = ownedSnapshotAllocatedBytes;
+        EnqueuedTimestamp = enqueuedTimestamp;
+        if (batch.TryGetPayloadMetrics(out var payloadValueCount, out var rawValueChecksum))
+        {
+            PayloadValueCount = payloadValueCount;
+            RawValueChecksum = rawValueChecksum;
+        }
     }
 
     public RadarProcessingQueuedBatchSequence Sequence { get; }
@@ -37,7 +45,13 @@ public sealed class RadarProcessingQueuedBatch
 
     public long OwnedSnapshotAllocatedBytes { get; }
 
+    public long EnqueuedTimestamp { get; }
+
     public int StreamEventCount => Batch.EventCount;
 
     public int PayloadBytes => Batch.PayloadLength;
+
+    public long PayloadValueCount { get; }
+
+    public long RawValueChecksum { get; }
 }

@@ -22,7 +22,11 @@ public sealed record RadarProcessingProviderQueueTelemetrySummary
         long skippedAfterFaultCount = 0,
         TimeSpan totalDrainTime = default,
         int queueDepthHighWatermark = 0,
-        long queuedPayloadBytesHighWatermark = 0)
+        long queuedPayloadBytesHighWatermark = 0,
+        long ownedSnapshotPayloadValueCount = 0,
+        TimeSpan totalProviderToProcessingLatency = default,
+        IReadOnlyCollection<RadarProcessingProviderQueueRecentDetail>? recentDetails = null,
+        long droppedRecentDetailCount = 0)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(ownedSnapshotCount);
         ArgumentOutOfRangeException.ThrowIfNegative(ownedSnapshotPayloadBytes);
@@ -44,6 +48,9 @@ public sealed record RadarProcessingProviderQueueTelemetrySummary
         EnsureNonNegative(totalDrainTime, nameof(totalDrainTime));
         ArgumentOutOfRangeException.ThrowIfNegative(queueDepthHighWatermark);
         ArgumentOutOfRangeException.ThrowIfNegative(queuedPayloadBytesHighWatermark);
+        ArgumentOutOfRangeException.ThrowIfNegative(ownedSnapshotPayloadValueCount);
+        EnsureNonNegative(totalProviderToProcessingLatency, nameof(totalProviderToProcessingLatency));
+        ArgumentOutOfRangeException.ThrowIfNegative(droppedRecentDetailCount);
 
         if (enqueuedBatchCount > enqueueAttemptCount)
         {
@@ -81,6 +88,16 @@ public sealed record RadarProcessingProviderQueueTelemetrySummary
         TotalDrainTime = totalDrainTime;
         QueueDepthHighWatermark = queueDepthHighWatermark;
         QueuedPayloadBytesHighWatermark = queuedPayloadBytesHighWatermark;
+        OwnedSnapshotPayloadValueCount = ownedSnapshotPayloadValueCount;
+        TotalProviderToProcessingLatency = totalProviderToProcessingLatency;
+        RecentDetails = CopyRequired(recentDetails ?? Array.Empty<RadarProcessingProviderQueueRecentDetail>(), nameof(recentDetails));
+        DroppedRecentDetailCount = droppedRecentDetailCount;
+        OwnedSnapshotAllocation = new RadarProcessingOwnedSnapshotAllocationSummary(
+            OwnedSnapshotCount,
+            OwnedSnapshotPayloadBytes,
+            OwnedSnapshotPayloadValueCount,
+            OwnedSnapshotAllocatedBytes,
+            TotalOwnedSnapshotTime);
     }
 
     public long OwnedSnapshotCount { get; }
@@ -123,6 +140,18 @@ public sealed record RadarProcessingProviderQueueTelemetrySummary
 
     public long QueuedPayloadBytesHighWatermark { get; }
 
+    public long OwnedSnapshotPayloadValueCount { get; }
+
+    public TimeSpan TotalProviderToProcessingLatency { get; }
+
+    public IReadOnlyList<RadarProcessingProviderQueueRecentDetail> RecentDetails { get; }
+
+    public int RetainedRecentDetailCount => RecentDetails.Count;
+
+    public long DroppedRecentDetailCount { get; }
+
+    public RadarProcessingOwnedSnapshotAllocationSummary OwnedSnapshotAllocation { get; }
+
     public bool HasBackpressure =>
         EnqueueFullCount > 0 ||
         EnqueueTimedOutCount > 0 ||
@@ -138,5 +167,29 @@ public sealed record RadarProcessingProviderQueueTelemetrySummary
         {
             throw new ArgumentOutOfRangeException(paramName);
         }
+    }
+
+    private static IReadOnlyList<T> CopyRequired<T>(
+        IReadOnlyCollection<T> values,
+        string paramName)
+        where T : class
+    {
+        if (values.Count == 0)
+        {
+            return Array.Empty<T>();
+        }
+
+        var result = new List<T>(values.Count);
+        foreach (var value in values)
+        {
+            if (value is null)
+            {
+                throw new ArgumentNullException(paramName);
+            }
+
+            result.Add(value);
+        }
+
+        return Array.AsReadOnly(result.ToArray());
     }
 }

@@ -405,7 +405,11 @@ public sealed class RadarProcessingQueuedRebalanceSession : IDisposable, IAsyncD
             skipped,
             drainTime,
             queueSummary.QueueDepthHighWatermark,
-            queueSummary.QueuedPayloadBytesHighWatermark);
+            queueSummary.QueuedPayloadBytesHighWatermark,
+            queueSummary.OwnedSnapshotPayloadValueCount,
+            queueSummary.TotalProviderToProcessingLatency,
+            queueSummary.RecentDetails,
+            queueSummary.DroppedRecentDetailCount);
     }
 
     private static RadarProcessingAsyncRebalanceSession? CreateAsyncRebalanceSessionIfNeeded(

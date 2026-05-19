@@ -9,6 +9,7 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
 {
     private readonly object sync = new();
     private readonly Channel<RadarProcessingQueuedBatch> channel;
+    private readonly RadarProcessingProviderQueueTelemetryRecorder telemetryRecorder;
     private long nextSequence;
     private int pendingCount;
     private long pendingPayloadBytes;
@@ -36,6 +37,7 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
         RadarProcessingProviderQueueOptions? options = null)
     {
         Options = options ?? RadarProcessingProviderQueueOptions.Default;
+        telemetryRecorder = new RadarProcessingProviderQueueTelemetryRecorder(Options);
         channel = Channel.CreateBounded<RadarProcessingQueuedBatch>(
             new BoundedChannelOptions(Options.Capacity)
             {
@@ -228,6 +230,7 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
 
     public RadarProcessingProviderQueueTelemetrySummary CreateTelemetrySummary()
     {
+        var recordedSummary = telemetryRecorder.CreateSummary();
         lock (sync)
         {
             return new RadarProcessingProviderQueueTelemetrySummary(
@@ -250,7 +253,11 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
                 skippedAfterFaultCount: 0,
                 totalDrainTime: TimeSpan.Zero,
                 queueDepthHighWatermark,
-                queuedPayloadBytesHighWatermark);
+                queuedPayloadBytesHighWatermark,
+                recordedSummary.OwnedSnapshotPayloadValueCount,
+                recordedSummary.TotalProviderToProcessingLatency,
+                recordedSummary.RecentDetails,
+                recordedSummary.DroppedRecentDetailCount);
         }
     }
 
@@ -416,7 +423,8 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
             new RadarProcessingQueuedBatchSequence(nextSequence),
             batch,
             ownedSnapshotTime,
-            allocatedBytes);
+            allocatedBytes,
+            Stopwatch.GetTimestamp());
 
     private RadarProcessingQueuedBatchEnqueueResult RecordAcceptedUnsafe(
         RadarProcessingQueuedBatch batch,
@@ -435,7 +443,9 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
         queueDepthHighWatermark = Math.Max(queueDepthHighWatermark, pendingCount);
         queuedPayloadBytesHighWatermark = Math.Max(queuedPayloadBytesHighWatermark, pendingPayloadBytes);
 
-        return RadarProcessingQueuedBatchEnqueueResult.Accepted(batch, enqueueWaitTime);
+        var result = RadarProcessingQueuedBatchEnqueueResult.Accepted(batch, enqueueWaitTime);
+        telemetryRecorder.RecordEnqueueResult(result, pendingCount, pendingPayloadBytes);
+        return result;
     }
 
     private RadarProcessingQueuedBatchEnqueueResult RecordRejected(
@@ -460,23 +470,33 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
         {
             case RadarProcessingQueuedBatchEnqueueStatus.Full:
                 enqueueFullCount++;
-                return RadarProcessingQueuedBatchEnqueueResult.Full(enqueueWaitTime, message);
+                var full = RadarProcessingQueuedBatchEnqueueResult.Full(enqueueWaitTime, message);
+                telemetryRecorder.RecordEnqueueResult(full, pendingCount, pendingPayloadBytes);
+                return full;
 
             case RadarProcessingQueuedBatchEnqueueStatus.TimedOut:
                 enqueueTimedOutCount++;
-                return RadarProcessingQueuedBatchEnqueueResult.TimedOut(enqueueWaitTime, message);
+                var timedOut = RadarProcessingQueuedBatchEnqueueResult.TimedOut(enqueueWaitTime, message);
+                telemetryRecorder.RecordEnqueueResult(timedOut, pendingCount, pendingPayloadBytes);
+                return timedOut;
 
             case RadarProcessingQueuedBatchEnqueueStatus.Canceled:
                 enqueueCanceledCount++;
-                return RadarProcessingQueuedBatchEnqueueResult.Canceled(enqueueWaitTime, message);
+                var canceled = RadarProcessingQueuedBatchEnqueueResult.Canceled(enqueueWaitTime, message);
+                telemetryRecorder.RecordEnqueueResult(canceled, pendingCount, pendingPayloadBytes);
+                return canceled;
 
             case RadarProcessingQueuedBatchEnqueueStatus.Closed:
                 enqueueClosedCount++;
-                return RadarProcessingQueuedBatchEnqueueResult.Closed(enqueueWaitTime, message);
+                var closed = RadarProcessingQueuedBatchEnqueueResult.Closed(enqueueWaitTime, message);
+                telemetryRecorder.RecordEnqueueResult(closed, pendingCount, pendingPayloadBytes);
+                return closed;
 
             case RadarProcessingQueuedBatchEnqueueStatus.Faulted:
                 enqueueFaultedCount++;
-                return RadarProcessingQueuedBatchEnqueueResult.Faulted(enqueueWaitTime, message);
+                var faulted = RadarProcessingQueuedBatchEnqueueResult.Faulted(enqueueWaitTime, message);
+                telemetryRecorder.RecordEnqueueResult(faulted, pendingCount, pendingPayloadBytes);
+                return faulted;
 
             default:
                 RadarProcessingQueuedBatchEnqueueResult.EnsureKnownStatus(status);
@@ -488,6 +508,11 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
         RadarProcessingQueuedBatch batch)
     {
         RemovePending(batch, countDequeued: true);
+        telemetryRecorder.RecordDequeuedBatch(
+            batch,
+            batch.EnqueuedTimestamp == 0 ? TimeSpan.Zero : Stopwatch.GetElapsedTime(batch.EnqueuedTimestamp),
+            PendingCount,
+            PendingPayloadBytes);
     }
 
     private void RemovePending(

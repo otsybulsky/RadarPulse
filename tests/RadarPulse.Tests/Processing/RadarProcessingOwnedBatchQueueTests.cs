@@ -90,11 +90,23 @@ public sealed class RadarProcessingOwnedBatchQueueTests
         Assert.Equal(1, summary.EnqueueFullCount);
         Assert.Equal(2, summary.OwnedSnapshotCount);
         Assert.Equal(4, summary.OwnedSnapshotPayloadBytes);
+        Assert.Equal(4, summary.OwnedSnapshotPayloadValueCount);
         Assert.Equal(64, summary.OwnedSnapshotAllocatedBytes);
         Assert.Equal(TimeSpan.FromMilliseconds(2), summary.TotalOwnedSnapshotTime);
         Assert.Equal(1, summary.DequeuedBatchCount);
+        Assert.True(summary.TotalProviderToProcessingLatency >= TimeSpan.Zero);
         Assert.Equal(1, summary.QueueDepthHighWatermark);
         Assert.Equal(2, summary.QueuedPayloadBytesHighWatermark);
+        Assert.Equal(4, summary.RecentDetails.Count);
+        Assert.Equal(0, summary.DroppedRecentDetailCount);
+        Assert.Equal(
+            [
+                RadarProcessingProviderQueueRecentDetailKind.Enqueue,
+                RadarProcessingProviderQueueRecentDetailKind.Enqueue,
+                RadarProcessingProviderQueueRecentDetailKind.Dequeue,
+                RadarProcessingProviderQueueRecentDetailKind.Enqueue
+            ],
+            summary.RecentDetails.Select(static detail => detail.Kind).ToArray());
         Assert.True(summary.HasBackpressure);
     }
 

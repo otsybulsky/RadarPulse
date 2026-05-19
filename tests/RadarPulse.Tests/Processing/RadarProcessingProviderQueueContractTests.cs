@@ -35,6 +35,10 @@ public sealed class RadarProcessingProviderQueueContractTests
         Assert.Equal(4, (int)RadarProcessingQueuedSessionStatus.Faulted);
         Assert.Equal(5, (int)RadarProcessingQueuedSessionStatus.Canceled);
         Assert.Equal(6, (int)RadarProcessingQueuedSessionStatus.Disposed);
+
+        Assert.Equal(1, (int)RadarProcessingProviderQueueRecentDetailKind.Enqueue);
+        Assert.Equal(2, (int)RadarProcessingProviderQueueRecentDetailKind.Dequeue);
+        Assert.Equal(3, (int)RadarProcessingProviderQueueRecentDetailKind.Processing);
     }
 
     [Fact]
@@ -114,8 +118,11 @@ public sealed class RadarProcessingProviderQueueContractTests
         Assert.Same(ownedBatch, queued.Batch);
         Assert.Equal(TimeSpan.FromMilliseconds(2), queued.OwnedSnapshotTime);
         Assert.Equal(64, queued.OwnedSnapshotAllocatedBytes);
+        Assert.Equal(0, queued.EnqueuedTimestamp);
         Assert.Equal(1, queued.StreamEventCount);
         Assert.Equal(2, queued.PayloadBytes);
+        Assert.Equal(2, queued.PayloadValueCount);
+        Assert.Equal(15, queued.RawValueChecksum);
 
         var builder = CreateSingleEventBuilder();
         builder.ConsumeLeased(batch =>
@@ -130,13 +137,18 @@ public sealed class RadarProcessingProviderQueueContractTests
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new RadarProcessingQueuedBatch(
                 RadarProcessingQueuedBatchSequence.Initial,
-                ownedBatch,
-                ownedSnapshotTime: TimeSpan.FromTicks(-1)));
+            ownedBatch,
+            ownedSnapshotTime: TimeSpan.FromTicks(-1)));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new RadarProcessingQueuedBatch(
                 RadarProcessingQueuedBatchSequence.Initial,
                 ownedBatch,
                 ownedSnapshotAllocatedBytes: -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RadarProcessingQueuedBatch(
+                RadarProcessingQueuedBatchSequence.Initial,
+                ownedBatch,
+                enqueuedTimestamp: -1));
     }
 
     [Fact]
@@ -246,10 +258,23 @@ public sealed class RadarProcessingProviderQueueContractTests
             failedBatchCount: 1,
             totalDrainTime: TimeSpan.FromMilliseconds(7),
             queueDepthHighWatermark: 2,
-            queuedPayloadBytesHighWatermark: 128);
+            queuedPayloadBytesHighWatermark: 128,
+            ownedSnapshotPayloadValueCount: 64,
+            totalProviderToProcessingLatency: TimeSpan.FromMilliseconds(11),
+            recentDetails:
+            [
+                new RadarProcessingProviderQueueRecentDetail(
+                    RadarProcessingProviderQueueRecentDetailKind.Enqueue,
+                    RadarProcessingQueuedBatchSequence.Initial,
+                    enqueueStatus: RadarProcessingQueuedBatchEnqueueStatus.Accepted,
+                    payloadBytes: 64,
+                    payloadValueCount: 32)
+            ],
+            droppedRecentDetailCount: 3);
 
         Assert.Equal(2, summary.OwnedSnapshotCount);
         Assert.Equal(128, summary.OwnedSnapshotPayloadBytes);
+        Assert.Equal(64, summary.OwnedSnapshotPayloadValueCount);
         Assert.Equal(256, summary.OwnedSnapshotAllocatedBytes);
         Assert.Equal(TimeSpan.FromMilliseconds(3), summary.TotalOwnedSnapshotTime);
         Assert.Equal(3, summary.EnqueueAttemptCount);
@@ -263,8 +288,14 @@ public sealed class RadarProcessingProviderQueueContractTests
         Assert.Equal(TimeSpan.FromMilliseconds(7), summary.TotalDrainTime);
         Assert.Equal(2, summary.QueueDepthHighWatermark);
         Assert.Equal(128, summary.QueuedPayloadBytesHighWatermark);
+        Assert.Equal(TimeSpan.FromMilliseconds(11), summary.TotalProviderToProcessingLatency);
+        Assert.Single(summary.RecentDetails);
+        Assert.Equal(1, summary.RetainedRecentDetailCount);
+        Assert.Equal(3, summary.DroppedRecentDetailCount);
+        Assert.Equal(4.0, summary.OwnedSnapshotAllocation.AllocatedBytesPerPayloadValue);
         Assert.True(summary.HasBackpressure);
         Assert.False(RadarProcessingProviderQueueTelemetrySummary.Empty.HasBackpressure);
+        Assert.Same(RadarProcessingOwnedSnapshotAllocationSummary.Empty, RadarProcessingOwnedSnapshotAllocationSummary.Empty);
 
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new RadarProcessingProviderQueueTelemetrySummary(ownedSnapshotCount: -1));
@@ -279,6 +310,33 @@ public sealed class RadarProcessingProviderQueueContractTests
                 dequeuedBatchCount: 1,
                 completedBatchCount: 1,
                 failedBatchCount: 1));
+        Assert.Throws<ArgumentNullException>(() =>
+            new RadarProcessingProviderQueueTelemetrySummary(
+                recentDetails: new RadarProcessingProviderQueueRecentDetail[] { null! }));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RadarProcessingProviderQueueTelemetrySummary(droppedRecentDetailCount: -1));
+    }
+
+    [Fact]
+    public void OwnedSnapshotAllocationSummaryComputesRatiosAndRejectsInvalidValues()
+    {
+        var summary = new RadarProcessingOwnedSnapshotAllocationSummary(
+            snapshotCount: 2,
+            payloadBytes: 128,
+            payloadValueCount: 64,
+            allocatedBytes: 256,
+            elapsed: TimeSpan.FromMilliseconds(3));
+
+        Assert.Equal(128.0, summary.AllocatedBytesPerSnapshot);
+        Assert.Equal(2.0, summary.AllocatedBytesPerPayloadByte);
+        Assert.Equal(4.0, summary.AllocatedBytesPerPayloadValue);
+        Assert.Equal(64.0, summary.PayloadBytesPerSnapshot);
+        Assert.Equal(0.0, RadarProcessingOwnedSnapshotAllocationSummary.Empty.AllocatedBytesPerPayloadValue);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RadarProcessingOwnedSnapshotAllocationSummary(snapshotCount: -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RadarProcessingOwnedSnapshotAllocationSummary(elapsed: TimeSpan.FromTicks(-1)));
     }
 
     [Fact]

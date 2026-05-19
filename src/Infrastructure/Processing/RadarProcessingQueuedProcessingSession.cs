@@ -375,7 +375,11 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
             skipped,
             drainTime,
             queueSummary.QueueDepthHighWatermark,
-            queueSummary.QueuedPayloadBytesHighWatermark);
+            queueSummary.QueuedPayloadBytesHighWatermark,
+            queueSummary.OwnedSnapshotPayloadValueCount,
+            queueSummary.TotalProviderToProcessingLatency,
+            queueSummary.RecentDetails,
+            queueSummary.DroppedRecentDetailCount);
     }
 
     private static RadarProcessingAsyncCoreSession? CreateAsyncCoreSessionIfNeeded(

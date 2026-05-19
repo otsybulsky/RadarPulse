@@ -418,6 +418,42 @@ Recorded result:
 91 passed, 3 skipped for Archive-focused coverage.
 ```
 
+Milestone 009 slice 7 queue telemetry and allocation attribution is
+implemented in the current working tree. RadarPulse now has
+`RadarProcessingProviderQueueTelemetryRecorder`,
+`RadarProcessingProviderQueueRecentDetail`,
+`RadarProcessingProviderQueueRecentDetailKind`, and
+`RadarProcessingOwnedSnapshotAllocationSummary`. Provider queue telemetry now
+tracks owned snapshot payload value count, provider-to-processing latency,
+bounded recent details, dropped recent detail count, and owned snapshot
+allocation ratios without retaining `RadarEventBatch` payload. The runtime
+`RadarProcessingOwnedBatchQueue` now records enqueue and dequeue details using
+the recorder while queued processing and queued rebalance sessions preserve
+the new queue telemetry fields when adding processing completion/failure
+counts. Recent detail retention is bounded by
+`RadarProcessingProviderQueueOptions.RecentDetailCapacity`, including a
+counters-only capacity of zero.
+
+Latest verification after milestone 009 slice 7:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingProviderQueueContractTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingProviderQueueTelemetryRecorderTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingOwnedBatchQueueTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Processing
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Archive
+```
+
+Recorded result:
+
+```text
+11 passed for provider queue contract coverage.
+3 passed for provider queue telemetry recorder coverage.
+11 passed for owned batch queue coverage.
+477 passed for Processing-focused coverage.
+91 passed, 3 skipped for Archive-focused coverage.
+```
+
 Milestone 008 slice 1 is implemented in the current working tree. RadarPulse
 now has the first async execution option contracts:
 `RadarProcessingExecutionMode.AsyncShardTransport`,
