@@ -261,6 +261,28 @@ processing batch at a time, deterministic topology/rebalance publication
 ordering, synchronous reference parity, and same-run benchmark contours that
 separate owned-copy, enqueue, queue wait, worker, and rebalance costs.
 
+Milestone 009 slice 1 owned snapshot guardrails are implemented in the current
+working tree. `RadarEventBatchBuilderTests` now verify that a leased
+`RadarEventBatch.ToOwnedSnapshot()` preserves stream metadata, dictionary and
+source-universe versions, event fields, payload bytes, payload offsets,
+precomputed payload metrics, owned lifetime, and stability after builder buffer
+reuse. Empty leased batches are also covered and produce owned empty snapshots
+with empty precomputed metrics. No production code changed in this slice.
+
+Latest verification after milestone 009 slice 1:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarEventBatchBuilderTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Streaming
+```
+
+Recorded result:
+
+```text
+11 passed for RadarEventBatchBuilderTests.
+71 passed for Streaming-focused coverage.
+```
+
 Milestone 008 slice 1 is implemented in the current working tree. RadarPulse
 now has the first async execution option contracts:
 `RadarProcessingExecutionMode.AsyncShardTransport`,
