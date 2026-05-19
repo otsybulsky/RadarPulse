@@ -131,6 +131,86 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunnerTests
         Assert.Single(result.Consumer.SessionResult.ProcessingResults);
     }
 
+    [Fact]
+    public async Task RebalanceOverlapCapturesLatestTopologyWhenQueuedBatchWaitsBehindMigration()
+    {
+        var universe = CreateUniverse(sourceCount: 4);
+        var rebalanceSession = CreateRebalanceSession(universe);
+        var runner = new RadarProcessingArchiveQueuedOverlapRunner();
+        var options = new RadarProcessingArchiveQueuedOverlapOptions(
+            new RadarProcessingProviderQueueOptions(capacity: 4, recentDetailCapacity: 16));
+
+        var result = await runner.RunAsync(
+            (publisher, cancellationToken) =>
+            {
+                publisher.Publish(
+                    CreateEightBitBatch(universe.Version, [0, 0, 0, 0, 1, 1]),
+                    cancellationToken);
+                publisher.Publish(
+                    CreateEmptyBatch(universe.Version),
+                    cancellationToken);
+                return CreatePublishResult(batchCount: 2);
+            },
+            async (queue, cancellationToken) =>
+            {
+                await Task.Delay(100, cancellationToken);
+                await using var queuedSession = new RadarProcessingQueuedRebalanceSession(
+                    rebalanceSession,
+                    queue);
+                return await queuedSession.DrainAsync(cancellationToken);
+            },
+            options);
+
+        Assert.True(result.IsCompleted);
+        Assert.Equal(2, result.ProviderResult.AcceptedPublishCount);
+        Assert.True(result.QueueTelemetry.QueueDepthHighWatermark > 1);
+        Assert.Equal(RadarProcessingTopologyVersion.Initial.Next(), result.Consumer.SessionResult.FinalTopologyVersion);
+
+        var first = result.Consumer.SessionResult.ProcessingResults[0];
+        var second = result.Consumer.SessionResult.ProcessingResults[1];
+
+        Assert.True(first.RebalanceResult!.PublishedMigration);
+        Assert.Equal(RadarProcessingTopologyVersion.Initial, first.TopologyVersion);
+        Assert.Equal(RadarProcessingTopologyVersion.Initial.Next(), second.TopologyVersion);
+        var secondTelemetry = Assert.IsType<RadarProcessingTelemetry>(second.ProcessingResult!.Telemetry);
+        Assert.Equal(RadarProcessingTopologyVersion.Initial.Next(), secondTelemetry.TopologyVersion);
+        Assert.Equal(1, secondTelemetry.Partitions[0].ShardId);
+    }
+
+    [Fact]
+    public async Task RunRebalanceAsyncUsesOrderedConsumerAndReportsFinalTopology()
+    {
+        var universe = CreateUniverse(sourceCount: 4);
+        var rebalanceSession = CreateRebalanceSession(universe);
+        var runner = new RadarProcessingArchiveQueuedOverlapRunner();
+        var options = new RadarProcessingArchiveQueuedOverlapOptions(
+            new RadarProcessingProviderQueueOptions(capacity: 2, recentDetailCapacity: 16));
+
+        var result = await runner.RunRebalanceAsync(
+            (publisher, cancellationToken) =>
+            {
+                publisher.Publish(
+                    CreateEightBitBatch(universe.Version, [0, 0, 0, 0, 1, 1]),
+                    cancellationToken);
+                publisher.Publish(
+                    CreateEmptyBatch(universe.Version),
+                    cancellationToken);
+                return CreatePublishResult(batchCount: 2);
+            },
+            rebalanceSession,
+            options);
+
+        Assert.True(result.IsCompleted);
+        Assert.True(result.Consumer.SessionResult.IsCompleted);
+        Assert.Equal(RadarProcessingTopologyVersion.Initial.Next(), result.Consumer.SessionResult.FinalTopologyVersion);
+        Assert.Equal(RadarProcessingTopologyVersion.Initial.Next(), rebalanceSession.CurrentTopology.Version);
+        Assert.Equal(
+            [RadarProcessingTopologyVersion.Initial, RadarProcessingTopologyVersion.Initial.Next()],
+            result.Consumer.SessionResult.ProcessingResults
+                .Select(static processing => processing.TopologyVersion)
+                .ToArray());
+    }
+
     private static async ValueTask<RadarProcessingQueuedSessionResult> DrainAllAsync(
         RadarProcessingOwnedBatchQueue queue,
         CancellationToken cancellationToken)
@@ -239,6 +319,120 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunnerTests
             payload: [firstPayloadValue, (byte)(firstPayloadValue + 1)]);
         return builder.Build();
     }
+
+    private static RadarProcessingRebalanceSession CreateRebalanceSession(
+        RadarSourceUniverse universe)
+    {
+        var core = new RadarProcessingCore(
+            universe,
+            new RadarProcessingCoreOptions(
+                RadarProcessingExecutionMode.PartitionedBarrier,
+                partitionCount: universe.SourceCount,
+                shardCount: Math.Min(2, universe.SourceCount)));
+
+        return new RadarProcessingRebalanceSession(
+            core,
+            new RadarProcessingPressureOptions(
+                eventWeight: 1.0,
+                payloadValueWeight: 0.0,
+                rawValueChecksumWeight: 0.0),
+            new RadarProcessingPressureWindow(
+                new RadarProcessingPressureWindowOptions(
+                    sampleCapacity: 2,
+                    minimumSampleCount: 1,
+                    coldThreshold: 0.0,
+                    warmExitThreshold: 4.0,
+                    warmEnterThreshold: 4.5,
+                    hotExitThreshold: 4.75,
+                    hotEnterThreshold: 5.0,
+                    superHotExitThreshold: 9.0,
+                    superHotEnterThreshold: 10.0)),
+            new RadarProcessingRebalancePolicyState(
+                universe.SourceCount,
+                shardCount: Math.Min(2, universe.SourceCount),
+                new RadarProcessingRebalanceOptions(
+                    budgetWindowEvaluationCount: 4,
+                    globalMoveBudgetPerWindow: 4,
+                    sourceShardMoveBudgetPerWindow: 4,
+                    targetShardReceiveBudgetPerWindow: 4,
+                    minimumPartitionResidencyEvaluations: 0,
+                    partitionMoveCooldownEvaluations: 0,
+                    sourceShardMoveCooldownEvaluations: 0,
+                    targetShardReceiveCooldownEvaluations: 0,
+                    minimumProjectedBenefit: 0.05)),
+            telemetryRecorder: new RadarProcessingRebalanceTelemetryRecorder(
+                new RadarProcessingTelemetryRetentionOptions(
+                    RadarProcessingDiagnosticRetentionMode.Recent,
+                    maxRetainedDecisions: 8,
+                    maxRetainedLifecycleTransitions: 8,
+                    maxRetainedAcceptedMoves: 8,
+                    maxRetainedValidationFailures: 8)));
+    }
+
+    private static RadarSourceUniverse CreateUniverse(int sourceCount) =>
+        new(
+            SourceUniverseVersion.Initial,
+            radarOrdinalCount: 1,
+            elevationSlotCount: 1,
+            azimuthBucketCount: sourceCount,
+            rangeBandCount: 1);
+
+    private static RadarEventBatch CreateEmptyBatch(SourceUniverseVersion sourceUniverseVersion) =>
+        new(
+            StreamSchemaVersion.Current,
+            DictionaryVersion.Initial,
+            sourceUniverseVersion,
+            Array.Empty<RadarStreamEvent>(),
+            Array.Empty<byte>());
+
+    private static RadarEventBatch CreateEightBitBatch(
+        SourceUniverseVersion sourceUniverseVersion,
+        int[] sourceIds)
+    {
+        var events = new RadarStreamEvent[sourceIds.Length];
+        var payload = new byte[sourceIds.Length];
+
+        for (var i = 0; i < sourceIds.Length; i++)
+        {
+            events[i] = CreateEvent(
+                sourceIds[i],
+                messageTimestampUtcTicks: 100 + i,
+                payloadOffset: i);
+            payload[i] = (byte)(i + 1);
+        }
+
+        return new RadarEventBatch(
+            StreamSchemaVersion.Current,
+            DictionaryVersion.Initial,
+            sourceUniverseVersion,
+            events,
+            payload);
+    }
+
+    private static RadarStreamEvent CreateEvent(
+        int sourceId,
+        long messageTimestampUtcTicks,
+        int payloadOffset) =>
+        new(
+            sourceId,
+            radarOrdinal: 0,
+            volumeTimestampUtcTicks: 90,
+            messageTimestampUtcTicks,
+            sourceRecord: 1,
+            sourceMessage: 1,
+            radialSequence: payloadOffset,
+            elevationSlot: 0,
+            azimuthBucket: (ushort)sourceId,
+            rangeBand: 0,
+            momentId: 0,
+            gateStart: 0,
+            gateCount: 1,
+            wordSize: RadarStreamWordSize.EightBit,
+            scale: 1.0f,
+            offset: 0.0f,
+            statusModel: RadarStreamStatusModel.ArchiveTwoMoment,
+            payloadOffset: payloadOffset,
+            payloadLength: 1);
 
     private static RadarProcessingResult CreateProcessingResult()
     {

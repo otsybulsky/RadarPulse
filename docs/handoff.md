@@ -11,14 +11,14 @@ implementation plan is recorded in
 Milestone 010 starts from the closed milestone 009 owned-provider boundary:
 `queued-owned` is correct and measurable, but still opt-in because owned
 snapshot allocation is the dominant cost and the current archive benchmark does
-not overlap replay with processing. Milestone 010 slices 1 through 6 are now
+not overlap replay with processing. Milestone 010 slices 1 through 7 are now
 complete: the milestone 009 cost anchors are confirmed, retained payload
 strategy contracts are implemented and tested, and the resource-owned queued
 batch lifecycle, one lower-allocation retained payload implementation, and
 retained-byte-aware provider queue accounting plus the first producer/consumer
-archive overlap runner are implemented and tested. The next implementation
-work should start slice 7 by wiring ordered consumer/topology pinning rules
-into the overlap contour and preparing it for benchmark integration.
+archive overlap runner with ordered rebalance topology pinning are implemented
+and tested. The next implementation work should start slice 8 by adding overlap
+telemetry and allocation attribution fields around the retained/overlap path.
 
 `blocking-borrowed` remains the default provider mode and same-run oracle.
 `queued-owned` remains an explicit validation and measurement mode until the
@@ -947,6 +947,51 @@ Recorded result:
 3 passed, 0 failed, 0 skipped for overlap runner focused coverage.
 29 passed, 0 failed, 0 skipped for overlap runner plus queue/session/archive publisher coverage.
 689 passed, 3 skipped for the full test project.
+```
+
+Milestone 010 slice 7 ordered consumer and topology pinning is implemented in
+the current working tree. Runtime integration and guardrails:
+
+```text
+RadarProcessingArchiveQueuedOverlapRunner.RunRebalanceAsync()
+  -> wires archive overlap production to RadarProcessingQueuedRebalanceSession
+     as the ordered consumer
+  -> creates the queued rebalance consumer over the same owned provider queue
+  -> keeps one active rebalance-enabled processing batch at a time through the
+     existing queued rebalance session
+  -> supports async-shard rebalance sessions by creating and owning the
+     required RadarProcessingAsyncRebalanceSession wrapper
+
+Queued topology semantics
+  -> enqueue still stores only owned payload and provider sequence
+  -> queued-ahead batches do not capture topology while waiting in the queue
+  -> topology is captured by RadarProcessingRebalanceSession.Process() at
+     dequeue/processing time
+  -> accepted migration from batch N publishes before batch N+1 is processed
+  -> final overlap result exposes the queued rebalance session result and final
+     topology version
+```
+
+Focused tests cover both the official `RunRebalanceAsync()` contour and a
+delayed-consumer overlap contour where two batches are accepted before drain.
+The first batch publishes a topology move from version 0 to version 1, and the
+second queued-ahead batch processes against version 1 rather than the topology
+that existed when it was enqueued.
+
+Latest verification after milestone 010 slice 7:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingQueuedRebalanceSessionTests|FullyQualifiedName~RadarProcessingRebalanceSessionTests"
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+5 passed, 0 failed, 0 skipped for overlap runner/topology focused coverage.
+19 passed, 0 failed, 0 skipped for overlap runner plus queued/direct rebalance coverage.
+691 passed, 3 skipped for the full test project.
 ```
 
 Milestone 008 slice 1 is implemented in the current working tree. RadarPulse

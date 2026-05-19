@@ -8,6 +8,22 @@ namespace RadarPulse.Infrastructure.Processing;
 
 public sealed class RadarProcessingArchiveQueuedOverlapRunner
 {
+    public ValueTask<RadarProcessingArchiveQueuedOverlapResult> RunRebalanceAsync(
+        Func<IArchiveRadarEventBatchPublisher, CancellationToken, ArchiveRadarEventBatchPublishResult> produce,
+        RadarProcessingRebalanceSession rebalanceSession,
+        RadarProcessingArchiveQueuedOverlapOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(produce);
+        ArgumentNullException.ThrowIfNull(rebalanceSession);
+
+        return RunAsync(
+            produce,
+            (queue, token) => DrainRebalanceAsync(rebalanceSession, queue, token),
+            options,
+            cancellationToken);
+    }
+
     public async ValueTask<RadarProcessingArchiveQueuedOverlapResult> RunAsync(
         Func<IArchiveRadarEventBatchPublisher, CancellationToken, ArchiveRadarEventBatchPublishResult> produce,
         Func<RadarProcessingOwnedBatchQueue, CancellationToken, ValueTask<RadarProcessingQueuedSessionResult>> consume,
@@ -181,4 +197,26 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
             RadarProcessingArchiveQueuedOverlapStatus.Disposed => consumer.Message,
             _ => throw new ArgumentOutOfRangeException(nameof(status))
         };
+
+    private static async ValueTask<RadarProcessingQueuedSessionResult> DrainRebalanceAsync(
+        RadarProcessingRebalanceSession rebalanceSession,
+        RadarProcessingOwnedBatchQueue queue,
+        CancellationToken cancellationToken)
+    {
+        RadarProcessingAsyncRebalanceSession? asyncRebalanceSession = null;
+        var ownsAsyncRebalanceSession = rebalanceSession.Core.Options.ExecutionMode ==
+            RadarProcessingExecutionMode.AsyncShardTransport;
+        if (ownsAsyncRebalanceSession)
+        {
+            asyncRebalanceSession = new RadarProcessingAsyncRebalanceSession(rebalanceSession);
+        }
+
+        await using var queuedSession = new RadarProcessingQueuedRebalanceSession(
+            rebalanceSession,
+            queue,
+            asyncRebalanceSession,
+            ownsQueue: false,
+            ownsAsyncRebalanceSession: ownsAsyncRebalanceSession);
+        return await queuedSession.DrainAsync(cancellationToken).ConfigureAwait(false);
+    }
 }
