@@ -1,0 +1,507 @@
+using System.Diagnostics;
+using System.Threading.Channels;
+using RadarPulse.Domain.Processing;
+using RadarPulse.Domain.Streaming;
+
+namespace RadarPulse.Infrastructure.Processing;
+
+public sealed class RadarProcessingOwnedBatchQueue : IDisposable
+{
+    private readonly object sync = new();
+    private readonly Channel<RadarProcessingQueuedBatch> channel;
+    private long nextSequence;
+    private int pendingCount;
+    private long pendingPayloadBytes;
+    private bool closed;
+    private bool faulted;
+    private bool disposed;
+    private string faultMessage = string.Empty;
+    private long ownedSnapshotCount;
+    private long ownedSnapshotPayloadBytes;
+    private long ownedSnapshotAllocatedBytes;
+    private TimeSpan totalOwnedSnapshotTime;
+    private long enqueueAttemptCount;
+    private long enqueuedBatchCount;
+    private long enqueueFullCount;
+    private long enqueueTimedOutCount;
+    private long enqueueCanceledCount;
+    private long enqueueClosedCount;
+    private long enqueueFaultedCount;
+    private TimeSpan totalEnqueueWaitTime;
+    private long dequeuedBatchCount;
+    private int queueDepthHighWatermark;
+    private long queuedPayloadBytesHighWatermark;
+
+    public RadarProcessingOwnedBatchQueue(
+        RadarProcessingProviderQueueOptions? options = null)
+    {
+        Options = options ?? RadarProcessingProviderQueueOptions.Default;
+        channel = Channel.CreateBounded<RadarProcessingQueuedBatch>(
+            new BoundedChannelOptions(Options.Capacity)
+            {
+                AllowSynchronousContinuations = false,
+                FullMode = BoundedChannelFullMode.Wait,
+                SingleReader = false,
+                SingleWriter = false
+            });
+    }
+
+    public RadarProcessingProviderQueueOptions Options { get; }
+
+    public int PendingCount
+    {
+        get
+        {
+            lock (sync)
+            {
+                return pendingCount;
+            }
+        }
+    }
+
+    public long PendingPayloadBytes
+    {
+        get
+        {
+            lock (sync)
+            {
+                return pendingPayloadBytes;
+            }
+        }
+    }
+
+    public bool IsClosed
+    {
+        get
+        {
+            lock (sync)
+            {
+                return closed;
+            }
+        }
+    }
+
+    public bool IsFaulted
+    {
+        get
+        {
+            lock (sync)
+            {
+                return faulted;
+            }
+        }
+    }
+
+    public bool IsDisposed
+    {
+        get
+        {
+            lock (sync)
+            {
+                return disposed;
+            }
+        }
+    }
+
+    public async ValueTask<RadarProcessingQueuedBatchEnqueueResult> EnqueueAsync(
+        RadarEventBatch batch,
+        TimeSpan ownedSnapshotTime = default,
+        long ownedSnapshotAllocatedBytes = 0,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+        if (batch.Lifetime != RadarEventBatchLifetime.Owned)
+        {
+            throw new ArgumentException("Owned batch queue accepts only owned RadarEventBatch values.", nameof(batch));
+        }
+
+        if (ownedSnapshotTime < TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(ownedSnapshotTime));
+        }
+
+        ArgumentOutOfRangeException.ThrowIfNegative(ownedSnapshotAllocatedBytes);
+
+        var started = Stopwatch.GetTimestamp();
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return RecordRejected(
+                RadarProcessingQueuedBatchEnqueueStatus.Canceled,
+                Stopwatch.GetElapsedTime(started));
+        }
+
+        var stateRejection = TryGetStateRejection();
+        if (stateRejection.HasValue)
+        {
+            return RecordRejected(
+                stateRejection.Value.Status,
+                Stopwatch.GetElapsedTime(started),
+                stateRejection.Value.Message);
+        }
+
+        return Options.FullMode == RadarProcessingProviderQueueFullMode.ReturnFull
+            ? TryEnqueueWithoutWaiting(batch, ownedSnapshotTime, ownedSnapshotAllocatedBytes, started)
+            : await EnqueueWithWaitAsync(batch, ownedSnapshotTime, ownedSnapshotAllocatedBytes, started, cancellationToken)
+                .ConfigureAwait(false);
+    }
+
+    public async ValueTask<RadarProcessingOwnedBatchDequeueResult> DequeueAsync(
+        CancellationToken cancellationToken = default)
+    {
+        if (IsDisposed)
+        {
+            return new RadarProcessingOwnedBatchDequeueResult(
+                RadarProcessingOwnedBatchDequeueStatus.Disposed);
+        }
+
+        try
+        {
+            var batch = await channel.Reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+            RecordDequeue(batch);
+
+            if (IsDisposed)
+            {
+                return new RadarProcessingOwnedBatchDequeueResult(
+                    RadarProcessingOwnedBatchDequeueStatus.Disposed);
+            }
+
+            return new RadarProcessingOwnedBatchDequeueResult(
+                RadarProcessingOwnedBatchDequeueStatus.Item,
+                batch);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return new RadarProcessingOwnedBatchDequeueResult(
+                RadarProcessingOwnedBatchDequeueStatus.Canceled);
+        }
+        catch (ChannelClosedException)
+        {
+            lock (sync)
+            {
+                if (disposed)
+                {
+                    return new RadarProcessingOwnedBatchDequeueResult(
+                        RadarProcessingOwnedBatchDequeueStatus.Disposed);
+                }
+
+                return faulted
+                    ? new RadarProcessingOwnedBatchDequeueResult(
+                        RadarProcessingOwnedBatchDequeueStatus.Faulted,
+                        message: faultMessage)
+                    : new RadarProcessingOwnedBatchDequeueResult(
+                        RadarProcessingOwnedBatchDequeueStatus.Closed);
+            }
+        }
+    }
+
+    public void Close()
+    {
+        lock (sync)
+        {
+            if (disposed || closed)
+            {
+                return;
+            }
+
+            closed = true;
+            channel.Writer.TryComplete();
+        }
+    }
+
+    public void Fault(string message = "")
+    {
+        ArgumentNullException.ThrowIfNull(message);
+
+        lock (sync)
+        {
+            if (disposed)
+            {
+                return;
+            }
+
+            faulted = true;
+            closed = true;
+            faultMessage = message;
+            channel.Writer.TryComplete();
+        }
+    }
+
+    public RadarProcessingProviderQueueTelemetrySummary CreateTelemetrySummary()
+    {
+        lock (sync)
+        {
+            return new RadarProcessingProviderQueueTelemetrySummary(
+                ownedSnapshotCount,
+                ownedSnapshotPayloadBytes,
+                ownedSnapshotAllocatedBytes,
+                totalOwnedSnapshotTime,
+                enqueueAttemptCount,
+                enqueuedBatchCount,
+                enqueueFullCount,
+                enqueueTimedOutCount,
+                enqueueCanceledCount,
+                enqueueClosedCount,
+                enqueueFaultedCount,
+                totalEnqueueWaitTime,
+                dequeuedBatchCount,
+                completedBatchCount: 0,
+                failedBatchCount: 0,
+                canceledBatchCount: 0,
+                skippedAfterFaultCount: 0,
+                totalDrainTime: TimeSpan.Zero,
+                queueDepthHighWatermark,
+                queuedPayloadBytesHighWatermark);
+        }
+    }
+
+    public void Dispose()
+    {
+        lock (sync)
+        {
+            if (disposed)
+            {
+                return;
+            }
+
+            disposed = true;
+            closed = true;
+            channel.Writer.TryComplete();
+        }
+
+        while (channel.Reader.TryRead(out var batch))
+        {
+            RemovePending(batch, countDequeued: false);
+        }
+    }
+
+    private RadarProcessingQueuedBatchEnqueueResult TryEnqueueWithoutWaiting(
+        RadarEventBatch batch,
+        TimeSpan ownedSnapshotTime,
+        long allocatedBytes,
+        long started)
+    {
+        lock (sync)
+        {
+            var stateRejection = TryGetStateRejectionUnsafe();
+            if (stateRejection.HasValue)
+            {
+                return RecordRejectedUnsafe(
+                    stateRejection.Value.Status,
+                    Stopwatch.GetElapsedTime(started),
+                    stateRejection.Value.Message);
+            }
+
+            var queuedBatch = CreateQueuedBatchUnsafe(batch, ownedSnapshotTime, allocatedBytes);
+            if (!channel.Writer.TryWrite(queuedBatch))
+            {
+                stateRejection = TryGetStateRejectionUnsafe();
+                if (stateRejection.HasValue)
+                {
+                    return RecordRejectedUnsafe(
+                        stateRejection.Value.Status,
+                        Stopwatch.GetElapsedTime(started),
+                        stateRejection.Value.Message);
+                }
+
+                return RecordRejectedUnsafe(
+                    RadarProcessingQueuedBatchEnqueueStatus.Full,
+                    Stopwatch.GetElapsedTime(started));
+            }
+
+            return RecordAcceptedUnsafe(queuedBatch, Stopwatch.GetElapsedTime(started));
+        }
+    }
+
+    private async ValueTask<RadarProcessingQueuedBatchEnqueueResult> EnqueueWithWaitAsync(
+        RadarEventBatch batch,
+        TimeSpan ownedSnapshotTime,
+        long allocatedBytes,
+        long started,
+        CancellationToken cancellationToken)
+    {
+        using var timeout = Options.EnqueueTimeout.HasValue
+            ? new CancellationTokenSource(Options.EnqueueTimeout.Value)
+            : null;
+        using var linked = timeout is null
+            ? null
+            : CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
+        var waitToken = linked?.Token ?? cancellationToken;
+
+        while (true)
+        {
+            var stateRejection = TryGetStateRejection();
+            if (stateRejection.HasValue)
+            {
+                return RecordRejected(
+                    stateRejection.Value.Status,
+                    Stopwatch.GetElapsedTime(started),
+                    stateRejection.Value.Message);
+            }
+
+            bool canWrite;
+            try
+            {
+                canWrite = await channel.Writer.WaitToWriteAsync(waitToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return RecordRejected(
+                    RadarProcessingQueuedBatchEnqueueStatus.Canceled,
+                    Stopwatch.GetElapsedTime(started));
+            }
+            catch (OperationCanceledException) when (timeout?.IsCancellationRequested == true)
+            {
+                return RecordRejected(
+                    RadarProcessingQueuedBatchEnqueueStatus.TimedOut,
+                    Stopwatch.GetElapsedTime(started));
+            }
+
+            if (!canWrite)
+            {
+                stateRejection = TryGetStateRejection();
+                return RecordRejected(
+                    stateRejection?.Status ?? RadarProcessingQueuedBatchEnqueueStatus.Closed,
+                    Stopwatch.GetElapsedTime(started),
+                    stateRejection?.Message ?? string.Empty);
+            }
+
+            lock (sync)
+            {
+                stateRejection = TryGetStateRejectionUnsafe();
+                if (stateRejection.HasValue)
+                {
+                    return RecordRejectedUnsafe(
+                        stateRejection.Value.Status,
+                        Stopwatch.GetElapsedTime(started),
+                        stateRejection.Value.Message);
+                }
+
+                var queuedBatch = CreateQueuedBatchUnsafe(batch, ownedSnapshotTime, allocatedBytes);
+                if (channel.Writer.TryWrite(queuedBatch))
+                {
+                    return RecordAcceptedUnsafe(queuedBatch, Stopwatch.GetElapsedTime(started));
+                }
+            }
+        }
+    }
+
+    private (RadarProcessingQueuedBatchEnqueueStatus Status, string Message)? TryGetStateRejection()
+    {
+        lock (sync)
+        {
+            return TryGetStateRejectionUnsafe();
+        }
+    }
+
+    private (RadarProcessingQueuedBatchEnqueueStatus Status, string Message)? TryGetStateRejectionUnsafe()
+    {
+        if (faulted)
+        {
+            return (RadarProcessingQueuedBatchEnqueueStatus.Faulted, faultMessage);
+        }
+
+        if (closed || disposed)
+        {
+            return (RadarProcessingQueuedBatchEnqueueStatus.Closed, string.Empty);
+        }
+
+        return null;
+    }
+
+    private RadarProcessingQueuedBatch CreateQueuedBatchUnsafe(
+        RadarEventBatch batch,
+        TimeSpan ownedSnapshotTime,
+        long allocatedBytes) =>
+        new(
+            new RadarProcessingQueuedBatchSequence(nextSequence),
+            batch,
+            ownedSnapshotTime,
+            allocatedBytes);
+
+    private RadarProcessingQueuedBatchEnqueueResult RecordAcceptedUnsafe(
+        RadarProcessingQueuedBatch batch,
+        TimeSpan enqueueWaitTime)
+    {
+        nextSequence = checked(nextSequence + 1);
+        pendingCount++;
+        pendingPayloadBytes = checked(pendingPayloadBytes + batch.PayloadBytes);
+        ownedSnapshotCount++;
+        ownedSnapshotPayloadBytes = checked(ownedSnapshotPayloadBytes + batch.PayloadBytes);
+        ownedSnapshotAllocatedBytes = checked(ownedSnapshotAllocatedBytes + batch.OwnedSnapshotAllocatedBytes);
+        totalOwnedSnapshotTime += batch.OwnedSnapshotTime;
+        enqueueAttemptCount++;
+        enqueuedBatchCount++;
+        totalEnqueueWaitTime += enqueueWaitTime;
+        queueDepthHighWatermark = Math.Max(queueDepthHighWatermark, pendingCount);
+        queuedPayloadBytesHighWatermark = Math.Max(queuedPayloadBytesHighWatermark, pendingPayloadBytes);
+
+        return RadarProcessingQueuedBatchEnqueueResult.Accepted(batch, enqueueWaitTime);
+    }
+
+    private RadarProcessingQueuedBatchEnqueueResult RecordRejected(
+        RadarProcessingQueuedBatchEnqueueStatus status,
+        TimeSpan enqueueWaitTime,
+        string message = "")
+    {
+        lock (sync)
+        {
+            return RecordRejectedUnsafe(status, enqueueWaitTime, message);
+        }
+    }
+
+    private RadarProcessingQueuedBatchEnqueueResult RecordRejectedUnsafe(
+        RadarProcessingQueuedBatchEnqueueStatus status,
+        TimeSpan enqueueWaitTime,
+        string message = "")
+    {
+        enqueueAttemptCount++;
+        totalEnqueueWaitTime += enqueueWaitTime;
+        switch (status)
+        {
+            case RadarProcessingQueuedBatchEnqueueStatus.Full:
+                enqueueFullCount++;
+                return RadarProcessingQueuedBatchEnqueueResult.Full(enqueueWaitTime, message);
+
+            case RadarProcessingQueuedBatchEnqueueStatus.TimedOut:
+                enqueueTimedOutCount++;
+                return RadarProcessingQueuedBatchEnqueueResult.TimedOut(enqueueWaitTime, message);
+
+            case RadarProcessingQueuedBatchEnqueueStatus.Canceled:
+                enqueueCanceledCount++;
+                return RadarProcessingQueuedBatchEnqueueResult.Canceled(enqueueWaitTime, message);
+
+            case RadarProcessingQueuedBatchEnqueueStatus.Closed:
+                enqueueClosedCount++;
+                return RadarProcessingQueuedBatchEnqueueResult.Closed(enqueueWaitTime, message);
+
+            case RadarProcessingQueuedBatchEnqueueStatus.Faulted:
+                enqueueFaultedCount++;
+                return RadarProcessingQueuedBatchEnqueueResult.Faulted(enqueueWaitTime, message);
+
+            default:
+                RadarProcessingQueuedBatchEnqueueResult.EnsureKnownStatus(status);
+                throw new ArgumentOutOfRangeException(nameof(status));
+        }
+    }
+
+    private void RecordDequeue(
+        RadarProcessingQueuedBatch batch)
+    {
+        RemovePending(batch, countDequeued: true);
+    }
+
+    private void RemovePending(
+        RadarProcessingQueuedBatch batch,
+        bool countDequeued)
+    {
+        lock (sync)
+        {
+            pendingCount--;
+            pendingPayloadBytes -= batch.PayloadBytes;
+            if (countDequeued)
+            {
+                dequeuedBatchCount++;
+            }
+        }
+    }
+}

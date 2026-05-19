@@ -308,6 +308,33 @@ Recorded result:
 449 passed for Processing-focused coverage.
 ```
 
+Milestone 009 slice 3 bounded owned batch queue foundation is implemented in
+the current working tree. `RadarProcessingOwnedBatchQueue` now provides the
+first in-process runtime queue for owned `RadarEventBatch` handoff. The queue
+accepts only owned batches, assigns monotonic provider sequence ids, drains in
+FIFO order, enforces bounded capacity, supports return-full and wait-on-full
+enqueue modes, reports enqueue cancellation and timeout, rejects enqueue after
+close or fault, allows accepted batches to drain after close/fault, exposes
+typed dequeue statuses, clears pending batches on dispose, and emits
+`RadarProcessingProviderQueueTelemetrySummary` counters for attempts,
+accepted/full/timed-out/canceled/closed/faulted enqueue results, queue depth,
+queued payload bytes, owned snapshot cost, and dequeued batch count. This slice
+does not start processing or integrate archive replay yet.
+
+Latest verification after milestone 009 slice 3:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingOwnedBatchQueueTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Processing
+```
+
+Recorded result:
+
+```text
+11 passed for owned batch queue coverage.
+460 passed for Processing-focused coverage.
+```
+
 Milestone 008 slice 1 is implemented in the current working tree. RadarPulse
 now has the first async execution option contracts:
 `RadarProcessingExecutionMode.AsyncShardTransport`,
