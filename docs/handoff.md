@@ -591,6 +591,56 @@ Solution build succeeded with 0 warnings and 0 errors.
 570 passed, 3 skipped for the full test project.
 ```
 
+Milestone 008 slice 11 is implemented in the current working tree. RadarPulse
+now exposes async shard transport through an explicit disposable processing
+session in `RadarPulse.Infrastructure.Processing`:
+`RadarProcessingAsyncCoreSession`. The session composes a
+`RadarProcessingCore`, retained `RadarProcessingAsyncWorkerGroup`,
+`RadarProcessingAsyncBatchDispatcher`, `RadarProcessingAsyncCompletionAggregator`,
+and `RadarProcessingWorkerTelemetryRecorder`. It starts an owned worker group
+on first use, processes borrowed batches through shard work items, aggregates
+completion deterministically, attaches worker telemetry to the processing
+result, and disposes owned worker resources when the session is disposed.
+
+`RadarProcessingCore.Process(...)` remains synchronous and does not hide a
+blocking async transport call. When the core is configured for
+`AsyncShardTransport`, callers must use `RadarProcessingAsyncCoreSession`
+instead. The core now exposes internal async shard work-item application to
+infrastructure without adding a Domain -> Infrastructure dependency. Async
+state updates preserve the same topology snapshot contract as the dispatcher,
+and `RadarSourceProcessingStateStore` now uses atomic active-source counting so
+parallel shard updates cannot lose first-activation counts. Custom processing
+handlers are conservatively serialized during async shard application because
+handler instances may not be thread-safe.
+
+Async processing results now carry optional `RadarProcessingWorkerTelemetrySummary`
+on `RadarProcessingResult`. Deterministic async workloads match synchronous
+partitioned metrics and source snapshots, async output validates through
+`RadarProcessingOutputValidator`, capacity failures reject without state
+mutation while exposing worker telemetry, source-order violations return
+invalid processing results without counting the batch complete, and owned
+worker resources are disposed by the async session.
+
+Latest verification after milestone 008 slice 11:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingAsyncCoreSessionTests|FullyQualifiedName~RadarProcessingContractTests"
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingAsyncCoreSessionTests
+dotnet build RadarPulse.sln --no-restore
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Processing
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Result:
+
+```text
+22 passed for focused async core session and processing contract coverage.
+6 passed for focused async core session coverage after handler/state guardrail.
+Solution build succeeded with 0 warnings and 0 errors.
+421 passed for processing-focused coverage.
+576 passed, 3 skipped for the full test project.
+```
+
 Milestone 007 slice 1 is implemented in the current working tree. RadarPulse
 now has the first hardening option/profile contracts:
 `RadarProcessingRebalanceHardeningOptions`,

@@ -9,7 +9,8 @@ public sealed record RadarProcessingResult
         RadarProcessingMetrics metrics,
         RadarProcessingValidationResult validation,
         RadarProcessingTelemetry? telemetry = null,
-        RadarProcessingTopologyVersion? topologyVersion = null)
+        RadarProcessingTopologyVersion? topologyVersion = null,
+        RadarProcessingWorkerTelemetrySummary? workerTelemetry = null)
     {
         RadarProcessingCoreOptions.EnsureKnownExecutionMode(executionMode);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(partitionCount);
@@ -37,6 +38,7 @@ public sealed record RadarProcessingResult
         Metrics = metrics;
         Validation = validation;
         Telemetry = telemetry;
+        WorkerTelemetry = workerTelemetry;
     }
 
     public RadarProcessingExecutionMode ExecutionMode { get; }
@@ -53,7 +55,21 @@ public sealed record RadarProcessingResult
 
     public RadarProcessingTelemetry? Telemetry { get; }
 
+    public RadarProcessingWorkerTelemetrySummary? WorkerTelemetry { get; }
+
     public bool IsValid => Validation.IsValid;
+
+    public RadarProcessingResult WithWorkerTelemetry(
+        RadarProcessingWorkerTelemetrySummary? workerTelemetry) =>
+        new(
+            ExecutionMode,
+            PartitionCount,
+            ShardCount,
+            Metrics,
+            Validation,
+            Telemetry,
+            TopologyVersion,
+            workerTelemetry);
 
     public static RadarProcessingResult Empty(RadarProcessingCoreOptions options)
     {

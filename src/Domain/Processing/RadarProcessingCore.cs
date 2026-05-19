@@ -7,6 +7,7 @@ public sealed class RadarProcessingCore
     private readonly RadarSourceUniverse sourceUniverse;
     private readonly RadarProcessingTopologyManager topologyManager;
     private readonly RadarSourceProcessingStateStore stateStore;
+    private readonly object asyncHandlerStateSync = new();
     private long processedBatchCount;
 
     public RadarProcessingCore(
@@ -34,30 +35,11 @@ public sealed class RadarProcessingCore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(batch);
-        cancellationToken.ThrowIfCancellationRequested();
 
-        if (batch.StreamSchemaVersion != StreamSchemaVersion.Current)
+        var invalid = ValidateBatchForProcessing(batch, cancellationToken);
+        if (invalid is not null)
         {
-            return Invalid(
-                RadarProcessingValidationError.UnsupportedStreamSchemaVersion,
-                sourceId: -1,
-                eventIndex: -1,
-                $"Unsupported stream schema version {batch.StreamSchemaVersion}.");
-        }
-
-        if (batch.SourceUniverseVersion != sourceUniverse.Version)
-        {
-            return Invalid(
-                RadarProcessingValidationError.SourceUniverseVersionMismatch,
-                sourceId: -1,
-                eventIndex: -1,
-                "Batch source-universe version does not match the processing core source universe.");
-        }
-
-        var sourceValidation = ValidateSources(batch.Events.Span, cancellationToken);
-        if (sourceValidation is not null)
-        {
-            return sourceValidation;
+            return invalid;
         }
 
         return Options.ExecutionMode switch
@@ -65,7 +47,7 @@ public sealed class RadarProcessingCore
             RadarProcessingExecutionMode.Sequential => ProcessSequential(batch, cancellationToken),
             RadarProcessingExecutionMode.PartitionedBarrier => ProcessPartitionedBarrier(batch, cancellationToken),
             RadarProcessingExecutionMode.AsyncShardTransport =>
-                throw new NotSupportedException("Async shard transport execution is not implemented yet."),
+                throw new NotSupportedException("Async shard transport execution requires RadarProcessingAsyncCoreSession.ProcessAsync."),
             _ => throw new InvalidOperationException("Unsupported processing execution mode.")
         };
     }
@@ -88,6 +70,120 @@ public sealed class RadarProcessingCore
     public RadarProcessingPartitionStateSnapshot CapturePartitionState(
         RadarProcessingPartitionAssignment partition) =>
         RadarProcessingPartitionStateSnapshot.Capture(partition, stateStore);
+
+    internal RadarProcessingResult? ValidateBatchForProcessing(
+        RadarEventBatch batch,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (batch.StreamSchemaVersion != StreamSchemaVersion.Current)
+        {
+            return Invalid(
+                RadarProcessingValidationError.UnsupportedStreamSchemaVersion,
+                sourceId: -1,
+                eventIndex: -1,
+                $"Unsupported stream schema version {batch.StreamSchemaVersion}.");
+        }
+
+        if (batch.SourceUniverseVersion != sourceUniverse.Version)
+        {
+            return Invalid(
+                RadarProcessingValidationError.SourceUniverseVersionMismatch,
+                sourceId: -1,
+                eventIndex: -1,
+                "Batch source-universe version does not match the processing core source universe.");
+        }
+
+        return ValidateSources(batch.Events.Span, cancellationToken);
+    }
+
+    internal RadarProcessingAsyncWorkCompletion ProcessAsyncShardWorkItem(
+        RadarEventBatch batch,
+        RadarProcessingBatchRoute route,
+        RadarProcessingAsyncWorkItem workItem,
+        CancellationToken cancellationToken,
+        out RadarProcessingResult? invalidResult)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+        ArgumentNullException.ThrowIfNull(route);
+        ArgumentNullException.ThrowIfNull(workItem);
+
+        if (route.TopologyVersion != workItem.TopologyVersion ||
+            route.TopologyVersion != Topology.Version)
+        {
+            throw new ArgumentException("Async work item topology version must match the captured route.", nameof(workItem));
+        }
+
+        var shard = route.GetShard(workItem.ShardId);
+        var eventIndexes = shard.EventIndexes.Span;
+        var events = batch.Events.Span;
+        var processedStreamEventCount = 0L;
+        var processedPayloadValueCount = 0L;
+
+        for (var i = 0; i < eventIndexes.Length; i++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var eventIndex = eventIndexes[i];
+            var streamEvent = events[eventIndex];
+            var payloadMetrics = route.GetRoutedEvent(eventIndex).PayloadMetrics;
+            var result = ApplyProcessedEventFromAsyncWorker(
+                streamEvent,
+                eventIndex,
+                batch.Payload.Span,
+                payloadMetrics);
+            if (result is not null)
+            {
+                invalidResult = result;
+                return RadarProcessingAsyncWorkCompletion.Failed(
+                    workItem,
+                    failureKind: RadarProcessingAsyncFailureKind.WorkerReportedFailure);
+            }
+
+            processedStreamEventCount++;
+            processedPayloadValueCount = checked(processedPayloadValueCount + payloadMetrics.PayloadValueCount);
+        }
+
+        invalidResult = null;
+        return RadarProcessingAsyncWorkCompletion.Succeeded(
+            workItem,
+            processedStreamEventCount: processedStreamEventCount,
+            processedPayloadValueCount: processedPayloadValueCount);
+    }
+
+    private RadarProcessingResult? ApplyProcessedEventFromAsyncWorker(
+        in RadarStreamEvent streamEvent,
+        int eventIndex,
+        ReadOnlySpan<byte> batchPayload,
+        RadarProcessingPayloadMetrics payloadMetrics)
+    {
+        if (Options.Handlers.Count == 0)
+        {
+            return ApplyProcessedEvent(streamEvent, eventIndex, batchPayload, payloadMetrics);
+        }
+
+        lock (asyncHandlerStateSync)
+        {
+            return ApplyProcessedEvent(streamEvent, eventIndex, batchPayload, payloadMetrics);
+        }
+    }
+
+    internal RadarProcessingResult CompleteAsyncBatch(
+        RadarProcessingTelemetry telemetry,
+        RadarProcessingWorkerTelemetrySummary? workerTelemetry)
+    {
+        ArgumentNullException.ThrowIfNull(telemetry);
+
+        if (Options.ExecutionMode != RadarProcessingExecutionMode.AsyncShardTransport)
+        {
+            throw new InvalidOperationException("Async batch completion requires async shard transport mode.");
+        }
+
+        processedBatchCount = checked(processedBatchCount + 1);
+        return Valid(telemetry, workerTelemetry);
+    }
 
     private RadarProcessingResult ProcessSequential(
         RadarEventBatch batch,
@@ -234,7 +330,9 @@ public sealed class RadarProcessingCore
         return null;
     }
 
-    private RadarProcessingResult Valid(RadarProcessingTelemetry? telemetry = null)
+    private RadarProcessingResult Valid(
+        RadarProcessingTelemetry? telemetry = null,
+        RadarProcessingWorkerTelemetrySummary? workerTelemetry = null)
     {
         var metrics = CreateMetrics();
         return new RadarProcessingResult(
@@ -244,7 +342,8 @@ public sealed class RadarProcessingCore
             metrics,
             RadarProcessingValidationResult.Valid(metrics),
             telemetry,
-            Topology.Version);
+            Topology.Version,
+            workerTelemetry);
     }
 
     private RadarProcessingResult Invalid(

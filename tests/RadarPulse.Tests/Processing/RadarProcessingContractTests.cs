@@ -129,7 +129,7 @@ public sealed class RadarProcessingContractTests
     }
 
     [Fact]
-    public void AsyncShardTransportModeIsRecognizedButNotExecutedBeforeRuntimeSlice()
+    public void AsyncShardTransportModeRequiresExplicitAsyncSession()
     {
         var universe = new RadarSourceUniverse(
             SourceUniverseVersion.Initial,
@@ -149,7 +149,7 @@ public sealed class RadarProcessingContractTests
 
         var exception = Assert.Throws<NotSupportedException>(() => core.Process(batch));
 
-        Assert.Contains("Async shard transport", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("RadarProcessingAsyncCoreSession.ProcessAsync", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -222,6 +222,7 @@ public sealed class RadarProcessingContractTests
         Assert.Equal(metrics, result.Metrics);
         Assert.Same(validation, result.Validation);
         Assert.True(result.IsValid);
+        Assert.Null(result.WorkerTelemetry);
     }
 
     [Fact]

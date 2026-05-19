@@ -13,6 +13,7 @@ public sealed class RadarSourceProcessingStateStore
     private readonly ulong[] processingChecksums;
     private readonly long[] handlerInt64Slots;
     private readonly double[] handlerDoubleSlots;
+    private long activeSourceCount;
 
     public RadarSourceProcessingStateStore(
         RadarSourceUniverse sourceUniverse,
@@ -48,7 +49,7 @@ public sealed class RadarSourceProcessingStateStore
 
     public int SourceCount { get; }
 
-    public long ActiveSourceCount { get; private set; }
+    public long ActiveSourceCount => Volatile.Read(ref activeSourceCount);
 
     public RadarSourceProcessingHandlerSlotLayout HandlerSlotLayout => handlerSlotLayout;
 
@@ -92,7 +93,7 @@ public sealed class RadarSourceProcessingStateStore
         if (!isActive)
         {
             activeSources[sourceId] = true;
-            ActiveSourceCount = checked(ActiveSourceCount + 1);
+            Interlocked.Increment(ref activeSourceCount);
         }
 
         processedEventCounts[sourceId] = checked(processedEventCounts[sourceId] + 1);
