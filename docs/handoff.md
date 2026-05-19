@@ -1,4 +1,4 @@
-# Handoff: Milestone 009 Architecture Started
+# Handoff: Milestone 009 Planning Started
 
 ## Current Goal
 
@@ -247,8 +247,11 @@ processing callback allocation from dispatch, completion, and worker telemetry
 machinery. Synchronous execution remains the default and the correctness
 oracle; async execution is selectable and explicitly benchmarked.
 
-Milestone 009 architecture has started. The concept document is written in
-`docs/milestones/009-owned-payload-provider-decoupling.md`. The milestone
+Milestone 009 architecture and implementation planning have started. The
+concept document is written in
+`docs/milestones/009-owned-payload-provider-decoupling.md`, and the plan draft
+is written in
+`docs/milestones/009-owned-payload-provider-decoupling-plan.md`. The milestone
 scope is the first explicit owned payload boundary between replay providers and
 processing: leased `RadarEventBatch` values must still finish inside the
 provider callback, while owned batches may be enqueued into a bounded
