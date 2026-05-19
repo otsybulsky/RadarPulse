@@ -263,6 +263,38 @@ Result:
 488 passed, 3 skipped for the full test project.
 ```
 
+Milestone 008 slice 2 is implemented in the current working tree. RadarPulse
+now has worker lifecycle contracts without starting any worker threads:
+`RadarProcessingWorkerGroupState`, `RadarProcessingWorkerHealth`,
+`RadarProcessingWorkerLifecycleError`, `RadarProcessingWorkerId`,
+`RadarProcessingWorkerGroupStatus`,
+`RadarProcessingWorkerLifecycleResult`, and
+`RadarProcessingWorkerGroupLifecycle`. The lifecycle state machine records
+not-started, running, stopping, stopped, faulted, and disposed states, exposes
+health/status snapshots, validates dispatch eligibility, makes dispose
+idempotent, keeps benign invalid calls such as duplicate start from corrupting
+a running group, and rejects dispatch before start, while stopping, after
+fault, and after dispose. Focused tests cover stable enum values, worker id
+validation, valid transitions, invalid transitions, dispatch eligibility,
+fault health, idempotent dispose, immutable status snapshots, and invalid
+status/result shapes.
+
+Latest verification after milestone 008 slice 2:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingWorkerLifecycleContractTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Processing
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Result:
+
+```text
+11 passed for focused worker lifecycle coverage.
+344 passed for processing-focused coverage.
+499 passed, 3 skipped for the full test project.
+```
+
 Milestone 007 slice 1 is implemented in the current working tree. RadarPulse
 now has the first hardening option/profile contracts:
 `RadarProcessingRebalanceHardeningOptions`,
@@ -3560,6 +3592,13 @@ constant and moment data blocks.
 - `src/Domain/Processing/RadarProcessingAsyncExecutionOptions.cs`
 - `src/Domain/Processing/RadarProcessingWorkerAffinity.cs`
 - `src/Domain/Processing/RadarProcessingWorkerTimeoutPolicy.cs`
+- `src/Domain/Processing/RadarProcessingWorkerGroupState.cs`
+- `src/Domain/Processing/RadarProcessingWorkerHealth.cs`
+- `src/Domain/Processing/RadarProcessingWorkerLifecycleError.cs`
+- `src/Domain/Processing/RadarProcessingWorkerId.cs`
+- `src/Domain/Processing/RadarProcessingWorkerGroupStatus.cs`
+- `src/Domain/Processing/RadarProcessingWorkerLifecycleResult.cs`
+- `src/Domain/Processing/RadarProcessingWorkerGroupLifecycle.cs`
 - `src/Domain/Processing/RadarProcessingExecutionMode.cs`
 - `src/Domain/Processing/RadarProcessingCoreOptions.cs`
 - `src/Domain/Processing/RadarProcessingRebalanceHardeningOptions.cs`
