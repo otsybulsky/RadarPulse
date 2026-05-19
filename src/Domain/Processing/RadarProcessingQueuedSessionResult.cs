@@ -10,7 +10,8 @@ public sealed class RadarProcessingQueuedSessionResult
         RadarProcessingProviderQueueTelemetrySummary? telemetry = null,
         IReadOnlyCollection<RadarProcessingQueuedBatchEnqueueResult>? enqueueResults = null,
         IReadOnlyCollection<RadarProcessingQueuedBatchProcessingResult>? processingResults = null,
-        string message = "")
+        string message = "",
+        RadarProcessingTopologyVersion? finalTopologyVersion = null)
     {
         EnsureKnownStatus(status);
         ArgumentNullException.ThrowIfNull(message);
@@ -20,6 +21,7 @@ public sealed class RadarProcessingQueuedSessionResult
         this.enqueueResults = CopyRequired(enqueueResults ?? Array.Empty<RadarProcessingQueuedBatchEnqueueResult>(), nameof(enqueueResults));
         this.processingResults = CopyRequired(processingResults ?? Array.Empty<RadarProcessingQueuedBatchProcessingResult>(), nameof(processingResults));
         Message = message;
+        FinalTopologyVersion = finalTopologyVersion;
     }
 
     public RadarProcessingQueuedSessionStatus Status { get; }
@@ -31,6 +33,8 @@ public sealed class RadarProcessingQueuedSessionResult
     public IReadOnlyList<RadarProcessingQueuedBatchProcessingResult> ProcessingResults => processingResults;
 
     public string Message { get; }
+
+    public RadarProcessingTopologyVersion? FinalTopologyVersion { get; }
 
     public bool IsCompleted => Status == RadarProcessingQueuedSessionStatus.Completed;
 

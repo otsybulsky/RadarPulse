@@ -362,6 +362,34 @@ Recorded result:
 466 passed for Processing-focused coverage.
 ```
 
+Milestone 009 slice 5 queued rebalance consumer is implemented in the current
+working tree. `RadarProcessingQueuedRebalanceSession` now wraps the owned
+batch queue and drains owned batches in provider sequence order through the
+existing rebalance control plane. Synchronous rebalance sessions call
+`RadarProcessingRebalanceSession.Process`; async shard transport sessions own
+or consume a `RadarProcessingAsyncRebalanceSession` and call `ProcessAsync`.
+The consumer keeps one active batch at a time, preserves topology publication
+ordering between dequeued batches, records rebalance results on queued batch
+processing snapshots, reports final topology version on the queued session
+result, faults after invalid processing, rebalance validation failure, or
+failed migration, rejects later enqueue after fault, and marks already accepted
+remainder batches as `SkippedAfterFault`. This slice does not integrate
+archive replay providers or CLI benchmark contours yet.
+
+Latest verification after milestone 009 slice 5:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingQueuedRebalanceSessionTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Processing
+```
+
+Recorded result:
+
+```text
+6 passed for queued rebalance session coverage.
+472 passed for Processing-focused coverage.
+```
+
 Milestone 008 slice 1 is implemented in the current working tree. RadarPulse
 now has the first async execution option contracts:
 `RadarProcessingExecutionMode.AsyncShardTransport`,
