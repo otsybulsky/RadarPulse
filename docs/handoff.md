@@ -1,4 +1,4 @@
-# Handoff: Milestone 008 Complete
+# Handoff: Milestone 009 Architecture Started
 
 ## Current Goal
 
@@ -246,6 +246,17 @@ The measured production-shaped async cost is about `0.90%` additional
 processing callback allocation from dispatch, completion, and worker telemetry
 machinery. Synchronous execution remains the default and the correctness
 oracle; async execution is selectable and explicitly benchmarked.
+
+Milestone 009 architecture has started. The concept document is written in
+`docs/milestones/009-owned-payload-provider-decoupling.md`. The milestone
+scope is the first explicit owned payload boundary between replay providers and
+processing: leased `RadarEventBatch` values must still finish inside the
+provider callback, while owned batches may be enqueued into a bounded
+provider-to-processing queue and processed after callback return. The first
+target remains conservative: bounded in-process provider decoupling, one active
+processing batch at a time, deterministic topology/rebalance publication
+ordering, synchronous reference parity, and same-run benchmark contours that
+separate owned-copy, enqueue, queue wait, worker, and rebalance costs.
 
 Milestone 008 slice 1 is implemented in the current working tree. RadarPulse
 now has the first async execution option contracts:
