@@ -176,7 +176,7 @@ static int PrintUsage()
     Console.WriteLine("  radarpulse archive benchmark replay-publish --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse archive benchmark replay-publish --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse archive benchmark stream (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
-    Console.WriteLine("  radarpulse processing benchmark synthetic [--mode sequential|partitioned] [--sources n] [--batches n] [--events-per-batch n] [--payload-values n] [--partitions n] [--shards n] [--handlers none|counter-checksum] [--iterations n] [--warmup-iterations n]");
+    Console.WriteLine("  radarpulse processing benchmark synthetic [--mode sequential|partitioned|async] [--sources n] [--batches n] [--events-per-batch n] [--payload-values n] [--partitions n] [--shards n] [--workers n] [--queue-capacity n] [--handlers none|counter-checksum] [--iterations n] [--warmup-iterations n]");
     Console.WriteLine("  radarpulse processing benchmark rebalance-synthetic [--workload balanced|hot-shard|intrinsic-hot|oscillating|cooldown-storm|quarantine-ttl-retry|quarantine-cooling-clear|quarantine-pressure-change-retry|quarantine-retry-reentry|quarantine-successful-relief-clear|long-no-hot-shard|long-cooldown-rejection|long-unsafe-target-rejection|long-mixed-skipped-reasons|counters-only-retention|all] [--mode static|sampling|rebalance|all] [--validation-profile off|essential|diagnostic|benchmark] [--quarantine-ttl-evaluations n] [--quarantine-sustained-cooling-samples n] [--quarantine-material-pressure-change n] [--iterations n] [--warmup-iterations n]");
     Console.WriteLine("  radarpulse processing benchmark rebalance-archive (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--mode static|sampling|rebalance|all] [--partitions n] [--shards n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress] [--validation-profile off|essential|diagnostic|benchmark] [--quarantine-ttl-evaluations n] [--quarantine-sustained-cooling-samples n] [--quarantine-material-pressure-change n] [--retention-mode counters|recent|diagnostic] [--max-retained-decisions n] [--max-retained-transitions n] [--max-retained-accepted-moves n] [--max-retained-validation-failures n] [--skew-profile none|hot-shard|rotating-hot-shard|hot-partition|target-starvation|budget-storm] [--skew-factor n] [--skew-period n]");
     Console.WriteLine("  radarpulse archive validate decompress (--file path | --cache data/nexrad [--radar KTLX] [--max-files n])");
@@ -384,7 +384,8 @@ static int BenchmarkProcessingSynthetic(string[] args)
         options.HandlerSet,
         options.Iterations,
         options.WarmupIterations,
-        CancellationToken.None);
+        CancellationToken.None,
+        options.AsyncExecution);
 
     PrintProcessingBenchmarkResult(result);
     return 0;
@@ -503,6 +504,7 @@ static void PrintProcessingBenchmarkResult(RadarProcessingBenchmarkResult result
     Console.WriteLine($"Execution mode: {FormatProcessingMode(result.ExecutionMode)}");
     Console.WriteLine($"Partitions: {FormatNumber(result.PartitionCount)}");
     Console.WriteLine($"Shards: {FormatNumber(result.ShardCount)}");
+    Console.WriteLine($"Validation profile: {FormatProcessingValidationProfile(result.ValidationProfile)}");
     Console.WriteLine($"Handler set: {FormatProcessingHandlerSet(result.HandlerSet)}");
     Console.WriteLine($"Iterations: {FormatNumber(result.Iterations)}");
     Console.WriteLine($"Warmup iterations: {FormatNumber(result.WarmupIterations)}");
@@ -523,10 +525,44 @@ static void PrintProcessingBenchmarkResult(RadarProcessingBenchmarkResult result
     Console.WriteLine($"Allocated bytes: {FormatNumber(result.AllocatedBytes)}");
     Console.WriteLine($"Allocated bytes / stream event: {FormatDecimal(result.AllocatedBytesPerEvent)}");
     Console.WriteLine($"Allocated bytes / payload value: {FormatDecimal(result.AllocatedBytesPerPayloadValue)}");
+    if (result.WorkerTelemetry is not null)
+    {
+        PrintProcessingWorkerTelemetry(result.WorkerTelemetry);
+    }
+
+    if (result.AsyncValidation is not null)
+    {
+        Console.WriteLine($"Async validation: {FormatBoolean(result.AsyncValidation.IsValid)}");
+        if (result.AsyncValidation.HasComparisonChecksums)
+        {
+            Console.WriteLine($"Sync comparison checksum: {FormatUnsignedNumber(result.AsyncValidation.SynchronousChecksum!.Value)}");
+            Console.WriteLine($"Async comparison checksum: {FormatUnsignedNumber(result.AsyncValidation.AsyncChecksum!.Value)}");
+        }
+    }
+
     foreach (var shard in result.ShardDistributions)
     {
         Console.WriteLine($"Shard {FormatNumber(shard.ShardId)} events per iteration: {FormatNumber(shard.EventCount)}");
     }
+}
+
+static void PrintProcessingWorkerTelemetry(RadarProcessingWorkerTelemetrySummary workerTelemetry)
+{
+    Console.WriteLine($"Worker count: {FormatNumber(workerTelemetry.WorkerCount)}");
+    Console.WriteLine($"Worker queue capacity: {FormatNumber(workerTelemetry.QueueCapacity)}");
+    Console.WriteLine($"Worker dispatched batches: {FormatNumber(workerTelemetry.Counters.DispatchedBatchCount)}");
+    Console.WriteLine($"Worker completed batches: {FormatNumber(workerTelemetry.Counters.CompletedBatchCount)}");
+    Console.WriteLine($"Worker failed batches: {FormatNumber(workerTelemetry.Counters.FailedBatchCount)}");
+    Console.WriteLine($"Worker submitted items: {FormatNumber(workerTelemetry.Counters.SubmittedWorkItemCount)}");
+    Console.WriteLine($"Worker accepted items: {FormatNumber(workerTelemetry.Counters.AcceptedWorkItemCount)}");
+    Console.WriteLine($"Worker completed items: {FormatNumber(workerTelemetry.Counters.CompletedWorkItemCount)}");
+    Console.WriteLine($"Worker succeeded items: {FormatNumber(workerTelemetry.Counters.SucceededWorkItemCount)}");
+    Console.WriteLine($"Worker failed items: {FormatNumber(workerTelemetry.Counters.FailedWorkItemCount)}");
+    Console.WriteLine($"Worker dispatch ms: {FormatDecimal(workerTelemetry.Counters.TotalDispatchTime.TotalMilliseconds)}");
+    Console.WriteLine($"Worker queue wait ms: {FormatDecimal(workerTelemetry.Counters.TotalQueueWaitTime.TotalMilliseconds)}");
+    Console.WriteLine($"Worker execution ms: {FormatDecimal(workerTelemetry.Counters.TotalExecutionTime.TotalMilliseconds)}");
+    Console.WriteLine($"Worker aggregation ms: {FormatDecimal(workerTelemetry.Counters.TotalAggregationTime.TotalMilliseconds)}");
+    Console.WriteLine($"Worker barrier wait ms: {FormatDecimal(workerTelemetry.Counters.TotalBarrierWaitTime.TotalMilliseconds)}");
 }
 
 static void PrintProcessingRebalanceBenchmarkResult(RadarProcessingSyntheticRebalanceBenchmarkResult result)
@@ -796,6 +832,7 @@ static string FormatProcessingMode(RadarProcessingExecutionMode executionMode) =
     {
         RadarProcessingExecutionMode.Sequential => "sequential",
         RadarProcessingExecutionMode.PartitionedBarrier => "partitioned",
+        RadarProcessingExecutionMode.AsyncShardTransport => "async",
         _ => executionMode.ToString()
     };
 
@@ -1951,7 +1988,8 @@ internal sealed record ProcessingBenchmarkSyntheticOptions(
     int ShardCount,
     RadarProcessingBenchmarkHandlerSet HandlerSet,
     int Iterations,
-    int WarmupIterations)
+    int WarmupIterations,
+    RadarProcessingAsyncExecutionOptions? AsyncExecution)
 {
     public static ProcessingBenchmarkSyntheticOptions Parse(string[] args)
     {
@@ -1965,6 +2003,8 @@ internal sealed record ProcessingBenchmarkSyntheticOptions(
         var handlerSet = RadarProcessingBenchmarkHandlerSet.None;
         var iterations = 3;
         var warmupIterations = 1;
+        int? workerCount = null;
+        int? queueCapacity = null;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -1990,6 +2030,12 @@ internal sealed record ProcessingBenchmarkSyntheticOptions(
                     break;
                 case "--shards":
                     shardCount = int.Parse(RequireValue(args, ref i, "--shards"));
+                    break;
+                case "--workers":
+                    workerCount = int.Parse(RequireValue(args, ref i, "--workers"));
+                    break;
+                case "--queue-capacity":
+                    queueCapacity = int.Parse(RequireValue(args, ref i, "--queue-capacity"));
                     break;
                 case "--handlers":
                     handlerSet = ParseHandlerSet(RequireValue(args, ref i, "--handlers"));
@@ -2041,6 +2087,28 @@ internal sealed record ProcessingBenchmarkSyntheticOptions(
             throw new InvalidOperationException("--warmup-iterations cannot be negative.");
         }
 
+        if (workerCount.HasValue && workerCount.Value <= 0)
+        {
+            throw new InvalidOperationException("--workers must be greater than zero.");
+        }
+
+        if (queueCapacity.HasValue && queueCapacity.Value <= 0)
+        {
+            throw new InvalidOperationException("--queue-capacity must be greater than zero.");
+        }
+
+        RadarProcessingAsyncExecutionOptions? asyncExecution = null;
+        if (executionMode == RadarProcessingExecutionMode.AsyncShardTransport)
+        {
+            asyncExecution = new RadarProcessingAsyncExecutionOptions(
+                workerCount: workerCount ?? shardCount,
+                queueCapacity: queueCapacity ?? 1);
+        }
+        else if (workerCount.HasValue || queueCapacity.HasValue)
+        {
+            throw new InvalidOperationException("--workers and --queue-capacity require --mode async.");
+        }
+
         return new ProcessingBenchmarkSyntheticOptions(
             executionMode,
             sourceCount,
@@ -2051,7 +2119,8 @@ internal sealed record ProcessingBenchmarkSyntheticOptions(
             shardCount,
             handlerSet,
             iterations,
-            warmupIterations);
+            warmupIterations,
+            asyncExecution);
     }
 
     private static RadarProcessingExecutionMode ParseExecutionMode(string value) =>
@@ -2059,6 +2128,8 @@ internal sealed record ProcessingBenchmarkSyntheticOptions(
         {
             "sequential" => RadarProcessingExecutionMode.Sequential,
             "partitioned" or "partitioned-barrier" => RadarProcessingExecutionMode.PartitionedBarrier,
+            "async" or "async-partitioned" or "async-shard" or "async-shard-transport" =>
+                RadarProcessingExecutionMode.AsyncShardTransport,
             _ => throw new ArgumentException($"Unknown processing mode: {value}")
         };
 

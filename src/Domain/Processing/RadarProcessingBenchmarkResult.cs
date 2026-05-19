@@ -16,8 +16,13 @@ public sealed record RadarProcessingBenchmarkResult(
     ulong ValidationChecksum,
     IReadOnlyList<RadarProcessingBenchmarkShardDistribution> ShardDistributions,
     TimeSpan Elapsed,
-    long AllocatedBytes)
+    long AllocatedBytes,
+    RadarProcessingValidationProfile ValidationProfile = RadarProcessingValidationProfile.Benchmark,
+    RadarProcessingWorkerTelemetrySummary? WorkerTelemetry = null,
+    RadarProcessingAsyncValidationResult? AsyncValidation = null)
 {
+    public bool HasWorkerTelemetry => WorkerTelemetry is not null;
+
     public long TotalBatches => BatchesPerIteration * Iterations;
 
     public long TotalEvents => EventsPerIteration * Iterations;

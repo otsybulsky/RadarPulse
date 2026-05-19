@@ -723,6 +723,46 @@ Solution build succeeded with 0 warnings and 0 errors.
 587 passed, 3 skipped for the full test project.
 ```
 
+Milestone 008 slice 14 is implemented in the current working tree. The
+processing-only synthetic benchmark now supports
+`RadarProcessingExecutionMode.AsyncShardTransport` through
+`RadarProcessingAsyncCoreSession` while keeping the existing synchronous
+`Measure(...)` API as a compatibility wrapper over an async-aware measurement
+path. Async benchmark runs use retained workers, reset worker telemetry after
+warmup, and report worker telemetry for measured iterations only.
+
+`RadarProcessingBenchmarkResult` now carries the benchmark validation profile,
+optional `RadarProcessingWorkerTelemetrySummary`, and optional
+`RadarProcessingAsyncValidationResult`. Async synthetic benchmark validation
+uses the new benchmark-profile async validator to compare a synchronous
+partitioned reference run against the async run, including deterministic
+processing checksums and source snapshots.
+
+The CLI synthetic processing benchmark now accepts `--mode async` plus
+`--workers` and `--queue-capacity` for the processing-only synthetic surface.
+Output includes validation profile, worker counts, worker item/batch counters,
+worker timing totals, async validation status, and sync/async comparison
+checksums when async validation is present. Worker options are rejected for
+non-async modes and must be positive.
+
+Latest verification after milestone 008 slice 14:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingSyntheticBenchmarkTests|FullyQualifiedName~RadarPulseCliProcessingBenchmarkTests"
+dotnet build RadarPulse.sln --no-restore
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Processing
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Result:
+
+```text
+9 passed for focused synthetic benchmark and CLI async coverage.
+Solution build succeeded with 0 warnings and 0 errors.
+436 passed for processing-focused coverage.
+591 passed, 3 skipped for the full test project.
+```
+
 Milestone 007 slice 1 is implemented in the current working tree. RadarPulse
 now has the first hardening option/profile contracts:
 `RadarProcessingRebalanceHardeningOptions`,
