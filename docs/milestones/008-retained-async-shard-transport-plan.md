@@ -1018,7 +1018,7 @@ Milestone 008 completion criteria are satisfied when:
 ```text
 [x] execution mode and async options are implemented and tested
 [x] worker lifecycle contracts are implemented and tested
-[ ] batch scope, work item, and completion contracts are implemented and tested
+[x] batch scope, work item, and completion contracts are implemented and tested
 [ ] bounded worker mailbox foundation is implemented and tested
 [ ] retained worker group runtime is implemented and tested
 [ ] borrowed batch lifetime guardrails are implemented and tested

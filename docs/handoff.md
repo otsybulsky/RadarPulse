@@ -295,6 +295,38 @@ Result:
 499 passed, 3 skipped for the full test project.
 ```
 
+Milestone 008 slice 3 is implemented in the current working tree. RadarPulse
+now has borrowed async batch scope and completion contracts without worker
+mailboxes or runtime threads: `RadarProcessingAsyncBatchScope`,
+`RadarProcessingAsyncWorkItem`, `RadarProcessingAsyncWorkCompletion`,
+`RadarProcessingAsyncBatchCompletion`,
+`RadarProcessingAsyncBatchScopeResult`,
+`RadarProcessingAsyncWorkStatus`, and
+`RadarProcessingAsyncBatchCompletionError`. The scope records one batch
+sequence, one topology version, and an expected work-item count; creates
+topology-scoped work items with copied ordered partition ids; accepts
+completion records; rejects wrong batch sequence, wrong topology version,
+out-of-range work item ids, duplicates, and completions after close; reports
+missing completion, failed work, and canceled work through explicit result
+errors; and emits immutable aggregate completion snapshots with timing and
+processed-count summaries.
+
+Latest verification after milestone 008 slice 3:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingAsyncBatchScopeContractTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Processing
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Result:
+
+```text
+14 passed for focused async batch scope coverage.
+358 passed for processing-focused coverage.
+513 passed, 3 skipped for the full test project.
+```
+
 Milestone 007 slice 1 is implemented in the current working tree. RadarPulse
 now has the first hardening option/profile contracts:
 `RadarProcessingRebalanceHardeningOptions`,
@@ -3599,6 +3631,13 @@ constant and moment data blocks.
 - `src/Domain/Processing/RadarProcessingWorkerGroupStatus.cs`
 - `src/Domain/Processing/RadarProcessingWorkerLifecycleResult.cs`
 - `src/Domain/Processing/RadarProcessingWorkerGroupLifecycle.cs`
+- `src/Domain/Processing/RadarProcessingAsyncBatchScope.cs`
+- `src/Domain/Processing/RadarProcessingAsyncWorkItem.cs`
+- `src/Domain/Processing/RadarProcessingAsyncWorkCompletion.cs`
+- `src/Domain/Processing/RadarProcessingAsyncBatchCompletion.cs`
+- `src/Domain/Processing/RadarProcessingAsyncBatchScopeResult.cs`
+- `src/Domain/Processing/RadarProcessingAsyncWorkStatus.cs`
+- `src/Domain/Processing/RadarProcessingAsyncBatchCompletionError.cs`
 - `src/Domain/Processing/RadarProcessingExecutionMode.cs`
 - `src/Domain/Processing/RadarProcessingCoreOptions.cs`
 - `src/Domain/Processing/RadarProcessingRebalanceHardeningOptions.cs`
