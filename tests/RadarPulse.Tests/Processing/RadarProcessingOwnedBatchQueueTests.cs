@@ -111,6 +111,37 @@ public sealed class RadarProcessingOwnedBatchQueueTests
     }
 
     [Fact]
+    public async Task ReturnFullModeRejectsWhenRetainedPayloadByteBudgetIsExhausted()
+    {
+        using var queue = new RadarProcessingOwnedBatchQueue(
+            new RadarProcessingProviderQueueOptions(
+                capacity: 3,
+                fullMode: RadarProcessingProviderQueueFullMode.ReturnFull,
+                maxRetainedPayloadBytes: 3));
+
+        var first = await queue.EnqueueAsync(CreateOwnedBatch(1));
+        var second = await queue.EnqueueAsync(CreateOwnedBatch(3));
+
+        Assert.True(first.IsAccepted);
+        Assert.Equal(RadarProcessingQueuedBatchEnqueueStatus.Full, second.Status);
+        Assert.Contains("retained payload byte budget", second.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(1, queue.PendingCount);
+        Assert.Equal(2, queue.PendingPayloadBytes);
+        Assert.Equal(2, queue.PendingRetainedPayloadBytes);
+
+        var dequeued = await queue.DequeueAsync();
+        var third = await queue.EnqueueAsync(CreateOwnedBatch(5));
+        var summary = queue.CreateTelemetrySummary();
+
+        Assert.True(dequeued.HasItem);
+        Assert.True(third.IsAccepted);
+        Assert.Equal(1, third.Sequence?.Value);
+        Assert.Equal(1, summary.EnqueueFullCount);
+        Assert.Equal(2, summary.QueuedPayloadBytesHighWatermark);
+        Assert.Equal(2, summary.RetainedPayloadBytesHighWatermark);
+    }
+
+    [Fact]
     public async Task WaitModeAcceptsBlockedEnqueueAfterDequeueCreatesCapacity()
     {
         using var queue = new RadarProcessingOwnedBatchQueue(
@@ -138,6 +169,35 @@ public sealed class RadarProcessingOwnedBatchQueueTests
     }
 
     [Fact]
+    public async Task WaitModeAcceptsBlockedEnqueueAfterRetainedPayloadBudgetFrees()
+    {
+        using var queue = new RadarProcessingOwnedBatchQueue(
+            new RadarProcessingProviderQueueOptions(
+                capacity: 2,
+                fullMode: RadarProcessingProviderQueueFullMode.Wait,
+                enqueueTimeout: TimeSpan.FromSeconds(5),
+                maxRetainedPayloadBytes: 2));
+
+        var first = await queue.EnqueueAsync(CreateOwnedBatch(1));
+        var pending = queue.EnqueueAsync(CreateOwnedBatch(3)).AsTask();
+
+        await Task.Delay(50);
+        Assert.False(pending.IsCompleted);
+
+        var dequeued = await queue.DequeueAsync();
+        var second = await pending;
+
+        Assert.True(first.IsAccepted);
+        Assert.True(dequeued.HasItem);
+        Assert.True(second.IsAccepted);
+        Assert.Equal(1, second.Sequence?.Value);
+        Assert.Equal(1, queue.PendingCount);
+        Assert.Equal(2, queue.PendingRetainedPayloadBytes);
+        Assert.True(second.EnqueueWaitTime > TimeSpan.Zero);
+        Assert.True(queue.CreateTelemetrySummary().TotalEnqueueWaitTime > TimeSpan.Zero);
+    }
+
+    [Fact]
     public async Task WaitModeCanTimeoutWhileQueueIsFull()
     {
         using var queue = new RadarProcessingOwnedBatchQueue(
@@ -160,6 +220,51 @@ public sealed class RadarProcessingOwnedBatchQueueTests
         Assert.Equal(1, summary.EnqueuedBatchCount);
         Assert.Equal(1, summary.EnqueueTimedOutCount);
         Assert.True(summary.HasBackpressure);
+    }
+
+    [Fact]
+    public async Task WaitModeCanTimeoutWhileRetainedPayloadByteBudgetIsExhausted()
+    {
+        using var queue = new RadarProcessingOwnedBatchQueue(
+            new RadarProcessingProviderQueueOptions(
+                capacity: 2,
+                fullMode: RadarProcessingProviderQueueFullMode.Wait,
+                enqueueTimeout: TimeSpan.FromMilliseconds(20),
+                maxRetainedPayloadBytes: 2));
+
+        var first = await queue.EnqueueAsync(CreateOwnedBatch(1));
+        var second = await queue.EnqueueAsync(CreateOwnedBatch(3));
+
+        Assert.True(first.IsAccepted);
+        Assert.Equal(RadarProcessingQueuedBatchEnqueueStatus.TimedOut, second.Status);
+        Assert.Contains("retained payload byte budget", second.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(1, queue.PendingCount);
+
+        var summary = queue.CreateTelemetrySummary();
+
+        Assert.Equal(2, summary.EnqueueAttemptCount);
+        Assert.Equal(1, summary.EnqueuedBatchCount);
+        Assert.Equal(1, summary.EnqueueTimedOutCount);
+        Assert.True(summary.HasBackpressure);
+    }
+
+    [Fact]
+    public async Task OversizedRetainedPayloadIsRejectedWithoutWaiting()
+    {
+        using var queue = new RadarProcessingOwnedBatchQueue(
+            new RadarProcessingProviderQueueOptions(
+                capacity: 2,
+                fullMode: RadarProcessingProviderQueueFullMode.Wait,
+                enqueueTimeout: TimeSpan.FromSeconds(5),
+                maxRetainedPayloadBytes: 3));
+
+        var result = await queue.EnqueueAsync(CreateOwnedBatch([1, 2, 3, 4]));
+
+        Assert.Equal(RadarProcessingQueuedBatchEnqueueStatus.Full, result.Status);
+        Assert.Contains("exceed", result.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(0, queue.PendingCount);
+        Assert.Equal(0, queue.PendingRetainedPayloadBytes);
+        Assert.Equal(1, queue.CreateTelemetrySummary().EnqueueFullCount);
     }
 
     [Fact]
@@ -291,10 +396,40 @@ public sealed class RadarProcessingOwnedBatchQueueTests
         Assert.Equal(0, queue.CreateTelemetrySummary().DequeuedBatchCount);
     }
 
+    [Fact]
+    public async Task DisposeReleasesRetainedPayloadByteBudgetWaiters()
+    {
+        var queue = new RadarProcessingOwnedBatchQueue(
+            new RadarProcessingProviderQueueOptions(
+                capacity: 2,
+                fullMode: RadarProcessingProviderQueueFullMode.Wait,
+                enqueueTimeout: TimeSpan.FromSeconds(5),
+                maxRetainedPayloadBytes: 2));
+
+        Assert.True((await queue.EnqueueAsync(CreateOwnedBatch(1))).IsAccepted);
+        var pending = queue.EnqueueAsync(CreateOwnedBatch(3)).AsTask();
+
+        await Task.Delay(50);
+        Assert.False(pending.IsCompleted);
+
+        queue.Dispose();
+        var result = await pending;
+
+        Assert.Equal(RadarProcessingQueuedBatchEnqueueStatus.Closed, result.Status);
+        Assert.Equal(0, queue.PendingCount);
+        Assert.Equal(0, queue.PendingRetainedPayloadBytes);
+    }
+
     private static RadarEventBatch CreateOwnedBatch(byte firstPayloadValue) =>
-        CreateBatchBuilder(firstPayloadValue).Build();
+        CreateOwnedBatch([firstPayloadValue, (byte)(firstPayloadValue + 1)]);
+
+    private static RadarEventBatch CreateOwnedBatch(byte[] payload) =>
+        CreateBatchBuilder(payload).Build();
 
     private static RadarEventBatchBuilder CreateBatchBuilder(byte firstPayloadValue)
+        => CreateBatchBuilder([firstPayloadValue, (byte)(firstPayloadValue + 1)]);
+
+    private static RadarEventBatchBuilder CreateBatchBuilder(byte[] payload)
     {
         var builder = new RadarEventBatchBuilder(initialEventCapacity: 1, initialPayloadCapacity: 2);
         builder.AddEvent(
@@ -313,12 +448,12 @@ public sealed class RadarProcessingOwnedBatchQueueTests
             sourceMessage: 0,
             radialSequence: 0,
             gateStart: 0,
-            gateCount: 2,
+            gateCount: (ushort)payload.Length,
             wordSize: RadarStreamWordSize.EightBit,
             scale: 1.0f,
             offset: 0.0f,
             statusModel: RadarStreamStatusModel.ArchiveTwoMoment,
-            payload: [firstPayloadValue, (byte)(firstPayloadValue + 1)]);
+            payload: payload);
 
         return builder;
     }

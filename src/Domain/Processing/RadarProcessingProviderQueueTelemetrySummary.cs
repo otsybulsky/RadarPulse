@@ -140,6 +140,8 @@ public sealed record RadarProcessingProviderQueueTelemetrySummary
 
     public long QueuedPayloadBytesHighWatermark { get; }
 
+    public long RetainedPayloadBytesHighWatermark => QueuedPayloadBytesHighWatermark;
+
     public long OwnedSnapshotPayloadValueCount { get; }
 
     public TimeSpan TotalProviderToProcessingLatency { get; }

@@ -11,13 +11,13 @@ implementation plan is recorded in
 Milestone 010 starts from the closed milestone 009 owned-provider boundary:
 `queued-owned` is correct and measurable, but still opt-in because owned
 snapshot allocation is the dominant cost and the current archive benchmark does
-not overlap replay with processing. Milestone 010 slices 1 through 4 are now
+not overlap replay with processing. Milestone 010 slices 1 through 5 are now
 complete: the milestone 009 cost anchors are confirmed, retained payload
 strategy contracts are implemented and tested, and the resource-owned queued
-batch lifecycle plus one lower-allocation retained payload implementation are
-implemented and tested. The next implementation work should start slice 5 by
-adding retained-byte-aware queue window accounting and preparing the retained
-resource path for runtime queue integration.
+batch lifecycle, one lower-allocation retained payload implementation, and
+retained-byte-aware provider queue accounting are implemented and tested. The
+next implementation work should start slice 6 by adding the first
+producer/consumer archive overlap runner on top of the retained queue window.
 
 `blocking-borrowed` remains the default provider mode and same-run oracle.
 `queued-owned` remains an explicit validation and measurement mode until the
@@ -846,6 +846,55 @@ Recorded result:
 ```text
 21 passed, 0 failed, 0 skipped for retained payload factory/contracts/resource coverage.
 681 passed, 3 skipped for the full test project.
+```
+
+Milestone 010 slice 5 retained-byte-aware queue window is implemented in the
+current working tree. Queue contract and runtime changes:
+
+```text
+RadarProcessingProviderQueueOptions
+  -> adds optional MaxRetainedPayloadBytes with positive-value validation and
+     conservative null-by-default behavior
+
+RadarProcessingOwnedBatchQueue
+  -> enforces item capacity through the existing bounded Channel and enforces
+     retained payload byte capacity through explicit pending-byte accounting
+  -> treats batch payload length as the retained-byte budget unit for the
+     current owned RadarEventBatch queue shape
+  -> rejects impossible oversized batches immediately with Full status
+  -> returns Full in ReturnFull mode when either item capacity or retained-byte
+     capacity blocks acceptance
+  -> waits in Wait mode when retained-byte capacity is exhausted and wakes
+     waiting enqueues on dequeue, close, fault, or dispose
+  -> decrements pending retained bytes at dequeue, the current ownership
+     transfer point from provider queue to consumer
+  -> exposes PendingRetainedPayloadBytes as a retained-byte alias over the
+     existing PendingPayloadBytes accounting
+
+RadarProcessingProviderQueueTelemetrySummary
+  -> exposes RetainedPayloadBytesHighWatermark as an explicit alias over the
+     existing queued payload byte high-water mark
+```
+
+This slice intentionally keeps `ArchiveOwnedRadarEventBatchQueueingPublisher`,
+`RadarProcessingQueuedProcessingSession`,
+`RadarProcessingQueuedRebalanceSession`, benchmark behavior, and CLI output
+unchanged. The runtime queue can now enforce retained-byte pressure internally,
+but archive/CLI controls for the byte budget remain part of later integration
+slices.
+
+Latest verification after milestone 010 slice 5:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingOwnedBatchQueueTests|FullyQualifiedName~RadarProcessingProviderQueueContractTests|FullyQualifiedName~RadarProcessingProviderQueueTelemetryRecorderTests"
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+30 passed, 0 failed, 0 skipped for provider queue contract/runtime/telemetry coverage.
+686 passed, 3 skipped for the full test project.
 ```
 
 Milestone 008 slice 1 is implemented in the current working tree. RadarPulse

@@ -9,19 +9,22 @@ public sealed record RadarProcessingProviderQueueOptions
         RadarProcessingProviderQueueFullMode fullMode = RadarProcessingProviderQueueFullMode.Wait,
         TimeSpan? enqueueTimeout = null,
         RadarProcessingProviderQueueShutdownMode shutdownMode = RadarProcessingProviderQueueShutdownMode.Drain,
-        int recentDetailCapacity = 16)
+        int recentDetailCapacity = 16,
+        long? maxRetainedPayloadBytes = null)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(capacity);
         ArgumentOutOfRangeException.ThrowIfNegative(recentDetailCapacity);
         EnsureKnownFullMode(fullMode);
         EnsureKnownShutdownMode(shutdownMode);
         ValidateEnqueueTimeout(fullMode, enqueueTimeout);
+        ValidateMaxRetainedPayloadBytes(maxRetainedPayloadBytes);
 
         Capacity = capacity;
         FullMode = fullMode;
         EnqueueTimeout = enqueueTimeout;
         ShutdownMode = shutdownMode;
         RecentDetailCapacity = recentDetailCapacity;
+        MaxRetainedPayloadBytes = maxRetainedPayloadBytes;
     }
 
     public int Capacity { get; }
@@ -35,6 +38,10 @@ public sealed record RadarProcessingProviderQueueOptions
     public RadarProcessingProviderQueueShutdownMode ShutdownMode { get; }
 
     public int RecentDetailCapacity { get; }
+
+    public long? MaxRetainedPayloadBytes { get; }
+
+    public bool HasMaxRetainedPayloadBytes => MaxRetainedPayloadBytes.HasValue;
 
     internal static void EnsureKnownFullMode(
         RadarProcessingProviderQueueFullMode fullMode)
@@ -79,5 +86,16 @@ public sealed record RadarProcessingProviderQueueOptions
                 "Enqueue timeout requires wait-on-full queue mode.",
                 nameof(enqueueTimeout));
         }
+    }
+
+    private static void ValidateMaxRetainedPayloadBytes(
+        long? maxRetainedPayloadBytes)
+    {
+        if (!maxRetainedPayloadBytes.HasValue)
+        {
+            return;
+        }
+
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxRetainedPayloadBytes.Value);
     }
 }

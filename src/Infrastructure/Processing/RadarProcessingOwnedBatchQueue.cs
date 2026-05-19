@@ -10,6 +10,7 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
     private readonly object sync = new();
     private readonly Channel<RadarProcessingQueuedBatch> channel;
     private readonly RadarProcessingProviderQueueTelemetryRecorder telemetryRecorder;
+    private TaskCompletionSource<object?> retainedByteBudgetChanged = CreateRetainedByteBudgetChangedSource();
     private long nextSequence;
     private int pendingCount;
     private long pendingPayloadBytes;
@@ -71,6 +72,8 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
             }
         }
     }
+
+    public long PendingRetainedPayloadBytes => PendingPayloadBytes;
 
     public bool IsClosed
     {
@@ -141,6 +144,15 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
                 stateRejection.Value.Message);
         }
 
+        var oversizedRejection = TryCreateOversizedRetainedByteBudgetMessage(batch.PayloadLength);
+        if (oversizedRejection is not null)
+        {
+            return RecordRejected(
+                RadarProcessingQueuedBatchEnqueueStatus.Full,
+                Stopwatch.GetElapsedTime(started),
+                oversizedRejection);
+        }
+
         return Options.FullMode == RadarProcessingProviderQueueFullMode.ReturnFull
             ? TryEnqueueWithoutWaiting(batch, ownedSnapshotTime, ownedSnapshotAllocatedBytes, started)
             : await EnqueueWithWaitAsync(batch, ownedSnapshotTime, ownedSnapshotAllocatedBytes, started, cancellationToken)
@@ -207,6 +219,7 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
 
             closed = true;
             channel.Writer.TryComplete();
+            SignalRetainedByteBudgetChangedUnsafe();
         }
     }
 
@@ -225,6 +238,7 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
             closed = true;
             faultMessage = message;
             channel.Writer.TryComplete();
+            SignalRetainedByteBudgetChangedUnsafe();
         }
     }
 
@@ -273,6 +287,7 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
             disposed = true;
             closed = true;
             channel.Writer.TryComplete();
+            SignalRetainedByteBudgetChangedUnsafe();
         }
 
         while (channel.Reader.TryRead(out var batch))
@@ -299,6 +314,14 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
             }
 
             var queuedBatch = CreateQueuedBatchUnsafe(batch, ownedSnapshotTime, allocatedBytes);
+            if (!HasRetainedByteCapacityUnsafe(queuedBatch.PayloadBytes))
+            {
+                return RecordRejectedUnsafe(
+                    RadarProcessingQueuedBatchEnqueueStatus.Full,
+                    Stopwatch.GetElapsedTime(started),
+                    CreateRetainedByteBudgetExhaustedMessageUnsafe(queuedBatch.PayloadBytes));
+            }
+
             if (!channel.Writer.TryWrite(queuedBatch))
             {
                 stateRejection = TryGetStateRejectionUnsafe();
@@ -372,6 +395,7 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
                     stateRejection?.Message ?? string.Empty);
             }
 
+            Task? retainedByteBudgetWait = null;
             lock (sync)
             {
                 stateRejection = TryGetStateRejectionUnsafe();
@@ -384,10 +408,37 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
                 }
 
                 var queuedBatch = CreateQueuedBatchUnsafe(batch, ownedSnapshotTime, allocatedBytes);
-                if (channel.Writer.TryWrite(queuedBatch))
+                if (!HasRetainedByteCapacityUnsafe(queuedBatch.PayloadBytes))
+                {
+                    retainedByteBudgetWait = retainedByteBudgetChanged.Task;
+                }
+                else if (channel.Writer.TryWrite(queuedBatch))
                 {
                     return RecordAcceptedUnsafe(queuedBatch, Stopwatch.GetElapsedTime(started));
                 }
+            }
+
+            if (retainedByteBudgetWait is not null)
+            {
+                try
+                {
+                    await retainedByteBudgetWait.WaitAsync(waitToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    return RecordRejected(
+                        RadarProcessingQueuedBatchEnqueueStatus.Canceled,
+                        Stopwatch.GetElapsedTime(started));
+                }
+                catch (OperationCanceledException) when (timeout?.IsCancellationRequested == true)
+                {
+                    return RecordRejected(
+                        RadarProcessingQueuedBatchEnqueueStatus.TimedOut,
+                        Stopwatch.GetElapsedTime(started),
+                        CreateRetainedByteBudgetTimedOutMessage(batch.PayloadLength));
+                }
+
+                continue;
             }
         }
     }
@@ -425,6 +476,41 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
             ownedSnapshotTime,
             allocatedBytes,
             Stopwatch.GetTimestamp());
+
+    private bool HasRetainedByteCapacityUnsafe(
+        long payloadBytes)
+    {
+        if (!Options.MaxRetainedPayloadBytes.HasValue)
+        {
+            return true;
+        }
+
+        return pendingPayloadBytes <= Options.MaxRetainedPayloadBytes.Value - payloadBytes;
+    }
+
+    private string? TryCreateOversizedRetainedByteBudgetMessage(
+        long payloadBytes)
+    {
+        if (!Options.MaxRetainedPayloadBytes.HasValue ||
+            payloadBytes <= Options.MaxRetainedPayloadBytes.Value)
+        {
+            return null;
+        }
+
+        return $"Queued batch retained payload bytes {payloadBytes} exceed configured retained payload byte budget {Options.MaxRetainedPayloadBytes.Value}.";
+    }
+
+    private string CreateRetainedByteBudgetExhaustedMessageUnsafe(
+        long payloadBytes) =>
+        Options.MaxRetainedPayloadBytes.HasValue
+            ? $"Provider queue retained payload byte budget is exhausted. Pending retained payload bytes: {pendingPayloadBytes}; batch payload bytes: {payloadBytes}; budget: {Options.MaxRetainedPayloadBytes.Value}."
+            : string.Empty;
+
+    private string CreateRetainedByteBudgetTimedOutMessage(
+        long payloadBytes) =>
+        Options.MaxRetainedPayloadBytes.HasValue
+            ? $"Timed out waiting for provider queue retained payload byte budget. Batch payload bytes: {payloadBytes}; budget: {Options.MaxRetainedPayloadBytes.Value}."
+            : string.Empty;
 
     private RadarProcessingQueuedBatchEnqueueResult RecordAcceptedUnsafe(
         RadarProcessingQueuedBatch batch,
@@ -527,6 +613,18 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
             {
                 dequeuedBatchCount++;
             }
+
+            SignalRetainedByteBudgetChangedUnsafe();
         }
     }
+
+    private void SignalRetainedByteBudgetChangedUnsafe()
+    {
+        var changed = retainedByteBudgetChanged;
+        retainedByteBudgetChanged = CreateRetainedByteBudgetChangedSource();
+        changed.TrySetResult(null);
+    }
+
+    private static TaskCompletionSource<object?> CreateRetainedByteBudgetChangedSource() =>
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
 }

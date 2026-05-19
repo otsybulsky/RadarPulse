@@ -52,6 +52,8 @@ public sealed class RadarProcessingProviderQueueContractTests
         Assert.False(options.HasEnqueueTimeout);
         Assert.Equal(RadarProcessingProviderQueueShutdownMode.Drain, options.ShutdownMode);
         Assert.Equal(16, options.RecentDetailCapacity);
+        Assert.Null(options.MaxRetainedPayloadBytes);
+        Assert.False(options.HasMaxRetainedPayloadBytes);
     }
 
     [Fact]
@@ -64,7 +66,8 @@ public sealed class RadarProcessingProviderQueueContractTests
             fullMode: RadarProcessingProviderQueueFullMode.Wait,
             enqueueTimeout: timeout,
             shutdownMode: RadarProcessingProviderQueueShutdownMode.CancelQueued,
-            recentDetailCapacity: 3);
+            recentDetailCapacity: 3,
+            maxRetainedPayloadBytes: 4096);
 
         Assert.Equal(4, options.Capacity);
         Assert.Equal(RadarProcessingProviderQueueFullMode.Wait, options.FullMode);
@@ -72,6 +75,8 @@ public sealed class RadarProcessingProviderQueueContractTests
         Assert.True(options.HasEnqueueTimeout);
         Assert.Equal(RadarProcessingProviderQueueShutdownMode.CancelQueued, options.ShutdownMode);
         Assert.Equal(3, options.RecentDetailCapacity);
+        Assert.Equal(4096, options.MaxRetainedPayloadBytes);
+        Assert.True(options.HasMaxRetainedPayloadBytes);
     }
 
     [Fact]
@@ -85,6 +90,10 @@ public sealed class RadarProcessingProviderQueueContractTests
             new RadarProcessingProviderQueueOptions(shutdownMode: (RadarProcessingProviderQueueShutdownMode)255));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new RadarProcessingProviderQueueOptions(recentDetailCapacity: -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RadarProcessingProviderQueueOptions(maxRetainedPayloadBytes: 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RadarProcessingProviderQueueOptions(maxRetainedPayloadBytes: -1));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new RadarProcessingProviderQueueOptions(enqueueTimeout: TimeSpan.Zero));
         Assert.Throws<ArgumentException>(() =>
@@ -288,6 +297,7 @@ public sealed class RadarProcessingProviderQueueContractTests
         Assert.Equal(TimeSpan.FromMilliseconds(7), summary.TotalDrainTime);
         Assert.Equal(2, summary.QueueDepthHighWatermark);
         Assert.Equal(128, summary.QueuedPayloadBytesHighWatermark);
+        Assert.Equal(128, summary.RetainedPayloadBytesHighWatermark);
         Assert.Equal(TimeSpan.FromMilliseconds(11), summary.TotalProviderToProcessingLatency);
         Assert.Single(summary.RecentDetails);
         Assert.Equal(1, summary.RetainedRecentDetailCount);
