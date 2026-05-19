@@ -867,6 +867,78 @@ Async worker telemetry reported 4 workers, queue capacity 1, 1 dispatched and
 completed batch, 4 submitted and completed work items, and 0 failed items for
 both file and cache smoke runs.
 
+Milestone 008 performance guardrail pass is captured in the current working
+tree. The measured local cache contour is the full available KTLX base-data
+selection for `2026-05-04`: `data\nexrad --date 2026-05-04 --radar KTLX
+--max-files 220 --parallelism 24 --iterations 1 --warmup-iterations 0`. The
+cache selection examined 220 files, skipped 22 non-published files, and
+published 198 Archive Two base-data files per run.
+
+Commands:
+
+```powershell
+dotnet src\Presentation\bin\Debug\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --cache data\nexrad --date 2026-05-04 --radar KTLX --max-files 220 --mode rebalance --execution sync --iterations 1 --warmup-iterations 0 --parallelism 24
+dotnet src\Presentation\bin\Debug\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --cache data\nexrad --date 2026-05-04 --radar KTLX --max-files 220 --mode rebalance --execution async --workers 4 --queue-capacity 1 --iterations 1 --warmup-iterations 0 --parallelism 24
+dotnet src\Presentation\bin\Debug\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --cache data\nexrad --date 2026-05-04 --radar KTLX --max-files 220 --mode sampling --execution sync --iterations 1 --warmup-iterations 0 --parallelism 24
+dotnet src\Presentation\bin\Debug\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --cache data\nexrad --date 2026-05-04 --radar KTLX --max-files 220 --mode sampling --execution async --workers 4 --queue-capacity 1 --iterations 1 --warmup-iterations 0 --parallelism 24
+```
+
+Archive rebalance full-cache comparison:
+
+```text
+sync:  end-to-end 78,916.46 ms, callback 27,427.74 ms,
+       callback allocation 260,599,080 bytes,
+       processing payload values/s 279,311,694.78,
+       checksum 7_480_064_646_096_449_000,
+       accepted moves 2, skipped decisions 392, failed migrations 0.
+
+async: end-to-end 78,334.34 ms, callback 27,428.21 ms,
+       callback allocation 262,952,952 bytes,
+       processing payload values/s 279,306,922.85,
+       checksum 7_480_064_646_096_449_000,
+       accepted moves 2, skipped decisions 392, failed migrations 0.
+```
+
+Rebalance interpretation: async preserved deterministic correctness and
+rebalance behavior exactly. Callback elapsed time was effectively parity
+(`+0.47 ms`, less than 0.01%). Callback allocation increased by 2,353,872 bytes
+or about 0.90%. Async worker telemetry reported 4 workers, queue capacity 1,
+198 dispatched/completed batches, 792 submitted/completed/succeeded work items,
+0 failed work items, 26,752.31 ms total dispatch time, 70.14 ms queue wait,
+1,368.89 ms worker execution, 5.10 ms aggregation, and 585.32 ms barrier wait.
+
+Archive pressure-sampling full-cache comparison:
+
+```text
+sync:  end-to-end 78,196.31 ms, callback 27,512.23 ms,
+       callback allocation 258,245,568 bytes,
+       processing payload values/s 278,453,962.53,
+       checksum 2_540_507_904_059_963_540,
+       rebalance evaluations 198, accepted moves 0.
+
+async: end-to-end 78,316.08 ms, callback 27,477.16 ms,
+       callback allocation 260,567,328 bytes,
+       processing payload values/s 278,809,294.52,
+       checksum 2_540_507_904_059_963_540,
+       rebalance evaluations 198, accepted moves 0.
+```
+
+Sampling interpretation: async preserved checksum and evaluation counts.
+Callback elapsed time was also parity (`-35.07 ms`, about 0.13% faster in this
+single run). Callback allocation increased by 2,321,760 bytes or about 0.90%.
+Async worker telemetry reported 4 workers, queue capacity 1, 198
+dispatched/completed batches, 792 submitted/completed/succeeded work items, 0
+failed work items, 26,843.82 ms dispatch time, 52.30 ms queue wait, 1,154.00 ms
+worker execution, 4.90 ms aggregation, and 772.19 ms barrier wait.
+
+Guardrail conclusion: async archive processing is correct on the full local
+KTLX cache contour and does not introduce meaningful callback latency
+regression at 4 workers and queue capacity 1. The measurable cost is a stable
+~0.9% processing callback allocation increase from async dispatch/telemetry
+machinery. The end-to-end contour remains dominated by archive replay and batch
+construction, so processing callback metrics should stay the primary comparison
+surface for milestone 008.
+
 Milestone 007 slice 1 is implemented in the current working tree. RadarPulse
 now has the first hardening option/profile contracts:
 `RadarProcessingRebalanceHardeningOptions`,

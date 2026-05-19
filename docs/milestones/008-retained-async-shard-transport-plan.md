@@ -1032,8 +1032,8 @@ Milestone 008 completion criteria are satisfied when:
 [x] processing-only synthetic benchmark exposes async execution
 [x] synthetic rebalance benchmark exposes async execution
 [x] archive rebalance benchmark exposes async execution
-[ ] CLI exposes execution, worker, queue, and worker telemetry options
-[ ] performance guardrail and allocation pass is captured and interpreted
+[x] CLI exposes execution, worker, queue, and worker telemetry options
+[x] performance guardrail and allocation pass is captured and interpreted
 [ ] decision trace is written
 [ ] closeout is written
 [ ] handoff is updated
