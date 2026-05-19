@@ -14,6 +14,15 @@ public sealed class RadarProcessingContractTests
         Assert.Equal(1, options.PartitionCount);
         Assert.Equal(1, options.ShardCount);
         Assert.True(options.EnableValidation);
+        Assert.Same(RadarProcessingAsyncExecutionOptions.Default, options.AsyncExecution);
+    }
+
+    [Fact]
+    public void ExecutionModeEnumValuesAreStable()
+    {
+        Assert.Equal(1, (int)RadarProcessingExecutionMode.Sequential);
+        Assert.Equal(2, (int)RadarProcessingExecutionMode.PartitionedBarrier);
+        Assert.Equal(3, (int)RadarProcessingExecutionMode.AsyncShardTransport);
     }
 
     [Fact]
@@ -32,6 +41,115 @@ public sealed class RadarProcessingContractTests
             new RadarProcessingCoreOptions(shardCount: 0));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new RadarProcessingCoreOptions(partitionCount: 1, shardCount: 2));
+    }
+
+    [Fact]
+    public void AsyncExecutionOptionsUseConservativeBorrowedBatchDefaults()
+    {
+        var options = RadarProcessingAsyncExecutionOptions.Default;
+
+        Assert.Equal(1, options.WorkerCount);
+        Assert.Equal(1, options.QueueCapacity);
+        Assert.Equal(RadarProcessingWorkerAffinity.Shard, options.WorkerAffinity);
+        Assert.Equal(RadarProcessingWorkerTimeoutPolicy.Disabled, options.TimeoutPolicy);
+        Assert.Null(options.BatchTimeout);
+        Assert.False(options.HasBatchTimeout);
+    }
+
+    [Fact]
+    public void AsyncExecutionEnumValuesAreStable()
+    {
+        Assert.Equal(0, (int)RadarProcessingWorkerAffinity.None);
+        Assert.Equal(1, (int)RadarProcessingWorkerAffinity.Shard);
+
+        Assert.Equal(0, (int)RadarProcessingWorkerTimeoutPolicy.Disabled);
+        Assert.Equal(1, (int)RadarProcessingWorkerTimeoutPolicy.MarkUnhealthy);
+        Assert.Equal(2, (int)RadarProcessingWorkerTimeoutPolicy.RequestCancellationAndMarkUnhealthy);
+    }
+
+    [Fact]
+    public void AsyncExecutionOptionsComposeExplicitWorkerSettings()
+    {
+        var timeout = TimeSpan.FromMilliseconds(250);
+
+        var options = new RadarProcessingAsyncExecutionOptions(
+            workerCount: 4,
+            queueCapacity: 2,
+            workerAffinity: RadarProcessingWorkerAffinity.None,
+            timeoutPolicy: RadarProcessingWorkerTimeoutPolicy.RequestCancellationAndMarkUnhealthy,
+            batchTimeout: timeout);
+
+        Assert.Equal(4, options.WorkerCount);
+        Assert.Equal(2, options.QueueCapacity);
+        Assert.Equal(RadarProcessingWorkerAffinity.None, options.WorkerAffinity);
+        Assert.Equal(RadarProcessingWorkerTimeoutPolicy.RequestCancellationAndMarkUnhealthy, options.TimeoutPolicy);
+        Assert.Equal(timeout, options.BatchTimeout);
+        Assert.True(options.HasBatchTimeout);
+    }
+
+    [Fact]
+    public void AsyncExecutionOptionsRejectInvalidValues()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RadarProcessingAsyncExecutionOptions(workerCount: 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RadarProcessingAsyncExecutionOptions(queueCapacity: 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RadarProcessingAsyncExecutionOptions(workerAffinity: (RadarProcessingWorkerAffinity)255));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RadarProcessingAsyncExecutionOptions(timeoutPolicy: (RadarProcessingWorkerTimeoutPolicy)255));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RadarProcessingAsyncExecutionOptions(
+                timeoutPolicy: RadarProcessingWorkerTimeoutPolicy.MarkUnhealthy,
+                batchTimeout: TimeSpan.Zero));
+        Assert.Throws<ArgumentException>(() =>
+            new RadarProcessingAsyncExecutionOptions(batchTimeout: TimeSpan.FromMilliseconds(1)));
+        Assert.Throws<ArgumentException>(() =>
+            new RadarProcessingAsyncExecutionOptions(
+                timeoutPolicy: RadarProcessingWorkerTimeoutPolicy.MarkUnhealthy));
+    }
+
+    [Fact]
+    public void CoreOptionsCarryAsyncExecutionOptionsWithoutChangingSynchronousMode()
+    {
+        var asyncExecution = new RadarProcessingAsyncExecutionOptions(
+            workerCount: 2,
+            queueCapacity: 1);
+
+        var options = new RadarProcessingCoreOptions(
+            RadarProcessingExecutionMode.PartitionedBarrier,
+            partitionCount: 4,
+            shardCount: 2,
+            asyncExecution: asyncExecution);
+
+        Assert.Equal(RadarProcessingExecutionMode.PartitionedBarrier, options.ExecutionMode);
+        Assert.Same(asyncExecution, options.AsyncExecution);
+        Assert.Equal(4, options.PartitionCount);
+        Assert.Equal(2, options.ShardCount);
+    }
+
+    [Fact]
+    public void AsyncShardTransportModeIsRecognizedButNotExecutedBeforeRuntimeSlice()
+    {
+        var universe = new RadarSourceUniverse(
+            SourceUniverseVersion.Initial,
+            radarOrdinalCount: 1,
+            elevationSlotCount: 1,
+            azimuthBucketCount: 1,
+            rangeBandCount: 1);
+        var core = new RadarProcessingCore(
+            universe,
+            new RadarProcessingCoreOptions(RadarProcessingExecutionMode.AsyncShardTransport));
+        var batch = new RadarEventBatch(
+            StreamSchemaVersion.Current,
+            DictionaryVersion.Initial,
+            universe.Version,
+            Array.Empty<RadarStreamEvent>(),
+            Array.Empty<byte>());
+
+        var exception = Assert.Throws<NotSupportedException>(() => core.Process(batch));
+
+        Assert.Contains("Async shard transport", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]

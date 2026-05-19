@@ -64,6 +64,8 @@ public sealed class RadarProcessingCore
         {
             RadarProcessingExecutionMode.Sequential => ProcessSequential(batch, cancellationToken),
             RadarProcessingExecutionMode.PartitionedBarrier => ProcessPartitionedBarrier(batch, cancellationToken),
+            RadarProcessingExecutionMode.AsyncShardTransport =>
+                throw new NotSupportedException("Async shard transport execution is not implemented yet."),
             _ => throw new InvalidOperationException("Unsupported processing execution mode.")
         };
     }

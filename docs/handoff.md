@@ -234,6 +234,35 @@ benchmark comparison, and explicit worker lifecycle/failure/telemetry
 contracts. The hard boundary is that retained workers are allowed, but retained
 borrowed `RadarEventBatch` payload is not allowed.
 
+Milestone 008 slice 1 is implemented in the current working tree. RadarPulse
+now has the first async execution option contracts:
+`RadarProcessingExecutionMode.AsyncShardTransport`,
+`RadarProcessingAsyncExecutionOptions`, `RadarProcessingWorkerAffinity`, and
+`RadarProcessingWorkerTimeoutPolicy`. `RadarProcessingCoreOptions` now carries
+async execution settings while preserving sequential defaults and existing
+synchronous behavior. Async shard transport is recognized as a mode but
+intentionally throws `NotSupportedException` until the retained worker runtime
+is implemented in later slices. Focused tests cover stable enum values,
+conservative borrowed-batch defaults, invalid worker/queue/timeout values,
+composition through core options, and the explicit not-yet-implemented runtime
+guard.
+
+Latest verification after milestone 008 slice 1:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingContractTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Processing
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Result:
+
+```text
+16 passed for focused processing contract coverage.
+333 passed for processing-focused coverage.
+488 passed, 3 skipped for the full test project.
+```
+
 Milestone 007 slice 1 is implemented in the current working tree. RadarPulse
 now has the first hardening option/profile contracts:
 `RadarProcessingRebalanceHardeningOptions`,
@@ -3528,6 +3557,11 @@ constant and moment data blocks.
 - `docs/milestones/007-rebalance-production-hardening-closeout.md`
 - `docs/milestones/008-retained-async-shard-transport.md`
 - `docs/milestones/008-retained-async-shard-transport-plan.md`
+- `src/Domain/Processing/RadarProcessingAsyncExecutionOptions.cs`
+- `src/Domain/Processing/RadarProcessingWorkerAffinity.cs`
+- `src/Domain/Processing/RadarProcessingWorkerTimeoutPolicy.cs`
+- `src/Domain/Processing/RadarProcessingExecutionMode.cs`
+- `src/Domain/Processing/RadarProcessingCoreOptions.cs`
 - `src/Domain/Processing/RadarProcessingRebalanceHardeningOptions.cs`
 - `src/Domain/Processing/RadarProcessingTelemetryRetentionOptions.cs`
 - `src/Domain/Processing/RadarProcessingQuarantineLifecycleOptions.cs`
