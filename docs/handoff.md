@@ -11,10 +11,11 @@ implementation plan is recorded in
 Milestone 010 starts from the closed milestone 009 owned-provider boundary:
 `queued-owned` is correct and measurable, but still opt-in because owned
 snapshot allocation is the dominant cost and the current archive benchmark does
-not overlap replay with processing. Milestone 010 slice 1 is now complete:
-the milestone 009 cost anchors and contract surfaces are confirmed. The next
-implementation work should start slice 2 by defining retained payload strategy
-and resource lifecycle contracts before changing retention mechanics.
+not overlap replay with processing. Milestone 010 slices 1 and 2 are now
+complete: the milestone 009 cost anchors are confirmed, and retained payload
+strategy contracts are implemented and tested. The next implementation work
+should start slice 3 by adding the resource-owned queued batch lifecycle before
+changing retention mechanics.
 
 `blocking-borrowed` remains the default provider mode and same-run oracle.
 `queued-owned` remains an explicit validation and measurement mode until the
@@ -694,6 +695,57 @@ Recorded result:
 
 ```text
 72 passed, 0 failed, 0 skipped.
+```
+
+Milestone 010 slice 2 retained payload strategy contracts are implemented in
+the current working tree. New domain contracts:
+
+```text
+RadarProcessingRetainedPayloadStrategy
+  -> SnapshotCopy, PooledCopy, BuilderTransfer
+
+RadarProcessingRetainedPayloadOptions
+  -> default SnapshotCopy behavior, optional max retained payload byte limit,
+     and strategy validation
+
+RadarProcessingRetainedPayloadRetentionStatus
+RadarProcessingRetainedPayloadRetentionResult
+  -> separates succeeded, unsupported strategy, failed copy, canceled, and
+     invalid input outcomes
+  -> successful retention requires an owned RadarEventBatch and carries elapsed
+     time, allocated bytes, event count, payload bytes, payload values, and raw
+     checksum
+
+RadarProcessingRetainedPayloadReleaseStatus
+RadarProcessingRetainedPayloadReleaseResult
+  -> separates released, already released, failed, and not-required release
+     outcomes
+
+RadarProcessingRetainedPayloadTelemetrySummary
+  -> carries strategy name, retention/release counters, retained event/payload
+     counts, allocated bytes, retention/release elapsed time, transfer counts,
+     pool rent/return/miss counts, failure counters, and allocation ratios
+```
+
+The slice intentionally does not change `ToOwnedSnapshot()`,
+`ArchiveOwnedRadarEventBatchQueueingPublisher`, queue mechanics, benchmark
+behavior, or CLI output. `SnapshotCopy` remains the snapshot-compatible
+baseline for later retention implementations.
+
+Latest verification after milestone 010 slice 2:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingRetainedPayloadContractTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingRetainedPayloadContractTests|FullyQualifiedName~RadarProcessingProviderQueueContractTests"
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+5 passed, 0 failed, 0 skipped.
+16 passed, 0 failed, 0 skipped for retained payload plus provider queue contract coverage.
+665 passed, 3 skipped for the full test project.
 ```
 
 Milestone 008 slice 1 is implemented in the current working tree. RadarPulse
