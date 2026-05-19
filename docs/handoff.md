@@ -485,6 +485,40 @@ Recorded result:
 487 passed for Processing-focused coverage.
 ```
 
+Milestone 009 slice 9 archive benchmark integration is implemented in the
+current working tree. `RadarProcessingArchiveRebalanceBenchmark` now exposes
+`RadarProcessingArchiveProviderMode.BlockingBorrowed` and
+`RadarProcessingArchiveProviderMode.QueuedOwned` for single-file and cache
+archive rebalance benchmarks. Blocking borrowed mode preserves the milestone
+008 callback path. Queued owned mode routes archive replay through
+`ArchiveOwnedRadarEventBatchQueueingPublisher`, drains owned batches into the
+archive rebalance processor after replay enqueue, and keeps sync and async
+execution modes comparable.
+
+Archive benchmark result records now label provider mode and provider queue
+capacity, expose queue telemetry, and surface owned snapshot allocation,
+owned snapshot elapsed time, enqueue wait time, and queue drain time separately
+from replay, processing, worker, and rebalance timing. Archive allocation
+summary now carries owned snapshot allocation so queued provider copy cost is
+visible instead of hidden inside replay/processing totals. Cache benchmark
+aggregation combines queue counters and keeps recent queue details bounded.
+
+Latest verification after milestone 009 slice 9:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RebalanceArchiveBenchmark
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Archive
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Processing
+```
+
+Recorded result:
+
+```text
+8 passed for archive rebalance benchmark queued-provider coverage.
+95 passed, 3 skipped for Archive-focused coverage.
+487 passed for Processing-focused coverage.
+```
+
 Milestone 008 slice 1 is implemented in the current working tree. RadarPulse
 now has the first async execution option contracts:
 `RadarProcessingExecutionMode.AsyncShardTransport`,

@@ -6,16 +6,19 @@ public readonly record struct RadarProcessingRebalanceAllocationSummary
         long measuredAllocatedBytes,
         long processingCallbackAllocatedBytes,
         bool includesArchiveReplayAndBatchConstruction,
-        bool includesCliFormatting)
+        bool includesCliFormatting,
+        long ownedSnapshotAllocatedBytes = 0)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(measuredAllocatedBytes);
         ArgumentOutOfRangeException.ThrowIfNegative(processingCallbackAllocatedBytes);
+        ArgumentOutOfRangeException.ThrowIfNegative(ownedSnapshotAllocatedBytes);
 
         IsMeasured = true;
         MeasuredAllocatedBytes = measuredAllocatedBytes;
         ProcessingCallbackAllocatedBytes = processingCallbackAllocatedBytes;
         IncludesArchiveReplayAndBatchConstruction = includesArchiveReplayAndBatchConstruction;
         IncludesCliFormatting = includesCliFormatting;
+        OwnedSnapshotAllocatedBytes = ownedSnapshotAllocatedBytes;
     }
 
     public bool IsMeasured { get; }
@@ -27,6 +30,8 @@ public readonly record struct RadarProcessingRebalanceAllocationSummary
     public bool IncludesArchiveReplayAndBatchConstruction { get; }
 
     public bool IncludesCliFormatting { get; }
+
+    public long OwnedSnapshotAllocatedBytes { get; }
 
     public bool HasSeparateProcessingCallbackAllocation =>
         IncludesArchiveReplayAndBatchConstruction;
@@ -46,12 +51,14 @@ public readonly record struct RadarProcessingRebalanceAllocationSummary
 
     public static RadarProcessingRebalanceAllocationSummary ForArchiveReplay(
         long measuredAllocatedBytes,
-        long processingCallbackAllocatedBytes) =>
+        long processingCallbackAllocatedBytes,
+        long ownedSnapshotAllocatedBytes = 0) =>
         new(
             measuredAllocatedBytes,
             processingCallbackAllocatedBytes,
             includesArchiveReplayAndBatchConstruction: true,
-            includesCliFormatting: false);
+            includesCliFormatting: false,
+            ownedSnapshotAllocatedBytes);
 
     public double MeasuredAllocatedBytesPerPayloadValue(
         long payloadValueCount) =>
@@ -68,6 +75,10 @@ public readonly record struct RadarProcessingRebalanceAllocationSummary
     public double ReplayAndBatchConstructionAllocatedBytesPerPayloadValue(
         long payloadValueCount) =>
         Ratio(ReplayAndBatchConstructionAllocatedBytes, payloadValueCount);
+
+    public double OwnedSnapshotAllocatedBytesPerPayloadValue(
+        long payloadValueCount) =>
+        Ratio(OwnedSnapshotAllocatedBytes, payloadValueCount);
 
     private static double Ratio(
         long numerator,

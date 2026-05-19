@@ -54,9 +54,14 @@ public sealed record RadarProcessingArchiveRebalanceCacheBenchmarkResult(
     RadarProcessingPressureSkewOptions? PressureSkew = null,
     RadarProcessingRebalanceAllocationSummary AllocationSummary = default,
     RadarProcessingExecutionMode ExecutionMode = RadarProcessingExecutionMode.PartitionedBarrier,
-    RadarProcessingWorkerTelemetrySummary? WorkerTelemetry = null)
+    RadarProcessingWorkerTelemetrySummary? WorkerTelemetry = null,
+    RadarProcessingArchiveProviderMode ProviderMode = RadarProcessingArchiveProviderMode.BlockingBorrowed,
+    int QueueCapacity = 0,
+    RadarProcessingProviderQueueTelemetrySummary? QueueTelemetry = null)
 {
     public bool HasWorkerTelemetry => WorkerTelemetry is not null;
+
+    public bool HasQueueTelemetry => ProviderMode == RadarProcessingArchiveProviderMode.QueuedOwned;
 
     public IReadOnlyList<RadarProcessingRebalanceSkippedReasonCounter> SkippedReasonCounters { get; init; } =
         SkippedReasonCounters;
@@ -73,6 +78,9 @@ public sealed record RadarProcessingArchiveRebalanceCacheBenchmarkResult(
 
     public RadarProcessingPressureSkewOptions PressureSkew { get; init; } =
         PressureSkew ?? RadarProcessingPressureSkewOptions.None;
+
+    public RadarProcessingProviderQueueTelemetrySummary QueueTelemetry { get; init; } =
+        QueueTelemetry ?? RadarProcessingProviderQueueTelemetrySummary.Empty;
 
     public long TotalExaminedFiles => ExaminedFilesPerIteration * Iterations;
 
@@ -136,6 +144,17 @@ public sealed record RadarProcessingArchiveRebalanceCacheBenchmarkResult(
 
     public double ReplayAndBatchConstructionAllocatedBytesPerPayloadValue =>
         AllocationSummary.ReplayAndBatchConstructionAllocatedBytesPerPayloadValue(TotalPayloadValues);
+
+    public long OwnedSnapshotAllocatedBytes => AllocationSummary.OwnedSnapshotAllocatedBytes;
+
+    public double OwnedSnapshotAllocatedBytesPerPayloadValue =>
+        AllocationSummary.OwnedSnapshotAllocatedBytesPerPayloadValue(TotalPayloadValues);
+
+    public TimeSpan OwnedSnapshotElapsed => QueueTelemetry.TotalOwnedSnapshotTime;
+
+    public TimeSpan EnqueueWaitElapsed => QueueTelemetry.TotalEnqueueWaitTime;
+
+    public TimeSpan QueueDrainElapsed => QueueTelemetry.TotalDrainTime;
 
     private static double MegabytesPerSecond(
         long bytes,

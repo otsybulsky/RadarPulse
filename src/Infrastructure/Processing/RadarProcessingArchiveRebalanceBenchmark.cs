@@ -35,16 +35,20 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         RadarProcessingRebalanceHardeningOptions? hardeningOptions = null,
         RadarProcessingPressureSkewOptions? pressureSkewOptions = null,
         RadarProcessingExecutionMode executionMode = RadarProcessingExecutionMode.PartitionedBarrier,
-        RadarProcessingAsyncExecutionOptions? asyncExecution = null)
+        RadarProcessingAsyncExecutionOptions? asyncExecution = null,
+        RadarProcessingArchiveProviderMode providerMode = RadarProcessingArchiveProviderMode.BlockingBorrowed,
+        int queueCapacity = 1)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         EnsureKnownMode(mode);
         EnsureKnownExecutionMode(executionMode);
+        EnsureKnownProviderMode(providerMode);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(iterations);
         ArgumentOutOfRangeException.ThrowIfNegative(warmupIterations);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(partitionCount);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(shardCount);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(degreeOfParallelism);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(queueCapacity);
 
         if (partitionCount < shardCount)
         {
@@ -105,6 +109,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                     effectiveAsyncExecution,
                     workerTelemetryRecorder: null,
                     workerGroup,
+                    providerMode,
+                    queueCapacity,
                     cancellationToken);
             }
 
@@ -129,6 +135,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                     effectiveAsyncExecution,
                     workerTelemetryRecorder,
                     workerGroup,
+                    providerMode,
+                    queueCapacity,
                     cancellationToken);
                 if (expectedIteration.HasValue && !expectedIteration.Value.HasSameStableTotals(iterationTelemetry))
                 {
@@ -143,7 +151,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             var allocatedBytes = RadarProcessingBenchmarkAllocationSnapshot.Capture().DeltaSince(allocationBefore);
             var allocationSummary = RadarProcessingRebalanceAllocationSummary.ForArchiveReplay(
                 allocatedBytes,
-                aggregate.ProcessingCallbackAllocatedBytes);
+                aggregate.ProcessingCallbackAllocatedBytes,
+                aggregate.QueueTelemetry.OwnedSnapshotAllocatedBytes);
             var measuredIteration = expectedIteration ??
                                     throw new InvalidOperationException("Archive rebalance benchmark did not run.");
             var workerTelemetry = workerTelemetryRecorder?.CreateSummary();
@@ -196,7 +205,10 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 pressureSkewOptions ?? RadarProcessingPressureSkewOptions.None,
                 allocationSummary,
                 executionMode,
-                workerTelemetry);
+                workerTelemetry,
+                providerMode,
+                providerMode == RadarProcessingArchiveProviderMode.QueuedOwned ? queueCapacity : 0,
+                aggregate.QueueTelemetry);
         }
         finally
         {
@@ -222,17 +234,21 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         RadarProcessingRebalanceHardeningOptions? hardeningOptions = null,
         RadarProcessingPressureSkewOptions? pressureSkewOptions = null,
         RadarProcessingExecutionMode executionMode = RadarProcessingExecutionMode.PartitionedBarrier,
-        RadarProcessingAsyncExecutionOptions? asyncExecution = null)
+        RadarProcessingAsyncExecutionOptions? asyncExecution = null,
+        RadarProcessingArchiveProviderMode providerMode = RadarProcessingArchiveProviderMode.BlockingBorrowed,
+        int queueCapacity = 1)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(cachePath);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxFiles);
         EnsureKnownMode(mode);
         EnsureKnownExecutionMode(executionMode);
+        EnsureKnownProviderMode(providerMode);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(iterations);
         ArgumentOutOfRangeException.ThrowIfNegative(warmupIterations);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(partitionCount);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(shardCount);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(degreeOfParallelism);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(queueCapacity);
 
         if (partitionCount < shardCount)
         {
@@ -299,6 +315,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                     effectiveAsyncExecution,
                     workerTelemetryRecorder: null,
                     workerGroup,
+                    providerMode,
+                    queueCapacity,
                     cancellationToken);
             }
 
@@ -326,6 +344,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                     effectiveAsyncExecution,
                     workerTelemetryRecorder,
                     workerGroup,
+                    providerMode,
+                    queueCapacity,
                     cancellationToken);
                 if (expectedIteration.HasValue && !expectedIteration.Value.HasSameStableTotals(iterationTelemetry))
                 {
@@ -340,7 +360,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             var allocatedBytes = RadarProcessingBenchmarkAllocationSnapshot.Capture().DeltaSince(allocationBefore);
             var allocationSummary = RadarProcessingRebalanceAllocationSummary.ForArchiveReplay(
                 allocatedBytes,
-                aggregate.ProcessingCallbackAllocatedBytes);
+                aggregate.ProcessingCallbackAllocatedBytes,
+                aggregate.QueueTelemetry.OwnedSnapshotAllocatedBytes);
             var measuredIteration = expectedIteration ??
                                     throw new InvalidOperationException("Archive cache rebalance benchmark did not run.");
             var workerTelemetry = workerTelemetryRecorder?.CreateSummary();
@@ -398,7 +419,10 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 pressureSkewOptions ?? RadarProcessingPressureSkewOptions.None,
                 allocationSummary,
                 executionMode,
-                workerTelemetry);
+                workerTelemetry,
+                providerMode,
+                providerMode == RadarProcessingArchiveProviderMode.QueuedOwned ? queueCapacity : 0,
+                aggregate.QueueTelemetry);
         }
         finally
         {
@@ -422,6 +446,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         RadarProcessingAsyncExecutionOptions? asyncExecution,
         RadarProcessingWorkerTelemetryRecorder? workerTelemetryRecorder,
         RadarProcessingAsyncWorkerGroup? workerGroup,
+        RadarProcessingArchiveProviderMode providerMode,
+        int queueCapacity,
         CancellationToken cancellationToken)
     {
         using var processor = new ArchiveRebalanceBatchProcessor(
@@ -435,8 +461,21 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             asyncExecution,
             workerTelemetryRecorder,
             workerGroup);
-        var publishResult = archiveSession.PublishFile(filePath, processor, cancellationToken);
-        return processor.BuildTelemetry(publishResult);
+        if (providerMode == RadarProcessingArchiveProviderMode.BlockingBorrowed)
+        {
+            var publishResult = archiveSession.PublishFile(filePath, processor, cancellationToken);
+            return processor.BuildTelemetry(publishResult);
+        }
+
+        var queuedResult = PublishFileQueuedOwned(
+            archiveSession,
+            filePath,
+            processor,
+            queueCapacity,
+            cancellationToken);
+        return processor
+            .BuildTelemetry(queuedResult.PublishResult)
+            .WithQueueTelemetry(queuedResult.QueueTelemetry);
     }
 
     private static ArchiveIterationTelemetry RunCacheIteration(
@@ -455,6 +494,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         RadarProcessingAsyncExecutionOptions? asyncExecution,
         RadarProcessingWorkerTelemetryRecorder? workerTelemetryRecorder,
         RadarProcessingAsyncWorkerGroup? workerGroup,
+        RadarProcessingArchiveProviderMode providerMode,
+        int queueCapacity,
         CancellationToken cancellationToken)
     {
         using var processor = new ArchiveRebalanceBatchProcessor(
@@ -469,6 +510,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             workerTelemetryRecorder,
             workerGroup);
         var totals = CacheIterationTotals.Empty;
+        var queueTelemetry = RadarProcessingProviderQueueTelemetrySummary.Empty;
 
         foreach (var fileInfo in directoryInfo.EnumerateFiles("*", SearchOption.AllDirectories).OrderBy(file => file.FullName))
         {
@@ -491,11 +533,204 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 continue;
             }
 
-            var publishResult = archiveSession.PublishFile(fileInfo.FullName, processor, cancellationToken);
+            ArchiveRadarEventBatchPublishResult publishResult;
+            if (providerMode == RadarProcessingArchiveProviderMode.BlockingBorrowed)
+            {
+                publishResult = archiveSession.PublishFile(fileInfo.FullName, processor, cancellationToken);
+            }
+            else
+            {
+                var queuedResult = PublishFileQueuedOwned(
+                    archiveSession,
+                    fileInfo.FullName,
+                    processor,
+                    queueCapacity,
+                    cancellationToken);
+                publishResult = queuedResult.PublishResult;
+                queueTelemetry = AddQueueTelemetry(queueTelemetry, queuedResult.QueueTelemetry);
+            }
+
             totals.Add(publishResult);
         }
 
-        return processor.BuildTelemetry(totals);
+        return processor
+            .BuildTelemetry(totals)
+            .WithQueueTelemetry(queueTelemetry);
+    }
+
+    private static QueuedArchivePublishResult PublishFileQueuedOwned(
+        NexradArchiveRadarEventBatchPublishSession archiveSession,
+        string filePath,
+        ArchiveRebalanceBatchProcessor processor,
+        int queueCapacity,
+        CancellationToken cancellationToken)
+    {
+        using var queue = new RadarProcessingOwnedBatchQueue(
+            new RadarProcessingProviderQueueOptions(capacity: queueCapacity));
+        using var queueingPublisher = new ArchiveOwnedRadarEventBatchQueueingPublisher(queue);
+
+        var publishResult = archiveSession.PublishFile(filePath, queueingPublisher, cancellationToken);
+        queueingPublisher.CompleteAdding();
+
+        var drainStarted = System.Diagnostics.Stopwatch.GetTimestamp();
+        var completed = 0L;
+        var failed = 0L;
+        var canceled = 0L;
+        while (true)
+        {
+            var dequeue = queue.DequeueAsync(cancellationToken).AsTask().GetAwaiter().GetResult();
+            switch (dequeue.Status)
+            {
+                case RadarProcessingOwnedBatchDequeueStatus.Item:
+                    try
+                    {
+                        processor.Publish(dequeue.Batch!.Batch, cancellationToken);
+                        completed++;
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        canceled++;
+                        throw;
+                    }
+                    catch
+                    {
+                        failed++;
+                        throw;
+                    }
+
+                    break;
+
+                case RadarProcessingOwnedBatchDequeueStatus.Closed:
+                    var queueTelemetry = WithQueueCompletionTelemetry(
+                        queue.CreateTelemetrySummary(),
+                        completed,
+                        failed,
+                        canceled,
+                        skippedAfterFault: 0,
+                        System.Diagnostics.Stopwatch.GetElapsedTime(drainStarted));
+                    return new QueuedArchivePublishResult(publishResult, queueTelemetry);
+
+                case RadarProcessingOwnedBatchDequeueStatus.Canceled:
+                    throw new OperationCanceledException(cancellationToken);
+
+                case RadarProcessingOwnedBatchDequeueStatus.Faulted:
+                    throw new InvalidOperationException(dequeue.Message);
+
+                case RadarProcessingOwnedBatchDequeueStatus.Disposed:
+                    throw new ObjectDisposedException(nameof(RadarProcessingOwnedBatchQueue));
+
+                default:
+                    RadarProcessingOwnedBatchDequeueResult.EnsureKnownStatus(dequeue.Status);
+                    throw new ArgumentOutOfRangeException(nameof(dequeue));
+            }
+        }
+    }
+
+    private static RadarProcessingProviderQueueTelemetrySummary WithQueueCompletionTelemetry(
+        RadarProcessingProviderQueueTelemetrySummary queueTelemetry,
+        long completed,
+        long failed,
+        long canceled,
+        long skippedAfterFault,
+        TimeSpan drainTime)
+    {
+        ArgumentNullException.ThrowIfNull(queueTelemetry);
+        ArgumentOutOfRangeException.ThrowIfNegative(completed);
+        ArgumentOutOfRangeException.ThrowIfNegative(failed);
+        ArgumentOutOfRangeException.ThrowIfNegative(canceled);
+        ArgumentOutOfRangeException.ThrowIfNegative(skippedAfterFault);
+        if (drainTime < TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(drainTime));
+        }
+
+        return new RadarProcessingProviderQueueTelemetrySummary(
+            queueTelemetry.OwnedSnapshotCount,
+            queueTelemetry.OwnedSnapshotPayloadBytes,
+            queueTelemetry.OwnedSnapshotAllocatedBytes,
+            queueTelemetry.TotalOwnedSnapshotTime,
+            queueTelemetry.EnqueueAttemptCount,
+            queueTelemetry.EnqueuedBatchCount,
+            queueTelemetry.EnqueueFullCount,
+            queueTelemetry.EnqueueTimedOutCount,
+            queueTelemetry.EnqueueCanceledCount,
+            queueTelemetry.EnqueueClosedCount,
+            queueTelemetry.EnqueueFaultedCount,
+            queueTelemetry.TotalEnqueueWaitTime,
+            queueTelemetry.DequeuedBatchCount,
+            completed,
+            failed,
+            canceled,
+            skippedAfterFault,
+            queueTelemetry.TotalDrainTime + drainTime,
+            queueTelemetry.QueueDepthHighWatermark,
+            queueTelemetry.QueuedPayloadBytesHighWatermark,
+            queueTelemetry.OwnedSnapshotPayloadValueCount,
+            queueTelemetry.TotalProviderToProcessingLatency,
+            queueTelemetry.RecentDetails,
+            queueTelemetry.DroppedRecentDetailCount);
+    }
+
+    private static RadarProcessingProviderQueueTelemetrySummary AddQueueTelemetry(
+        RadarProcessingProviderQueueTelemetrySummary current,
+        RadarProcessingProviderQueueTelemetrySummary next)
+    {
+        ArgumentNullException.ThrowIfNull(current);
+        ArgumentNullException.ThrowIfNull(next);
+
+        var recentDetails = CreateBoundedRecentDetails(
+            current.RecentDetails,
+            next.RecentDetails,
+            out var droppedRecentDetails);
+
+        return new RadarProcessingProviderQueueTelemetrySummary(
+            checked(current.OwnedSnapshotCount + next.OwnedSnapshotCount),
+            checked(current.OwnedSnapshotPayloadBytes + next.OwnedSnapshotPayloadBytes),
+            checked(current.OwnedSnapshotAllocatedBytes + next.OwnedSnapshotAllocatedBytes),
+            current.TotalOwnedSnapshotTime + next.TotalOwnedSnapshotTime,
+            checked(current.EnqueueAttemptCount + next.EnqueueAttemptCount),
+            checked(current.EnqueuedBatchCount + next.EnqueuedBatchCount),
+            checked(current.EnqueueFullCount + next.EnqueueFullCount),
+            checked(current.EnqueueTimedOutCount + next.EnqueueTimedOutCount),
+            checked(current.EnqueueCanceledCount + next.EnqueueCanceledCount),
+            checked(current.EnqueueClosedCount + next.EnqueueClosedCount),
+            checked(current.EnqueueFaultedCount + next.EnqueueFaultedCount),
+            current.TotalEnqueueWaitTime + next.TotalEnqueueWaitTime,
+            checked(current.DequeuedBatchCount + next.DequeuedBatchCount),
+            checked(current.CompletedBatchCount + next.CompletedBatchCount),
+            checked(current.FailedBatchCount + next.FailedBatchCount),
+            checked(current.CanceledBatchCount + next.CanceledBatchCount),
+            checked(current.SkippedAfterFaultCount + next.SkippedAfterFaultCount),
+            current.TotalDrainTime + next.TotalDrainTime,
+            Math.Max(current.QueueDepthHighWatermark, next.QueueDepthHighWatermark),
+            Math.Max(current.QueuedPayloadBytesHighWatermark, next.QueuedPayloadBytesHighWatermark),
+            checked(current.OwnedSnapshotPayloadValueCount + next.OwnedSnapshotPayloadValueCount),
+            current.TotalProviderToProcessingLatency + next.TotalProviderToProcessingLatency,
+            recentDetails,
+            checked(current.DroppedRecentDetailCount + next.DroppedRecentDetailCount + droppedRecentDetails));
+    }
+
+    private static IReadOnlyCollection<RadarProcessingProviderQueueRecentDetail> CreateBoundedRecentDetails(
+        IReadOnlyCollection<RadarProcessingProviderQueueRecentDetail> current,
+        IReadOnlyCollection<RadarProcessingProviderQueueRecentDetail> next,
+        out long droppedRecentDetails)
+    {
+        ArgumentNullException.ThrowIfNull(current);
+        ArgumentNullException.ThrowIfNull(next);
+
+        var capacity = RadarProcessingProviderQueueOptions.Default.RecentDetailCapacity;
+        var totalCount = checked(current.Count + next.Count);
+        var skipCount = Math.Max(0, totalCount - capacity);
+        droppedRecentDetails = skipCount;
+        if (capacity == 0 || totalCount == 0)
+        {
+            return Array.Empty<RadarProcessingProviderQueueRecentDetail>();
+        }
+
+        return current
+            .Concat(next)
+            .Skip(skipCount)
+            .ToArray();
     }
 
     private static bool MatchesRadar(FileInfo fileInfo, string? radarId)
@@ -580,6 +815,15 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             not RadarProcessingExecutionMode.AsyncShardTransport)
         {
             throw new ArgumentOutOfRangeException(nameof(executionMode));
+        }
+    }
+
+    private static void EnsureKnownProviderMode(RadarProcessingArchiveProviderMode providerMode)
+    {
+        if (providerMode is not RadarProcessingArchiveProviderMode.BlockingBorrowed and
+            not RadarProcessingArchiveProviderMode.QueuedOwned)
+        {
+            throw new ArgumentOutOfRangeException(nameof(providerMode));
         }
     }
 
@@ -928,7 +1172,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         List<RadarProcessingSyntheticRebalanceMovePressure>? AcceptedMovePressures,
         RadarProcessingRebalanceRetentionStats RetentionStats,
         TimeSpan ProcessingElapsed,
-        long ProcessingCallbackAllocatedBytes)
+        long ProcessingCallbackAllocatedBytes,
+        RadarProcessingProviderQueueTelemetrySummary QueueTelemetry)
     {
         public static ArchiveIterationTelemetry Empty =>
             new(
@@ -958,7 +1203,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 AcceptedMovePressures: null,
                 RetentionStats: new RadarProcessingRebalanceRetentionStats(),
                 ProcessingElapsed: TimeSpan.Zero,
-                ProcessingCallbackAllocatedBytes: 0);
+                ProcessingCallbackAllocatedBytes: 0,
+                QueueTelemetry: RadarProcessingProviderQueueTelemetrySummary.Empty);
 
         public static ArchiveIterationTelemetry FromMetrics(
             RadarProcessingMetrics metrics,
@@ -1096,7 +1342,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 RetentionStats = AddRetentionStats(RetentionStats, other.RetentionStats),
                 ProcessingElapsed = ProcessingElapsed + other.ProcessingElapsed,
                 ProcessingCallbackAllocatedBytes = checked(
-                    ProcessingCallbackAllocatedBytes + other.ProcessingCallbackAllocatedBytes)
+                    ProcessingCallbackAllocatedBytes + other.ProcessingCallbackAllocatedBytes),
+                QueueTelemetry = AddQueueTelemetry(QueueTelemetry, other.QueueTelemetry)
             };
         }
 
@@ -1121,6 +1368,17 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 ProcessingElapsed = processingElapsed,
                 ProcessingCallbackAllocatedBytes = processingCallbackAllocatedBytes
             };
+
+        public ArchiveIterationTelemetry WithQueueTelemetry(
+            RadarProcessingProviderQueueTelemetrySummary queueTelemetry)
+        {
+            ArgumentNullException.ThrowIfNull(queueTelemetry);
+
+            return this with
+            {
+                QueueTelemetry = queueTelemetry
+            };
+        }
 
         public ArchiveIterationTelemetry WithRetentionStats(
             RadarProcessingRebalanceRetentionStats retentionStats)
@@ -1386,4 +1644,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             RawValueChecksum = checked(RawValueChecksum + result.RawValueChecksum);
         }
     }
+
+    private readonly record struct QueuedArchivePublishResult(
+        ArchiveRadarEventBatchPublishResult PublishResult,
+        RadarProcessingProviderQueueTelemetrySummary QueueTelemetry);
 }

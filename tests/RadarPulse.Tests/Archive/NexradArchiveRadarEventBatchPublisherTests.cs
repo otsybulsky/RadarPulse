@@ -610,6 +610,171 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
     }
 
     [Fact]
+    public void RebalanceArchiveBenchmarkFileSupportsQueuedOwnedProviderMode()
+    {
+        var record = BuildMessage(31, BuildEightBitType31Payload("REF", [1, 2, 3], scale: 2f, offset: 66f));
+        var compressedPayload = BuildFakeBZip2Payload(1);
+        var path = WriteTempFile(
+            "KTLX20260504_000245_V06",
+            BuildArchiveTwoHeader()
+                .Concat(BuildCompressedRecord(compressedPayload.Length, compressedPayload))
+                .ToArray());
+        var benchmark = new RadarProcessingArchiveRebalanceBenchmark(
+            new FakeArchiveBZip2Decompressor(new Dictionary<byte, byte[]>
+            {
+                [1] = record
+            }));
+
+        try
+        {
+            var blocking = benchmark.MeasureFile(
+                path,
+                RadarProcessingSyntheticRebalanceBenchmarkMode.PressureSamplingOnly,
+                iterations: 1,
+                warmupIterations: 0,
+                partitionCount: 4,
+                shardCount: 2,
+                degreeOfParallelism: 1,
+                CancellationToken.None);
+            var queued = benchmark.MeasureFile(
+                path,
+                RadarProcessingSyntheticRebalanceBenchmarkMode.PressureSamplingOnly,
+                iterations: 1,
+                warmupIterations: 0,
+                partitionCount: 4,
+                shardCount: 2,
+                degreeOfParallelism: 1,
+                CancellationToken.None,
+                providerMode: RadarProcessingArchiveProviderMode.QueuedOwned,
+                queueCapacity: 1);
+
+            Assert.Equal(RadarProcessingArchiveProviderMode.BlockingBorrowed, blocking.ProviderMode);
+            Assert.False(blocking.HasQueueTelemetry);
+            Assert.Equal(0, blocking.QueueCapacity);
+            Assert.Equal(RadarProcessingArchiveProviderMode.QueuedOwned, queued.ProviderMode);
+            Assert.True(queued.HasQueueTelemetry);
+            Assert.Equal(1, queued.QueueCapacity);
+            Assert.Equal(blocking.BatchesPerIteration, queued.BatchesPerIteration);
+            Assert.Equal(blocking.EventsPerIteration, queued.EventsPerIteration);
+            Assert.Equal(blocking.PayloadValuesPerIteration, queued.PayloadValuesPerIteration);
+            Assert.Equal(blocking.ValidationChecksum, queued.ValidationChecksum);
+            Assert.Equal(1, queued.QueueTelemetry.OwnedSnapshotCount);
+            Assert.Equal(1, queued.QueueTelemetry.EnqueueAttemptCount);
+            Assert.Equal(1, queued.QueueTelemetry.EnqueuedBatchCount);
+            Assert.Equal(1, queued.QueueTelemetry.DequeuedBatchCount);
+            Assert.Equal(1, queued.QueueTelemetry.CompletedBatchCount);
+            Assert.Equal(0, queued.QueueTelemetry.FailedBatchCount);
+            Assert.Equal(queued.PayloadBytesPerIteration, queued.QueueTelemetry.OwnedSnapshotPayloadBytes);
+            Assert.Equal(queued.PayloadValuesPerIteration, queued.QueueTelemetry.OwnedSnapshotPayloadValueCount);
+            Assert.True(queued.OwnedSnapshotAllocatedBytes > 0);
+            Assert.Equal(queued.QueueTelemetry.OwnedSnapshotAllocatedBytes, queued.OwnedSnapshotAllocatedBytes);
+            Assert.True(queued.OwnedSnapshotElapsed >= TimeSpan.Zero);
+            Assert.True(queued.QueueDrainElapsed >= TimeSpan.Zero);
+            Assert.True(queued.AllocationSummary.OwnedSnapshotAllocatedBytesPerPayloadValue(queued.TotalPayloadValues) >= 0);
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(path)!, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void RebalanceArchiveBenchmarkQueuedOwnedAsyncKeepsWorkerTelemetry()
+    {
+        var record = BuildMessage(31, BuildEightBitType31Payload("REF", [1, 2, 3], scale: 2f, offset: 66f));
+        var compressedPayload = BuildFakeBZip2Payload(1);
+        var path = WriteTempFile(
+            "KTLX20260504_000245_V06",
+            BuildArchiveTwoHeader()
+                .Concat(BuildCompressedRecord(compressedPayload.Length, compressedPayload))
+                .ToArray());
+        var benchmark = new RadarProcessingArchiveRebalanceBenchmark(
+            new FakeArchiveBZip2Decompressor(new Dictionary<byte, byte[]>
+            {
+                [1] = record
+            }));
+
+        try
+        {
+            var result = benchmark.MeasureFile(
+                path,
+                RadarProcessingSyntheticRebalanceBenchmarkMode.StaticNoRebalance,
+                iterations: 1,
+                warmupIterations: 0,
+                partitionCount: 4,
+                shardCount: 2,
+                degreeOfParallelism: 1,
+                CancellationToken.None,
+                executionMode: RadarProcessingExecutionMode.AsyncShardTransport,
+                asyncExecution: new RadarProcessingAsyncExecutionOptions(workerCount: 2, queueCapacity: 1),
+                providerMode: RadarProcessingArchiveProviderMode.QueuedOwned,
+                queueCapacity: 1);
+
+            Assert.Equal(RadarProcessingExecutionMode.AsyncShardTransport, result.ExecutionMode);
+            Assert.Equal(RadarProcessingArchiveProviderMode.QueuedOwned, result.ProviderMode);
+            Assert.True(result.HasWorkerTelemetry);
+            Assert.NotNull(result.WorkerTelemetry);
+            Assert.Equal(1, result.WorkerTelemetry.Counters.CompletedBatchCount);
+            Assert.Equal(0, result.WorkerTelemetry.Counters.FailedBatchCount);
+            Assert.Equal(1, result.QueueTelemetry.CompletedBatchCount);
+            Assert.Equal(1, result.QueueTelemetry.DequeuedBatchCount);
+            Assert.True(result.ValidationSucceeded);
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(path)!, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void RebalanceArchiveBenchmarkValidatesQueuedProviderOptions()
+    {
+        var record = BuildMessage(31, BuildEightBitType31Payload("REF", [1, 2, 3], scale: 2f, offset: 66f));
+        var compressedPayload = BuildFakeBZip2Payload(1);
+        var path = WriteTempFile(
+            "KTLX20260504_000245_V06",
+            BuildArchiveTwoHeader()
+                .Concat(BuildCompressedRecord(compressedPayload.Length, compressedPayload))
+                .ToArray());
+        var benchmark = new RadarProcessingArchiveRebalanceBenchmark(
+            new FakeArchiveBZip2Decompressor(new Dictionary<byte, byte[]>
+            {
+                [1] = record
+            }));
+
+        try
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                benchmark.MeasureFile(
+                    path,
+                    RadarProcessingSyntheticRebalanceBenchmarkMode.StaticNoRebalance,
+                    iterations: 1,
+                    warmupIterations: 0,
+                    partitionCount: 4,
+                    shardCount: 2,
+                    degreeOfParallelism: 1,
+                    CancellationToken.None,
+                    providerMode: (RadarProcessingArchiveProviderMode)255));
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                benchmark.MeasureFile(
+                    path,
+                    RadarProcessingSyntheticRebalanceBenchmarkMode.StaticNoRebalance,
+                    iterations: 1,
+                    warmupIterations: 0,
+                    partitionCount: 4,
+                    shardCount: 2,
+                    degreeOfParallelism: 1,
+                    CancellationToken.None,
+                    providerMode: RadarProcessingArchiveProviderMode.QueuedOwned,
+                    queueCapacity: 0));
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(path)!, recursive: true);
+        }
+    }
+
+    [Fact]
     public void RebalanceArchiveBenchmarkCacheAsyncMatchesSynchronousTotals()
     {
         var firstRecord = BuildMessage(31, BuildEightBitType31Payload("REF", [1, 2, 3], scale: 2f, offset: 66f));
@@ -679,6 +844,71 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
             Assert.Equal(synchronous.RebalanceEvaluationCount, asynchronous.RebalanceEvaluationCount);
             Assert.Equal(synchronous.ValidationChecksum, asynchronous.ValidationChecksum);
             Assert.Equal(asynchronous.BatchesPerIteration, asynchronous.WorkerTelemetry.Counters.CompletedBatchCount);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void RebalanceArchiveBenchmarkCacheQueuedOwnedAggregatesQueueTelemetry()
+    {
+        var firstRecord = BuildMessage(31, BuildEightBitType31Payload("REF", [1, 2, 3], scale: 2f, offset: 66f));
+        var secondRecord = BuildMessage(31, BuildEightBitType31Payload("VEL", [4, 5], scale: 1f, offset: 8f));
+        var compressedPayload1 = BuildFakeBZip2Payload(1);
+        var compressedPayload2 = BuildFakeBZip2Payload(2);
+        var directory = Path.Combine(Path.GetTempPath(), "RadarPulse.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        WriteTempFileInDirectory(
+            directory,
+            "KTLX20260504_000245_V06",
+            BuildArchiveTwoHeader()
+                .Concat(BuildCompressedRecord(compressedPayload1.Length, compressedPayload1))
+                .ToArray());
+        WriteTempFileInDirectory(
+            directory,
+            "KTLX20260504_000846_V06",
+            BuildArchiveTwoHeader()
+                .Concat(BuildCompressedRecord(compressedPayload2.Length, compressedPayload2))
+                .ToArray());
+        WriteTempFileInDirectory(directory, "notes.txt", [1, 2, 3]);
+        var benchmark = new RadarProcessingArchiveRebalanceBenchmark(
+            new FakeArchiveBZip2Decompressor(new Dictionary<byte, byte[]>
+            {
+                [1] = firstRecord,
+                [2] = secondRecord
+            }));
+
+        try
+        {
+            var result = benchmark.MeasureCache(
+                directory,
+                date: null,
+                radarId: null,
+                maxFiles: 10,
+                mode: RadarProcessingSyntheticRebalanceBenchmarkMode.StaticNoRebalance,
+                iterations: 1,
+                warmupIterations: 0,
+                partitionCount: 4,
+                shardCount: 2,
+                degreeOfParallelism: 2,
+                CancellationToken.None,
+                providerMode: RadarProcessingArchiveProviderMode.QueuedOwned,
+                queueCapacity: 1);
+
+            Assert.Equal(RadarProcessingArchiveProviderMode.QueuedOwned, result.ProviderMode);
+            Assert.True(result.HasQueueTelemetry);
+            Assert.Equal(1, result.QueueCapacity);
+            Assert.Equal(2, result.PublishedFilesPerIteration);
+            Assert.Equal(2, result.BatchesPerIteration);
+            Assert.Equal(2, result.QueueTelemetry.OwnedSnapshotCount);
+            Assert.Equal(2, result.QueueTelemetry.EnqueueAttemptCount);
+            Assert.Equal(2, result.QueueTelemetry.EnqueuedBatchCount);
+            Assert.Equal(2, result.QueueTelemetry.DequeuedBatchCount);
+            Assert.Equal(2, result.QueueTelemetry.CompletedBatchCount);
+            Assert.Equal(result.PayloadValuesPerIteration, result.QueueTelemetry.OwnedSnapshotPayloadValueCount);
+            Assert.True(result.QueueDrainElapsed >= TimeSpan.Zero);
         }
         finally
         {

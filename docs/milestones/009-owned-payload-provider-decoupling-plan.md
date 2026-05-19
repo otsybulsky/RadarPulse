@@ -696,16 +696,16 @@ implementation.
 ## Completion Checklist
 
 ```text
-[ ] owned snapshot guardrails are strengthened and tested
-[ ] provider queue contracts are implemented and tested
-[ ] bounded owned batch queue is implemented and tested
-[ ] queued processing consumer is implemented and tested
-[ ] queued rebalance consumer is implemented and tested
-[ ] archive provider adapter converts leased input to owned before enqueue
-[ ] provider enqueue and processing completion results are separated
-[ ] queue telemetry is bounded and tested
-[ ] queued validation proves parity against borrowed blocking references
-[ ] archive benchmark exposes blocking-borrowed and queued-owned provider modes
+[x] owned snapshot guardrails are strengthened and tested
+[x] provider queue contracts are implemented and tested
+[x] bounded owned batch queue is implemented and tested
+[x] queued processing consumer is implemented and tested
+[x] queued rebalance consumer is implemented and tested
+[x] archive provider adapter converts leased input to owned before enqueue
+[x] provider enqueue and processing completion results are separated
+[x] queue telemetry is bounded and tested
+[x] queued validation proves parity against borrowed blocking references
+[x] archive benchmark exposes blocking-borrowed and queued-owned provider modes
 [ ] CLI exposes provider mode, queue capacity, and queued telemetry options
 [ ] same-run single-file comparisons are captured
 [ ] same-run full-cache comparisons are captured where local data is available
