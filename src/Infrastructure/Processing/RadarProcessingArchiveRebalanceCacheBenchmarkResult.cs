@@ -52,8 +52,12 @@ public sealed record RadarProcessingArchiveRebalanceCacheBenchmarkResult(
     int MaxRetainedAcceptedMoves = 64,
     int MaxRetainedValidationFailures = 32,
     RadarProcessingPressureSkewOptions? PressureSkew = null,
-    RadarProcessingRebalanceAllocationSummary AllocationSummary = default)
+    RadarProcessingRebalanceAllocationSummary AllocationSummary = default,
+    RadarProcessingExecutionMode ExecutionMode = RadarProcessingExecutionMode.PartitionedBarrier,
+    RadarProcessingWorkerTelemetrySummary? WorkerTelemetry = null)
 {
+    public bool HasWorkerTelemetry => WorkerTelemetry is not null;
+
     public IReadOnlyList<RadarProcessingRebalanceSkippedReasonCounter> SkippedReasonCounters { get; init; } =
         SkippedReasonCounters;
 

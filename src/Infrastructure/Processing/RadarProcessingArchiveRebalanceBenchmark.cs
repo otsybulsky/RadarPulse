@@ -33,10 +33,13 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         int degreeOfParallelism,
         CancellationToken cancellationToken = default,
         RadarProcessingRebalanceHardeningOptions? hardeningOptions = null,
-        RadarProcessingPressureSkewOptions? pressureSkewOptions = null)
+        RadarProcessingPressureSkewOptions? pressureSkewOptions = null,
+        RadarProcessingExecutionMode executionMode = RadarProcessingExecutionMode.PartitionedBarrier,
+        RadarProcessingAsyncExecutionOptions? asyncExecution = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         EnsureKnownMode(mode);
+        EnsureKnownExecutionMode(executionMode);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(iterations);
         ArgumentOutOfRangeException.ThrowIfNegative(warmupIterations);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(partitionCount);
@@ -52,6 +55,9 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         }
 
         var effectiveHardeningOptions = hardeningOptions ?? RadarProcessingRebalanceHardeningOptions.Default;
+        var effectiveAsyncExecution = executionMode == RadarProcessingExecutionMode.AsyncShardTransport
+            ? asyncExecution ?? new RadarProcessingAsyncExecutionOptions(workerCount: shardCount, queueCapacity: 1)
+            : asyncExecution;
 
         var fileInfo = new FileInfo(filePath);
         if (!fileInfo.Exists)
@@ -72,103 +78,133 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         using var archiveSession = new NexradArchiveRadarEventBatchPublishSession(
             decompressor,
             publishOptions);
-
-        for (var warmupIteration = 0; warmupIteration < warmupIterations; warmupIteration++)
+        var workerTelemetryRecorder = executionMode == RadarProcessingExecutionMode.AsyncShardTransport
+            ? new RadarProcessingWorkerTelemetryRecorder(effectiveHardeningOptions.TelemetryRetention)
+            : null;
+        RadarProcessingAsyncWorkerGroup? workerGroup = null;
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            RunIteration(
-                archiveSession,
-                fileInfo.FullName,
-                sourceUniverse,
-                mode,
-                partitionCount,
-                shardCount,
-                effectiveHardeningOptions,
-                pressureSkewOptions ?? RadarProcessingPressureSkewOptions.None,
-                cancellationToken);
-        }
+            workerGroup = executionMode == RadarProcessingExecutionMode.AsyncShardTransport
+                ? new RadarProcessingAsyncWorkerGroup(
+                    new RadarProcessingAsyncWorkerGroupOptions(effectiveAsyncExecution))
+                : null;
 
-        var allocationBefore = RadarProcessingBenchmarkAllocationSnapshot.Capture();
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-
-        ArchiveIterationTelemetry? expectedIteration = null;
-        var aggregate = ArchiveIterationTelemetry.Empty;
-        for (var iteration = 0; iteration < iterations; iteration++)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var iterationTelemetry = RunIteration(
-                archiveSession,
-                fileInfo.FullName,
-                sourceUniverse,
-                mode,
-                partitionCount,
-                shardCount,
-                effectiveHardeningOptions,
-                pressureSkewOptions ?? RadarProcessingPressureSkewOptions.None,
-                cancellationToken);
-            if (expectedIteration.HasValue && !expectedIteration.Value.HasSameStableTotals(iterationTelemetry))
+            for (var warmupIteration = 0; warmupIteration < warmupIterations; warmupIteration++)
             {
-                throw new InvalidDataException("Archive rebalance benchmark produced inconsistent iteration totals.");
+                cancellationToken.ThrowIfCancellationRequested();
+                RunIteration(
+                    archiveSession,
+                    fileInfo.FullName,
+                    sourceUniverse,
+                    mode,
+                    partitionCount,
+                    shardCount,
+                    effectiveHardeningOptions,
+                    pressureSkewOptions ?? RadarProcessingPressureSkewOptions.None,
+                    executionMode,
+                    effectiveAsyncExecution,
+                    workerTelemetryRecorder: null,
+                    workerGroup,
+                    cancellationToken);
             }
 
-            expectedIteration ??= iterationTelemetry;
-            aggregate = aggregate.Add(iterationTelemetry);
+            var allocationBefore = RadarProcessingBenchmarkAllocationSnapshot.Capture();
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+            ArchiveIterationTelemetry? expectedIteration = null;
+            var aggregate = ArchiveIterationTelemetry.Empty;
+            for (var iteration = 0; iteration < iterations; iteration++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var iterationTelemetry = RunIteration(
+                    archiveSession,
+                    fileInfo.FullName,
+                    sourceUniverse,
+                    mode,
+                    partitionCount,
+                    shardCount,
+                    effectiveHardeningOptions,
+                    pressureSkewOptions ?? RadarProcessingPressureSkewOptions.None,
+                    executionMode,
+                    effectiveAsyncExecution,
+                    workerTelemetryRecorder,
+                    workerGroup,
+                    cancellationToken);
+                if (expectedIteration.HasValue && !expectedIteration.Value.HasSameStableTotals(iterationTelemetry))
+                {
+                    throw new InvalidDataException("Archive rebalance benchmark produced inconsistent iteration totals.");
+                }
+
+                expectedIteration ??= iterationTelemetry;
+                aggregate = aggregate.Add(iterationTelemetry);
+            }
+
+            stopwatch.Stop();
+            var allocatedBytes = RadarProcessingBenchmarkAllocationSnapshot.Capture().DeltaSince(allocationBefore);
+            var allocationSummary = RadarProcessingRebalanceAllocationSummary.ForArchiveReplay(
+                allocatedBytes,
+                aggregate.ProcessingCallbackAllocatedBytes);
+            var measuredIteration = expectedIteration ??
+                                    throw new InvalidOperationException("Archive rebalance benchmark did not run.");
+            var workerTelemetry = workerTelemetryRecorder?.CreateSummary();
+            ValidateWorkerTelemetry(workerTelemetry, workerTelemetryRecorder, effectiveHardeningOptions);
+
+            return new RadarProcessingArchiveRebalanceBenchmarkResult(
+                fileInfo.FullName,
+                decompressor.Name,
+                mode,
+                iterations,
+                warmupIterations,
+                degreeOfParallelism,
+                sourceUniverse.SourceCount,
+                partitionCount,
+                shardCount,
+                measuredIteration.FileSizeBytes,
+                measuredIteration.CompressedRecordCount,
+                measuredIteration.CompressedBytes,
+                measuredIteration.DecompressedBytes,
+                measuredIteration.BatchCount,
+                measuredIteration.EventCount,
+                measuredIteration.PayloadBytes,
+                measuredIteration.PayloadValueCount,
+                measuredIteration.RawValueChecksum,
+                measuredIteration.TopologyVersionCount,
+                aggregate.RebalanceEvaluationCount,
+                aggregate.AcceptedMoveCount,
+                aggregate.SkippedDecisionCount,
+                aggregate.DirectHotReliefCount,
+                aggregate.ColdEvacuationCount,
+                aggregate.FailedMigrationCount,
+                aggregate.ValidationSucceeded,
+                aggregate.ValidationChecksum,
+                CreateReadOnlyList(aggregate.SkippedReasons),
+                CreateSortedSkippedReasonCounters(aggregate.SkippedReasonCounters),
+                CreateReadOnlyList(aggregate.AcceptedMovePressures),
+                aggregate.RetentionStats,
+                stopwatch.Elapsed,
+                aggregate.ProcessingElapsed,
+                allocatedBytes,
+                effectiveHardeningOptions.ValidationProfile,
+                effectiveHardeningOptions.TelemetryRetention.RetentionMode,
+                effectiveHardeningOptions.QuarantineLifecycle.QuarantineTtlEvaluations,
+                effectiveHardeningOptions.QuarantineLifecycle.SustainedCoolingSampleCount,
+                effectiveHardeningOptions.QuarantineLifecycle.MaterialPressureChangeThreshold,
+                effectiveHardeningOptions.TelemetryRetention.MaxRetainedDecisions,
+                effectiveHardeningOptions.TelemetryRetention.MaxRetainedLifecycleTransitions,
+                effectiveHardeningOptions.TelemetryRetention.MaxRetainedAcceptedMoves,
+                effectiveHardeningOptions.TelemetryRetention.MaxRetainedValidationFailures,
+                pressureSkewOptions ?? RadarProcessingPressureSkewOptions.None,
+                allocationSummary,
+                executionMode,
+                workerTelemetry);
         }
-
-        stopwatch.Stop();
-        var allocatedBytes = RadarProcessingBenchmarkAllocationSnapshot.Capture().DeltaSince(allocationBefore);
-        var allocationSummary = RadarProcessingRebalanceAllocationSummary.ForArchiveReplay(
-            allocatedBytes,
-            aggregate.ProcessingCallbackAllocatedBytes);
-        var measuredIteration = expectedIteration ??
-                                throw new InvalidOperationException("Archive rebalance benchmark did not run.");
-
-        return new RadarProcessingArchiveRebalanceBenchmarkResult(
-            fileInfo.FullName,
-            decompressor.Name,
-            mode,
-            iterations,
-            warmupIterations,
-            degreeOfParallelism,
-            sourceUniverse.SourceCount,
-            partitionCount,
-            shardCount,
-            measuredIteration.FileSizeBytes,
-            measuredIteration.CompressedRecordCount,
-            measuredIteration.CompressedBytes,
-            measuredIteration.DecompressedBytes,
-            measuredIteration.BatchCount,
-            measuredIteration.EventCount,
-            measuredIteration.PayloadBytes,
-            measuredIteration.PayloadValueCount,
-            measuredIteration.RawValueChecksum,
-            measuredIteration.TopologyVersionCount,
-            aggregate.RebalanceEvaluationCount,
-            aggregate.AcceptedMoveCount,
-            aggregate.SkippedDecisionCount,
-            aggregate.DirectHotReliefCount,
-            aggregate.ColdEvacuationCount,
-            aggregate.FailedMigrationCount,
-            aggregate.ValidationSucceeded,
-            aggregate.ValidationChecksum,
-            CreateReadOnlyList(aggregate.SkippedReasons),
-            CreateSortedSkippedReasonCounters(aggregate.SkippedReasonCounters),
-            CreateReadOnlyList(aggregate.AcceptedMovePressures),
-            aggregate.RetentionStats,
-            stopwatch.Elapsed,
-            aggregate.ProcessingElapsed,
-            allocatedBytes,
-            effectiveHardeningOptions.ValidationProfile,
-            effectiveHardeningOptions.TelemetryRetention.RetentionMode,
-            effectiveHardeningOptions.QuarantineLifecycle.QuarantineTtlEvaluations,
-            effectiveHardeningOptions.QuarantineLifecycle.SustainedCoolingSampleCount,
-            effectiveHardeningOptions.QuarantineLifecycle.MaterialPressureChangeThreshold,
-            effectiveHardeningOptions.TelemetryRetention.MaxRetainedDecisions,
-            effectiveHardeningOptions.TelemetryRetention.MaxRetainedLifecycleTransitions,
-            effectiveHardeningOptions.TelemetryRetention.MaxRetainedAcceptedMoves,
-            effectiveHardeningOptions.TelemetryRetention.MaxRetainedValidationFailures,
-            pressureSkewOptions ?? RadarProcessingPressureSkewOptions.None,
-            allocationSummary);
+        finally
+        {
+            if (workerGroup is not null)
+            {
+                workerGroup.DisposeAsync().GetAwaiter().GetResult();
+            }
+        }
     }
 
     public RadarProcessingArchiveRebalanceCacheBenchmarkResult MeasureCache(
@@ -184,11 +220,14 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         int degreeOfParallelism,
         CancellationToken cancellationToken = default,
         RadarProcessingRebalanceHardeningOptions? hardeningOptions = null,
-        RadarProcessingPressureSkewOptions? pressureSkewOptions = null)
+        RadarProcessingPressureSkewOptions? pressureSkewOptions = null,
+        RadarProcessingExecutionMode executionMode = RadarProcessingExecutionMode.PartitionedBarrier,
+        RadarProcessingAsyncExecutionOptions? asyncExecution = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(cachePath);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxFiles);
         EnsureKnownMode(mode);
+        EnsureKnownExecutionMode(executionMode);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(iterations);
         ArgumentOutOfRangeException.ThrowIfNegative(warmupIterations);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(partitionCount);
@@ -204,6 +243,9 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         }
 
         var effectiveHardeningOptions = hardeningOptions ?? RadarProcessingRebalanceHardeningOptions.Default;
+        var effectiveAsyncExecution = executionMode == RadarProcessingExecutionMode.AsyncShardTransport
+            ? asyncExecution ?? new RadarProcessingAsyncExecutionOptions(workerCount: shardCount, queueCapacity: 1)
+            : asyncExecution;
 
         var directoryInfo = new DirectoryInfo(cachePath);
         if (!directoryInfo.Exists)
@@ -227,114 +269,144 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         using var archiveSession = new NexradArchiveRadarEventBatchPublishSession(
             decompressor,
             publishOptions);
-
-        for (var warmupIteration = 0; warmupIteration < warmupIterations; warmupIteration++)
+        var workerTelemetryRecorder = executionMode == RadarProcessingExecutionMode.AsyncShardTransport
+            ? new RadarProcessingWorkerTelemetryRecorder(effectiveHardeningOptions.TelemetryRetention)
+            : null;
+        RadarProcessingAsyncWorkerGroup? workerGroup = null;
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            RunCacheIteration(
-                archiveSession,
-                directoryInfo,
-                date,
-                normalizedRadarId,
-                maxFiles,
-                sourceUniverse,
-                mode,
-                partitionCount,
-                shardCount,
-                effectiveHardeningOptions,
-                pressureSkewOptions ?? RadarProcessingPressureSkewOptions.None,
-                cancellationToken);
-        }
+            workerGroup = executionMode == RadarProcessingExecutionMode.AsyncShardTransport
+                ? new RadarProcessingAsyncWorkerGroup(
+                    new RadarProcessingAsyncWorkerGroupOptions(effectiveAsyncExecution))
+                : null;
 
-        var allocationBefore = RadarProcessingBenchmarkAllocationSnapshot.Capture();
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-
-        ArchiveIterationTelemetry? expectedIteration = null;
-        var aggregate = ArchiveIterationTelemetry.Empty;
-        for (var iteration = 0; iteration < iterations; iteration++)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var iterationTelemetry = RunCacheIteration(
-                archiveSession,
-                directoryInfo,
-                date,
-                normalizedRadarId,
-                maxFiles,
-                sourceUniverse,
-                mode,
-                partitionCount,
-                shardCount,
-                effectiveHardeningOptions,
-                pressureSkewOptions ?? RadarProcessingPressureSkewOptions.None,
-                cancellationToken);
-            if (expectedIteration.HasValue && !expectedIteration.Value.HasSameStableTotals(iterationTelemetry))
+            for (var warmupIteration = 0; warmupIteration < warmupIterations; warmupIteration++)
             {
-                throw new InvalidDataException("Archive cache rebalance benchmark produced inconsistent iteration totals.");
+                cancellationToken.ThrowIfCancellationRequested();
+                RunCacheIteration(
+                    archiveSession,
+                    directoryInfo,
+                    date,
+                    normalizedRadarId,
+                    maxFiles,
+                    sourceUniverse,
+                    mode,
+                    partitionCount,
+                    shardCount,
+                    effectiveHardeningOptions,
+                    pressureSkewOptions ?? RadarProcessingPressureSkewOptions.None,
+                    executionMode,
+                    effectiveAsyncExecution,
+                    workerTelemetryRecorder: null,
+                    workerGroup,
+                    cancellationToken);
             }
 
-            expectedIteration ??= iterationTelemetry;
-            aggregate = aggregate.Add(iterationTelemetry);
+            var allocationBefore = RadarProcessingBenchmarkAllocationSnapshot.Capture();
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+            ArchiveIterationTelemetry? expectedIteration = null;
+            var aggregate = ArchiveIterationTelemetry.Empty;
+            for (var iteration = 0; iteration < iterations; iteration++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var iterationTelemetry = RunCacheIteration(
+                    archiveSession,
+                    directoryInfo,
+                    date,
+                    normalizedRadarId,
+                    maxFiles,
+                    sourceUniverse,
+                    mode,
+                    partitionCount,
+                    shardCount,
+                    effectiveHardeningOptions,
+                    pressureSkewOptions ?? RadarProcessingPressureSkewOptions.None,
+                    executionMode,
+                    effectiveAsyncExecution,
+                    workerTelemetryRecorder,
+                    workerGroup,
+                    cancellationToken);
+                if (expectedIteration.HasValue && !expectedIteration.Value.HasSameStableTotals(iterationTelemetry))
+                {
+                    throw new InvalidDataException("Archive cache rebalance benchmark produced inconsistent iteration totals.");
+                }
+
+                expectedIteration ??= iterationTelemetry;
+                aggregate = aggregate.Add(iterationTelemetry);
+            }
+
+            stopwatch.Stop();
+            var allocatedBytes = RadarProcessingBenchmarkAllocationSnapshot.Capture().DeltaSince(allocationBefore);
+            var allocationSummary = RadarProcessingRebalanceAllocationSummary.ForArchiveReplay(
+                allocatedBytes,
+                aggregate.ProcessingCallbackAllocatedBytes);
+            var measuredIteration = expectedIteration ??
+                                    throw new InvalidOperationException("Archive cache rebalance benchmark did not run.");
+            var workerTelemetry = workerTelemetryRecorder?.CreateSummary();
+            ValidateWorkerTelemetry(workerTelemetry, workerTelemetryRecorder, effectiveHardeningOptions);
+
+            return new RadarProcessingArchiveRebalanceCacheBenchmarkResult(
+                directoryInfo.FullName,
+                date,
+                normalizedRadarId,
+                decompressor.Name,
+                mode,
+                iterations,
+                warmupIterations,
+                degreeOfParallelism,
+                sourceUniverse.SourceCount,
+                partitionCount,
+                shardCount,
+                measuredIteration.ExaminedFileCount,
+                measuredIteration.SkippedFileCount,
+                measuredIteration.PublishedFileCount,
+                measuredIteration.FileSizeBytes,
+                measuredIteration.CompressedRecordCount,
+                measuredIteration.CompressedBytes,
+                measuredIteration.DecompressedBytes,
+                measuredIteration.BatchCount,
+                measuredIteration.EventCount,
+                measuredIteration.PayloadBytes,
+                measuredIteration.PayloadValueCount,
+                measuredIteration.RawValueChecksum,
+                measuredIteration.TopologyVersionCount,
+                aggregate.RebalanceEvaluationCount,
+                aggregate.AcceptedMoveCount,
+                aggregate.SkippedDecisionCount,
+                aggregate.DirectHotReliefCount,
+                aggregate.ColdEvacuationCount,
+                aggregate.FailedMigrationCount,
+                aggregate.ValidationSucceeded,
+                aggregate.ValidationChecksum,
+                CreateReadOnlyList(aggregate.SkippedReasons),
+                CreateSortedSkippedReasonCounters(aggregate.SkippedReasonCounters),
+                CreateReadOnlyList(aggregate.AcceptedMovePressures),
+                aggregate.RetentionStats,
+                stopwatch.Elapsed,
+                aggregate.ProcessingElapsed,
+                allocatedBytes,
+                effectiveHardeningOptions.ValidationProfile,
+                effectiveHardeningOptions.TelemetryRetention.RetentionMode,
+                effectiveHardeningOptions.QuarantineLifecycle.QuarantineTtlEvaluations,
+                effectiveHardeningOptions.QuarantineLifecycle.SustainedCoolingSampleCount,
+                effectiveHardeningOptions.QuarantineLifecycle.MaterialPressureChangeThreshold,
+                effectiveHardeningOptions.TelemetryRetention.MaxRetainedDecisions,
+                effectiveHardeningOptions.TelemetryRetention.MaxRetainedLifecycleTransitions,
+                effectiveHardeningOptions.TelemetryRetention.MaxRetainedAcceptedMoves,
+                effectiveHardeningOptions.TelemetryRetention.MaxRetainedValidationFailures,
+                pressureSkewOptions ?? RadarProcessingPressureSkewOptions.None,
+                allocationSummary,
+                executionMode,
+                workerTelemetry);
         }
-
-        stopwatch.Stop();
-        var allocatedBytes = RadarProcessingBenchmarkAllocationSnapshot.Capture().DeltaSince(allocationBefore);
-        var allocationSummary = RadarProcessingRebalanceAllocationSummary.ForArchiveReplay(
-            allocatedBytes,
-            aggregate.ProcessingCallbackAllocatedBytes);
-        var measuredIteration = expectedIteration ??
-                                throw new InvalidOperationException("Archive cache rebalance benchmark did not run.");
-
-        return new RadarProcessingArchiveRebalanceCacheBenchmarkResult(
-            directoryInfo.FullName,
-            date,
-            normalizedRadarId,
-            decompressor.Name,
-            mode,
-            iterations,
-            warmupIterations,
-            degreeOfParallelism,
-            sourceUniverse.SourceCount,
-            partitionCount,
-            shardCount,
-            measuredIteration.ExaminedFileCount,
-            measuredIteration.SkippedFileCount,
-            measuredIteration.PublishedFileCount,
-            measuredIteration.FileSizeBytes,
-            measuredIteration.CompressedRecordCount,
-            measuredIteration.CompressedBytes,
-            measuredIteration.DecompressedBytes,
-            measuredIteration.BatchCount,
-            measuredIteration.EventCount,
-            measuredIteration.PayloadBytes,
-            measuredIteration.PayloadValueCount,
-            measuredIteration.RawValueChecksum,
-            measuredIteration.TopologyVersionCount,
-            aggregate.RebalanceEvaluationCount,
-            aggregate.AcceptedMoveCount,
-            aggregate.SkippedDecisionCount,
-            aggregate.DirectHotReliefCount,
-            aggregate.ColdEvacuationCount,
-            aggregate.FailedMigrationCount,
-            aggregate.ValidationSucceeded,
-            aggregate.ValidationChecksum,
-            CreateReadOnlyList(aggregate.SkippedReasons),
-            CreateSortedSkippedReasonCounters(aggregate.SkippedReasonCounters),
-            CreateReadOnlyList(aggregate.AcceptedMovePressures),
-            aggregate.RetentionStats,
-            stopwatch.Elapsed,
-            aggregate.ProcessingElapsed,
-            allocatedBytes,
-            effectiveHardeningOptions.ValidationProfile,
-            effectiveHardeningOptions.TelemetryRetention.RetentionMode,
-            effectiveHardeningOptions.QuarantineLifecycle.QuarantineTtlEvaluations,
-            effectiveHardeningOptions.QuarantineLifecycle.SustainedCoolingSampleCount,
-            effectiveHardeningOptions.QuarantineLifecycle.MaterialPressureChangeThreshold,
-            effectiveHardeningOptions.TelemetryRetention.MaxRetainedDecisions,
-            effectiveHardeningOptions.TelemetryRetention.MaxRetainedLifecycleTransitions,
-            effectiveHardeningOptions.TelemetryRetention.MaxRetainedAcceptedMoves,
-            effectiveHardeningOptions.TelemetryRetention.MaxRetainedValidationFailures,
-            pressureSkewOptions ?? RadarProcessingPressureSkewOptions.None,
-            allocationSummary);
+        finally
+        {
+            if (workerGroup is not null)
+            {
+                workerGroup.DisposeAsync().GetAwaiter().GetResult();
+            }
+        }
     }
 
     private static ArchiveIterationTelemetry RunIteration(
@@ -346,15 +418,23 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         int shardCount,
         RadarProcessingRebalanceHardeningOptions hardeningOptions,
         RadarProcessingPressureSkewOptions pressureSkewOptions,
+        RadarProcessingExecutionMode executionMode,
+        RadarProcessingAsyncExecutionOptions? asyncExecution,
+        RadarProcessingWorkerTelemetryRecorder? workerTelemetryRecorder,
+        RadarProcessingAsyncWorkerGroup? workerGroup,
         CancellationToken cancellationToken)
     {
-        var processor = new ArchiveRebalanceBatchProcessor(
+        using var processor = new ArchiveRebalanceBatchProcessor(
             sourceUniverse,
             mode,
             partitionCount,
             shardCount,
             hardeningOptions,
-            pressureSkewOptions);
+            pressureSkewOptions,
+            executionMode,
+            asyncExecution,
+            workerTelemetryRecorder,
+            workerGroup);
         var publishResult = archiveSession.PublishFile(filePath, processor, cancellationToken);
         return processor.BuildTelemetry(publishResult);
     }
@@ -371,15 +451,23 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         int shardCount,
         RadarProcessingRebalanceHardeningOptions hardeningOptions,
         RadarProcessingPressureSkewOptions pressureSkewOptions,
+        RadarProcessingExecutionMode executionMode,
+        RadarProcessingAsyncExecutionOptions? asyncExecution,
+        RadarProcessingWorkerTelemetryRecorder? workerTelemetryRecorder,
+        RadarProcessingAsyncWorkerGroup? workerGroup,
         CancellationToken cancellationToken)
     {
-        var processor = new ArchiveRebalanceBatchProcessor(
+        using var processor = new ArchiveRebalanceBatchProcessor(
             sourceUniverse,
             mode,
             partitionCount,
             shardCount,
             hardeningOptions,
-            pressureSkewOptions);
+            pressureSkewOptions,
+            executionMode,
+            asyncExecution,
+            workerTelemetryRecorder,
+            workerGroup);
         var totals = CacheIterationTotals.Empty;
 
         foreach (var fileInfo in directoryInfo.EnumerateFiles("*", SearchOption.AllDirectories).OrderBy(file => file.FullName))
@@ -486,6 +574,35 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         }
     }
 
+    private static void EnsureKnownExecutionMode(RadarProcessingExecutionMode executionMode)
+    {
+        if (executionMode is not RadarProcessingExecutionMode.PartitionedBarrier and
+            not RadarProcessingExecutionMode.AsyncShardTransport)
+        {
+            throw new ArgumentOutOfRangeException(nameof(executionMode));
+        }
+    }
+
+    private static void ValidateWorkerTelemetry(
+        RadarProcessingWorkerTelemetrySummary? workerTelemetry,
+        RadarProcessingWorkerTelemetryRecorder? workerTelemetryRecorder,
+        RadarProcessingRebalanceHardeningOptions hardeningOptions)
+    {
+        if (workerTelemetry is null)
+        {
+            return;
+        }
+
+        var retentionValidation = RadarProcessingAsyncValidator.ValidateWorkerTelemetryRetention(
+            workerTelemetry,
+            workerTelemetryRecorder!.Options,
+            hardeningOptions.ValidationProfile);
+        if (!retentionValidation.IsValid)
+        {
+            throw new InvalidDataException(retentionValidation.Message);
+        }
+    }
+
     private static ulong AppendByte(ulong checksum, byte value) =>
         unchecked((checksum ^ value) * ChecksumPrime);
 
@@ -533,16 +650,19 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         return Array.AsReadOnly(result);
     }
 
-    private sealed class ArchiveRebalanceBatchProcessor : IArchiveRadarEventBatchPublisher
+    private sealed class ArchiveRebalanceBatchProcessor : IArchiveRadarEventBatchPublisher, IDisposable
     {
         private readonly RadarProcessingSyntheticRebalanceBenchmarkMode mode;
         private readonly RadarProcessingCore? core;
+        private readonly RadarProcessingAsyncCoreSession? asyncCoreSession;
         private readonly RadarProcessingPressureWindow? pressureWindow;
         private readonly RadarProcessingRebalanceSession? rebalanceSession;
+        private readonly RadarProcessingAsyncRebalanceSession? asyncRebalanceSession;
         private readonly RadarProcessingPressureSkewTransformer? pressureSkewTransformer;
         private readonly System.Diagnostics.Stopwatch processingStopwatch = new();
         private ArchiveIterationTelemetry telemetry = ArchiveIterationTelemetry.Empty;
         private long processingCallbackAllocatedBytes;
+        private bool disposed;
 
         public ArchiveRebalanceBatchProcessor(
             RadarSourceUniverse sourceUniverse,
@@ -550,7 +670,11 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             int partitionCount,
             int shardCount,
             RadarProcessingRebalanceHardeningOptions hardeningOptions,
-            RadarProcessingPressureSkewOptions pressureSkewOptions)
+            RadarProcessingPressureSkewOptions pressureSkewOptions,
+            RadarProcessingExecutionMode executionMode,
+            RadarProcessingAsyncExecutionOptions? asyncExecution,
+            RadarProcessingWorkerTelemetryRecorder? workerTelemetryRecorder,
+            RadarProcessingAsyncWorkerGroup? workerGroup)
         {
             ArgumentNullException.ThrowIfNull(hardeningOptions);
             ArgumentNullException.ThrowIfNull(pressureSkewOptions);
@@ -560,17 +684,24 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 ? new RadarProcessingPressureSkewTransformer(pressureSkewOptions)
                 : null;
             var coreOptions = new RadarProcessingCoreOptions(
-                RadarProcessingExecutionMode.PartitionedBarrier,
+                executionMode,
                 partitionCount,
-                shardCount);
+                shardCount,
+                asyncExecution: asyncExecution);
 
             switch (mode)
             {
                 case RadarProcessingSyntheticRebalanceBenchmarkMode.StaticNoRebalance:
                     core = new RadarProcessingCore(sourceUniverse, coreOptions);
+                    asyncCoreSession = executionMode == RadarProcessingExecutionMode.AsyncShardTransport
+                        ? CreateAsyncCoreSession(core, workerTelemetryRecorder, workerGroup)
+                        : null;
                     break;
                 case RadarProcessingSyntheticRebalanceBenchmarkMode.PressureSamplingOnly:
                     core = new RadarProcessingCore(sourceUniverse, coreOptions);
+                    asyncCoreSession = executionMode == RadarProcessingExecutionMode.AsyncShardTransport
+                        ? CreateAsyncCoreSession(core, workerTelemetryRecorder, workerGroup)
+                        : null;
                     pressureWindow = new RadarProcessingPressureWindow(
                         new RadarProcessingPressureWindowOptions(
                             sampleCapacity: 8,
@@ -598,6 +729,12 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                                 targetShardReceiveCooldownEvaluations: 1)),
                         hardeningOptions: hardeningOptions,
                         pressureSkewOptions: pressureSkewOptions);
+                    asyncRebalanceSession = executionMode == RadarProcessingExecutionMode.AsyncShardTransport
+                        ? new RadarProcessingAsyncRebalanceSession(
+                            rebalanceSession,
+                            CreateAsyncCoreSession(rebalanceCore, workerTelemetryRecorder, workerGroup),
+                            ownsAsyncCoreSession: true)
+                        : null;
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(mode));
@@ -606,6 +743,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
 
         public void Publish(RadarEventBatch batch, CancellationToken cancellationToken)
         {
+            ObjectDisposedException.ThrowIf(disposed, this);
             var allocationBefore = RadarProcessingBenchmarkAllocationSnapshot.Capture();
             processingStopwatch.Start();
             try
@@ -651,7 +789,9 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             CancellationToken cancellationToken)
         {
             var candidateCore = core ?? throw new InvalidOperationException("Static processing core was not initialized.");
-            var result = candidateCore.Process(batch, cancellationToken);
+            var result = asyncCoreSession is null
+                ? candidateCore.Process(batch, cancellationToken)
+                : asyncCoreSession.ProcessAsync(batch, cancellationToken).AsTask().GetAwaiter().GetResult();
             EnsureValidProcessingResult(result);
             return ArchiveIterationTelemetry.FromMetrics(
                 candidateCore.CreateMetrics(),
@@ -665,7 +805,9 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             var candidateCore = core ?? throw new InvalidOperationException("Pressure sampling core was not initialized.");
             var candidatePressureWindow = pressureWindow ??
                                           throw new InvalidOperationException("Pressure window was not initialized.");
-            var result = candidateCore.Process(batch, cancellationToken);
+            var result = asyncCoreSession is null
+                ? candidateCore.Process(batch, cancellationToken)
+                : asyncCoreSession.ProcessAsync(batch, cancellationToken).AsTask().GetAwaiter().GetResult();
             EnsureValidProcessingResult(result);
             var telemetryResult = result.Telemetry ??
                                   throw new InvalidDataException("Archive pressure sampling requires telemetry.");
@@ -688,13 +830,27 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             var session = rebalanceSession ??
                           throw new InvalidOperationException("Rebalance session was not initialized.");
             var initialTopologyVersion = session.CurrentTopology.Version;
-            var result = session.Process(batch, cancellationToken);
+            var result = asyncRebalanceSession is null
+                ? session.Process(batch, cancellationToken)
+                : asyncRebalanceSession.ProcessAsync(batch, cancellationToken).AsTask().GetAwaiter().GetResult();
             var metrics = session.Core.CreateMetrics();
             return ArchiveIterationTelemetry.FromRebalanceSessionResult(result)
                 .WithMetrics(
                     metrics,
                     session.CurrentTopology.Version.Value - initialTopologyVersion.Value + 1);
         }
+
+        private static RadarProcessingAsyncCoreSession CreateAsyncCoreSession(
+            RadarProcessingCore core,
+            RadarProcessingWorkerTelemetryRecorder? workerTelemetryRecorder,
+            RadarProcessingAsyncWorkerGroup? workerGroup) =>
+            workerGroup is null
+                ? new RadarProcessingAsyncCoreSession(core, workerTelemetryRecorder)
+                : new RadarProcessingAsyncCoreSession(
+                    core,
+                    workerGroup,
+                    workerTelemetryRecorder,
+                    ownsWorkerGroup: false);
 
         private static void EnsureValidProcessingResult(RadarProcessingResult result)
         {
@@ -707,11 +863,42 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             {
                 throw new InvalidDataException("Archive rebalance benchmark requires partitioned telemetry.");
             }
+
+            if (result.ExecutionMode == RadarProcessingExecutionMode.AsyncShardTransport)
+            {
+                var asyncValidation = RadarProcessingAsyncValidator.ValidateProcessingResult(
+                    result,
+                    RadarProcessingValidationProfile.Benchmark);
+                if (!asyncValidation.IsValid)
+                {
+                    throw new InvalidDataException(asyncValidation.Message);
+                }
+            }
         }
 
         private RadarProcessingRebalanceRetentionStats CreateRetentionStats() =>
             rebalanceSession?.TelemetryRecorder.CreateSummary().RetentionStats ??
             new RadarProcessingRebalanceRetentionStats();
+
+        public void Dispose()
+        {
+            if (disposed)
+            {
+                return;
+            }
+
+            disposed = true;
+            if (asyncRebalanceSession is not null)
+            {
+                asyncRebalanceSession.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                return;
+            }
+
+            if (asyncCoreSession is not null)
+            {
+                asyncCoreSession.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            }
+        }
     }
 
     private readonly record struct ArchiveIterationTelemetry(

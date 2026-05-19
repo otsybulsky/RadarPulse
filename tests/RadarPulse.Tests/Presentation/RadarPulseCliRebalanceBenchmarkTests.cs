@@ -295,6 +295,12 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             "--warmup-iterations",
             "1",
             "--parallelism",
+            "2",
+            "--execution",
+            "async",
+            "--workers",
+            "3",
+            "--queue-capacity",
             "2"
         ]);
 
@@ -307,6 +313,10 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
         Assert.Equal(2, options.Iterations);
         Assert.Equal(1, options.WarmupIterations);
         Assert.Equal(2, options.Parallelism);
+        Assert.Equal(RadarProcessingExecutionMode.AsyncShardTransport, options.ExecutionMode);
+        Assert.NotNull(options.AsyncExecution);
+        Assert.Equal(3, options.AsyncExecution.WorkerCount);
+        Assert.Equal(2, options.AsyncExecution.QueueCapacity);
         Assert.Equal(RadarProcessingValidationProfile.Essential, options.ValidationProfile);
         var quarantineLifecycle = options.QuarantineLifecycleOverrides.ApplyTo(
             RadarProcessingQuarantineLifecycleOptions.Default);
@@ -465,6 +475,44 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
                 "data/nexrad",
                 "--skew-period",
                 "0"
+            ]));
+        Assert.Throws<ArgumentException>(
+            () => global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
+            [
+                "--cache",
+                "data/nexrad",
+                "--execution",
+                "parallel"
+            ]));
+        Assert.Throws<InvalidOperationException>(
+            () => global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
+            [
+                "--cache",
+                "data/nexrad",
+                "--execution",
+                "async",
+                "--workers",
+                "0"
+            ]));
+        Assert.Throws<InvalidOperationException>(
+            () => global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
+            [
+                "--cache",
+                "data/nexrad",
+                "--execution",
+                "async",
+                "--queue-capacity",
+                "0"
+            ]));
+        Assert.Throws<InvalidOperationException>(
+            () => global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
+            [
+                "--cache",
+                "data/nexrad",
+                "--execution",
+                "sync",
+                "--workers",
+                "2"
             ]));
     }
 

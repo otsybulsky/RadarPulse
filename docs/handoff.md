@@ -810,6 +810,63 @@ Solution build succeeded with 0 warnings and 0 errors.
 596 passed, 3 skipped for the full test project.
 ```
 
+Milestone 008 slice 16 is implemented in the current working tree. The archive
+rebalance benchmark now exposes
+`RadarProcessingExecutionMode.AsyncShardTransport` for both `--file` and
+`--cache` inputs across static processing, pressure sampling, and full
+rebalance-session modes. The benchmark keeps the archive publisher callback
+synchronous at the contract boundary: async processing dispatch blocks until
+the worker completion barrier finishes, so leased `RadarEventBatch` values are
+not retained after callback exit.
+
+`RadarProcessingArchiveRebalanceBenchmarkResult` and
+`RadarProcessingArchiveRebalanceCacheBenchmarkResult` now carry execution mode
+and optional `RadarProcessingWorkerTelemetrySummary`. Async archive runs use one
+retained `RadarProcessingAsyncWorkerGroup` for the benchmark run, while each
+archive iteration owns its own processing/rebalance session. Worker telemetry is
+recorded for measured iterations only and validated against the configured
+retention options before result construction.
+
+The CLI `processing benchmark rebalance-archive` command now accepts
+`--execution sync|async`, `--workers`, and `--queue-capacity` for both file and
+cache inputs. Output prints the actual execution mode and async worker
+telemetry when present, while preserving separate archive end-to-end timing,
+processing callback timing, callback allocation, and replay/batch-construction
+allocation fields.
+
+Latest verification after milestone 008 slice 16:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests"
+dotnet build RadarPulse.sln --no-restore
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Processing
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Result:
+
+```text
+32 passed for focused archive async benchmark, CLI, and allocation coverage.
+Solution build succeeded with 0 warnings and 0 errors.
+439 passed for processing-focused coverage.
+600 passed, 3 skipped for the full test project.
+```
+
+Local corpus smoke after slice 16 used
+`data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_000245_V06` and cache
+selection `data\nexrad --date 2026-05-04 --radar KTLX --max-files 1`, both in
+rebalance-session mode with one iteration and no warmup. Single-file sync and
+async produced the same topology/rebalance result: 1 batch, 32,400 stream
+events, 38,759,040 payload values, 1 accepted direct-hot-relief move, validation
+checksum `3_750_039_633_875_006_276`. The single-file callback was 169.57 ms
+sync versus 190.10 ms async; callback allocation was 1,329,384 bytes sync
+versus 1,371,224 bytes async. Cache `max-files 1` had the same deterministic
+processing result; callback was 166.59 ms sync versus 181.06 ms async, and
+callback allocation was 1,322,952 bytes sync versus 1,364,624 bytes async.
+Async worker telemetry reported 4 workers, queue capacity 1, 1 dispatched and
+completed batch, 4 submitted and completed work items, and 0 failed items for
+both file and cache smoke runs.
+
 Milestone 007 slice 1 is implemented in the current working tree. RadarPulse
 now has the first hardening option/profile contracts:
 `RadarProcessingRebalanceHardeningOptions`,

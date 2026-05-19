@@ -178,7 +178,7 @@ static int PrintUsage()
     Console.WriteLine("  radarpulse archive benchmark stream (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse processing benchmark synthetic [--mode sequential|partitioned|async] [--sources n] [--batches n] [--events-per-batch n] [--payload-values n] [--partitions n] [--shards n] [--workers n] [--queue-capacity n] [--handlers none|counter-checksum] [--iterations n] [--warmup-iterations n]");
     Console.WriteLine("  radarpulse processing benchmark rebalance-synthetic [--workload balanced|hot-shard|intrinsic-hot|oscillating|cooldown-storm|quarantine-ttl-retry|quarantine-cooling-clear|quarantine-pressure-change-retry|quarantine-retry-reentry|quarantine-successful-relief-clear|long-no-hot-shard|long-cooldown-rejection|long-unsafe-target-rejection|long-mixed-skipped-reasons|counters-only-retention|all] [--mode static|sampling|rebalance|all] [--execution sync|async] [--workers n] [--queue-capacity n] [--validation-profile off|essential|diagnostic|benchmark] [--quarantine-ttl-evaluations n] [--quarantine-sustained-cooling-samples n] [--quarantine-material-pressure-change n] [--iterations n] [--warmup-iterations n]");
-    Console.WriteLine("  radarpulse processing benchmark rebalance-archive (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--mode static|sampling|rebalance|all] [--partitions n] [--shards n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress] [--validation-profile off|essential|diagnostic|benchmark] [--quarantine-ttl-evaluations n] [--quarantine-sustained-cooling-samples n] [--quarantine-material-pressure-change n] [--retention-mode counters|recent|diagnostic] [--max-retained-decisions n] [--max-retained-transitions n] [--max-retained-accepted-moves n] [--max-retained-validation-failures n] [--skew-profile none|hot-shard|rotating-hot-shard|hot-partition|target-starvation|budget-storm] [--skew-factor n] [--skew-period n]");
+    Console.WriteLine("  radarpulse processing benchmark rebalance-archive (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--mode static|sampling|rebalance|all] [--execution sync|async] [--workers n] [--queue-capacity n] [--partitions n] [--shards n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress] [--validation-profile off|essential|diagnostic|benchmark] [--quarantine-ttl-evaluations n] [--quarantine-sustained-cooling-samples n] [--quarantine-material-pressure-change n] [--retention-mode counters|recent|diagnostic] [--max-retained-decisions n] [--max-retained-transitions n] [--max-retained-accepted-moves n] [--max-retained-validation-failures n] [--skew-profile none|hot-shard|rotating-hot-shard|hot-partition|target-starvation|budget-storm] [--skew-factor n] [--skew-period n]");
     Console.WriteLine("  radarpulse archive validate decompress (--file path | --cache data/nexrad [--radar KTLX] [--max-files n])");
     Console.WriteLine("  radarpulse archive validate replay-shape (--file path | --cache data/nexrad [--radar KTLX] [--max-files n]) [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     return 2;
@@ -473,7 +473,9 @@ static int BenchmarkProcessingRebalanceArchive(string[] args)
                 options.Parallelism,
                 CancellationToken.None,
                 hardeningOptions,
-                options.PressureSkew);
+                options.PressureSkew,
+                options.ExecutionMode,
+                options.AsyncExecution);
             PrintProcessingArchiveRebalanceCacheBenchmarkResult(cacheResult);
         }
         else
@@ -488,7 +490,9 @@ static int BenchmarkProcessingRebalanceArchive(string[] args)
                 options.Parallelism,
                 CancellationToken.None,
                 hardeningOptions,
-                options.PressureSkew);
+                options.PressureSkew,
+                options.ExecutionMode,
+                options.AsyncExecution);
             PrintProcessingArchiveRebalanceBenchmarkResult(result);
         }
 
@@ -622,12 +626,12 @@ static void PrintProcessingArchiveRebalanceBenchmarkResult(RadarProcessingArchiv
 {
     Console.WriteLine("Processing benchmark: rebalance-archive");
     Console.WriteLine("Measured contour: Archive replay to RadarEventBatch plus processing rebalance callback");
-    Console.WriteLine("Processing-only timing: synchronous RadarEventBatch callback inside archive publisher");
+    Console.WriteLine("Processing-only timing: RadarEventBatch callback inside archive publisher");
     Console.WriteLine("Batch lifetime: leased batches are processed during the callback and are not retained");
     Console.WriteLine($"File: {result.FilePath}");
     Console.WriteLine($"Decompressor: {result.Decompressor}");
     Console.WriteLine($"Archive parallelism: {FormatNumber(result.DegreeOfParallelism)}");
-    Console.WriteLine("Execution mode: partitioned");
+    Console.WriteLine($"Execution mode: {FormatProcessingMode(result.ExecutionMode)}");
     Console.WriteLine($"Benchmark mode: {FormatProcessingRebalanceMode(result.Mode)}");
     Console.WriteLine($"Validation profile: {FormatProcessingValidationProfile(result.ValidationProfile)}");
     Console.WriteLine($"Telemetry retention mode: {FormatProcessingRetentionMode(result.RetentionMode)}");
@@ -685,6 +689,11 @@ static void PrintProcessingArchiveRebalanceBenchmarkResult(RadarProcessingArchiv
     Console.WriteLine($"Processing callback allocated bytes / payload value: {FormatDecimal(result.ProcessingCallbackAllocatedBytesPerPayloadValue)}");
     Console.WriteLine($"Processing callback allocated bytes / rebalance evaluation: {FormatDecimal(result.ProcessingCallbackAllocatedBytesPerRebalanceEvaluation)}");
     Console.WriteLine($"Replay and batch construction allocated bytes / payload value: {FormatDecimal(result.ReplayAndBatchConstructionAllocatedBytesPerPayloadValue)}");
+    if (result.WorkerTelemetry is not null)
+    {
+        PrintProcessingWorkerTelemetry(result.WorkerTelemetry);
+    }
+
     PrintProcessingRebalanceMovePressures(result.AcceptedMovePressures);
 }
 
@@ -692,7 +701,7 @@ static void PrintProcessingArchiveRebalanceCacheBenchmarkResult(RadarProcessingA
 {
     Console.WriteLine("Processing benchmark: rebalance-archive cache");
     Console.WriteLine("Measured contour: Archive cache replay to RadarEventBatch plus processing rebalance callback");
-    Console.WriteLine("Processing-only timing: synchronous RadarEventBatch callback inside archive publisher");
+    Console.WriteLine("Processing-only timing: RadarEventBatch callback inside archive publisher");
     Console.WriteLine("Batch lifetime: leased batches are processed during the callback and are not retained");
     Console.WriteLine($"Cache: {result.CachePath}");
     if (result.Date is { } date)
@@ -707,7 +716,7 @@ static void PrintProcessingArchiveRebalanceCacheBenchmarkResult(RadarProcessingA
 
     Console.WriteLine($"Decompressor: {result.Decompressor}");
     Console.WriteLine($"Archive parallelism: {FormatNumber(result.DegreeOfParallelism)}");
-    Console.WriteLine("Execution mode: partitioned");
+    Console.WriteLine($"Execution mode: {FormatProcessingMode(result.ExecutionMode)}");
     Console.WriteLine($"Benchmark mode: {FormatProcessingRebalanceMode(result.Mode)}");
     Console.WriteLine($"Validation profile: {FormatProcessingValidationProfile(result.ValidationProfile)}");
     Console.WriteLine($"Telemetry retention mode: {FormatProcessingRetentionMode(result.RetentionMode)}");
@@ -769,6 +778,11 @@ static void PrintProcessingArchiveRebalanceCacheBenchmarkResult(RadarProcessingA
     Console.WriteLine($"Processing callback allocated bytes / payload value: {FormatDecimal(result.ProcessingCallbackAllocatedBytesPerPayloadValue)}");
     Console.WriteLine($"Processing callback allocated bytes / rebalance evaluation: {FormatDecimal(result.ProcessingCallbackAllocatedBytesPerRebalanceEvaluation)}");
     Console.WriteLine($"Replay and batch construction allocated bytes / payload value: {FormatDecimal(result.ReplayAndBatchConstructionAllocatedBytesPerPayloadValue)}");
+    if (result.WorkerTelemetry is not null)
+    {
+        PrintProcessingWorkerTelemetry(result.WorkerTelemetry);
+    }
+
     PrintProcessingRebalanceMovePressures(result.AcceptedMovePressures);
 }
 
@@ -2442,7 +2456,9 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
     RadarProcessingValidationProfile ValidationProfile,
     ProcessingBenchmarkQuarantineLifecycleOptionOverrides QuarantineLifecycleOverrides,
     RadarProcessingTelemetryRetentionOptions TelemetryRetention,
-    RadarProcessingPressureSkewOptions PressureSkew)
+    RadarProcessingPressureSkewOptions PressureSkew,
+    RadarProcessingExecutionMode ExecutionMode = RadarProcessingExecutionMode.PartitionedBarrier,
+    RadarProcessingAsyncExecutionOptions? AsyncExecution = null)
 {
     public static ProcessingBenchmarkArchiveRebalanceOptions Parse(string[] args)
     {
@@ -2477,6 +2493,9 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
         var skewProfile = RadarProcessingPressureSkewOptions.None.Profile;
         var skewFactor = RadarProcessingPressureSkewOptions.None.Factor;
         var skewPeriod = RadarProcessingPressureSkewOptions.None.Period;
+        var executionMode = RadarProcessingExecutionMode.PartitionedBarrier;
+        int? workerCount = null;
+        int? queueCapacity = null;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -2500,6 +2519,15 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
                     break;
                 case "--mode":
                     modes = ParseMode(RequireValue(args, ref i, "--mode"));
+                    break;
+                case "--execution":
+                    executionMode = ParseExecutionMode(RequireValue(args, ref i, "--execution"));
+                    break;
+                case "--workers":
+                    workerCount = int.Parse(RequireValue(args, ref i, "--workers"));
+                    break;
+                case "--queue-capacity":
+                    queueCapacity = int.Parse(RequireValue(args, ref i, "--queue-capacity"));
                     break;
                 case "--partitions":
                     partitionCount = int.Parse(RequireValue(args, ref i, "--partitions"));
@@ -2618,6 +2646,28 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
             throw new InvalidOperationException("--parallelism must be greater than zero.");
         }
 
+        if (workerCount.HasValue && workerCount.Value <= 0)
+        {
+            throw new InvalidOperationException("--workers must be greater than zero.");
+        }
+
+        if (queueCapacity.HasValue && queueCapacity.Value <= 0)
+        {
+            throw new InvalidOperationException("--queue-capacity must be greater than zero.");
+        }
+
+        RadarProcessingAsyncExecutionOptions? asyncExecution = null;
+        if (executionMode == RadarProcessingExecutionMode.AsyncShardTransport)
+        {
+            asyncExecution = new RadarProcessingAsyncExecutionOptions(
+                workerCount: workerCount ?? shardCount,
+                queueCapacity: queueCapacity ?? 1);
+        }
+        else if (workerCount.HasValue || queueCapacity.HasValue)
+        {
+            throw new InvalidOperationException("--workers and --queue-capacity require --execution async.");
+        }
+
         ArchiveBZip2Decompressors.Create(decompressor);
         var telemetryRetention = new RadarProcessingTelemetryRetentionOptions(
             retentionMode,
@@ -2651,7 +2701,9 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
             validationProfile,
             quarantineLifecycleOverrides,
             telemetryRetention,
-            pressureSkew);
+            pressureSkew,
+            executionMode,
+            asyncExecution);
     }
 
     private static IReadOnlyList<RadarProcessingSyntheticRebalanceBenchmarkMode> ParseMode(string value) =>
@@ -2682,6 +2734,16 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
             "diagnostic" or "diagnostics" =>
                 RadarProcessingDiagnosticRetentionMode.Diagnostic,
             _ => throw new ArgumentException($"Unknown archive rebalance telemetry retention mode: {value}")
+        };
+
+    private static RadarProcessingExecutionMode ParseExecutionMode(string value) =>
+        value.ToLowerInvariant() switch
+        {
+            "sync" or "synchronous" or "partitioned" or "partitioned-barrier" =>
+                RadarProcessingExecutionMode.PartitionedBarrier,
+            "async" or "async-partitioned" or "async-shard" or "async-shard-transport" =>
+                RadarProcessingExecutionMode.AsyncShardTransport,
+            _ => throw new ArgumentException($"Unknown archive rebalance execution mode: {value}")
         };
 
     private static RadarProcessingValidationProfile ParseValidationProfile(string value) =>
