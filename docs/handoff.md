@@ -417,6 +417,39 @@ Result:
 536 passed, 3 skipped for the full test project.
 ```
 
+Milestone 008 slice 7 is implemented in the current working tree. RadarPulse
+now has an async batch dispatcher under `RadarPulse.Infrastructure.Processing`:
+`RadarProcessingAsyncBatchDispatcher`,
+`RadarProcessingAsyncDispatchPlan`,
+`RadarProcessingAsyncDispatchResult`, and
+`RadarProcessingAsyncDispatchExecutor`. The dispatcher captures one topology
+snapshot through a provider, routes one `RadarEventBatch` against that
+snapshot, builds one shard-scoped `RadarProcessingAsyncWorkItem` per shard,
+maps shard work to retained worker ids, and submits the plan through
+`RadarProcessingAsyncWorkerGroup`. The borrowed batch is passed to the
+dispatcher executor only inside the awaited dispatch path; the baseline path
+does not copy payload storage, and dispatch returns only after the worker group
+completion barrier drains. Focused tests cover one captured topology version,
+route/topology mismatch rejection, one work item per shard, borrowed batch and
+route object flow into the executor, completion-before-return behavior, and
+worker timing/completion status projection through the dispatch result.
+
+Latest verification after milestone 008 slice 7:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingAsyncBatchDispatcherTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Processing
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Result:
+
+```text
+7 passed for focused async batch dispatcher coverage.
+388 passed for processing-focused coverage.
+543 passed, 3 skipped for the full test project.
+```
+
 Milestone 007 slice 1 is implemented in the current working tree. RadarPulse
 now has the first hardening option/profile contracts:
 `RadarProcessingRebalanceHardeningOptions`,
@@ -3740,6 +3773,10 @@ constant and moment data blocks.
 - `src/Infrastructure/Processing/RadarProcessingAsyncWorkerGroupResult.cs`
 - `src/Infrastructure/Processing/RadarProcessingAsyncWorkerGroupDrainResult.cs`
 - `src/Infrastructure/Processing/RadarProcessingAsyncWorkerGroupError.cs`
+- `src/Infrastructure/Processing/RadarProcessingAsyncDispatchExecutor.cs`
+- `src/Infrastructure/Processing/RadarProcessingAsyncBatchDispatcher.cs`
+- `src/Infrastructure/Processing/RadarProcessingAsyncDispatchPlan.cs`
+- `src/Infrastructure/Processing/RadarProcessingAsyncDispatchResult.cs`
 - `src/Infrastructure/Processing/RadarProcessingAsyncWorker.cs`
 - `src/Infrastructure/Processing/RadarProcessingAsyncWorkerRequest.cs`
 - `src/Infrastructure/Processing/RadarProcessingAsyncWorkerGroupBatchState.cs`
