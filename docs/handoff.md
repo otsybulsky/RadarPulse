@@ -1,21 +1,34 @@
-# Handoff: Milestone 009 Complete
+# Handoff: Milestone 010 Planning
 
 ## Current Goal
 
-Milestone 009 is complete. RadarPulse now has the first explicit owned-payload
-provider decoupling substrate: archive replay can remain on the borrowed
-blocking path by default, or opt into `queued-owned` provider mode where leased
-`RadarEventBatch` values are converted to owned snapshots, enqueued into a
-bounded provider-to-processing queue, drained in provider sequence order, and
-validated against the borrowed reference. The performance gate accepted
-queued-owned as an explicit measurement and validation mode, but not as the
-default path yet because owned snapshot allocation is still the dominant cost
-and the current archive benchmark does not overlap replay with processing.
+Milestone 010 architecture and implementation planning are drafted. The
+architecture is recorded in
+`docs/milestones/010-owned-provider-overlap-cost-reduction.md`, and the
+implementation plan is recorded in
+`docs/milestones/010-owned-provider-overlap-cost-reduction-plan.md`.
 
-Milestone 010 should start from the closeout recommendation: reduce owned
-snapshot allocation, add a true producer/consumer overlap contour, and preserve
-borrowed-reference parity while moving toward real queued replay/processing
-overlap.
+Milestone 010 starts from the closed milestone 009 owned-provider boundary:
+`queued-owned` is correct and measurable, but still opt-in because owned
+snapshot allocation is the dominant cost and the current archive benchmark does
+not overlap replay with processing. The next implementation work should follow
+the plan slices: confirm milestone 009 cost anchors, define retained payload
+strategy and resource lifecycle contracts, implement one lower-allocation
+retention strategy, add a retained-byte-aware queue window, then add the true
+producer/consumer archive overlap contour and performance gate.
+
+`blocking-borrowed` remains the default provider mode and same-run oracle.
+`queued-owned` remains an explicit validation and measurement mode until the
+milestone 010 gate proves lower allocation, real overlap, deterministic
+borrowed-reference parity, ordered topology publication, and complete retained
+resource cleanup.
+
+Milestone 009 remains complete. RadarPulse has the first explicit
+owned-payload provider decoupling substrate: archive replay can remain on the
+borrowed blocking path by default, or opt into `queued-owned` provider mode
+where leased `RadarEventBatch` values are converted to owned snapshots,
+enqueued into a bounded provider-to-processing queue, drained in provider
+sequence order, and validated against the borrowed reference.
 
 Milestone 004 is complete. RadarPulse now has a compact, deterministic,
 normalized `RadarEventBatch` stream with append-only dense identity catalogs, an
@@ -619,6 +632,23 @@ verification, Release performance gate summary, decision trace, and next
 milestone input. The recommended next milestone focus is reducing owned
 snapshot allocation and adding a real producer/consumer overlap contour while
 keeping `blocking-borrowed` as the default provider mode.
+
+Milestone 010 architecture is drafted:
+`docs/milestones/010-owned-provider-overlap-cost-reduction.md`. It defines the
+owned-provider overlap and cost-reduction concepts: lower-allocation retained
+payload strategy, resource-owned queued batches, bounded producer/consumer
+overlap, retained-byte queue pressure, topology pins, ordered commit boundary,
+resource lifecycle, telemetry, validation, benchmark scope, and completion
+criteria.
+
+Milestone 010 implementation plan is drafted:
+`docs/milestones/010-owned-provider-overlap-cost-reduction-plan.md`. The plan
+breaks the work into implementation slices: milestone 009 cost anchors,
+retained payload strategy contracts, resource-owned queued batch lifecycle,
+lower-allocation retention implementation, retained-byte-aware queue window,
+producer/consumer overlap runner, ordered consumer topology pinning, overlap
+telemetry and allocation attribution, optimized queued validation, archive
+benchmark/CLI integration, and the Release performance gate.
 
 Milestone 008 slice 1 is implemented in the current working tree. RadarPulse
 now has the first async execution option contracts:
