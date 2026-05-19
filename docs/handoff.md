@@ -1,4 +1,4 @@
-# Handoff: Milestone 007 Closeout Complete
+# Handoff: Milestone 008 Planning Complete
 
 ## Current Goal
 
@@ -218,6 +218,21 @@ callback allocated bytes/payload, and bounded recent telemetry retention.
 Counters-only validation profile sweeps preserved the same checksum and
 decision counts, and the explicit hot-shard skew stress accepted `20` moves at
 `3.24B` callback payload values/s with `0.04` callback allocated bytes/payload.
+
+Milestone 008 architecture and implementation planning are complete. The
+architecture is written in
+`docs/milestones/008-retained-async-shard-transport.md`, and the implementation
+plan is written in
+`docs/milestones/008-retained-async-shard-transport-plan.md`.
+
+Milestone 008 scope is the first retained async shard worker transport over the
+closed milestone 007 synchronous rebalance boundary. The first implementation
+target is conservative: one in-flight borrowed `RadarEventBatch` per worker
+group, retained workers and bounded queues, coarse shard or partition-group
+work items, no baseline payload copying, same-run synchronous versus async
+benchmark comparison, and explicit worker lifecycle/failure/telemetry
+contracts. The hard boundary is that retained workers are allowed, but retained
+borrowed `RadarEventBatch` payload is not allowed.
 
 Milestone 007 slice 1 is implemented in the current working tree. RadarPulse
 now has the first hardening option/profile contracts:
@@ -1048,17 +1063,42 @@ Done:
 - Standard unit tests and opt-in live AWS integration tests covered the loader
   milestone at handoff time.
 
-Next milestone focus:
+Current milestone 008 focus:
 
-- Start the next milestone from the closed milestone 007 baseline:
+- Start implementation from the milestone 008 architecture and plan:
+  `docs/milestones/008-retained-async-shard-transport.md` and
+  `docs/milestones/008-retained-async-shard-transport-plan.md`.
+- The closed milestone 007 baseline remains the correctness and performance
+  reference:
   `docs/milestones/007-rebalance-production-hardening.md`,
   `docs/milestones/007-rebalance-production-hardening-plan.md`,
   `docs/milestones/007-rebalance-production-hardening-decision-trace.md`, and
   `docs/milestones/007-rebalance-production-hardening-closeout.md`.
-- Recommended next milestone focus is retained async worker transport over the
-  hardened synchronous rebalance boundary. Preserve the synchronous path as the
-  correctness oracle while designing retained payload lifetime, worker-local
-  state handoff, scheduling, cancellation, and failure semantics.
+- Implement the first retained async shard worker transport as a conservative
+  one-in-flight borrowed-batch runtime. Retained workers and bounded queues are
+  allowed; retained borrowed `RadarEventBatch` payload is not allowed.
+- Keep workers replay-independent by dependency. Workers should see
+  `RadarEventBatch`, topology snapshot, shard/partition assignment, processing
+  state, cancellation, and completion; they should not know about Archive Two,
+  NEXRAD cache paths, decompression, historical replay, or future live
+  ingestion.
+- Preserve the callback lifetime boundary. The provider callback may block on
+  worker completion for borrowed batches; that wait is the backpressure
+  boundary that keeps borrowed payload valid.
+- Treat slow workers as backpressure, failed workers as failed batches with no
+  rebalance publication, and hung/non-cooperative workers as unhealthy runtime
+  conditions. Timeout is a detection and health signal, not permission to
+  return the callback while a worker may still read borrowed payload.
+- Use retained workers rather than per-batch `Task.Run`, coarse work items
+  rather than per-source/event work, no baseline payload copying, per-worker
+  local metrics with post-completion aggregation, and same-run synchronous
+  versus async benchmark comparison.
+- Preserve synchronous `PartitionedBarrier` processing as the correctness
+  oracle and selectable execution mode. Async execution should not become the
+  hidden default until benchmark evidence justifies it.
+- Defer owned `RadarEventBatch` snapshots, durable provider decoupling,
+  physical worker-local state transfer, live ingestion, source-level migration,
+  and partition splitting to later milestones.
 - Use pressure skew only as an explicit benchmark contour. Baseline real-data
   performance and correctness captures must keep `--skew-profile none`; skewed
   runs should be reported as "real archive with synthetic pressure overlay."
@@ -1209,6 +1249,31 @@ Completed in milestone 007 documentation and planning:
   allocation attribution, allocation reduction, lifecycle workloads, retention
   stress workloads, benchmark harness extensions, CLI updates, policy-default
   audit, documentation, and final comprehensive performance comparison.
+
+Completed in milestone 008 documentation and planning:
+
+- `docs/milestones/008-retained-async-shard-transport.md`.
+- `docs/milestones/008-retained-async-shard-transport-plan.md`.
+- Milestone 008 scope is the first retained async shard worker transport over
+  the closed milestone 007 synchronous rebalance baseline, not retained payload
+  snapshots, live ingestion, durable broker integration, physical worker-local
+  state transfer, source-level migration, partition splitting, or complex radar
+  algorithms.
+- The architecture preserves the borrowed batch lifetime rule: retained
+  workers and queues may live across callbacks, but work items that reference a
+  leased `RadarEventBatch` must complete before the provider callback returns.
+- The first implementation target is conservative one-in-flight borrowed batch
+  per worker group, with bounded queues, coarse shard or partition-group work
+  items, explicit worker lifecycle, failure, cancellation, timeout, health, and
+  bounded worker telemetry semantics.
+- The implementation plan is broken into execution options, worker lifecycle,
+  batch scope/work completion contracts, bounded mailboxes, retained worker
+  group runtime, borrowed batch lifetime guardrails, async dispatch,
+  deterministic aggregation, failure/cancellation/timeout/health semantics,
+  worker telemetry, processing core integration, rebalance session integration,
+  async validation, synthetic and archive benchmark extensions, CLI execution
+  surface, performance guardrails, documentation, and final comprehensive
+  performance comparison.
 
 Completed in milestone 006 implementation:
 
@@ -3431,6 +3496,17 @@ constant and moment data blocks.
 - Parallel decompression is allowed only behind an ordered merge or another
   explicit ordering contract; historical replay must not accidentally publish
   messages/events in worker completion order.
+- Milestone 008 must preserve the borrowed batch lifetime rule: retained
+  workers may live across callbacks, but work items that reference leased
+  `RadarEventBatch` payload must complete before the provider callback returns.
+- Milestone 008 should not use per-batch `Task.Run` as the transport model.
+  The target is retained workers, bounded queues, coarse work items, and
+  explicit completion barriers.
+- Milestone 008 timeout handling is a health diagnostic, not permission to
+  release borrowed payload while a worker may still read it.
+- Milestone 008 async execution must remain comparable against the synchronous
+  `PartitionedBarrier` correctness oracle and should stay selectable until
+  benchmark evidence justifies any default change.
 
 ## Important Files
 
@@ -3448,6 +3524,10 @@ constant and moment data blocks.
 - `docs/milestones/006-partition-level-shard-rebalance-closeout.md`
 - `docs/milestones/007-rebalance-production-hardening.md`
 - `docs/milestones/007-rebalance-production-hardening-plan.md`
+- `docs/milestones/007-rebalance-production-hardening-decision-trace.md`
+- `docs/milestones/007-rebalance-production-hardening-closeout.md`
+- `docs/milestones/008-retained-async-shard-transport.md`
+- `docs/milestones/008-retained-async-shard-transport-plan.md`
 - `src/Domain/Processing/RadarProcessingRebalanceHardeningOptions.cs`
 - `src/Domain/Processing/RadarProcessingTelemetryRetentionOptions.cs`
 - `src/Domain/Processing/RadarProcessingQuarantineLifecycleOptions.cs`
