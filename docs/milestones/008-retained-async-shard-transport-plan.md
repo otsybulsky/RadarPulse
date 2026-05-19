@@ -1,6 +1,6 @@
 # Milestone 008: Retained Async Shard Transport Plan
 
-Status: draft.
+Status: complete.
 
 This plan implements the milestone 008 architecture defined in
 `008-retained-async-shard-transport.md`.
@@ -1035,9 +1035,9 @@ Milestone 008 completion criteria are satisfied when:
 [x] CLI exposes execution, worker, queue, and worker telemetry options
 [x] performance guardrail and allocation pass is captured and interpreted
 [x] decision trace is written
-[ ] closeout is written
-[ ] handoff is updated
-[ ] final comprehensive performance comparison is captured and interpreted
+[x] closeout is written
+[x] handoff is updated
+[x] final comprehensive performance comparison is captured and interpreted
 ```
 
 ## Non-Goals

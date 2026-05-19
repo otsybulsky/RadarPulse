@@ -1,4 +1,4 @@
-# Handoff: Milestone 008 Planning Complete
+# Handoff: Milestone 008 Complete
 
 ## Current Goal
 
@@ -233,6 +233,19 @@ work items, no baseline payload copying, same-run synchronous versus async
 benchmark comparison, and explicit worker lifecycle/failure/telemetry
 contracts. The hard boundary is that retained workers are allowed, but retained
 borrowed `RadarEventBatch` payload is not allowed.
+
+Milestone 008 is complete. The decision trace is written in
+`docs/milestones/008-retained-async-shard-transport-decision-trace.md`, and the
+closeout is written in
+`docs/milestones/008-retained-async-shard-transport-closeout.md`. The final
+performance gate accepted async archive processing on the full local KTLX
+`2026-05-04` contour because synchronous and async callback latency were parity
+while preserving deterministic checksums, accepted/skipped rebalance behavior,
+zero failed migrations, zero failed worker items, and bounded worker telemetry.
+The measured production-shaped async cost is about `0.90%` additional
+processing callback allocation from dispatch, completion, and worker telemetry
+machinery. Synchronous execution remains the default and the correctness
+oracle; async execution is selectable and explicitly benchmarked.
 
 Milestone 008 slice 1 is implemented in the current working tree. RadarPulse
 now has the first async execution option contracts:
@@ -947,6 +960,17 @@ synchronous reference oracle, deterministic topology snapshot and aggregation,
 bounded mailboxes, failure/cancellation/timeout semantics, rebalance after
 async completion, worker telemetry, benchmark interpretation, CLI surface, and
 deferred owned-payload/provider-queue work.
+
+Milestone 008 closeout is written:
+`docs/milestones/008-retained-async-shard-transport-closeout.md`. It records
+implemented slices, verification results, processing-only sync versus async
+comparison, synthetic rebalance sync versus async comparison, single-file
+archive smoke, full-cache archive guardrail, worker telemetry, allocation
+interpretation, deferred work, and the next milestone input. The closeout keeps
+the important performance distinction explicit: small synthetic contours show
+visible async scheduler overhead, while the production-shaped full-cache archive
+callback contour shows sync/async latency parity and about `0.90%` additional
+callback allocation.
 
 Milestone 007 slice 1 is implemented in the current working tree. RadarPulse
 now has the first hardening option/profile contracts:
@@ -1777,42 +1801,40 @@ Done:
 - Standard unit tests and opt-in live AWS integration tests covered the loader
   milestone at handoff time.
 
-Current milestone 008 focus:
+Closed milestone 008 baseline:
 
-- Start implementation from the milestone 008 architecture and plan:
-  `docs/milestones/008-retained-async-shard-transport.md` and
-  `docs/milestones/008-retained-async-shard-transport-plan.md`.
-- The closed milestone 007 baseline remains the correctness and performance
-  reference:
-  `docs/milestones/007-rebalance-production-hardening.md`,
-  `docs/milestones/007-rebalance-production-hardening-plan.md`,
-  `docs/milestones/007-rebalance-production-hardening-decision-trace.md`, and
-  `docs/milestones/007-rebalance-production-hardening-closeout.md`.
-- Implement the first retained async shard worker transport as a conservative
+- `docs/milestones/008-retained-async-shard-transport.md`,
+  `docs/milestones/008-retained-async-shard-transport-plan.md`,
+  `docs/milestones/008-retained-async-shard-transport-decision-trace.md`, and
+  `docs/milestones/008-retained-async-shard-transport-closeout.md` are the
+  closed retained async shard transport reference.
+- The first retained async worker runtime is implemented as a conservative
   one-in-flight borrowed-batch runtime. Retained workers and bounded queues are
   allowed; retained borrowed `RadarEventBatch` payload is not allowed.
-- Keep workers replay-independent by dependency. Workers should see
-  `RadarEventBatch`, topology snapshot, shard/partition assignment, processing
-  state, cancellation, and completion; they should not know about Archive Two,
-  NEXRAD cache paths, decompression, historical replay, or future live
-  ingestion.
-- Preserve the callback lifetime boundary. The provider callback may block on
-  worker completion for borrowed batches; that wait is the backpressure
+- Workers remain replay-independent by dependency. Workers see processing
+  inputs, topology snapshot, shard/partition assignment, cancellation, and
+  completion contracts; they do not know about Archive Two, NEXRAD cache paths,
+  decompression, historical replay, or future live ingestion.
+- The callback lifetime boundary is preserved. The provider callback may block
+  on worker completion for borrowed batches; that wait is the backpressure
   boundary that keeps borrowed payload valid.
-- Treat slow workers as backpressure, failed workers as failed batches with no
-  rebalance publication, and hung/non-cooperative workers as unhealthy runtime
-  conditions. Timeout is a detection and health signal, not permission to
-  return the callback while a worker may still read borrowed payload.
-- Use retained workers rather than per-batch `Task.Run`, coarse work items
-  rather than per-source/event work, no baseline payload copying, per-worker
-  local metrics with post-completion aggregation, and same-run synchronous
-  versus async benchmark comparison.
-- Preserve synchronous `PartitionedBarrier` processing as the correctness
-  oracle and selectable execution mode. Async execution should not become the
-  hidden default until benchmark evidence justifies it.
+- Slow workers are backpressure, failed workers fail the batch and suppress
+  rebalance publication, and hung/non-cooperative workers are unhealthy runtime
+  conditions. Timeout is a detection and health signal, not permission to return
+  the callback while a worker may still read borrowed payload.
+- Retained workers, coarse work items, no baseline payload copying, per-worker
+  local metrics, deterministic post-completion aggregation, and same-run sync
+  versus async benchmark comparison are the accepted shape.
+- Synchronous `PartitionedBarrier` processing remains the correctness oracle and
+  default execution mode. Async execution is selectable and benchmarked
+  explicitly.
+- Full-cache archive sync/async comparison is the accepted milestone 008
+  production-shaped guardrail: async preserved deterministic results and
+  callback latency parity, with about `0.90%` additional callback allocation.
 - Defer owned `RadarEventBatch` snapshots, durable provider decoupling,
-  physical worker-local state transfer, live ingestion, source-level migration,
-  and partition splitting to later milestones.
+  multi-batch pipeline scheduling, physical worker-local state transfer, live
+  ingestion, source-level migration, and partition splitting to later
+  milestones.
 - Use pressure skew only as an explicit benchmark contour. Baseline real-data
   performance and correctness captures must keep `--skew-profile none`; skewed
   runs should be reported as "real archive with synthetic pressure overlay."
@@ -1964,10 +1986,12 @@ Completed in milestone 007 documentation and planning:
   stress workloads, benchmark harness extensions, CLI updates, policy-default
   audit, documentation, and final comprehensive performance comparison.
 
-Completed in milestone 008 documentation and planning:
+Completed in milestone 008 documentation, planning, and implementation:
 
 - `docs/milestones/008-retained-async-shard-transport.md`.
 - `docs/milestones/008-retained-async-shard-transport-plan.md`.
+- `docs/milestones/008-retained-async-shard-transport-decision-trace.md`.
+- `docs/milestones/008-retained-async-shard-transport-closeout.md`.
 - Milestone 008 scope is the first retained async shard worker transport over
   the closed milestone 007 synchronous rebalance baseline, not retained payload
   snapshots, live ingestion, durable broker integration, physical worker-local
@@ -1988,6 +2012,12 @@ Completed in milestone 008 documentation and planning:
   async validation, synthetic and archive benchmark extensions, CLI execution
   surface, performance guardrails, documentation, and final comprehensive
   performance comparison.
+- Milestone 008 is complete. Async execution is available through the processing
+  core, rebalance session, synthetic benchmark, synthetic rebalance benchmark,
+  archive rebalance benchmark, and CLI benchmark surfaces.
+- The final full-cache archive guardrail accepted sync/async callback latency
+  parity and recorded the remaining async cost as about `0.90%` additional
+  processing callback allocation.
 
 Completed in milestone 006 implementation:
 
@@ -4242,6 +4272,8 @@ constant and moment data blocks.
 - `docs/milestones/007-rebalance-production-hardening-closeout.md`
 - `docs/milestones/008-retained-async-shard-transport.md`
 - `docs/milestones/008-retained-async-shard-transport-plan.md`
+- `docs/milestones/008-retained-async-shard-transport-decision-trace.md`
+- `docs/milestones/008-retained-async-shard-transport-closeout.md`
 - `src/Domain/Processing/RadarProcessingAsyncExecutionOptions.cs`
 - `src/Domain/Processing/RadarProcessingWorkerAffinity.cs`
 - `src/Domain/Processing/RadarProcessingWorkerTimeoutPolicy.cs`

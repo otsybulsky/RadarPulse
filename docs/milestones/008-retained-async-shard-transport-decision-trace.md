@@ -1,8 +1,8 @@
 # Milestone 008: Decision Trace
 
-Status: implementation complete; closeout pending.
+Status: complete.
 
-Closeout: `008-retained-async-shard-transport-closeout.md` (pending).
+Closeout: `008-retained-async-shard-transport-closeout.md`.
 
 ## 1. What Was Implemented
 
@@ -432,4 +432,3 @@ Other deferred work:
   health policy.
 - Live ingestion and durable broker integration.
 - Broader statistical performance runs with multiple iterations and medians.
-
