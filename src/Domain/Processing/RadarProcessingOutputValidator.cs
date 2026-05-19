@@ -124,7 +124,8 @@ public static class RadarProcessingOutputValidator
         RadarProcessingResult result,
         RadarProcessingMetrics expectedMetrics)
     {
-        if (result.ExecutionMode != RadarProcessingExecutionMode.PartitionedBarrier)
+        if (result.ExecutionMode is not RadarProcessingExecutionMode.PartitionedBarrier and
+            not RadarProcessingExecutionMode.AsyncShardTransport)
         {
             return RadarProcessingValidationResult.Valid(result.Metrics);
         }
@@ -135,7 +136,7 @@ public static class RadarProcessingOutputValidator
                 RadarProcessingValidationError.MetricsMismatch,
                 -1,
                 -1,
-                "Partitioned processing result is missing partitioned telemetry.",
+                "Partitioned or async processing result is missing partitioned telemetry.",
                 result.Metrics,
                 expectedMetrics);
         }

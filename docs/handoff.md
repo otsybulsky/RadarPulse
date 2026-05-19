@@ -440,6 +440,7 @@ Latest verification after milestone 008 slice 7:
 dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingAsyncBatchDispatcherTests
 dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Processing
 dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+dotnet build RadarPulse.sln --no-restore
 ```
 
 Result:
@@ -472,6 +473,42 @@ Result:
 13 passed for focused async worker group coverage.
 Solution build succeeded with 0 warnings and 0 errors.
 388 passed for processing-focused coverage.
+```
+
+Milestone 008 slice 8 is implemented in the current working tree. RadarPulse
+now has deterministic async completion aggregation under
+`RadarPulse.Infrastructure.Processing`: `RadarProcessingAsyncCompletionAggregator`,
+`RadarProcessingAsyncAggregationResult`, and
+`RadarProcessingAsyncAggregationError`. The aggregator consumes an async
+dispatch result, validates completion scope/count/status, orders worker
+completions by work item id instead of completion arrival order, checks each
+work item against its captured shard route metrics, checks aggregate processed
+event and payload-value counts against the captured route, and projects
+successful async dispatch into `RadarProcessingTelemetry` with
+`RadarProcessingExecutionMode.AsyncShardTransport`. Failed, canceled, missing,
+duplicate, rejected, or metric-mismatched completions do not produce successful
+telemetry. `RadarProcessingResult` and `RadarProcessingOutputValidator` now
+accept telemetry for async shard transport as well as the synchronous
+partitioned barrier path, so async results can be compared against the
+synchronous oracle once the async executor has updated processing state.
+
+Latest verification after milestone 008 slice 8:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingAsyncCompletionAggregatorTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingAsyncBatchDispatcherTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Processing
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Result:
+
+```text
+8 passed for focused async completion aggregation coverage.
+7 passed for focused async batch dispatcher coverage.
+396 passed for processing-focused coverage.
+551 passed, 3 skipped for the full test project.
+Solution build succeeded with 0 warnings and 0 errors.
 ```
 
 Milestone 007 slice 1 is implemented in the current working tree. RadarPulse
@@ -3801,6 +3838,9 @@ constant and moment data blocks.
 - `src/Infrastructure/Processing/RadarProcessingAsyncBatchDispatcher.cs`
 - `src/Infrastructure/Processing/RadarProcessingAsyncDispatchPlan.cs`
 - `src/Infrastructure/Processing/RadarProcessingAsyncDispatchResult.cs`
+- `src/Infrastructure/Processing/RadarProcessingAsyncCompletionAggregator.cs`
+- `src/Infrastructure/Processing/RadarProcessingAsyncAggregationResult.cs`
+- `src/Infrastructure/Processing/RadarProcessingAsyncAggregationError.cs`
 - `src/Infrastructure/Processing/RadarProcessingAsyncWorker.cs`
 - `src/Infrastructure/Processing/RadarProcessingAsyncWorkerRequest.cs`
 - `src/Infrastructure/Processing/RadarProcessingAsyncWorkerGroupBatchState.cs`

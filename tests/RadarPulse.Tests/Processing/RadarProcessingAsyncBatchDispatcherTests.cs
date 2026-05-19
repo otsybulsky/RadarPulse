@@ -60,17 +60,17 @@ public sealed class RadarProcessingAsyncBatchDispatcherTests
             {
                 providerCallCount++;
                 return manager.Current;
-            });
+        });
         var batch = CreateEightBitBatch(manager.Current.SourceUniverseVersion, sourceIds: [1]);
         var capturedVersion = manager.Current.Version;
-        var moved = false;
+        var moved = 0;
 
         var result = await dispatcher.DispatchAsync(
             batchSequence: 1,
             batch,
             (borrowedBatch, route, workItem, _) =>
             {
-                if (!moved)
+                if (Interlocked.CompareExchange(ref moved, 1, 0) == 0)
                 {
                     var move = manager.MovePartition(
                         new RadarProcessingTopologyMoveRequest(
@@ -79,7 +79,6 @@ public sealed class RadarProcessingAsyncBatchDispatcherTests
                             sourceShardId: 0,
                             targetShardId: 2));
                     Assert.True(move.Succeeded);
-                    moved = true;
                 }
 
                 Assert.Equal(capturedVersion, route.TopologyVersion);
@@ -89,7 +88,7 @@ public sealed class RadarProcessingAsyncBatchDispatcherTests
             });
 
         Assert.True(result.IsSuccess);
-        Assert.True(moved);
+        Assert.Equal(1, Volatile.Read(ref moved));
         Assert.Equal(1, providerCallCount);
         Assert.Equal(capturedVersion, result.TopologyVersion);
         Assert.Equal(capturedVersion.Next(), manager.Current.Version);

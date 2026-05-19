@@ -66,7 +66,7 @@ public sealed class RadarProcessingTelemetry
 
     public int HotShardId { get; }
 
-    internal static RadarProcessingTelemetry FromRoute(
+    public static RadarProcessingTelemetry FromRoute(
         RadarProcessingExecutionMode executionMode,
         RadarProcessingBatchRoute route)
     {

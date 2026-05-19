@@ -79,9 +79,12 @@ public sealed record RadarProcessingResult
             return;
         }
 
-        if (executionMode != RadarProcessingExecutionMode.PartitionedBarrier)
+        if (executionMode is not RadarProcessingExecutionMode.PartitionedBarrier and
+            not RadarProcessingExecutionMode.AsyncShardTransport)
         {
-            throw new ArgumentException("Telemetry is only supported for partitioned barrier processing.", nameof(telemetry));
+            throw new ArgumentException(
+                "Telemetry is only supported for partitioned barrier or async shard transport processing.",
+                nameof(telemetry));
         }
 
         if (telemetry.ExecutionMode != executionMode)
