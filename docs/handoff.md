@@ -11,13 +11,14 @@ implementation plan is recorded in
 Milestone 010 starts from the closed milestone 009 owned-provider boundary:
 `queued-owned` is correct and measurable, but still opt-in because owned
 snapshot allocation is the dominant cost and the current archive benchmark does
-not overlap replay with processing. Milestone 010 slices 1 through 5 are now
+not overlap replay with processing. Milestone 010 slices 1 through 6 are now
 complete: the milestone 009 cost anchors are confirmed, retained payload
 strategy contracts are implemented and tested, and the resource-owned queued
 batch lifecycle, one lower-allocation retained payload implementation, and
-retained-byte-aware provider queue accounting are implemented and tested. The
-next implementation work should start slice 6 by adding the first
-producer/consumer archive overlap runner on top of the retained queue window.
+retained-byte-aware provider queue accounting plus the first producer/consumer
+archive overlap runner are implemented and tested. The next implementation
+work should start slice 7 by wiring ordered consumer/topology pinning rules
+into the overlap contour and preparing it for benchmark integration.
 
 `blocking-borrowed` remains the default provider mode and same-run oracle.
 `queued-owned` remains an explicit validation and measurement mode until the
@@ -895,6 +896,57 @@ Recorded result:
 ```text
 30 passed, 0 failed, 0 skipped for provider queue contract/runtime/telemetry coverage.
 686 passed, 3 skipped for the full test project.
+```
+
+Milestone 010 slice 6 producer/consumer archive overlap runner is implemented
+in the current working tree. New infrastructure contracts and runtime:
+
+```text
+RadarProcessingArchiveQueuedOverlapOptions
+  -> wraps the provider queue options used by the overlap runner
+
+RadarProcessingArchiveQueuedOverlapStatus
+RadarProcessingArchiveQueuedOverlapProducerStatus
+RadarProcessingArchiveQueuedOverlapProducerResult
+RadarProcessingArchiveQueuedOverlapConsumerResult
+RadarProcessingArchiveQueuedOverlapResult
+  -> separate producer publish outcome, consumer drain outcome, final overlap
+     status, queue telemetry, provider enqueue results, elapsed time, and
+     diagnostic message
+
+RadarProcessingArchiveQueuedOverlapRunner
+  -> creates the owned provider queue and archive queueing publisher
+  -> starts consumer drain before archive production starts
+  -> runs archive production concurrently through IArchiveRadarEventBatchPublisher
+  -> closes the queue only after producer completion
+  -> faults the queue on producer or consumer failure so the other side stops
+     without accepting more work
+  -> waits for both producer and consumer before reporting success
+  -> preserves provider sequence order through the existing queue drain
+```
+
+Focused tests prove the runner can let a fast producer queue ahead of a slow
+consumer with queue depth greater than one, and that consumer failure faults
+intake so later producer publish attempts are rejected. This slice intentionally
+keeps `RadarProcessingArchiveRebalanceBenchmark`, CLI flags/output, retained
+payload strategy selection, and benchmark result fields unchanged. Those are
+left for the ordered consumer, telemetry attribution, validation, and final
+archive benchmark integration slices.
+
+Latest verification after milestone 010 slice 6:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingOwnedBatchQueueTests|FullyQualifiedName~RadarProcessingQueuedRebalanceSessionTests|FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests"
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+3 passed, 0 failed, 0 skipped for overlap runner focused coverage.
+29 passed, 0 failed, 0 skipped for overlap runner plus queue/session/archive publisher coverage.
+689 passed, 3 skipped for the full test project.
 ```
 
 Milestone 008 slice 1 is implemented in the current working tree. RadarPulse

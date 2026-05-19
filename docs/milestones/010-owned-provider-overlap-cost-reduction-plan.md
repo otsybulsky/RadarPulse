@@ -794,7 +794,7 @@ implementation.
 [x] retained resource lifecycle is implemented and tested
 [x] one lower-allocation retained payload strategy is implemented and tested
 [x] retained-byte-aware queue window is implemented and tested where practical
-[ ] producer/consumer archive overlap runner is implemented and tested
+[x] producer/consumer archive overlap runner is implemented and tested
 [ ] ordered consumer topology pinning rules are implemented and tested
 [ ] overlap telemetry and allocation attribution are implemented and tested
 [ ] optimized queued validation proves borrowed-reference parity
