@@ -217,7 +217,12 @@ public sealed class RadarProcessingAsyncWorkerGroup : IDisposable, IAsyncDisposa
         DisposeAsync().AsTask().GetAwaiter().GetResult();
     }
 
-    public async ValueTask<RadarProcessingWorkerLifecycleResult> DisposeAsync()
+    public async ValueTask DisposeAsync()
+    {
+        await DisposeWithResultAsync().ConfigureAwait(false);
+    }
+
+    public async ValueTask<RadarProcessingWorkerLifecycleResult> DisposeWithResultAsync()
     {
         RadarProcessingWorkerLifecycleResult result;
         lock (lifecycleSync)
@@ -245,11 +250,6 @@ public sealed class RadarProcessingAsyncWorkerGroup : IDisposable, IAsyncDisposa
         }
 
         return result;
-    }
-
-    async ValueTask IAsyncDisposable.DisposeAsync()
-    {
-        await DisposeAsync().ConfigureAwait(false);
     }
 
     private static RadarProcessingAsyncWorker[] CreateWorkers(

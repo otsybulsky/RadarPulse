@@ -450,6 +450,30 @@ Result:
 543 passed, 3 skipped for the full test project.
 ```
 
+Milestone 008 slice 7 compile follow-up is implemented in the current working
+tree. `RadarProcessingAsyncWorkerGroup.DisposeAsync()` now follows the standard
+`IAsyncDisposable` pattern and returns `ValueTask`, so `await using` works in
+tests and future callers. The lifecycle-result disposal path is now exposed as
+`DisposeWithResultAsync()` for tests that need to assert the disposal state.
+
+Latest verification after the slice 7 compile follow-up:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingAsyncBatchDispatcherTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingAsyncWorkerGroupTests
+dotnet build RadarPulse.sln --no-restore
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Processing
+```
+
+Result:
+
+```text
+7 passed for focused async batch dispatcher coverage.
+13 passed for focused async worker group coverage.
+Solution build succeeded with 0 warnings and 0 errors.
+388 passed for processing-focused coverage.
+```
+
 Milestone 007 slice 1 is implemented in the current working tree. RadarPulse
 now has the first hardening option/profile contracts:
 `RadarProcessingRebalanceHardeningOptions`,

@@ -119,7 +119,7 @@ public sealed class RadarProcessingAsyncWorkerGroupTests
         Assert.Equal(RadarProcessingAsyncWorkerGroupError.NotStarted, beforeStart.Error);
         Assert.Null(beforeStart.BatchResult);
 
-        var disposed = await group.DisposeAsync();
+        var disposed = await group.DisposeWithResultAsync();
         Assert.True(disposed.IsSuccess);
 
         var (disposedScope, disposedWorkItems) = CreateScope(2, expectedWorkItemCount: 1, workerCount: 1);
@@ -254,12 +254,12 @@ public sealed class RadarProcessingAsyncWorkerGroupTests
         var group = new RadarProcessingAsyncWorkerGroup();
         Assert.True(group.Start().IsSuccess);
 
-        var disposed = await group.DisposeAsync();
+        var disposed = await group.DisposeWithResultAsync();
         Assert.True(disposed.IsSuccess);
         Assert.Equal(RadarProcessingWorkerGroupState.Disposed, disposed.Status.State);
         Assert.Equal(0, group.PendingWorkItemCount);
 
-        var secondDispose = await group.DisposeAsync();
+        var secondDispose = await group.DisposeWithResultAsync();
         Assert.True(secondDispose.IsSuccess);
 
         var (scope, workItems) = CreateScope(1, expectedWorkItemCount: 1, workerCount: 1);
@@ -297,7 +297,7 @@ public sealed class RadarProcessingAsyncWorkerGroupTests
 
             await firstStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
             await WaitUntilAsync(() => group.PendingWorkItemCount == 1);
-            var dispose = group.DisposeAsync().AsTask();
+            var dispose = group.DisposeWithResultAsync().AsTask();
             var early = await Task.WhenAny(dispose, Task.Delay(TimeSpan.FromMilliseconds(50)));
 
             Assert.NotSame(dispose, early);
