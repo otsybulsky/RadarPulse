@@ -1027,7 +1027,7 @@ Milestone 008 completion criteria are satisfied when:
 [x] failure, cancellation, timeout, and health semantics are implemented and tested
 [x] worker telemetry contracts and recorder are implemented and tested
 [x] processing core can run async execution without breaking synchronous callers
-[ ] rebalance session can consume async processing results safely
+[x] rebalance session can consume async processing results safely
 [ ] async validation extensions are implemented and tested
 [ ] processing-only synthetic benchmark exposes async execution
 [ ] synthetic rebalance benchmark exposes async execution

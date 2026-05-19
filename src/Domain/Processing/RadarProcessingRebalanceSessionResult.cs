@@ -43,6 +43,8 @@ public sealed class RadarProcessingRebalanceSessionResult
 
     public RadarProcessingResult ProcessingResult { get; }
 
+    public RadarProcessingWorkerTelemetrySummary? WorkerTelemetry => ProcessingResult.WorkerTelemetry;
+
     public RadarProcessingPressureSample? PressureSample { get; }
 
     public RadarProcessingRebalanceDecision? DirectHotReliefDecision { get; }

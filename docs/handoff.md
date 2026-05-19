@@ -641,6 +641,47 @@ Solution build succeeded with 0 warnings and 0 errors.
 576 passed, 3 skipped for the full test project.
 ```
 
+Milestone 008 slice 12 is implemented in the current working tree. RadarPulse
+now composes async processing with the milestone 007 rebalance control plane
+through `RadarProcessingAsyncRebalanceSession` in
+`RadarPulse.Infrastructure.Processing`. The async session owns or reuses a
+`RadarProcessingAsyncCoreSession`, awaits completed async shard processing,
+then passes the completed `RadarProcessingResult` into the same domain
+rebalance path used by synchronous sessions.
+
+`RadarProcessingRebalanceSession` now accepts `AsyncShardTransport` cores for
+that shared control-plane path, but its public `Process(...)` remains
+synchronous-only and throws for async cores with an explicit
+`RadarProcessingAsyncRebalanceSession.ProcessAsync` message. This preserves the
+no-hidden-blocking rule while keeping rebalance policy, pressure windows,
+quarantine lifecycle, migration publication, hardening telemetry, and
+validation in Domain. `RadarProcessingRebalanceSessionResult.WorkerTelemetry`
+now exposes worker telemetry when the underlying processing result carries it.
+
+Async rebalance tests cover successful one-batch processing against a single
+topology snapshot, accepted migration publication only after worker completion,
+failed async dispatch skipping rebalance planning/publication, result-level
+worker telemetry plus existing hardening telemetry, and deterministic sync
+versus async state/topology parity where expected.
+
+Latest verification after milestone 008 slice 12:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingAsyncRebalanceSessionTests|FullyQualifiedName~RadarProcessingRebalanceSessionTests|FullyQualifiedName~RadarProcessingAsyncCoreSessionTests"
+dotnet build RadarPulse.sln --no-restore
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Processing
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Result:
+
+```text
+19 passed for focused async rebalance/session coverage.
+Solution build succeeded with 0 warnings and 0 errors.
+426 passed for processing-focused coverage.
+581 passed, 3 skipped for the full test project.
+```
+
 Milestone 007 slice 1 is implemented in the current working tree. RadarPulse
 now has the first hardening option/profile contracts:
 `RadarProcessingRebalanceHardeningOptions`,

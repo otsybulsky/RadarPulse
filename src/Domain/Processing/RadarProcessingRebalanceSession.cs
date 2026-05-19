@@ -33,10 +33,11 @@ public sealed class RadarProcessingRebalanceSession
     {
         ArgumentNullException.ThrowIfNull(core);
 
-        if (core.Options.ExecutionMode != RadarProcessingExecutionMode.PartitionedBarrier)
+        if (core.Options.ExecutionMode is not RadarProcessingExecutionMode.PartitionedBarrier and
+            not RadarProcessingExecutionMode.AsyncShardTransport)
         {
             throw new ArgumentException(
-                "Rebalance sessions require partitioned barrier processing.",
+                "Rebalance sessions require partitioned barrier or async shard transport processing.",
                 nameof(core));
         }
 
@@ -87,9 +88,25 @@ public sealed class RadarProcessingRebalanceSession
         RadarEventBatch batch,
         CancellationToken cancellationToken = default)
     {
-        quarantineLifecycleTracker.DrainTransitions();
+        if (core.Options.ExecutionMode == RadarProcessingExecutionMode.AsyncShardTransport)
+        {
+            throw new NotSupportedException(
+                "Async shard transport rebalance execution requires RadarProcessingAsyncRebalanceSession.ProcessAsync.");
+        }
 
         var processingResult = core.Process(batch, cancellationToken);
+        return ProcessCompletedResult(processingResult, cancellationToken);
+    }
+
+    internal RadarProcessingRebalanceSessionResult ProcessCompletedResult(
+        RadarProcessingResult processingResult,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(processingResult);
+        cancellationToken.ThrowIfCancellationRequested();
+        EnsureCompatibleProcessingResult(processingResult);
+
+        quarantineLifecycleTracker.DrainTransitions();
         if (!processingResult.IsValid || processingResult.Telemetry is null)
         {
             var validation = ValidateSessionResult(
@@ -287,6 +304,32 @@ public sealed class RadarProcessingRebalanceSession
 
     private long NextDecisionId() =>
         nextDecisionId++;
+
+    private void EnsureCompatibleProcessingResult(
+        RadarProcessingResult processingResult)
+    {
+        if (processingResult.ExecutionMode != core.Options.ExecutionMode)
+        {
+            throw new ArgumentException(
+                "Processing result execution mode must match the rebalance session core.",
+                nameof(processingResult));
+        }
+
+        if (processingResult.PartitionCount != core.Options.PartitionCount ||
+            processingResult.ShardCount != core.Options.ShardCount)
+        {
+            throw new ArgumentException(
+                "Processing result topology shape must match the rebalance session core.",
+                nameof(processingResult));
+        }
+
+        if (processingResult.TopologyVersion != core.Topology.Version)
+        {
+            throw new ArgumentException(
+                "Processing result topology version must match the current rebalance session topology.",
+                nameof(processingResult));
+        }
+    }
 
     private void EnsureCompatibleShape(
         RadarProcessingRebalancePolicyState candidatePolicyState,
