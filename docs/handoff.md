@@ -454,6 +454,37 @@ Recorded result:
 91 passed, 3 skipped for Archive-focused coverage.
 ```
 
+Milestone 009 slice 8 queued validation is implemented in the current working
+tree. RadarPulse now has `RadarProcessingQueuedProviderValidator`,
+`RadarProcessingQueuedProviderValidationProfile`,
+`RadarProcessingQueuedProviderValidationError`,
+`RadarProcessingQueuedProviderValidationResult`,
+`RadarProcessingQueuedProviderReference`, and
+`RadarProcessingQueuedProviderMetrics`. The validator supports off,
+essential, diagnostic, and benchmark profiles. Essential validation checks the
+owned batch boundary, accepted provider sequence monotonicity, processed
+sequence monotonicity, missing completions for accepted batches unless the
+session is canceled, and topology version regression. Diagnostic validation
+adds telemetry counter parity and worker failure propagation checks. Benchmark
+validation adds optional borrowed-reference parity for deterministic checksum,
+accepted move count, skipped decision count, failed batch count, worker failed
+batch count, and final topology version. The validator compares queued output
+semantics only; it does not compare queue timing.
+
+Latest verification after milestone 009 slice 8:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingQueuedProviderValidatorTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Processing
+```
+
+Recorded result:
+
+```text
+10 passed for queued provider validator coverage.
+487 passed for Processing-focused coverage.
+```
+
 Milestone 008 slice 1 is implemented in the current working tree. RadarPulse
 now has the first async execution option contracts:
 `RadarProcessingExecutionMode.AsyncShardTransport`,
