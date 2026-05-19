@@ -710,7 +710,7 @@ implementation.
 [x] same-run single-file comparisons are captured
 [x] same-run full-cache comparisons are captured where local data is available
 [x] performance assessment interprets owned-copy, queue, worker, and rebalance costs
-[ ] decision trace is written
+[x] decision trace is written
 [ ] closeout is written
 [ ] handoff is updated for the next milestone
 ```

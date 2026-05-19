@@ -587,6 +587,17 @@ not produce provider/processing overlap. Next optimization targets are reducing
 owned snapshot allocation, adding a producer/consumer overlap contour, and
 keeping blocking-borrowed as the default until those costs improve.
 
+Milestone 009 decision trace is written:
+`docs/milestones/009-owned-payload-provider-decoupling-decision-trace.md`.
+It records the owned-at-provider-boundary decision, bounded in-process queue
+scope, owned-only queue invariant, separation of enqueue success from
+processing completion, provider sequence ordering, reuse of existing processing
+and rebalance sessions, explicit provider mode CLI/benchmark surface,
+bounded telemetry, borrowed-reference validation, deferral of true
+producer/consumer overlap, and the performance-gate conclusion that
+queued-owned is accepted as an explicit substrate but not the default path.
+Milestone 009 closeout remains pending.
+
 Milestone 008 slice 1 is implemented in the current working tree. RadarPulse
 now has the first async execution option contracts:
 `RadarProcessingExecutionMode.AsyncShardTransport`,
