@@ -32,8 +32,12 @@ public sealed record RadarProcessingSyntheticRebalanceBenchmarkResult(
     int QuarantineTtlEvaluations = 64,
     int QuarantineSustainedCoolingSampleCount = 3,
     double QuarantineMaterialPressureChangeThreshold = 0.25,
-    RadarProcessingRebalanceAllocationSummary AllocationSummary = default)
+    RadarProcessingRebalanceAllocationSummary AllocationSummary = default,
+    RadarProcessingExecutionMode ExecutionMode = RadarProcessingExecutionMode.PartitionedBarrier,
+    RadarProcessingWorkerTelemetrySummary? WorkerTelemetry = null)
 {
+    public bool HasWorkerTelemetry => WorkerTelemetry is not null;
+
     public long TotalBatches => BatchesPerIteration * Iterations;
 
     public long TotalEvents => EventsPerIteration * Iterations;

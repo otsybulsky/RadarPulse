@@ -763,6 +763,53 @@ Solution build succeeded with 0 warnings and 0 errors.
 591 passed, 3 skipped for the full test project.
 ```
 
+Milestone 008 slice 15 is implemented in the current working tree. The
+synthetic rebalance benchmark now exposes
+`RadarProcessingExecutionMode.AsyncShardTransport` for all three benchmark
+modes: static processing, pressure sampling only, and full rebalance session.
+The existing synchronous `Measure(...)` entry points remain compatibility
+wrappers over the async-aware measurement path.
+
+Async synthetic rebalance runs use one retained
+`RadarProcessingAsyncWorkerGroup` for the whole benchmark run while still
+creating a fresh `RadarProcessingCore` or `RadarProcessingRebalanceSession` per
+iteration. That preserves the behavioral benchmark contract where every
+iteration sees the same starting topology and can publish the same deterministic
+accepted/skipped rebalance decisions, without paying worker startup repeatedly
+after warmup.
+
+`RadarProcessingSyntheticRebalanceBenchmarkResult` now carries the execution
+mode and optional `RadarProcessingWorkerTelemetrySummary`. Worker telemetry is
+recorded for measured iterations only, validated against the configured
+retention options, and reported alongside the existing rebalance counters,
+validation checksum, retention mode, quarantine lifecycle settings, and
+allocation attribution. `RadarProcessingSyntheticRebalanceWorkload` can now
+create core options and rebalance sessions for either partitioned sync or async
+transport.
+
+The CLI `processing benchmark rebalance-synthetic` command now accepts
+`--execution sync|async`, `--workers`, and `--queue-capacity`. Output prints the
+actual execution mode and async worker telemetry when present. Worker options
+are positive-only and rejected unless `--execution async` is selected.
+
+Latest verification after milestone 008 slice 15:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingSyntheticRebalanceBenchmarkTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+dotnet build RadarPulse.sln --no-restore
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Processing
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Result:
+
+```text
+29 passed for focused synthetic rebalance benchmark and CLI async coverage.
+Solution build succeeded with 0 warnings and 0 errors.
+439 passed for processing-focused coverage.
+596 passed, 3 skipped for the full test project.
+```
+
 Milestone 007 slice 1 is implemented in the current working tree. RadarPulse
 now has the first hardening option/profile contracts:
 `RadarProcessingRebalanceHardeningOptions`,

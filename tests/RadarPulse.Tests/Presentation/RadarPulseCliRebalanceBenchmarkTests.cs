@@ -23,6 +23,12 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             "7",
             "--quarantine-material-pressure-change",
             "0.5",
+            "--execution",
+            "async",
+            "--workers",
+            "2",
+            "--queue-capacity",
+            "1",
             "--iterations",
             "2",
             "--warmup-iterations",
@@ -43,6 +49,10 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
         Assert.Equal(0.5, quarantineLifecycle.MaterialPressureChangeThreshold);
         Assert.Equal(2, options.Iterations);
         Assert.Equal(0, options.WarmupIterations);
+        Assert.Equal(RadarProcessingExecutionMode.AsyncShardTransport, options.ExecutionMode);
+        Assert.NotNull(options.AsyncExecution);
+        Assert.Equal(2, options.AsyncExecution.WorkerCount);
+        Assert.Equal(1, options.AsyncExecution.QueueCapacity);
     }
 
     [Fact]
@@ -109,6 +119,42 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
     }
 
     [Fact]
+    public void RebalanceBenchmarkOptionsRejectInvalidWorkerSettings()
+    {
+        var invalidWorkers = RunCli(
+            "processing",
+            "benchmark",
+            "rebalance-synthetic",
+            "--execution",
+            "async",
+            "--workers",
+            "0");
+        var invalidQueue = RunCli(
+            "processing",
+            "benchmark",
+            "rebalance-synthetic",
+            "--execution",
+            "async",
+            "--queue-capacity",
+            "0");
+        var nonAsyncWorkers = RunCli(
+            "processing",
+            "benchmark",
+            "rebalance-synthetic",
+            "--execution",
+            "sync",
+            "--workers",
+            "2");
+
+        Assert.Equal(1, invalidWorkers.ExitCode);
+        Assert.Contains("--workers must be greater than zero.", invalidWorkers.StandardError);
+        Assert.Equal(1, invalidQueue.ExitCode);
+        Assert.Contains("--queue-capacity must be greater than zero.", invalidQueue.StandardError);
+        Assert.Equal(1, nonAsyncWorkers.ExitCode);
+        Assert.Contains("--workers and --queue-capacity require --execution async.", nonAsyncWorkers.StandardError);
+    }
+
+    [Fact]
     public void RebalanceBenchmarkCommandEmitsTopologyAndMoveCounters()
     {
         var result = RunCli(
@@ -127,6 +173,7 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("Processing benchmark: rebalance-synthetic", result.StandardOutput);
         Assert.Contains("Workload: hot-shard", result.StandardOutput);
+        Assert.Contains("Execution mode: partitioned", result.StandardOutput);
         Assert.Contains("Benchmark mode: rebalance-session", result.StandardOutput);
         Assert.Contains("Validation profile: diagnostic", result.StandardOutput);
         Assert.Contains("Telemetry retention mode: recent", result.StandardOutput);
@@ -135,6 +182,39 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
         Assert.Contains("Accepted moves:", result.StandardOutput);
         Assert.Contains("Skipped reasons:", result.StandardOutput);
         Assert.Contains("Accepted move pressures:", result.StandardOutput);
+        Assert.Equal(string.Empty, result.StandardError);
+    }
+
+    [Fact]
+    public void RebalanceBenchmarkCommandEmitsAsyncWorkerTelemetry()
+    {
+        var result = RunCli(
+            "processing",
+            "benchmark",
+            "rebalance-synthetic",
+            "--workload",
+            "hot-shard",
+            "--mode",
+            "rebalance",
+            "--execution",
+            "async",
+            "--workers",
+            "2",
+            "--queue-capacity",
+            "1",
+            "--iterations",
+            "1",
+            "--warmup-iterations",
+            "0");
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Contains("Processing benchmark: rebalance-synthetic", result.StandardOutput);
+        Assert.Contains("Execution mode: async", result.StandardOutput);
+        Assert.Contains("Worker count: 2", result.StandardOutput);
+        Assert.Contains("Worker queue capacity: 1", result.StandardOutput);
+        Assert.Contains("Worker completed batches: 2", result.StandardOutput);
+        Assert.Contains("Benchmark mode: rebalance-session", result.StandardOutput);
+        Assert.Contains("Accepted moves:", result.StandardOutput);
         Assert.Equal(string.Empty, result.StandardError);
     }
 

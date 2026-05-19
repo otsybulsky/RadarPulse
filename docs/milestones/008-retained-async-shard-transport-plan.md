@@ -1030,7 +1030,7 @@ Milestone 008 completion criteria are satisfied when:
 [x] rebalance session can consume async processing results safely
 [x] async validation extensions are implemented and tested
 [x] processing-only synthetic benchmark exposes async execution
-[ ] synthetic rebalance benchmark exposes async execution
+[x] synthetic rebalance benchmark exposes async execution
 [ ] archive rebalance benchmark exposes async execution
 [ ] CLI exposes execution, worker, queue, and worker telemetry options
 [ ] performance guardrail and allocation pass is captured and interpreted

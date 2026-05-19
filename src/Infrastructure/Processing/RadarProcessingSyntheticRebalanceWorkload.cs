@@ -101,7 +101,9 @@ public sealed class RadarProcessingSyntheticRebalanceWorkload
         };
 
     public RadarProcessingRebalanceSession CreateSession(
-        RadarProcessingRebalanceHardeningOptions? hardeningOptions = null)
+        RadarProcessingRebalanceHardeningOptions? hardeningOptions = null,
+        RadarProcessingExecutionMode executionMode = RadarProcessingExecutionMode.PartitionedBarrier,
+        RadarProcessingAsyncExecutionOptions? asyncExecution = null)
     {
         var classifier = new RadarProcessingHotPartitionClassifier(PartitionCount);
         foreach (var classification in initialClassifications)
@@ -111,13 +113,22 @@ public sealed class RadarProcessingSyntheticRebalanceWorkload
 
         var effectiveHardeningOptions = hardeningOptions ?? HardeningOptions;
         return new RadarProcessingRebalanceSession(
-            new RadarProcessingCore(SourceUniverse, CoreOptions),
+            new RadarProcessingCore(SourceUniverse, CreateCoreOptions(executionMode, asyncExecution)),
             PressureOptions,
             new RadarProcessingPressureWindow(PressureWindowOptions),
             new RadarProcessingRebalancePolicyState(PartitionCount, ShardCount, RebalanceOptions),
             classifier,
             hardeningOptions: effectiveHardeningOptions);
     }
+
+    public RadarProcessingCoreOptions CreateCoreOptions(
+        RadarProcessingExecutionMode executionMode = RadarProcessingExecutionMode.PartitionedBarrier,
+        RadarProcessingAsyncExecutionOptions? asyncExecution = null) =>
+        new(
+            executionMode,
+            PartitionCount,
+            ShardCount,
+            asyncExecution: asyncExecution);
 
     private static RadarProcessingSyntheticRebalanceWorkload CreateBalanced() =>
         Create(

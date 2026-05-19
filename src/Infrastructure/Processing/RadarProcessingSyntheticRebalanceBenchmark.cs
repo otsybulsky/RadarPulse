@@ -13,10 +13,20 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmark
         int iterations,
         int warmupIterations,
         CancellationToken cancellationToken = default,
-        RadarProcessingRebalanceHardeningOptions? hardeningOptions = null)
+        RadarProcessingRebalanceHardeningOptions? hardeningOptions = null,
+        RadarProcessingExecutionMode executionMode = RadarProcessingExecutionMode.PartitionedBarrier,
+        RadarProcessingAsyncExecutionOptions? asyncExecution = null)
     {
         var workload = RadarProcessingSyntheticRebalanceWorkload.Create(workloadKind);
-        return Measure(workload, mode, iterations, warmupIterations, cancellationToken, hardeningOptions);
+        return Measure(
+            workload,
+            mode,
+            iterations,
+            warmupIterations,
+            cancellationToken,
+            hardeningOptions,
+            executionMode,
+            asyncExecution);
     }
 
     public RadarProcessingSyntheticRebalanceBenchmarkResult Measure(
@@ -25,103 +35,224 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmark
         int iterations,
         int warmupIterations,
         CancellationToken cancellationToken = default,
-        RadarProcessingRebalanceHardeningOptions? hardeningOptions = null)
+        RadarProcessingRebalanceHardeningOptions? hardeningOptions = null,
+        RadarProcessingExecutionMode executionMode = RadarProcessingExecutionMode.PartitionedBarrier,
+        RadarProcessingAsyncExecutionOptions? asyncExecution = null) =>
+        MeasureAsync(
+                workload,
+                mode,
+                iterations,
+                warmupIterations,
+                cancellationToken,
+                hardeningOptions,
+                executionMode,
+                asyncExecution)
+            .AsTask()
+            .GetAwaiter()
+            .GetResult();
+
+    public async ValueTask<RadarProcessingSyntheticRebalanceBenchmarkResult> MeasureAsync(
+        RadarProcessingSyntheticRebalanceWorkload workload,
+        RadarProcessingSyntheticRebalanceBenchmarkMode mode,
+        int iterations,
+        int warmupIterations,
+        CancellationToken cancellationToken = default,
+        RadarProcessingRebalanceHardeningOptions? hardeningOptions = null,
+        RadarProcessingExecutionMode executionMode = RadarProcessingExecutionMode.PartitionedBarrier,
+        RadarProcessingAsyncExecutionOptions? asyncExecution = null)
     {
         ArgumentNullException.ThrowIfNull(workload);
         EnsureKnownMode(mode);
+        EnsureKnownExecutionMode(executionMode);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(iterations);
         ArgumentOutOfRangeException.ThrowIfNegative(warmupIterations);
         var effectiveHardeningOptions = hardeningOptions ?? workload.HardeningOptions;
+        var effectiveAsyncExecution = executionMode == RadarProcessingExecutionMode.AsyncShardTransport
+            ? asyncExecution ?? new RadarProcessingAsyncExecutionOptions(workerCount: workload.ShardCount, queueCapacity: 1)
+            : asyncExecution;
 
-        for (var warmupIteration = 0; warmupIteration < warmupIterations; warmupIteration++)
+        var workerTelemetryRecorder = executionMode == RadarProcessingExecutionMode.AsyncShardTransport
+            ? new RadarProcessingWorkerTelemetryRecorder(effectiveHardeningOptions.TelemetryRetention)
+            : null;
+        RadarProcessingAsyncWorkerGroup? workerGroup = null;
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            RunIteration(workload, mode, effectiveHardeningOptions, cancellationToken);
-        }
+            workerGroup = executionMode == RadarProcessingExecutionMode.AsyncShardTransport
+                ? new RadarProcessingAsyncWorkerGroup(
+                    new RadarProcessingAsyncWorkerGroupOptions(effectiveAsyncExecution))
+                : null;
 
-        var allocationBefore = RadarProcessingBenchmarkAllocationSnapshot.Capture();
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-
-        IterationTelemetry? expectedIteration = null;
-        var aggregate = IterationTelemetry.Empty;
-        for (var iteration = 0; iteration < iterations; iteration++)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var iterationTelemetry = RunIteration(workload, mode, effectiveHardeningOptions, cancellationToken);
-            if (expectedIteration.HasValue && !expectedIteration.Value.HasSameStableTotals(iterationTelemetry))
+            for (var warmupIteration = 0; warmupIteration < warmupIterations; warmupIteration++)
             {
-                throw new InvalidDataException("Synthetic rebalance benchmark produced inconsistent iteration totals.");
+                cancellationToken.ThrowIfCancellationRequested();
+                await RunIterationAsync(
+                    workload,
+                    mode,
+                    effectiveHardeningOptions,
+                    executionMode,
+                    effectiveAsyncExecution,
+                    workerTelemetryRecorder: null,
+                    workerGroup,
+                    cancellationToken).ConfigureAwait(false);
             }
 
-            expectedIteration ??= iterationTelemetry;
-            aggregate = aggregate.Add(iterationTelemetry);
+            var allocationBefore = RadarProcessingBenchmarkAllocationSnapshot.Capture();
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+            IterationTelemetry? expectedIteration = null;
+            var aggregate = IterationTelemetry.Empty;
+            for (var iteration = 0; iteration < iterations; iteration++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var iterationTelemetry = await RunIterationAsync(
+                    workload,
+                    mode,
+                    effectiveHardeningOptions,
+                    executionMode,
+                    effectiveAsyncExecution,
+                    workerTelemetryRecorder,
+                    workerGroup,
+                    cancellationToken).ConfigureAwait(false);
+                if (expectedIteration.HasValue && !expectedIteration.Value.HasSameStableTotals(iterationTelemetry))
+                {
+                    throw new InvalidDataException("Synthetic rebalance benchmark produced inconsistent iteration totals.");
+                }
+
+                expectedIteration ??= iterationTelemetry;
+                aggregate = aggregate.Add(iterationTelemetry);
+            }
+
+            stopwatch.Stop();
+            var allocatedBytes = RadarProcessingBenchmarkAllocationSnapshot.Capture().DeltaSince(allocationBefore);
+            var allocationSummary = RadarProcessingRebalanceAllocationSummary.ForProcessingOnly(allocatedBytes);
+            var measuredIteration = expectedIteration ??
+                                    throw new InvalidOperationException("Synthetic rebalance benchmark did not run.");
+            var workerTelemetry = workerTelemetryRecorder?.CreateSummary();
+            if (workerTelemetry is not null)
+            {
+                var retentionValidation = RadarProcessingAsyncValidator.ValidateWorkerTelemetryRetention(
+                    workerTelemetry,
+                    workerTelemetryRecorder!.Options,
+                    effectiveHardeningOptions.ValidationProfile);
+                if (!retentionValidation.IsValid)
+                {
+                    throw new InvalidDataException(retentionValidation.Message);
+                }
+            }
+
+            return new RadarProcessingSyntheticRebalanceBenchmarkResult(
+                workload.Kind,
+                mode,
+                iterations,
+                warmupIterations,
+                workload.SourceCount,
+                workload.PartitionCount,
+                workload.ShardCount,
+                workload.BatchesPerIteration,
+                workload.EventsPerIteration,
+                workload.PayloadValuesPerIteration,
+                workload.RawValueChecksumPerIteration,
+                measuredIteration.TopologyVersionCount,
+                aggregate.RebalanceEvaluationCount,
+                aggregate.AcceptedMoveCount,
+                aggregate.SkippedDecisionCount,
+                aggregate.DirectHotReliefCount,
+                aggregate.ColdEvacuationCount,
+                aggregate.FailedMigrationCount,
+                aggregate.ValidationSucceeded,
+                aggregate.ValidationChecksum,
+                CreateReadOnlyList(aggregate.SkippedReasons),
+                CreateReadOnlyList(aggregate.AcceptedMovePressures),
+                stopwatch.Elapsed,
+                allocatedBytes,
+                effectiveHardeningOptions.ValidationProfile,
+                effectiveHardeningOptions.TelemetryRetention.RetentionMode,
+                effectiveHardeningOptions.QuarantineLifecycle.QuarantineTtlEvaluations,
+                effectiveHardeningOptions.QuarantineLifecycle.SustainedCoolingSampleCount,
+                effectiveHardeningOptions.QuarantineLifecycle.MaterialPressureChangeThreshold,
+                allocationSummary,
+                executionMode,
+                workerTelemetry);
         }
-
-        stopwatch.Stop();
-        var allocatedBytes = RadarProcessingBenchmarkAllocationSnapshot.Capture().DeltaSince(allocationBefore);
-        var allocationSummary = RadarProcessingRebalanceAllocationSummary.ForProcessingOnly(allocatedBytes);
-        var measuredIteration = expectedIteration ??
-                                throw new InvalidOperationException("Synthetic rebalance benchmark did not run.");
-
-        return new RadarProcessingSyntheticRebalanceBenchmarkResult(
-            workload.Kind,
-            mode,
-            iterations,
-            warmupIterations,
-            workload.SourceCount,
-            workload.PartitionCount,
-            workload.ShardCount,
-            workload.BatchesPerIteration,
-            workload.EventsPerIteration,
-            workload.PayloadValuesPerIteration,
-            workload.RawValueChecksumPerIteration,
-            measuredIteration.TopologyVersionCount,
-            aggregate.RebalanceEvaluationCount,
-            aggregate.AcceptedMoveCount,
-            aggregate.SkippedDecisionCount,
-            aggregate.DirectHotReliefCount,
-            aggregate.ColdEvacuationCount,
-            aggregate.FailedMigrationCount,
-            aggregate.ValidationSucceeded,
-            aggregate.ValidationChecksum,
-            CreateReadOnlyList(aggregate.SkippedReasons),
-            CreateReadOnlyList(aggregate.AcceptedMovePressures),
-            stopwatch.Elapsed,
-            allocatedBytes,
-            effectiveHardeningOptions.ValidationProfile,
-            effectiveHardeningOptions.TelemetryRetention.RetentionMode,
-            effectiveHardeningOptions.QuarantineLifecycle.QuarantineTtlEvaluations,
-            effectiveHardeningOptions.QuarantineLifecycle.SustainedCoolingSampleCount,
-            effectiveHardeningOptions.QuarantineLifecycle.MaterialPressureChangeThreshold,
-            allocationSummary);
+        finally
+        {
+            if (workerGroup is not null)
+            {
+                await workerGroup.DisposeAsync().ConfigureAwait(false);
+            }
+        }
     }
 
-    private static IterationTelemetry RunIteration(
+    private static ValueTask<IterationTelemetry> RunIterationAsync(
         RadarProcessingSyntheticRebalanceWorkload workload,
         RadarProcessingSyntheticRebalanceBenchmarkMode mode,
         RadarProcessingRebalanceHardeningOptions hardeningOptions,
+        RadarProcessingExecutionMode executionMode,
+        RadarProcessingAsyncExecutionOptions? asyncExecution,
+        RadarProcessingWorkerTelemetryRecorder? workerTelemetryRecorder,
+        RadarProcessingAsyncWorkerGroup? workerGroup,
         CancellationToken cancellationToken) =>
         mode switch
         {
             RadarProcessingSyntheticRebalanceBenchmarkMode.StaticNoRebalance =>
-                RunStaticIteration(workload, cancellationToken),
+                RunStaticIterationAsync(
+                    workload,
+                    executionMode,
+                    asyncExecution,
+                    workerTelemetryRecorder,
+                    workerGroup,
+                    cancellationToken),
             RadarProcessingSyntheticRebalanceBenchmarkMode.PressureSamplingOnly =>
-                RunPressureSamplingIteration(workload, cancellationToken),
+                RunPressureSamplingIterationAsync(
+                    workload,
+                    executionMode,
+                    asyncExecution,
+                    workerTelemetryRecorder,
+                    workerGroup,
+                    cancellationToken),
             RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession =>
-                RunRebalanceSessionIteration(workload, hardeningOptions, cancellationToken),
+                RunRebalanceSessionIterationAsync(
+                    workload,
+                    hardeningOptions,
+                    executionMode,
+                    asyncExecution,
+                    workerTelemetryRecorder,
+                    workerGroup,
+                    cancellationToken),
             _ => throw new ArgumentOutOfRangeException(nameof(mode))
         };
 
-    private static IterationTelemetry RunStaticIteration(
+    private static async ValueTask<IterationTelemetry> RunStaticIterationAsync(
         RadarProcessingSyntheticRebalanceWorkload workload,
+        RadarProcessingExecutionMode executionMode,
+        RadarProcessingAsyncExecutionOptions? asyncExecution,
+        RadarProcessingWorkerTelemetryRecorder? workerTelemetryRecorder,
+        RadarProcessingAsyncWorkerGroup? workerGroup,
         CancellationToken cancellationToken)
     {
-        var core = new RadarProcessingCore(workload.SourceUniverse, workload.CoreOptions);
-        foreach (var batch in workload.Batches)
+        var coreOptions = workload.CreateCoreOptions(executionMode, asyncExecution);
+        var core = new RadarProcessingCore(workload.SourceUniverse, coreOptions);
+        RadarProcessingAsyncCoreSession? asyncSession = null;
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var result = core.Process(batch, cancellationToken);
-            EnsureValidProcessingResult(result);
+            asyncSession = executionMode == RadarProcessingExecutionMode.AsyncShardTransport
+                ? CreateAsyncCoreSession(core, workerTelemetryRecorder, workerGroup)
+                : null;
+            foreach (var batch in workload.Batches)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var result = asyncSession is null
+                    ? core.Process(batch, cancellationToken)
+                    : await asyncSession.ProcessAsync(batch, cancellationToken).ConfigureAwait(false);
+                EnsureValidProcessingResult(result);
+            }
+        }
+        finally
+        {
+            if (asyncSession is not null)
+            {
+                await asyncSession.DisposeAsync().ConfigureAwait(false);
+            }
         }
 
         return IterationTelemetry.FromMetrics(
@@ -129,23 +260,44 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmark
             topologyVersionCount: 1);
     }
 
-    private static IterationTelemetry RunPressureSamplingIteration(
+    private static async ValueTask<IterationTelemetry> RunPressureSamplingIterationAsync(
         RadarProcessingSyntheticRebalanceWorkload workload,
+        RadarProcessingExecutionMode executionMode,
+        RadarProcessingAsyncExecutionOptions? asyncExecution,
+        RadarProcessingWorkerTelemetryRecorder? workerTelemetryRecorder,
+        RadarProcessingAsyncWorkerGroup? workerGroup,
         CancellationToken cancellationToken)
     {
-        var core = new RadarProcessingCore(workload.SourceUniverse, workload.CoreOptions);
+        var coreOptions = workload.CreateCoreOptions(executionMode, asyncExecution);
+        var core = new RadarProcessingCore(workload.SourceUniverse, coreOptions);
         var pressureWindow = new RadarProcessingPressureWindow(workload.PressureWindowOptions);
         var evaluationCount = 0L;
+        RadarProcessingAsyncCoreSession? asyncSession = null;
 
-        foreach (var batch in workload.Batches)
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var result = core.Process(batch, cancellationToken);
-            EnsureValidProcessingResult(result);
-            var telemetry = result.Telemetry ??
-                            throw new InvalidDataException("Pressure sampling benchmark requires telemetry.");
-            pressureWindow.AddSample(RadarProcessingPressureSample.FromTelemetry(telemetry, workload.PressureOptions));
-            evaluationCount = checked(evaluationCount + 1);
+            asyncSession = executionMode == RadarProcessingExecutionMode.AsyncShardTransport
+                ? CreateAsyncCoreSession(core, workerTelemetryRecorder, workerGroup)
+                : null;
+            foreach (var batch in workload.Batches)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var result = asyncSession is null
+                    ? core.Process(batch, cancellationToken)
+                    : await asyncSession.ProcessAsync(batch, cancellationToken).ConfigureAwait(false);
+                EnsureValidProcessingResult(result);
+                var telemetry = result.Telemetry ??
+                                throw new InvalidDataException("Pressure sampling benchmark requires telemetry.");
+                pressureWindow.AddSample(RadarProcessingPressureSample.FromTelemetry(telemetry, workload.PressureOptions));
+                evaluationCount = checked(evaluationCount + 1);
+            }
+        }
+        finally
+        {
+            if (asyncSession is not null)
+            {
+                await asyncSession.DisposeAsync().ConfigureAwait(false);
+            }
         }
 
         return IterationTelemetry.FromMetrics(
@@ -154,20 +306,43 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmark
             rebalanceEvaluationCount: evaluationCount);
     }
 
-    private static IterationTelemetry RunRebalanceSessionIteration(
+    private static async ValueTask<IterationTelemetry> RunRebalanceSessionIterationAsync(
         RadarProcessingSyntheticRebalanceWorkload workload,
         RadarProcessingRebalanceHardeningOptions hardeningOptions,
+        RadarProcessingExecutionMode executionMode,
+        RadarProcessingAsyncExecutionOptions? asyncExecution,
+        RadarProcessingWorkerTelemetryRecorder? workerTelemetryRecorder,
+        RadarProcessingAsyncWorkerGroup? workerGroup,
         CancellationToken cancellationToken)
     {
-        var session = workload.CreateSession(hardeningOptions);
+        var session = workload.CreateSession(hardeningOptions, executionMode, asyncExecution);
         var initialTopologyVersion = session.CurrentTopology.Version;
         var telemetry = IterationTelemetry.Empty;
+        RadarProcessingAsyncRebalanceSession? asyncSession = null;
 
-        foreach (var batch in workload.Batches)
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var result = session.Process(batch, cancellationToken);
-            telemetry = telemetry.Add(result);
+            asyncSession = executionMode == RadarProcessingExecutionMode.AsyncShardTransport
+                ? new RadarProcessingAsyncRebalanceSession(
+                    session,
+                    CreateAsyncCoreSession(session.Core, workerTelemetryRecorder, workerGroup),
+                    ownsAsyncCoreSession: true)
+                : null;
+            foreach (var batch in workload.Batches)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var result = asyncSession is null
+                    ? session.Process(batch, cancellationToken)
+                    : await asyncSession.ProcessAsync(batch, cancellationToken).ConfigureAwait(false);
+                telemetry = telemetry.Add(result);
+            }
+        }
+        finally
+        {
+            if (asyncSession is not null)
+            {
+                await asyncSession.DisposeAsync().ConfigureAwait(false);
+            }
         }
 
         var metrics = session.Core.CreateMetrics();
@@ -175,6 +350,18 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmark
             metrics,
             session.CurrentTopology.Version.Value - initialTopologyVersion.Value + 1);
     }
+
+    private static RadarProcessingAsyncCoreSession CreateAsyncCoreSession(
+        RadarProcessingCore core,
+        RadarProcessingWorkerTelemetryRecorder? workerTelemetryRecorder,
+        RadarProcessingAsyncWorkerGroup? workerGroup) =>
+        workerGroup is null
+            ? new RadarProcessingAsyncCoreSession(core, workerTelemetryRecorder)
+            : new RadarProcessingAsyncCoreSession(
+                core,
+                workerGroup,
+                workerTelemetryRecorder,
+                ownsWorkerGroup: false);
 
     private static void EnsureValidProcessingResult(RadarProcessingResult result)
     {
@@ -187,6 +374,17 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmark
         {
             throw new InvalidDataException("Synthetic rebalance benchmark requires partitioned telemetry.");
         }
+
+        if (result.ExecutionMode == RadarProcessingExecutionMode.AsyncShardTransport)
+        {
+            var asyncValidation = RadarProcessingAsyncValidator.ValidateProcessingResult(
+                result,
+                RadarProcessingValidationProfile.Benchmark);
+            if (!asyncValidation.IsValid)
+            {
+                throw new InvalidDataException(asyncValidation.Message);
+            }
+        }
     }
 
     private static void EnsureKnownMode(RadarProcessingSyntheticRebalanceBenchmarkMode mode)
@@ -196,6 +394,15 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmark
             not RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession)
         {
             throw new ArgumentOutOfRangeException(nameof(mode));
+        }
+    }
+
+    private static void EnsureKnownExecutionMode(RadarProcessingExecutionMode executionMode)
+    {
+        if (executionMode is not RadarProcessingExecutionMode.PartitionedBarrier and
+            not RadarProcessingExecutionMode.AsyncShardTransport)
+        {
+            throw new ArgumentOutOfRangeException(nameof(executionMode));
         }
     }
 

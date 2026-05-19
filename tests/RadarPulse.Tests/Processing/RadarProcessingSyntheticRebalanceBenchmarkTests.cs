@@ -67,6 +67,85 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmarkTests
     }
 
     [Fact]
+    public void AsyncStaticBaselineReportsMeasuredWorkerTelemetry()
+    {
+        var workload = RadarProcessingSyntheticRebalanceWorkload.Create(
+            RadarProcessingSyntheticRebalanceWorkloadKind.Balanced);
+
+        var result = Measure(
+            workload,
+            RadarProcessingSyntheticRebalanceBenchmarkMode.StaticNoRebalance,
+            iterations: 2,
+            warmupIterations: 1,
+            executionMode: RadarProcessingExecutionMode.AsyncShardTransport,
+            asyncExecution: new RadarProcessingAsyncExecutionOptions(workerCount: 2, queueCapacity: 1));
+
+        Assert.Equal(RadarProcessingExecutionMode.AsyncShardTransport, result.ExecutionMode);
+        Assert.True(result.HasWorkerTelemetry);
+        Assert.NotNull(result.WorkerTelemetry);
+        Assert.Equal(2, result.WorkerTelemetry.WorkerCount);
+        Assert.Equal(1, result.WorkerTelemetry.QueueCapacity);
+        Assert.Equal(workload.BatchesPerIteration * result.Iterations, result.WorkerTelemetry.Counters.CompletedBatchCount);
+        Assert.Equal(0, result.RebalanceEvaluationCount);
+        Assert.True(result.ValidationSucceeded);
+    }
+
+    [Fact]
+    public void AsyncSamplingModeRecordsWorkerTelemetryAndEvaluations()
+    {
+        var workload = RadarProcessingSyntheticRebalanceWorkload.Create(
+            RadarProcessingSyntheticRebalanceWorkloadKind.SustainedHotShard);
+
+        var result = Measure(
+            workload,
+            RadarProcessingSyntheticRebalanceBenchmarkMode.PressureSamplingOnly,
+            iterations: 1,
+            warmupIterations: 1,
+            executionMode: RadarProcessingExecutionMode.AsyncShardTransport,
+            asyncExecution: new RadarProcessingAsyncExecutionOptions(workerCount: 2, queueCapacity: 1));
+
+        Assert.Equal(RadarProcessingExecutionMode.AsyncShardTransport, result.ExecutionMode);
+        Assert.NotNull(result.WorkerTelemetry);
+        Assert.Equal(workload.BatchesPerIteration, result.RebalanceEvaluationCount);
+        Assert.Equal(workload.BatchesPerIteration, result.WorkerTelemetry.Counters.CompletedBatchCount);
+        Assert.Equal(0, result.AcceptedMoveCount);
+        Assert.True(result.ValidationSucceeded);
+    }
+
+    [Fact]
+    public void AsyncRebalanceMatchesSynchronousDeterministicTotals()
+    {
+        var workload = RadarProcessingSyntheticRebalanceWorkload.Create(
+            RadarProcessingSyntheticRebalanceWorkloadKind.SustainedHotShard);
+
+        var synchronous = Measure(
+            workload,
+            RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession,
+            iterations: 1,
+            warmupIterations: 0);
+        var asynchronous = Measure(
+            workload,
+            RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession,
+            iterations: 1,
+            warmupIterations: 0,
+            executionMode: RadarProcessingExecutionMode.AsyncShardTransport,
+            asyncExecution: new RadarProcessingAsyncExecutionOptions(workerCount: 2, queueCapacity: 1));
+
+        Assert.Equal(RadarProcessingExecutionMode.PartitionedBarrier, synchronous.ExecutionMode);
+        Assert.Equal(RadarProcessingExecutionMode.AsyncShardTransport, asynchronous.ExecutionMode);
+        Assert.NotNull(asynchronous.WorkerTelemetry);
+        Assert.Equal(synchronous.TotalBatches, asynchronous.TotalBatches);
+        Assert.Equal(synchronous.TotalEvents, asynchronous.TotalEvents);
+        Assert.Equal(synchronous.RebalanceEvaluationCount, asynchronous.RebalanceEvaluationCount);
+        Assert.Equal(synchronous.AcceptedMoveCount, asynchronous.AcceptedMoveCount);
+        Assert.Equal(synchronous.SkippedDecisionCount, asynchronous.SkippedDecisionCount);
+        Assert.Equal(synchronous.DirectHotReliefCount, asynchronous.DirectHotReliefCount);
+        Assert.Equal(synchronous.ColdEvacuationCount, asynchronous.ColdEvacuationCount);
+        Assert.Equal(synchronous.ValidationChecksum, asynchronous.ValidationChecksum);
+        Assert.True(asynchronous.ValidationSucceeded);
+    }
+
+    [Fact]
     public void BenchmarkResultIncludesAllocationAttributionAndProfiles()
     {
         var hardeningOptions = new RadarProcessingRebalanceHardeningOptions(
@@ -218,6 +297,13 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmarkTests
                 RadarProcessingSyntheticRebalanceBenchmarkMode.StaticNoRebalance,
                 iterations: 1,
                 warmupIterations: -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            benchmark.Measure(
+                workload,
+                RadarProcessingSyntheticRebalanceBenchmarkMode.StaticNoRebalance,
+                iterations: 1,
+                warmupIterations: 0,
+                executionMode: (RadarProcessingExecutionMode)255));
     }
 
     private static RadarProcessingSyntheticRebalanceBenchmarkResult Measure(
@@ -235,10 +321,14 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmarkTests
         RadarProcessingSyntheticRebalanceWorkload workload,
         RadarProcessingSyntheticRebalanceBenchmarkMode mode,
         int iterations,
-        int warmupIterations) =>
+        int warmupIterations,
+        RadarProcessingExecutionMode executionMode = RadarProcessingExecutionMode.PartitionedBarrier,
+        RadarProcessingAsyncExecutionOptions? asyncExecution = null) =>
         new RadarProcessingSyntheticRebalanceBenchmark().Measure(
             workload,
             mode,
             iterations,
-            warmupIterations);
+            warmupIterations,
+            executionMode: executionMode,
+            asyncExecution: asyncExecution);
 }
