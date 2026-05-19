@@ -390,6 +390,34 @@ Recorded result:
 472 passed for Processing-focused coverage.
 ```
 
+Milestone 009 slice 6 archive provider adapter is implemented in the current
+working tree. `ArchiveOwnedRadarEventBatchQueueingPublisher` now implements
+the synchronous `IArchiveRadarEventBatchPublisher` callback boundary by taking
+the leased archive `RadarEventBatch`, creating an owned snapshot before the
+callback returns, and enqueueing only that owned batch into
+`RadarProcessingOwnedBatchQueue`. The adapter records enqueue outcomes through
+`RadarProcessingArchiveQueuedProviderResult`, exposes queue telemetry, reports
+backpressure/full/closed/faulted/canceled publish attempts, rejects later
+publish after queue fault or close, and keeps cancellation from enqueueing
+partial work. The archive publisher path now has coverage proving fake
+single-file archive publish preserves deterministic totals/checksum while the
+queued provider receives an owned batch. This slice does not yet wire queued
+provider mode into archive rebalance benchmarks or CLI options.
+
+Latest verification after milestone 009 slice 6:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Archive
+```
+
+Recorded result:
+
+```text
+4 passed for archive owned queueing publisher coverage.
+91 passed, 3 skipped for Archive-focused coverage.
+```
+
 Milestone 008 slice 1 is implemented in the current working tree. RadarPulse
 now has the first async execution option contracts:
 `RadarProcessingExecutionMode.AsyncShardTransport`,
