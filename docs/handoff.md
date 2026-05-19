@@ -939,6 +939,15 @@ machinery. The end-to-end contour remains dominated by archive replay and batch
 construction, so processing callback metrics should stay the primary comparison
 surface for milestone 008.
 
+Milestone 008 decision trace is written:
+`docs/milestones/008-retained-async-shard-transport-decision-trace.md`. It
+records the retained-workers-before-owned-payloads decision, callback completion
+barrier semantics, one-in-flight borrowed-batch scope, replay/worker separation,
+synchronous reference oracle, deterministic topology snapshot and aggregation,
+bounded mailboxes, failure/cancellation/timeout semantics, rebalance after
+async completion, worker telemetry, benchmark interpretation, CLI surface, and
+deferred owned-payload/provider-queue work.
+
 Milestone 007 slice 1 is implemented in the current working tree. RadarPulse
 now has the first hardening option/profile contracts:
 `RadarProcessingRebalanceHardeningOptions`,
