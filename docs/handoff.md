@@ -335,6 +335,33 @@ Recorded result:
 460 passed for Processing-focused coverage.
 ```
 
+Milestone 009 slice 4 queued processing consumer is implemented in the current
+working tree. `RadarProcessingQueuedProcessingSession` now wraps the owned
+batch queue and drains owned batches in provider sequence order into the
+existing processing paths. Sequential and synchronous partitioned modes call
+`RadarProcessingCore.Process`; async mode owns or consumes a
+`RadarProcessingAsyncCoreSession` and calls `ProcessAsync`. The consumer keeps
+one active batch at a time, records enqueue and processing result snapshots,
+builds session telemetry with processing completion/failure/cancellation/skip
+counts, faults the queue after invalid processing, rejects later enqueue after
+fault, and marks already accepted remainder batches as `SkippedAfterFault`.
+Cancellation before dequeue returns a canceled queued session. This slice does
+not run the rebalance control plane, archive replay, or CLI integration.
+
+Latest verification after milestone 009 slice 4:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingQueuedProcessingSessionTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Processing
+```
+
+Recorded result:
+
+```text
+6 passed for queued processing session coverage.
+466 passed for Processing-focused coverage.
+```
+
 Milestone 008 slice 1 is implemented in the current working tree. RadarPulse
 now has the first async execution option contracts:
 `RadarProcessingExecutionMode.AsyncShardTransport`,
