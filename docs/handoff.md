@@ -327,6 +327,36 @@ Result:
 513 passed, 3 skipped for the full test project.
 ```
 
+Milestone 008 slice 4 is implemented in the current working tree. RadarPulse
+now has the bounded in-process worker mailbox foundation under
+`RadarPulse.Infrastructure.Processing`: `RadarProcessingWorkerMailbox<TWork>`,
+`RadarProcessingWorkerMailboxOptions`,
+`RadarProcessingWorkerMailboxEnqueueStatus`,
+`RadarProcessingWorkerMailboxDequeueStatus`,
+`RadarProcessingWorkerMailboxEnqueueResult`, and
+`RadarProcessingWorkerMailboxDequeueResult<TWork>`. The mailbox enforces fixed
+capacity, returns deterministic enqueue/dequeue status values, preserves FIFO
+order, rejects enqueue after close or dispose, lets closed mailboxes drain
+accepted items, supports cancellation while waiting for dequeue, releases
+waiting dequeue calls on dispose, clears pending accepted items on dispose, and
+tracks pending count so drained work is not retained by the mailbox.
+
+Latest verification after milestone 008 slice 4:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingWorkerMailboxTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Processing
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Result:
+
+```text
+10 passed for focused worker mailbox coverage.
+368 passed for processing-focused coverage.
+523 passed, 3 skipped for the full test project.
+```
+
 Milestone 007 slice 1 is implemented in the current working tree. RadarPulse
 now has the first hardening option/profile contracts:
 `RadarProcessingRebalanceHardeningOptions`,
@@ -3638,6 +3668,12 @@ constant and moment data blocks.
 - `src/Domain/Processing/RadarProcessingAsyncBatchScopeResult.cs`
 - `src/Domain/Processing/RadarProcessingAsyncWorkStatus.cs`
 - `src/Domain/Processing/RadarProcessingAsyncBatchCompletionError.cs`
+- `src/Infrastructure/Processing/RadarProcessingWorkerMailbox.cs`
+- `src/Infrastructure/Processing/RadarProcessingWorkerMailboxOptions.cs`
+- `src/Infrastructure/Processing/RadarProcessingWorkerMailboxEnqueueStatus.cs`
+- `src/Infrastructure/Processing/RadarProcessingWorkerMailboxDequeueStatus.cs`
+- `src/Infrastructure/Processing/RadarProcessingWorkerMailboxEnqueueResult.cs`
+- `src/Infrastructure/Processing/RadarProcessingWorkerMailboxDequeueResult.cs`
 - `src/Domain/Processing/RadarProcessingExecutionMode.cs`
 - `src/Domain/Processing/RadarProcessingCoreOptions.cs`
 - `src/Domain/Processing/RadarProcessingRebalanceHardeningOptions.cs`
