@@ -388,6 +388,35 @@ Result:
 533 passed, 3 skipped for the full test project.
 ```
 
+Milestone 008 slice 6 is implemented in the current working tree. The retained
+worker group now makes the borrowed batch lifetime guardrails explicit through
+`RadarProcessingAsyncWorkerGroupDrainResult`, running/pending/outstanding work
+counts, closed-scope dispatch rejection, and timeout diagnostics. Successful
+dispatch returns only after the accepted borrowed work is drained and reports
+zero outstanding work. Failed or rejected dispatch paths report numeric drain
+diagnostics so accepted work cannot disappear untracked. A completed
+`RadarProcessingAsyncBatchScope` is rejected before any worker delegate is run.
+Timeouts mark the worker group faulted and can request cooperative
+cancellation according to policy, but dispatch still waits for the completion
+barrier before returning, so timeout is not treated as permission to release
+borrowed payload while a worker may still read it.
+
+Latest verification after milestone 008 slice 6:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingAsyncWorkerGroupTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Processing
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Result:
+
+```text
+13 passed for focused async worker group and borrowed lifetime coverage.
+381 passed for processing-focused coverage.
+536 passed, 3 skipped for the full test project.
+```
+
 Milestone 007 slice 1 is implemented in the current working tree. RadarPulse
 now has the first hardening option/profile contracts:
 `RadarProcessingRebalanceHardeningOptions`,
@@ -3709,6 +3738,7 @@ constant and moment data blocks.
 - `src/Infrastructure/Processing/RadarProcessingAsyncWorkerGroup.cs`
 - `src/Infrastructure/Processing/RadarProcessingAsyncWorkerGroupOptions.cs`
 - `src/Infrastructure/Processing/RadarProcessingAsyncWorkerGroupResult.cs`
+- `src/Infrastructure/Processing/RadarProcessingAsyncWorkerGroupDrainResult.cs`
 - `src/Infrastructure/Processing/RadarProcessingAsyncWorkerGroupError.cs`
 - `src/Infrastructure/Processing/RadarProcessingAsyncWorker.cs`
 - `src/Infrastructure/Processing/RadarProcessingAsyncWorkerRequest.cs`

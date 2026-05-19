@@ -11,5 +11,7 @@ public enum RadarProcessingAsyncWorkerGroupError : byte
     Faulted = 6,
     Disposed = 7,
     AlreadyInFlight = 8,
-    EnqueueRejected = 9
+    EnqueueRejected = 9,
+    TimedOut = 10,
+    ScopeClosed = 11
 }

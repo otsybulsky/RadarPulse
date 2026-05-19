@@ -8,6 +8,7 @@ internal sealed class RadarProcessingAsyncWorker : IDisposable
     private readonly RadarProcessingWorkerMailbox<RadarProcessingAsyncWorkerRequest> mailbox;
     private Task? runTask;
     private int started;
+    private int runningCount;
 
     public RadarProcessingAsyncWorker(
         RadarProcessingWorkerId id,
@@ -22,6 +23,8 @@ internal sealed class RadarProcessingAsyncWorker : IDisposable
     public RadarProcessingWorkerId Id { get; }
 
     public int PendingCount => mailbox.PendingCount;
+
+    public int RunningCount => Volatile.Read(ref runningCount);
 
     public Task Completion => Volatile.Read(ref runTask) ?? Task.CompletedTask;
 
@@ -72,16 +75,18 @@ internal sealed class RadarProcessingAsyncWorker : IDisposable
         }
     }
 
-    private static async ValueTask ExecuteAsync(
+    private async ValueTask ExecuteAsync(
         RadarProcessingAsyncWorkerRequest request,
         CancellationToken workerCancellationToken)
     {
+        Interlocked.Increment(ref runningCount);
         var queueWaitTime = Stopwatch.GetElapsedTime(request.EnqueuedTimestamp);
         var executionStarted = Stopwatch.GetTimestamp();
         using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
             workerCancellationToken,
             request.CancellationToken);
         var executionCancellationToken = linkedCancellation.Token;
+        RadarProcessingAsyncWorkCompletion completion;
 
         try
         {
@@ -90,29 +95,32 @@ internal sealed class RadarProcessingAsyncWorker : IDisposable
                 executionCancellationToken).ConfigureAwait(false);
             ArgumentNullException.ThrowIfNull(executorCompletion);
 
-            request.BatchState.RecordCompletion(
-                WithMeasuredTiming(
-                    request.WorkItem,
-                    executorCompletion,
-                    queueWaitTime,
-                    Stopwatch.GetElapsedTime(executionStarted)));
+            completion = WithMeasuredTiming(
+                request.WorkItem,
+                executorCompletion,
+                queueWaitTime,
+                Stopwatch.GetElapsedTime(executionStarted));
         }
         catch (OperationCanceledException) when (executionCancellationToken.IsCancellationRequested)
         {
-            request.BatchState.RecordCompletion(
-                RadarProcessingAsyncWorkCompletion.Canceled(
-                    request.WorkItem,
-                    queueWaitTime,
-                    Stopwatch.GetElapsedTime(executionStarted)));
+            completion = RadarProcessingAsyncWorkCompletion.Canceled(
+                request.WorkItem,
+                queueWaitTime,
+                Stopwatch.GetElapsedTime(executionStarted));
         }
         catch
         {
-            request.BatchState.RecordCompletion(
-                RadarProcessingAsyncWorkCompletion.Failed(
-                    request.WorkItem,
-                    queueWaitTime,
-                    Stopwatch.GetElapsedTime(executionStarted)));
+            completion = RadarProcessingAsyncWorkCompletion.Failed(
+                request.WorkItem,
+                queueWaitTime,
+                Stopwatch.GetElapsedTime(executionStarted));
         }
+        finally
+        {
+            Interlocked.Decrement(ref runningCount);
+        }
+
+        request.BatchState.RecordCompletion(completion);
     }
 
     private static RadarProcessingAsyncWorkCompletion WithMeasuredTiming(

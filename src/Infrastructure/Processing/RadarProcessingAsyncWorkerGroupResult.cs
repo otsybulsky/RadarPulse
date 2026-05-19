@@ -7,7 +7,8 @@ public sealed record RadarProcessingAsyncWorkerGroupResult
     public RadarProcessingAsyncWorkerGroupResult(
         RadarProcessingWorkerGroupStatus status,
         RadarProcessingAsyncBatchScopeResult? batchResult = null,
-        RadarProcessingAsyncWorkerGroupError error = RadarProcessingAsyncWorkerGroupError.None)
+        RadarProcessingAsyncWorkerGroupError error = RadarProcessingAsyncWorkerGroupError.None,
+        RadarProcessingAsyncWorkerGroupDrainResult? drainResult = null)
     {
         ArgumentNullException.ThrowIfNull(status);
         EnsureKnownError(error);
@@ -21,6 +22,7 @@ public sealed record RadarProcessingAsyncWorkerGroupResult
         Status = status;
         BatchResult = batchResult;
         Error = error;
+        DrainResult = drainResult ?? new RadarProcessingAsyncWorkerGroupDrainResult();
     }
 
     public RadarProcessingWorkerGroupStatus Status { get; }
@@ -28,6 +30,8 @@ public sealed record RadarProcessingAsyncWorkerGroupResult
     public RadarProcessingAsyncBatchScopeResult? BatchResult { get; }
 
     public RadarProcessingAsyncWorkerGroupError Error { get; }
+
+    public RadarProcessingAsyncWorkerGroupDrainResult DrainResult { get; }
 
     public bool IsSuccess =>
         Error == RadarProcessingAsyncWorkerGroupError.None &&
@@ -37,20 +41,22 @@ public sealed record RadarProcessingAsyncWorkerGroupResult
 
     public static RadarProcessingAsyncWorkerGroupResult Completed(
         RadarProcessingWorkerGroupStatus status,
-        RadarProcessingAsyncBatchScopeResult batchResult) =>
-        new(status, batchResult);
+        RadarProcessingAsyncBatchScopeResult batchResult,
+        RadarProcessingAsyncWorkerGroupDrainResult drainResult) =>
+        new(status, batchResult, drainResult: drainResult);
 
     public static RadarProcessingAsyncWorkerGroupResult Rejected(
         RadarProcessingWorkerGroupStatus status,
         RadarProcessingAsyncWorkerGroupError error,
-        RadarProcessingAsyncBatchScopeResult? batchResult = null)
+        RadarProcessingAsyncBatchScopeResult? batchResult = null,
+        RadarProcessingAsyncWorkerGroupDrainResult? drainResult = null)
     {
         if (error == RadarProcessingAsyncWorkerGroupError.None)
         {
             throw new ArgumentOutOfRangeException(nameof(error), error, "Rejected result requires an explicit error.");
         }
 
-        return new RadarProcessingAsyncWorkerGroupResult(status, batchResult, error);
+        return new RadarProcessingAsyncWorkerGroupResult(status, batchResult, error, drainResult);
     }
 
     internal static void EnsureKnownError(
@@ -65,7 +71,9 @@ public sealed record RadarProcessingAsyncWorkerGroupResult
             not RadarProcessingAsyncWorkerGroupError.Faulted and
             not RadarProcessingAsyncWorkerGroupError.Disposed and
             not RadarProcessingAsyncWorkerGroupError.AlreadyInFlight and
-            not RadarProcessingAsyncWorkerGroupError.EnqueueRejected)
+            not RadarProcessingAsyncWorkerGroupError.EnqueueRejected and
+            not RadarProcessingAsyncWorkerGroupError.TimedOut and
+            not RadarProcessingAsyncWorkerGroupError.ScopeClosed)
         {
             throw new ArgumentOutOfRangeException(nameof(error));
         }

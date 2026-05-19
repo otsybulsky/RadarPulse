@@ -18,6 +18,8 @@ public sealed class RadarProcessingAsyncWorkerGroupTests
         Assert.Equal(7, (int)RadarProcessingAsyncWorkerGroupError.Disposed);
         Assert.Equal(8, (int)RadarProcessingAsyncWorkerGroupError.AlreadyInFlight);
         Assert.Equal(9, (int)RadarProcessingAsyncWorkerGroupError.EnqueueRejected);
+        Assert.Equal(10, (int)RadarProcessingAsyncWorkerGroupError.TimedOut);
+        Assert.Equal(11, (int)RadarProcessingAsyncWorkerGroupError.ScopeClosed);
     }
 
     [Fact]
@@ -41,6 +43,29 @@ public sealed class RadarProcessingAsyncWorkerGroupTests
             RadarProcessingAsyncWorkerGroupResult.Rejected(
                 new RadarProcessingWorkerGroupStatus(),
                 RadarProcessingAsyncWorkerGroupError.None));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RadarProcessingAsyncWorkerGroupDrainResult(acceptedWorkItemCount: -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RadarProcessingAsyncWorkerGroupDrainResult(completedWorkItemCount: -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RadarProcessingAsyncWorkerGroupDrainResult(pendingWorkItemCount: -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RadarProcessingAsyncWorkerGroupDrainResult(runningWorkItemCount: -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RadarProcessingAsyncWorkerGroupDrainResult(barrierWaitTime: TimeSpan.FromTicks(-1)));
+    }
+
+    [Fact]
+    public void WorkerGroupExposesNoFireAndForgetBorrowedBatchDispatchApi()
+    {
+        var dispatchMethods = typeof(RadarProcessingAsyncWorkerGroup)
+            .GetMethods()
+            .Where(static method => method.Name.Contains("Dispatch", StringComparison.Ordinal))
+            .ToArray();
+
+        var dispatch = Assert.Single(dispatchMethods);
+        Assert.Equal(nameof(RadarProcessingAsyncWorkerGroup.DispatchAsync), dispatch.Name);
+        Assert.Equal(typeof(ValueTask<RadarProcessingAsyncWorkerGroupResult>), dispatch.ReturnType);
     }
 
     [Fact]
@@ -64,7 +89,14 @@ public sealed class RadarProcessingAsyncWorkerGroupTests
             Assert.Equal(2, result.BatchResult.Completion.SucceededWorkItemCount);
             Assert.Equal(2, result.BatchResult.Completion.ProcessedStreamEventCount);
             Assert.Equal(4, result.BatchResult.Completion.ProcessedPayloadValueCount);
+            Assert.Equal(2, result.DrainResult.AcceptedWorkItemCount);
+            Assert.Equal(2, result.DrainResult.CompletedWorkItemCount);
+            Assert.Equal(0, result.DrainResult.OutstandingWorkItemCount);
+            Assert.True(result.DrainResult.IsDrained);
+            Assert.False(result.DrainResult.TimedOut);
             Assert.Equal(0, group.PendingWorkItemCount);
+            Assert.Equal(0, group.RunningWorkItemCount);
+            Assert.Equal(0, group.OutstandingWorkItemCount);
 
             var stopped = await group.StopAsync();
             Assert.True(stopped.IsSuccess);
@@ -113,6 +145,9 @@ public sealed class RadarProcessingAsyncWorkerGroupTests
             Assert.NotNull(result.BatchResult);
             Assert.Equal(RadarProcessingAsyncBatchCompletionError.WorkFailed, result.BatchResult.Error);
             Assert.Equal(1, result.BatchResult.Completion.FailedWorkItemCount);
+            Assert.Equal(1, result.DrainResult.AcceptedWorkItemCount);
+            Assert.Equal(1, result.DrainResult.CompletedWorkItemCount);
+            Assert.True(result.DrainResult.IsDrained);
             Assert.True(group.Status.CanAcceptDispatch);
 
             var (nextScope, nextWorkItems) = CreateScope(2, expectedWorkItemCount: 1, workerCount: 1);
@@ -191,6 +226,7 @@ public sealed class RadarProcessingAsyncWorkerGroupTests
                 }).AsTask();
 
             await startedExecution.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await WaitUntilAsync(() => group.RunningWorkItemCount == 1);
 
             var (overlapScope, overlapWorkItems) = CreateScope(2, expectedWorkItemCount: 1, workerCount: 1);
             var overlap = await group.DispatchAsync(overlapScope, overlapWorkItems, Succeed);
@@ -198,6 +234,8 @@ public sealed class RadarProcessingAsyncWorkerGroupTests
             Assert.True(overlap.IsRejected);
             Assert.Equal(RadarProcessingAsyncWorkerGroupError.AlreadyInFlight, overlap.Error);
             Assert.Null(overlap.BatchResult);
+            Assert.Equal(1, overlap.DrainResult.RunningWorkItemCount);
+            Assert.Equal(1, overlap.DrainResult.OutstandingWorkItemCount);
 
             releaseExecution.SetResult();
             var first = await firstDispatch.WaitAsync(TimeSpan.FromSeconds(5));
@@ -270,6 +308,7 @@ public sealed class RadarProcessingAsyncWorkerGroupTests
 
             Assert.True(dispatchResult.IsSuccess);
             Assert.Equal(2, dispatchResult.BatchResult?.Completion.SucceededWorkItemCount);
+            Assert.True(dispatchResult.DrainResult.IsDrained);
             Assert.True(disposeResult.IsSuccess);
             Assert.Equal(0, group.PendingWorkItemCount);
         }
@@ -304,10 +343,102 @@ public sealed class RadarProcessingAsyncWorkerGroupTests
             Assert.True(result.IsRejected);
             Assert.Equal(RadarProcessingAsyncWorkerGroupError.EnqueueRejected, result.Error);
             Assert.Null(result.BatchResult);
+            Assert.Equal(0, result.DrainResult.AcceptedWorkItemCount);
+            Assert.Equal(0, result.DrainResult.CompletedWorkItemCount);
+            Assert.True(result.DrainResult.IsDrained);
             Assert.Equal(0, executed);
         }
         finally
         {
+            await group.DisposeAsync();
+        }
+    }
+
+    [Fact]
+    public async Task CompletedBorrowedBatchScopeCannotBeReusedForLaterDispatch()
+    {
+        var group = new RadarProcessingAsyncWorkerGroup();
+        try
+        {
+            Assert.True(group.Start().IsSuccess);
+            var (scope, workItems) = CreateScope(1, expectedWorkItemCount: 1, workerCount: 1);
+            var first = await group.DispatchAsync(scope, workItems, Succeed);
+            Assert.True(first.IsSuccess);
+
+            var executed = 0;
+            var second = await group.DispatchAsync(
+                scope,
+                workItems,
+                (workItem, cancellationToken) =>
+                {
+                    Interlocked.Increment(ref executed);
+                    return Succeed(workItem, cancellationToken);
+                });
+
+            Assert.True(second.IsRejected);
+            Assert.Equal(RadarProcessingAsyncWorkerGroupError.ScopeClosed, second.Error);
+            Assert.Null(second.BatchResult);
+            Assert.Equal(0, second.DrainResult.AcceptedWorkItemCount);
+            Assert.True(second.DrainResult.IsDrained);
+            Assert.Equal(0, executed);
+        }
+        finally
+        {
+            await group.DisposeAsync();
+        }
+    }
+
+    [Fact]
+    public async Task TimeoutMarksGroupFaultedButDispatchReturnsOnlyAfterBorrowedWorkDrains()
+    {
+        var group = new RadarProcessingAsyncWorkerGroup(
+            new RadarProcessingAsyncWorkerGroupOptions(
+                new RadarProcessingAsyncExecutionOptions(
+                    workerCount: 1,
+                    queueCapacity: 1,
+                    timeoutPolicy: RadarProcessingWorkerTimeoutPolicy.MarkUnhealthy,
+                    batchTimeout: TimeSpan.FromMilliseconds(40))));
+        var startedExecution = CreateSignal();
+        var releaseExecution = CreateSignal();
+        try
+        {
+            Assert.True(group.Start().IsSuccess);
+            var (scope, workItems) = CreateScope(1, expectedWorkItemCount: 1, workerCount: 1);
+            var dispatch = group.DispatchAsync(
+                scope,
+                workItems,
+                async (workItem, _) =>
+                {
+                    startedExecution.SetResult();
+                    await releaseExecution.Task.ConfigureAwait(false);
+                    return RadarProcessingAsyncWorkCompletion.Succeeded(workItem);
+                }).AsTask();
+
+            await startedExecution.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await WaitUntilAsync(() => group.Status.State == RadarProcessingWorkerGroupState.Faulted);
+
+            Assert.False(dispatch.IsCompleted);
+            Assert.Equal(1, group.RunningWorkItemCount);
+
+            releaseExecution.SetResult();
+            var result = await dispatch.WaitAsync(TimeSpan.FromSeconds(5));
+
+            Assert.False(result.IsSuccess);
+            Assert.True(result.IsRejected);
+            Assert.Equal(RadarProcessingAsyncWorkerGroupError.TimedOut, result.Error);
+            Assert.NotNull(result.BatchResult);
+            Assert.True(result.BatchResult.IsSuccess);
+            Assert.Equal(RadarProcessingWorkerGroupState.Faulted, result.Status.State);
+            Assert.True(result.DrainResult.TimedOut);
+            Assert.False(result.DrainResult.CancellationRequested);
+            Assert.True(result.DrainResult.IsDrained);
+            Assert.Equal(1, result.DrainResult.AcceptedWorkItemCount);
+            Assert.Equal(1, result.DrainResult.CompletedWorkItemCount);
+            Assert.Equal(0, group.OutstandingWorkItemCount);
+        }
+        finally
+        {
+            releaseExecution.TrySetResult();
             await group.DisposeAsync();
         }
     }
