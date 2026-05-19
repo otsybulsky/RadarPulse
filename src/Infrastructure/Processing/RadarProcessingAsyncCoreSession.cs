@@ -63,7 +63,7 @@ public sealed class RadarProcessingAsyncCoreSession : IAsyncDisposable
         var invalid = core.ValidateBatchForProcessing(batch, cancellationToken);
         if (invalid is not null)
         {
-            return invalid;
+            return ValidateAsyncResult(invalid);
         }
 
         EnsureWorkerGroupStarted();
@@ -100,17 +100,17 @@ public sealed class RadarProcessingAsyncCoreSession : IAsyncDisposable
 
         if (firstInvalidWorkResult is not null)
         {
-            return CreateInvalidResultWithCurrentMetrics(firstInvalidWorkResult, workerTelemetry);
+            return ValidateAsyncResult(CreateInvalidResultWithCurrentMetrics(firstInvalidWorkResult, workerTelemetry));
         }
 
         if (!aggregation.IsSuccess)
         {
-            return aggregation
+            return ValidateAsyncResult(aggregation
                 .CreateProcessingResult(core.CreateMetrics())
-                .WithWorkerTelemetry(workerTelemetry);
+                .WithWorkerTelemetry(workerTelemetry));
         }
 
-        return core.CompleteAsyncBatch(aggregation.Telemetry!, workerTelemetry);
+        return ValidateAsyncResult(core.CompleteAsyncBatch(aggregation.Telemetry!, workerTelemetry));
     }
 
     public async ValueTask DisposeAsync()
@@ -182,5 +182,19 @@ public sealed class RadarProcessingAsyncCoreSession : IAsyncDisposable
             invalidResult.Telemetry,
             invalidResult.TopologyVersion,
             workerTelemetry);
+    }
+
+    private static RadarProcessingResult ValidateAsyncResult(
+        RadarProcessingResult result)
+    {
+        var validation = RadarProcessingAsyncValidator.ValidateProcessingResult(
+            result,
+            RadarProcessingValidationProfile.Essential);
+        if (!validation.IsValid)
+        {
+            throw new InvalidOperationException(validation.Message);
+        }
+
+        return result;
     }
 }

@@ -93,7 +93,17 @@ public sealed class RadarProcessingAsyncRebalanceSession : IAsyncDisposable
         ArgumentNullException.ThrowIfNull(batch);
 
         var processingResult = await asyncCoreSession.ProcessAsync(batch, cancellationToken).ConfigureAwait(false);
-        return rebalanceSession.ProcessCompletedResult(processingResult, cancellationToken);
+        var result = rebalanceSession.ProcessCompletedResult(processingResult, cancellationToken);
+        var validation = RadarProcessingAsyncValidator.ValidateRebalanceResult(
+            result,
+            rebalanceSession.CurrentTopology,
+            RadarProcessingValidationProfile.Essential);
+        if (!validation.IsValid)
+        {
+            throw new InvalidOperationException(validation.Message);
+        }
+
+        return result;
     }
 
     public async ValueTask DisposeAsync()

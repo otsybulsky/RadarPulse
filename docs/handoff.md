@@ -682,6 +682,47 @@ Solution build succeeded with 0 warnings and 0 errors.
 581 passed, 3 skipped for the full test project.
 ```
 
+Milestone 008 slice 13 is implemented in the current working tree. RadarPulse
+now has explicit async validation contracts in Domain:
+`RadarProcessingAsyncValidationError`,
+`RadarProcessingAsyncValidationResult`, and
+`RadarProcessingAsyncValidator`. The validator covers async processing result
+invariants, rebalance result invariants, route/work-item/completion transport
+diagnostics, worker telemetry retention bounds, and benchmark-profile
+synchronous-versus-async checksum comparison markers.
+
+Essential async validation is now wired into the runtime boundary:
+`RadarProcessingAsyncCoreSession` validates every returned async processing
+result before handing it back, and `RadarProcessingAsyncRebalanceSession`
+validates that failed async processing does not publish rebalance artifacts.
+The essential profile allows pre-dispatch invalid batches without worker
+telemetry, but requires worker failure/cancellation/rejection propagation once
+async dispatch has produced worker telemetry.
+
+Diagnostic validation catches missing partition work, duplicate partition
+assignment, shard ownership mistakes, completion scope mismatches, aggregation
+metric mismatches, and processing telemetry parity issues. Benchmark validation
+compares synchronous reference metrics/snapshots against async results and
+returns the comparison checksums in the validation result.
+
+Latest verification after milestone 008 slice 13:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingAsyncValidatorTests|FullyQualifiedName~RadarProcessingAsyncCoreSessionTests|FullyQualifiedName~RadarProcessingAsyncRebalanceSessionTests"
+dotnet build RadarPulse.sln --no-restore
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Processing
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Result:
+
+```text
+17 passed for focused async validation/runtime coverage.
+Solution build succeeded with 0 warnings and 0 errors.
+432 passed for processing-focused coverage.
+587 passed, 3 skipped for the full test project.
+```
+
 Milestone 007 slice 1 is implemented in the current working tree. RadarPulse
 now has the first hardening option/profile contracts:
 `RadarProcessingRebalanceHardeningOptions`,
