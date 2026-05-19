@@ -283,6 +283,31 @@ Recorded result:
 71 passed for Streaming-focused coverage.
 ```
 
+Milestone 009 slice 2 provider queue contract surface is implemented in the
+current working tree. RadarPulse now has the first domain vocabulary for owned
+provider decoupling: `RadarProcessingProviderQueueOptions`, queue full and
+shutdown modes, queued batch sequence ids, owned-only
+`RadarProcessingQueuedBatch`, enqueue statuses/results, processing
+statuses/results, queued session statuses/results, and
+`RadarProcessingProviderQueueTelemetrySummary`. The contracts separate enqueue
+success from processing completion, reject leased queued batches at the
+contract boundary, keep result snapshots immutable, and expose bounded
+queue/backpressure counters. No runtime provider queue is implemented yet.
+
+Latest verification after milestone 009 slice 2:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingProviderQueueContractTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Processing
+```
+
+Recorded result:
+
+```text
+10 passed for provider queue contract coverage.
+449 passed for Processing-focused coverage.
+```
+
 Milestone 008 slice 1 is implemented in the current working tree. RadarPulse
 now has the first async execution option contracts:
 `RadarProcessingExecutionMode.AsyncShardTransport`,
