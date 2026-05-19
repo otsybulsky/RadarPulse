@@ -11,15 +11,38 @@ public sealed record RadarProcessingAsyncWorkCompletion
         TimeSpan queueWaitTime = default,
         TimeSpan executionTime = default,
         long processedStreamEventCount = 0,
-        long processedPayloadValueCount = 0)
+        long processedPayloadValueCount = 0,
+        RadarProcessingAsyncFailureKind failureKind = RadarProcessingAsyncFailureKind.None,
+        RadarProcessingAsyncCancellationKind cancellationKind = RadarProcessingAsyncCancellationKind.None)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(batchSequence);
         ArgumentOutOfRangeException.ThrowIfNegative(workItemId);
         EnsureKnownStatus(status);
+        EnsureKnownFailureKind(failureKind);
+        EnsureKnownCancellationKind(cancellationKind);
         ThrowIfNegative(queueWaitTime, nameof(queueWaitTime));
         ThrowIfNegative(executionTime, nameof(executionTime));
         ArgumentOutOfRangeException.ThrowIfNegative(processedStreamEventCount);
         ArgumentOutOfRangeException.ThrowIfNegative(processedPayloadValueCount);
+        if (status == RadarProcessingAsyncWorkStatus.Failed &&
+            failureKind == RadarProcessingAsyncFailureKind.None)
+        {
+            throw new ArgumentException("Failed work completion requires a failure kind.", nameof(failureKind));
+        }
+
+        if (status != RadarProcessingAsyncWorkStatus.Failed &&
+            failureKind != RadarProcessingAsyncFailureKind.None)
+        {
+            throw new ArgumentException("Only failed work completion can carry a failure kind.", nameof(failureKind));
+        }
+
+        if (status != RadarProcessingAsyncWorkStatus.Canceled &&
+            cancellationKind != RadarProcessingAsyncCancellationKind.None)
+        {
+            throw new ArgumentException(
+                "Only canceled work completion can carry a cancellation kind.",
+                nameof(cancellationKind));
+        }
 
         BatchSequence = batchSequence;
         WorkItemId = workItemId;
@@ -30,6 +53,8 @@ public sealed record RadarProcessingAsyncWorkCompletion
         ExecutionTime = executionTime;
         ProcessedStreamEventCount = processedStreamEventCount;
         ProcessedPayloadValueCount = processedPayloadValueCount;
+        FailureKind = failureKind;
+        CancellationKind = cancellationKind;
     }
 
     public long BatchSequence { get; }
@@ -49,6 +74,10 @@ public sealed record RadarProcessingAsyncWorkCompletion
     public long ProcessedStreamEventCount { get; }
 
     public long ProcessedPayloadValueCount { get; }
+
+    public RadarProcessingAsyncFailureKind FailureKind { get; }
+
+    public RadarProcessingAsyncCancellationKind CancellationKind { get; }
 
     public bool IsSuccessful => Status == RadarProcessingAsyncWorkStatus.Succeeded;
 
@@ -73,22 +102,26 @@ public sealed record RadarProcessingAsyncWorkCompletion
     public static RadarProcessingAsyncWorkCompletion Failed(
         RadarProcessingAsyncWorkItem workItem,
         TimeSpan queueWaitTime = default,
-        TimeSpan executionTime = default) =>
+        TimeSpan executionTime = default,
+        RadarProcessingAsyncFailureKind failureKind = RadarProcessingAsyncFailureKind.WorkerReportedFailure) =>
         FromWorkItem(
             workItem,
             RadarProcessingAsyncWorkStatus.Failed,
             queueWaitTime,
-            executionTime);
+            executionTime,
+            failureKind: failureKind);
 
     public static RadarProcessingAsyncWorkCompletion Canceled(
         RadarProcessingAsyncWorkItem workItem,
         TimeSpan queueWaitTime = default,
-        TimeSpan executionTime = default) =>
+        TimeSpan executionTime = default,
+        RadarProcessingAsyncCancellationKind cancellationKind = RadarProcessingAsyncCancellationKind.None) =>
         FromWorkItem(
             workItem,
             RadarProcessingAsyncWorkStatus.Canceled,
             queueWaitTime,
-            executionTime);
+            executionTime,
+            cancellationKind: cancellationKind);
 
     internal static void EnsureKnownStatus(
         RadarProcessingAsyncWorkStatus status)
@@ -101,13 +134,44 @@ public sealed record RadarProcessingAsyncWorkCompletion
         }
     }
 
+    internal static void EnsureKnownFailureKind(
+        RadarProcessingAsyncFailureKind failureKind)
+    {
+        if (failureKind is not RadarProcessingAsyncFailureKind.None and
+            not RadarProcessingAsyncFailureKind.WorkerReportedFailure and
+            not RadarProcessingAsyncFailureKind.WorkerException and
+            not RadarProcessingAsyncFailureKind.DispatchRejected and
+            not RadarProcessingAsyncFailureKind.EnqueueRejected and
+            not RadarProcessingAsyncFailureKind.TimedOut and
+            not RadarProcessingAsyncFailureKind.WorkerGroupFaulted)
+        {
+            throw new ArgumentOutOfRangeException(nameof(failureKind));
+        }
+    }
+
+    internal static void EnsureKnownCancellationKind(
+        RadarProcessingAsyncCancellationKind cancellationKind)
+    {
+        if (cancellationKind is not RadarProcessingAsyncCancellationKind.None and
+            not RadarProcessingAsyncCancellationKind.BeforeDispatch and
+            not RadarProcessingAsyncCancellationKind.WhileQueued and
+            not RadarProcessingAsyncCancellationKind.WhileRunning and
+            not RadarProcessingAsyncCancellationKind.Timeout and
+            not RadarProcessingAsyncCancellationKind.Mixed)
+        {
+            throw new ArgumentOutOfRangeException(nameof(cancellationKind));
+        }
+    }
+
     private static RadarProcessingAsyncWorkCompletion FromWorkItem(
         RadarProcessingAsyncWorkItem workItem,
         RadarProcessingAsyncWorkStatus status,
         TimeSpan queueWaitTime,
         TimeSpan executionTime,
         long processedStreamEventCount = 0,
-        long processedPayloadValueCount = 0)
+        long processedPayloadValueCount = 0,
+        RadarProcessingAsyncFailureKind failureKind = RadarProcessingAsyncFailureKind.None,
+        RadarProcessingAsyncCancellationKind cancellationKind = RadarProcessingAsyncCancellationKind.None)
     {
         ArgumentNullException.ThrowIfNull(workItem);
 
@@ -120,7 +184,9 @@ public sealed record RadarProcessingAsyncWorkCompletion
             queueWaitTime,
             executionTime,
             processedStreamEventCount,
-            processedPayloadValueCount);
+            processedPayloadValueCount,
+            failureKind,
+            cancellationKind);
     }
 
     private static void ThrowIfNegative(

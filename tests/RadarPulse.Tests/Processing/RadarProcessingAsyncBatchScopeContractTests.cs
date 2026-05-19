@@ -11,6 +11,21 @@ public sealed class RadarProcessingAsyncBatchScopeContractTests
         Assert.Equal(2, (int)RadarProcessingAsyncWorkStatus.Failed);
         Assert.Equal(3, (int)RadarProcessingAsyncWorkStatus.Canceled);
 
+        Assert.Equal(0, (int)RadarProcessingAsyncFailureKind.None);
+        Assert.Equal(1, (int)RadarProcessingAsyncFailureKind.WorkerReportedFailure);
+        Assert.Equal(2, (int)RadarProcessingAsyncFailureKind.WorkerException);
+        Assert.Equal(3, (int)RadarProcessingAsyncFailureKind.DispatchRejected);
+        Assert.Equal(4, (int)RadarProcessingAsyncFailureKind.EnqueueRejected);
+        Assert.Equal(5, (int)RadarProcessingAsyncFailureKind.TimedOut);
+        Assert.Equal(6, (int)RadarProcessingAsyncFailureKind.WorkerGroupFaulted);
+
+        Assert.Equal(0, (int)RadarProcessingAsyncCancellationKind.None);
+        Assert.Equal(1, (int)RadarProcessingAsyncCancellationKind.BeforeDispatch);
+        Assert.Equal(2, (int)RadarProcessingAsyncCancellationKind.WhileQueued);
+        Assert.Equal(3, (int)RadarProcessingAsyncCancellationKind.WhileRunning);
+        Assert.Equal(4, (int)RadarProcessingAsyncCancellationKind.Timeout);
+        Assert.Equal(5, (int)RadarProcessingAsyncCancellationKind.Mixed);
+
         Assert.Equal(0, (int)RadarProcessingAsyncBatchCompletionError.None);
         Assert.Equal(1, (int)RadarProcessingAsyncBatchCompletionError.ScopeMismatch);
         Assert.Equal(2, (int)RadarProcessingAsyncBatchCompletionError.TopologyVersionMismatch);
@@ -93,6 +108,20 @@ public sealed class RadarProcessingAsyncBatchScopeContractTests
         Assert.Equal(TimeSpan.FromMilliseconds(5), completion.ExecutionTime);
         Assert.Equal(7, completion.ProcessedStreamEventCount);
         Assert.Equal(11, completion.ProcessedPayloadValueCount);
+        Assert.Equal(RadarProcessingAsyncFailureKind.None, completion.FailureKind);
+        Assert.Equal(RadarProcessingAsyncCancellationKind.None, completion.CancellationKind);
+
+        var failed = RadarProcessingAsyncWorkCompletion.Failed(
+            item,
+            failureKind: RadarProcessingAsyncFailureKind.WorkerException);
+        var canceled = RadarProcessingAsyncWorkCompletion.Canceled(
+            item,
+            cancellationKind: RadarProcessingAsyncCancellationKind.WhileQueued);
+
+        Assert.Equal(RadarProcessingAsyncFailureKind.WorkerException, failed.FailureKind);
+        Assert.Equal(RadarProcessingAsyncCancellationKind.None, failed.CancellationKind);
+        Assert.Equal(RadarProcessingAsyncFailureKind.None, canceled.FailureKind);
+        Assert.Equal(RadarProcessingAsyncCancellationKind.WhileQueued, canceled.CancellationKind);
     }
 
     [Fact]
@@ -107,6 +136,45 @@ public sealed class RadarProcessingAsyncBatchScopeContractTests
             new RadarProcessingAsyncWorkCompletion(0, -1, topologyVersion, workerId, RadarProcessingAsyncWorkStatus.Succeeded));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new RadarProcessingAsyncWorkCompletion(0, 0, topologyVersion, workerId, (RadarProcessingAsyncWorkStatus)255));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RadarProcessingAsyncWorkCompletion(
+                0,
+                0,
+                topologyVersion,
+                workerId,
+                RadarProcessingAsyncWorkStatus.Failed,
+                failureKind: (RadarProcessingAsyncFailureKind)255));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RadarProcessingAsyncWorkCompletion(
+                0,
+                0,
+                topologyVersion,
+                workerId,
+                RadarProcessingAsyncWorkStatus.Canceled,
+                cancellationKind: (RadarProcessingAsyncCancellationKind)255));
+        Assert.Throws<ArgumentException>(() =>
+            new RadarProcessingAsyncWorkCompletion(
+                0,
+                0,
+                topologyVersion,
+                workerId,
+                RadarProcessingAsyncWorkStatus.Failed));
+        Assert.Throws<ArgumentException>(() =>
+            new RadarProcessingAsyncWorkCompletion(
+                0,
+                0,
+                topologyVersion,
+                workerId,
+                RadarProcessingAsyncWorkStatus.Succeeded,
+                failureKind: RadarProcessingAsyncFailureKind.WorkerException));
+        Assert.Throws<ArgumentException>(() =>
+            new RadarProcessingAsyncWorkCompletion(
+                0,
+                0,
+                topologyVersion,
+                workerId,
+                RadarProcessingAsyncWorkStatus.Succeeded,
+                cancellationKind: RadarProcessingAsyncCancellationKind.WhileRunning));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new RadarProcessingAsyncWorkCompletion(
                 0,

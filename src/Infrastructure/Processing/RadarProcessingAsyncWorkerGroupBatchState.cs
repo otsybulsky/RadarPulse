@@ -8,6 +8,8 @@ internal sealed class RadarProcessingAsyncWorkerGroupBatchState
     private readonly TaskCompletionSource<RadarProcessingAsyncBatchScopeResult> completionSource =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
     private int remainingWorkItemCount;
+    private int externalCancellationRequested;
+    private int timeoutCancellationRequested;
     private RadarProcessingAsyncBatchScopeResult? firstFailedRecord;
 
     public RadarProcessingAsyncWorkerGroupBatchState(
@@ -24,6 +26,32 @@ internal sealed class RadarProcessingAsyncWorkerGroupBatchState
     public RadarProcessingAsyncBatchScope Scope { get; }
 
     public Task<RadarProcessingAsyncBatchScopeResult> Completion => completionSource.Task;
+
+    public void MarkExternalCancellationRequested() =>
+        Interlocked.Exchange(ref externalCancellationRequested, 1);
+
+    public void MarkTimeoutCancellationRequested() =>
+        Interlocked.Exchange(ref timeoutCancellationRequested, 1);
+
+    public RadarProcessingAsyncCancellationKind GetCancellationKind(
+        bool executionStarted)
+    {
+        if (Volatile.Read(ref timeoutCancellationRequested) != 0)
+        {
+            return RadarProcessingAsyncCancellationKind.Timeout;
+        }
+
+        if (Volatile.Read(ref externalCancellationRequested) != 0)
+        {
+            return executionStarted
+                ? RadarProcessingAsyncCancellationKind.WhileRunning
+                : RadarProcessingAsyncCancellationKind.WhileQueued;
+        }
+
+        return executionStarted
+            ? RadarProcessingAsyncCancellationKind.WhileRunning
+            : RadarProcessingAsyncCancellationKind.WhileQueued;
+    }
 
     public void RecordCompletion(
         RadarProcessingAsyncWorkCompletion completion)

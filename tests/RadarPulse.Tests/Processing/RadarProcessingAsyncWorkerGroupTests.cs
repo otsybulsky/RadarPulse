@@ -44,6 +44,34 @@ public sealed class RadarProcessingAsyncWorkerGroupTests
                 new RadarProcessingWorkerGroupStatus(),
                 RadarProcessingAsyncWorkerGroupError.None));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RadarProcessingAsyncWorkerGroupResult(
+                new RadarProcessingWorkerGroupStatus(),
+                new RadarProcessingAsyncBatchScopeResult(
+                    new RadarProcessingAsyncBatchCompletion(1, RadarProcessingTopologyVersion.Initial, 1)),
+                failureKind: (RadarProcessingAsyncFailureKind)255));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RadarProcessingAsyncWorkerGroupResult(
+                new RadarProcessingWorkerGroupStatus(),
+                new RadarProcessingAsyncBatchScopeResult(
+                    new RadarProcessingAsyncBatchCompletion(1, RadarProcessingTopologyVersion.Initial, 1)),
+                cancellationKind: (RadarProcessingAsyncCancellationKind)255));
+        Assert.Throws<ArgumentException>(() =>
+            RadarProcessingAsyncWorkerGroupResult.Rejected(
+                new RadarProcessingWorkerGroupStatus(
+                    RadarProcessingWorkerGroupState.Running,
+                    RadarProcessingWorkerHealth.Healthy,
+                    workerCount: 1,
+                    queueCapacity: 1),
+                RadarProcessingAsyncWorkerGroupError.TimedOut));
+        Assert.Throws<ArgumentException>(() =>
+            RadarProcessingAsyncWorkerGroupResult.Rejected(
+                new RadarProcessingWorkerGroupStatus(),
+                RadarProcessingAsyncWorkerGroupError.NotStarted,
+                timeoutResult: new RadarProcessingAsyncTimeoutResult(
+                    timedOut: true,
+                    timeout: TimeSpan.FromMilliseconds(1),
+                    timeoutPolicy: RadarProcessingWorkerTimeoutPolicy.MarkUnhealthy)));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
             new RadarProcessingAsyncWorkerGroupDrainResult(acceptedWorkItemCount: -1));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new RadarProcessingAsyncWorkerGroupDrainResult(completedWorkItemCount: -1));
@@ -145,6 +173,10 @@ public sealed class RadarProcessingAsyncWorkerGroupTests
             Assert.NotNull(result.BatchResult);
             Assert.Equal(RadarProcessingAsyncBatchCompletionError.WorkFailed, result.BatchResult.Error);
             Assert.Equal(1, result.BatchResult.Completion.FailedWorkItemCount);
+            Assert.Equal(RadarProcessingAsyncFailureKind.WorkerException, result.FailureKind);
+            Assert.Equal(
+                RadarProcessingAsyncFailureKind.WorkerException,
+                Assert.Single(result.BatchResult.Completion.Completions).FailureKind);
             Assert.Equal(1, result.DrainResult.AcceptedWorkItemCount);
             Assert.Equal(1, result.DrainResult.CompletedWorkItemCount);
             Assert.True(result.DrainResult.IsDrained);
@@ -156,6 +188,157 @@ public sealed class RadarProcessingAsyncWorkerGroupTests
         }
         finally
         {
+            await group.DisposeAsync();
+        }
+    }
+
+    [Fact]
+    public async Task CancellationBeforeDispatchReturnsCanceledResultWithoutBorrowedWork()
+    {
+        var group = new RadarProcessingAsyncWorkerGroup(
+            new RadarProcessingAsyncWorkerGroupOptions(
+                new RadarProcessingAsyncExecutionOptions(workerCount: 2, queueCapacity: 1)));
+        using var cancellation = new CancellationTokenSource();
+        try
+        {
+            Assert.True(group.Start().IsSuccess);
+            await cancellation.CancelAsync();
+            var (scope, workItems) = CreateScope(1, expectedWorkItemCount: 2, workerCount: 2);
+            var executed = 0;
+
+            var result = await group.DispatchAsync(
+                scope,
+                workItems,
+                (workItem, cancellationToken) =>
+                {
+                    Interlocked.Increment(ref executed);
+                    return Succeed(workItem, cancellationToken);
+                },
+                cancellation.Token);
+
+            Assert.False(result.IsSuccess);
+            Assert.False(result.IsRejected);
+            Assert.Equal(RadarProcessingAsyncWorkerGroupError.None, result.Error);
+            Assert.Equal(RadarProcessingAsyncBatchCompletionError.WorkCanceled, result.BatchResult?.Error);
+            Assert.Equal(RadarProcessingAsyncCancellationKind.BeforeDispatch, result.CancellationKind);
+            Assert.Equal(0, result.DrainResult.AcceptedWorkItemCount);
+            Assert.Equal(2, result.DrainResult.CompletedWorkItemCount);
+            Assert.True(result.DrainResult.CancellationRequested);
+            Assert.True(result.DrainResult.IsDrained);
+            Assert.Equal(0, executed);
+            Assert.All(
+                result.BatchResult!.Completion.Completions,
+                static completion =>
+                {
+                    Assert.True(completion.IsCanceled);
+                    Assert.Equal(RadarProcessingAsyncCancellationKind.BeforeDispatch, completion.CancellationKind);
+                });
+        }
+        finally
+        {
+            await group.DisposeAsync();
+        }
+    }
+
+    [Fact]
+    public async Task CancellationWhileQueuedReturnsCanceledWorkItemWithoutRunningExecutor()
+    {
+        var group = new RadarProcessingAsyncWorkerGroup(
+            new RadarProcessingAsyncWorkerGroupOptions(
+                new RadarProcessingAsyncExecutionOptions(workerCount: 1, queueCapacity: 2)));
+        using var cancellation = new CancellationTokenSource();
+        var firstStarted = CreateSignal();
+        var releaseFirst = CreateSignal();
+        try
+        {
+            Assert.True(group.Start().IsSuccess);
+            var (scope, workItems) = CreateScope(1, expectedWorkItemCount: 2, workerCount: 1);
+            var secondExecuted = 0;
+            var dispatch = group.DispatchAsync(
+                scope,
+                workItems,
+                async (workItem, _) =>
+                {
+                    if (workItem.WorkItemId == 0)
+                    {
+                        firstStarted.SetResult();
+                        await releaseFirst.Task.ConfigureAwait(false);
+                        return RadarProcessingAsyncWorkCompletion.Succeeded(workItem);
+                    }
+
+                    Interlocked.Increment(ref secondExecuted);
+                    return RadarProcessingAsyncWorkCompletion.Succeeded(workItem);
+                },
+                cancellation.Token).AsTask();
+
+            await firstStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await WaitUntilAsync(() => group.PendingWorkItemCount == 1);
+            await cancellation.CancelAsync();
+            releaseFirst.SetResult();
+
+            var result = await dispatch.WaitAsync(TimeSpan.FromSeconds(5));
+            var canceled = Assert.Single(
+                result.BatchResult!.Completion.Completions,
+                static completion => completion.IsCanceled);
+
+            Assert.False(result.IsSuccess);
+            Assert.False(result.IsRejected);
+            Assert.Equal(RadarProcessingAsyncBatchCompletionError.WorkCanceled, result.BatchResult.Error);
+            Assert.Equal(RadarProcessingAsyncCancellationKind.WhileQueued, result.CancellationKind);
+            Assert.Equal(RadarProcessingAsyncCancellationKind.WhileQueued, canceled.CancellationKind);
+            Assert.Equal(0, secondExecuted);
+            Assert.True(result.DrainResult.CancellationRequested);
+            Assert.True(result.DrainResult.IsDrained);
+        }
+        finally
+        {
+            releaseFirst.TrySetResult();
+            await group.DisposeAsync();
+        }
+    }
+
+    [Fact]
+    public async Task CancellationWhileRunningIsObservedAtSafeProcessingPoint()
+    {
+        var group = new RadarProcessingAsyncWorkerGroup();
+        using var cancellation = new CancellationTokenSource();
+        var startedExecution = CreateSignal();
+        var observeCancellation = CreateSignal();
+        try
+        {
+            Assert.True(group.Start().IsSuccess);
+            var (scope, workItems) = CreateScope(1, expectedWorkItemCount: 1, workerCount: 1);
+            var dispatch = group.DispatchAsync(
+                scope,
+                workItems,
+                async (workItem, cancellationToken) =>
+                {
+                    startedExecution.SetResult();
+                    await observeCancellation.Task.ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    return RadarProcessingAsyncWorkCompletion.Succeeded(workItem);
+                },
+                cancellation.Token).AsTask();
+
+            await startedExecution.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await cancellation.CancelAsync();
+            observeCancellation.SetResult();
+
+            var result = await dispatch.WaitAsync(TimeSpan.FromSeconds(5));
+            var canceled = Assert.Single(result.BatchResult!.Completion.Completions);
+
+            Assert.False(result.IsSuccess);
+            Assert.False(result.IsRejected);
+            Assert.Equal(RadarProcessingAsyncBatchCompletionError.WorkCanceled, result.BatchResult.Error);
+            Assert.Equal(RadarProcessingAsyncCancellationKind.WhileRunning, result.CancellationKind);
+            Assert.Equal(RadarProcessingAsyncCancellationKind.WhileRunning, canceled.CancellationKind);
+            Assert.True(result.DrainResult.CancellationRequested);
+            Assert.True(result.DrainResult.IsDrained);
+            Assert.True(group.Status.CanAcceptDispatch);
+        }
+        finally
+        {
+            observeCancellation.TrySetResult();
             await group.DisposeAsync();
         }
     }
@@ -426,9 +609,19 @@ public sealed class RadarProcessingAsyncWorkerGroupTests
             Assert.False(result.IsSuccess);
             Assert.True(result.IsRejected);
             Assert.Equal(RadarProcessingAsyncWorkerGroupError.TimedOut, result.Error);
+            Assert.Equal(RadarProcessingAsyncFailureKind.TimedOut, result.FailureKind);
+            Assert.Equal(RadarProcessingAsyncCancellationKind.None, result.CancellationKind);
             Assert.NotNull(result.BatchResult);
             Assert.True(result.BatchResult.IsSuccess);
             Assert.Equal(RadarProcessingWorkerGroupState.Faulted, result.Status.State);
+            Assert.True(result.TimeoutResult.TimedOut);
+            Assert.Equal(TimeSpan.FromMilliseconds(40), result.TimeoutResult.Timeout);
+            Assert.Equal(RadarProcessingWorkerTimeoutPolicy.MarkUnhealthy, result.TimeoutResult.TimeoutPolicy);
+            Assert.False(result.TimeoutResult.CancellationRequested);
+            Assert.NotNull(result.HealthTransition);
+            Assert.Equal(RadarProcessingAsyncFailureKind.TimedOut, result.HealthTransition.FailureKind);
+            Assert.Equal(RadarProcessingWorkerGroupState.Running, result.HealthTransition.PreviousStatus.State);
+            Assert.Equal(RadarProcessingWorkerGroupState.Faulted, result.HealthTransition.CurrentStatus.State);
             Assert.True(result.DrainResult.TimedOut);
             Assert.False(result.DrainResult.CancellationRequested);
             Assert.True(result.DrainResult.IsDrained);
@@ -439,6 +632,58 @@ public sealed class RadarProcessingAsyncWorkerGroupTests
         finally
         {
             releaseExecution.TrySetResult();
+            await group.DisposeAsync();
+        }
+    }
+
+    [Fact]
+    public async Task TimeoutCanRequestCooperativeCancellationAndRecordsCanceledWork()
+    {
+        var group = new RadarProcessingAsyncWorkerGroup(
+            new RadarProcessingAsyncWorkerGroupOptions(
+                new RadarProcessingAsyncExecutionOptions(
+                    workerCount: 1,
+                    queueCapacity: 1,
+                    timeoutPolicy: RadarProcessingWorkerTimeoutPolicy.RequestCancellationAndMarkUnhealthy,
+                    batchTimeout: TimeSpan.FromMilliseconds(40))));
+        var startedExecution = CreateSignal();
+        try
+        {
+            Assert.True(group.Start().IsSuccess);
+            var (scope, workItems) = CreateScope(1, expectedWorkItemCount: 1, workerCount: 1);
+
+            var result = await group.DispatchAsync(
+                scope,
+                workItems,
+                async (workItem, cancellationToken) =>
+                {
+                    startedExecution.SetResult();
+                    await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false);
+                    return RadarProcessingAsyncWorkCompletion.Succeeded(workItem);
+                });
+            var canceled = Assert.Single(result.BatchResult!.Completion.Completions);
+
+            Assert.True(startedExecution.Task.IsCompletedSuccessfully);
+            Assert.False(result.IsSuccess);
+            Assert.True(result.IsRejected);
+            Assert.Equal(RadarProcessingAsyncWorkerGroupError.TimedOut, result.Error);
+            Assert.Equal(RadarProcessingAsyncFailureKind.TimedOut, result.FailureKind);
+            Assert.Equal(RadarProcessingAsyncCancellationKind.Timeout, result.CancellationKind);
+            Assert.Equal(RadarProcessingAsyncBatchCompletionError.WorkCanceled, result.BatchResult.Error);
+            Assert.True(canceled.IsCanceled);
+            Assert.Equal(RadarProcessingAsyncCancellationKind.Timeout, canceled.CancellationKind);
+            Assert.True(result.TimeoutResult.TimedOut);
+            Assert.Equal(RadarProcessingWorkerTimeoutPolicy.RequestCancellationAndMarkUnhealthy, result.TimeoutResult.TimeoutPolicy);
+            Assert.True(result.TimeoutResult.CancellationRequested);
+            Assert.NotNull(result.HealthTransition);
+            Assert.Equal(RadarProcessingWorkerGroupState.Faulted, result.Status.State);
+            Assert.Equal(RadarProcessingWorkerHealth.Faulted, result.Status.Health);
+            Assert.True(result.DrainResult.TimedOut);
+            Assert.True(result.DrainResult.CancellationRequested);
+            Assert.True(result.DrainResult.IsDrained);
+        }
+        finally
+        {
             await group.DisposeAsync();
         }
     }

@@ -172,6 +172,46 @@ public sealed class RadarProcessingAsyncCompletionAggregatorTests
     }
 
     [Fact]
+    public void TimedOutDispatchPreventsSuccessfulTelemetryProjection()
+    {
+        using var group = CreateStartedGroup(workerCount: 2, queueCapacity: 1);
+        var plan = CreatePlan(group);
+        var batchResult = CreateBatchResult(
+            plan,
+            new[]
+            {
+                CreateSucceededCompletion(plan, workItemId: 0),
+                CreateSucceededCompletion(plan, workItemId: 1)
+            });
+        var workerResult = RadarProcessingAsyncWorkerGroupResult.Rejected(
+            new RadarProcessingWorkerGroupStatus(
+                RadarProcessingWorkerGroupState.Faulted,
+                RadarProcessingWorkerHealth.Faulted,
+                workerCount: 2,
+                queueCapacity: 1,
+                lastError: RadarProcessingWorkerLifecycleError.Faulted),
+            RadarProcessingAsyncWorkerGroupError.TimedOut,
+            batchResult,
+            new RadarProcessingAsyncWorkerGroupDrainResult(
+                acceptedWorkItemCount: batchResult.Completion.RecordedWorkItemCount,
+                completedWorkItemCount: batchResult.Completion.RecordedWorkItemCount,
+                timedOut: true),
+            RadarProcessingAsyncFailureKind.TimedOut,
+            timeoutResult: new RadarProcessingAsyncTimeoutResult(
+                timedOut: true,
+                timeout: TimeSpan.FromMilliseconds(25),
+                timeoutPolicy: RadarProcessingWorkerTimeoutPolicy.MarkUnhealthy));
+        var dispatchResult = new RadarProcessingAsyncDispatchResult(plan, workerResult);
+
+        var aggregation = new RadarProcessingAsyncCompletionAggregator().Aggregate(dispatchResult);
+
+        Assert.False(aggregation.IsSuccess);
+        Assert.Equal(RadarProcessingAsyncAggregationError.DispatchRejected, aggregation.Error);
+        Assert.Null(aggregation.Telemetry);
+        Assert.False(aggregation.CreateProcessingResult(RadarProcessingMetrics.Empty).IsValid);
+    }
+
+    [Fact]
     public void CompletionMetricMismatchPreventsSuccessfulTelemetryProjection()
     {
         using var group = CreateStartedGroup(workerCount: 2, queueCapacity: 1);

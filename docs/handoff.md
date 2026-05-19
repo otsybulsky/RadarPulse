@@ -511,6 +511,49 @@ Result:
 Solution build succeeded with 0 warnings and 0 errors.
 ```
 
+Milestone 008 slice 9 is implemented in the current working tree. RadarPulse
+now has explicit async failure, cancellation, timeout, and health-transition
+contracts in `RadarPulse.Domain.Processing`: `RadarProcessingAsyncFailureKind`,
+`RadarProcessingAsyncCancellationKind`, `RadarProcessingAsyncTimeoutResult`,
+and `RadarProcessingWorkerGroupHealthTransition`. Async work completions now
+carry a failure kind for failed work and a cancellation kind for canceled work.
+The retained worker group projects those contracts into
+`RadarProcessingAsyncWorkerGroupResult`, including batch-level failure kind,
+cancellation kind, timeout details, and the health transition recorded when a
+timeout marks the group faulted.
+
+Runtime behavior now distinguishes cancellation before dispatch, cancellation
+while queued, cancellation while running, and timeout-requested cooperative
+cancellation. Cancellation before dispatch returns a canceled batch result
+without enqueuing borrowed work. Cancellation while queued records a canceled
+work item without invoking the executor. Cancellation while running is observed
+only at executor-safe cancellation points. Worker exceptions record
+`WorkerException` on the failed completion and fail the batch without faulting
+the worker loop. Timeout remains a borrowed-payload health diagnostic: the
+worker group marks itself faulted, optionally requests cooperative
+cancellation, waits for the accepted borrowed work to drain, and only then
+returns a timed-out rejected dispatch result.
+
+Latest verification after milestone 008 slice 9:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingAsyncWorkerGroupTests|FullyQualifiedName~RadarProcessingAsyncBatchScopeContractTests|FullyQualifiedName~RadarProcessingWorkerLifecycleContractTests"
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingAsyncCompletionAggregatorTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Processing
+dotnet build RadarPulse.sln --no-restore
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Result:
+
+```text
+43 passed for focused async failure/cancellation/timeout/health coverage.
+9 passed for focused async completion aggregation coverage.
+402 passed for processing-focused coverage.
+Solution build succeeded with 0 warnings and 0 errors.
+557 passed, 3 skipped for the full test project.
+```
+
 Milestone 007 slice 1 is implemented in the current working tree. RadarPulse
 now has the first hardening option/profile contracts:
 `RadarProcessingRebalanceHardeningOptions`,

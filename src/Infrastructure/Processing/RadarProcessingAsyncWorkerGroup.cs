@@ -126,6 +126,18 @@ public sealed class RadarProcessingAsyncWorkerGroup : IDisposable, IAsyncDisposa
                 drainResult: CaptureDrainResult());
         }
 
+        if (cancellationToken.IsCancellationRequested)
+        {
+            var canceledResult = CancelBeforeDispatch(scope, workItems);
+            return RadarProcessingAsyncWorkerGroupResult.Completed(
+                status,
+                canceledResult,
+                CaptureDrainResult(
+                    batchResult: canceledResult,
+                    cancellationRequested: true),
+                cancellationKind: RadarProcessingAsyncCancellationKind.BeforeDispatch);
+        }
+
         if (Interlocked.CompareExchange(ref inFlight, 1, 0) != 0)
         {
             return RadarProcessingAsyncWorkerGroupResult.Rejected(
@@ -149,8 +161,18 @@ public sealed class RadarProcessingAsyncWorkerGroup : IDisposable, IAsyncDisposa
             var enqueuedTimestamp = Stopwatch.GetTimestamp();
             var barrierStartedTimestamp = Stopwatch.GetTimestamp();
             var acceptedWorkItemCount = 0;
-            var timedOut = false;
+            var timeoutResult = RadarProcessingAsyncTimeoutResult.None;
+            RadarProcessingWorkerGroupHealthTransition? healthTransition = null;
             using var workCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            using var externalCancellationRegistration = cancellationToken.CanBeCanceled
+                ? cancellationToken.UnsafeRegister(
+                    static state => ((RadarProcessingAsyncWorkerGroupBatchState)state!).MarkExternalCancellationRequested(),
+                    batchState)
+                : default;
+            if (cancellationToken.IsCancellationRequested)
+            {
+                batchState.MarkExternalCancellationRequested();
+            }
 
             for (var i = 0; i < workItems.Count; i++)
             {
@@ -180,9 +202,10 @@ public sealed class RadarProcessingAsyncWorkerGroup : IDisposable, IAsyncDisposa
 
             if (enqueueError == RadarProcessingAsyncWorkerGroupError.None)
             {
-                timedOut = await WaitForTimeoutOrCompletionAsync(
+                (timeoutResult, healthTransition) = await WaitForTimeoutOrCompletionAsync(
                     batchState.Completion,
-                    workCancellation).ConfigureAwait(false);
+                    workCancellation,
+                    batchState).ConfigureAwait(false);
             }
 
             var batchResult = await batchState.Completion.ConfigureAwait(false);
@@ -190,21 +213,30 @@ public sealed class RadarProcessingAsyncWorkerGroup : IDisposable, IAsyncDisposa
                 acceptedWorkItemCount,
                 batchResult,
                 Stopwatch.GetElapsedTime(barrierStartedTimestamp),
-                timedOut,
+                timeoutResult.TimedOut,
                 workCancellation.IsCancellationRequested);
 
-            if (timedOut)
+            if (timeoutResult.TimedOut)
             {
                 return RadarProcessingAsyncWorkerGroupResult.Rejected(
                     Status,
                     RadarProcessingAsyncWorkerGroupError.TimedOut,
                     batchResult,
-                    drainResult);
+                    drainResult,
+                    RadarProcessingAsyncFailureKind.TimedOut,
+                    timeoutResult.CancellationRequested ? RadarProcessingAsyncCancellationKind.Timeout : RadarProcessingAsyncCancellationKind.None,
+                    timeoutResult,
+                    healthTransition);
             }
 
             return enqueueError == RadarProcessingAsyncWorkerGroupError.None
                 ? RadarProcessingAsyncWorkerGroupResult.Completed(Status, batchResult, drainResult)
-                : RadarProcessingAsyncWorkerGroupResult.Rejected(Status, enqueueError, batchResult, drainResult);
+                : RadarProcessingAsyncWorkerGroupResult.Rejected(
+                    Status,
+                    enqueueError,
+                    batchResult,
+                    drainResult,
+                    RadarProcessingAsyncFailureKind.EnqueueRejected);
         }
         finally
         {
@@ -302,14 +334,20 @@ public sealed class RadarProcessingAsyncWorkerGroup : IDisposable, IAsyncDisposa
     {
         ArgumentNullException.ThrowIfNull(exception);
 
-        MarkFaulted();
+        MarkFaulted(RadarProcessingAsyncFailureKind.WorkerGroupFaulted);
     }
 
-    private void MarkFaulted()
+    private RadarProcessingWorkerGroupHealthTransition MarkFaulted(
+        RadarProcessingAsyncFailureKind failureKind)
     {
         lock (lifecycleSync)
         {
-            lifecycle.MarkFaulted();
+            var previous = lifecycle.Status;
+            var result = lifecycle.MarkFaulted();
+            return new RadarProcessingWorkerGroupHealthTransition(
+                previous,
+                result.Status,
+                failureKind);
         }
     }
 
@@ -373,13 +411,16 @@ public sealed class RadarProcessingAsyncWorkerGroup : IDisposable, IAsyncDisposa
         return true;
     }
 
-    private async ValueTask<bool> WaitForTimeoutOrCompletionAsync(
+    private async ValueTask<(
+        RadarProcessingAsyncTimeoutResult TimeoutResult,
+        RadarProcessingWorkerGroupHealthTransition? HealthTransition)> WaitForTimeoutOrCompletionAsync(
         Task<RadarProcessingAsyncBatchScopeResult> completion,
-        CancellationTokenSource workCancellation)
+        CancellationTokenSource workCancellation,
+        RadarProcessingAsyncWorkerGroupBatchState batchState)
     {
         if (!Options.Execution.HasBatchTimeout)
         {
-            return false;
+            return (RadarProcessingAsyncTimeoutResult.None, null);
         }
 
         var timeout = Options.Execution.BatchTimeout!.Value;
@@ -388,17 +429,26 @@ public sealed class RadarProcessingAsyncWorkerGroup : IDisposable, IAsyncDisposa
             Task.Delay(timeout)).ConfigureAwait(false);
         if (ReferenceEquals(completed, completion))
         {
-            return false;
+            return (RadarProcessingAsyncTimeoutResult.None, null);
         }
 
-        MarkFaulted();
+        var cancellationRequested = Options.Execution.TimeoutPolicy ==
+            RadarProcessingWorkerTimeoutPolicy.RequestCancellationAndMarkUnhealthy;
+        var healthTransition = MarkFaulted(RadarProcessingAsyncFailureKind.TimedOut);
         if (Options.Execution.TimeoutPolicy ==
             RadarProcessingWorkerTimeoutPolicy.RequestCancellationAndMarkUnhealthy)
         {
+            batchState.MarkTimeoutCancellationRequested();
             await workCancellation.CancelAsync().ConfigureAwait(false);
         }
 
-        return true;
+        return (
+            new RadarProcessingAsyncTimeoutResult(
+                timedOut: true,
+                timeout: timeout,
+                timeoutPolicy: Options.Execution.TimeoutPolicy,
+                cancellationRequested: cancellationRequested),
+            healthTransition);
     }
 
     private RadarProcessingAsyncWorkerGroupDrainResult CaptureDrainResult(
@@ -415,4 +465,19 @@ public sealed class RadarProcessingAsyncWorkerGroup : IDisposable, IAsyncDisposa
             barrierWaitTime,
             timedOut,
             cancellationRequested);
+
+    private static RadarProcessingAsyncBatchScopeResult CancelBeforeDispatch(
+        RadarProcessingAsyncBatchScope scope,
+        IReadOnlyList<RadarProcessingAsyncWorkItem> workItems)
+    {
+        foreach (var workItem in workItems)
+        {
+            scope.RecordCompletion(
+                RadarProcessingAsyncWorkCompletion.Canceled(
+                    workItem,
+                    cancellationKind: RadarProcessingAsyncCancellationKind.BeforeDispatch));
+        }
+
+        return scope.Complete();
+    }
 }

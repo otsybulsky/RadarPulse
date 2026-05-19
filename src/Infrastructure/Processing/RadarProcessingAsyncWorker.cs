@@ -79,8 +79,18 @@ internal sealed class RadarProcessingAsyncWorker : IDisposable
         RadarProcessingAsyncWorkerRequest request,
         CancellationToken workerCancellationToken)
     {
-        Interlocked.Increment(ref runningCount);
         var queueWaitTime = Stopwatch.GetElapsedTime(request.EnqueuedTimestamp);
+        if (request.CancellationToken.IsCancellationRequested)
+        {
+            request.BatchState.RecordCompletion(
+                RadarProcessingAsyncWorkCompletion.Canceled(
+                    request.WorkItem,
+                    queueWaitTime,
+                    cancellationKind: request.BatchState.GetCancellationKind(executionStarted: false)));
+            return;
+        }
+
+        Interlocked.Increment(ref runningCount);
         var executionStarted = Stopwatch.GetTimestamp();
         using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
             workerCancellationToken,
@@ -106,14 +116,16 @@ internal sealed class RadarProcessingAsyncWorker : IDisposable
             completion = RadarProcessingAsyncWorkCompletion.Canceled(
                 request.WorkItem,
                 queueWaitTime,
-                Stopwatch.GetElapsedTime(executionStarted));
+                Stopwatch.GetElapsedTime(executionStarted),
+                request.BatchState.GetCancellationKind(executionStarted: true));
         }
         catch
         {
             completion = RadarProcessingAsyncWorkCompletion.Failed(
                 request.WorkItem,
                 queueWaitTime,
-                Stopwatch.GetElapsedTime(executionStarted));
+                Stopwatch.GetElapsedTime(executionStarted),
+                RadarProcessingAsyncFailureKind.WorkerException);
         }
         finally
         {
@@ -137,5 +149,7 @@ internal sealed class RadarProcessingAsyncWorker : IDisposable
             queueWaitTime,
             executionTime,
             executorCompletion.ProcessedStreamEventCount,
-            executorCompletion.ProcessedPayloadValueCount);
+            executorCompletion.ProcessedPayloadValueCount,
+            executorCompletion.FailureKind,
+            executorCompletion.CancellationKind);
 }

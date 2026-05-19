@@ -1020,11 +1020,11 @@ Milestone 008 completion criteria are satisfied when:
 [x] worker lifecycle contracts are implemented and tested
 [x] batch scope, work item, and completion contracts are implemented and tested
 [x] bounded worker mailbox foundation is implemented and tested
-[ ] retained worker group runtime is implemented and tested
-[ ] borrowed batch lifetime guardrails are implemented and tested
-[ ] async processing dispatcher is implemented and tested
-[ ] deterministic aggregation and telemetry parity are implemented and tested
-[ ] failure, cancellation, timeout, and health semantics are implemented and tested
+[x] retained worker group runtime is implemented and tested
+[x] borrowed batch lifetime guardrails are implemented and tested
+[x] async processing dispatcher is implemented and tested
+[x] deterministic aggregation and telemetry parity are implemented and tested
+[x] failure, cancellation, timeout, and health semantics are implemented and tested
 [ ] worker telemetry contracts and recorder are implemented and tested
 [ ] processing core can run async execution without breaking synchronous callers
 [ ] rebalance session can consume async processing results safely
