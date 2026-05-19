@@ -357,6 +357,37 @@ Result:
 523 passed, 3 skipped for the full test project.
 ```
 
+Milestone 008 slice 5 is implemented in the current working tree. RadarPulse
+now has the first retained async worker group runtime under
+`RadarPulse.Infrastructure.Processing`: `RadarProcessingAsyncWorkerGroup`,
+`RadarProcessingAsyncWorkerGroupOptions`,
+`RadarProcessingAsyncWorkerGroupResult`,
+`RadarProcessingAsyncWorkerGroupError`,
+`RadarProcessingAsyncWorkExecutor`, and internal retained worker/request/batch
+state types. The runtime starts one retained task per worker, dispatches
+topology-scoped work items through bounded mailboxes, enforces one in-flight
+borrowed batch per worker group, records every accepted work item into the
+batch scope completion barrier, turns worker delegate exceptions into failed
+work completions, rejects dispatch before start/while stopping/after dispose,
+and drains accepted borrowed work before stop or dispose releases worker
+resources.
+
+Latest verification after milestone 008 slice 5:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingAsyncWorkerGroupTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Processing
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Result:
+
+```text
+10 passed for focused async worker group coverage.
+378 passed for processing-focused coverage.
+533 passed, 3 skipped for the full test project.
+```
+
 Milestone 007 slice 1 is implemented in the current working tree. RadarPulse
 now has the first hardening option/profile contracts:
 `RadarProcessingRebalanceHardeningOptions`,
@@ -3674,6 +3705,14 @@ constant and moment data blocks.
 - `src/Infrastructure/Processing/RadarProcessingWorkerMailboxDequeueStatus.cs`
 - `src/Infrastructure/Processing/RadarProcessingWorkerMailboxEnqueueResult.cs`
 - `src/Infrastructure/Processing/RadarProcessingWorkerMailboxDequeueResult.cs`
+- `src/Infrastructure/Processing/RadarProcessingAsyncWorkExecutor.cs`
+- `src/Infrastructure/Processing/RadarProcessingAsyncWorkerGroup.cs`
+- `src/Infrastructure/Processing/RadarProcessingAsyncWorkerGroupOptions.cs`
+- `src/Infrastructure/Processing/RadarProcessingAsyncWorkerGroupResult.cs`
+- `src/Infrastructure/Processing/RadarProcessingAsyncWorkerGroupError.cs`
+- `src/Infrastructure/Processing/RadarProcessingAsyncWorker.cs`
+- `src/Infrastructure/Processing/RadarProcessingAsyncWorkerRequest.cs`
+- `src/Infrastructure/Processing/RadarProcessingAsyncWorkerGroupBatchState.cs`
 - `src/Domain/Processing/RadarProcessingExecutionMode.cs`
 - `src/Domain/Processing/RadarProcessingCoreOptions.cs`
 - `src/Domain/Processing/RadarProcessingRebalanceHardeningOptions.cs`
