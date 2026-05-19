@@ -18,6 +18,8 @@ public sealed class RadarProcessingRebalanceHardeningOptionsTests
         Assert.Equal(64, options.TelemetryRetention.MaxRetainedLifecycleTransitions);
         Assert.Equal(64, options.TelemetryRetention.MaxRetainedAcceptedMoves);
         Assert.Equal(32, options.TelemetryRetention.MaxRetainedValidationFailures);
+        Assert.Equal(128, options.TelemetryRetention.MaxRetainedWorkerBatches);
+        Assert.Equal(64, options.TelemetryRetention.MaxRetainedWorkerFailures);
 
         Assert.Equal(64, options.QuarantineLifecycle.QuarantineTtlEvaluations);
         Assert.Equal(3, options.QuarantineLifecycle.SustainedCoolingSampleCount);
@@ -91,6 +93,10 @@ public sealed class RadarProcessingRebalanceHardeningOptionsTests
             new RadarProcessingTelemetryRetentionOptions(maxRetainedAcceptedMoves: -1));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new RadarProcessingTelemetryRetentionOptions(maxRetainedValidationFailures: -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RadarProcessingTelemetryRetentionOptions(maxRetainedWorkerBatches: -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RadarProcessingTelemetryRetentionOptions(maxRetainedWorkerFailures: -1));
     }
 
     [Fact]
@@ -101,13 +107,17 @@ public sealed class RadarProcessingRebalanceHardeningOptionsTests
             maxRetainedDecisions: 0,
             maxRetainedLifecycleTransitions: 0,
             maxRetainedAcceptedMoves: 0,
-            maxRetainedValidationFailures: 0);
+            maxRetainedValidationFailures: 0,
+            maxRetainedWorkerBatches: 0,
+            maxRetainedWorkerFailures: 0);
 
         Assert.Equal(RadarProcessingDiagnosticRetentionMode.Counters, options.RetentionMode);
         Assert.Equal(0, options.MaxRetainedDecisions);
         Assert.Equal(0, options.MaxRetainedLifecycleTransitions);
         Assert.Equal(0, options.MaxRetainedAcceptedMoves);
         Assert.Equal(0, options.MaxRetainedValidationFailures);
+        Assert.Equal(0, options.MaxRetainedWorkerBatches);
+        Assert.Equal(0, options.MaxRetainedWorkerFailures);
     }
 
     [Fact]

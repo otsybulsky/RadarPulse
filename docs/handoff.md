@@ -554,6 +554,43 @@ Solution build succeeded with 0 warnings and 0 errors.
 557 passed, 3 skipped for the full test project.
 ```
 
+Milestone 008 slice 10 is implemented in the current working tree. RadarPulse
+now has bounded async worker telemetry contracts in
+`RadarPulse.Domain.Processing`: `RadarProcessingWorkerTelemetrySummary`,
+`RadarProcessingWorkerTelemetryCounters`, `RadarProcessingRecentWorkerBatch`,
+`RadarProcessingRecentWorkerFailure`, and
+`RadarProcessingWorkerRetentionStats`. `RadarProcessingTelemetryRetentionOptions`
+now also carries worker-specific retention limits for recent worker batches and
+recent worker failures while preserving the existing retention mode discipline.
+
+The worker telemetry recorder is implemented under
+`RadarPulse.Infrastructure.Processing` as `RadarProcessingWorkerTelemetryRecorder`.
+It records async dispatch results into aggregate batch/work-item counters,
+latest worker count and queue capacity, total dispatch/queue/execution/
+aggregation/barrier timing, bounded recent batch samples, bounded recent
+failure/cancellation/timeout samples, and dropped-detail counters. Counters-only
+retention keeps aggregate values while dropping all worker detail. Failure
+samples retain compact enum codes such as `WorkerException`, `TimedOut`, and
+`BeforeDispatch`; they do not retain formatted exception text.
+
+Latest verification after milestone 008 slice 10:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingWorkerTelemetry|FullyQualifiedName~RadarProcessingRebalanceHardeningOptionsTests"
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Processing
+dotnet build RadarPulse.sln --no-restore
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Result:
+
+```text
+21 passed for focused worker telemetry and retention-option coverage.
+415 passed for processing-focused coverage.
+Solution build succeeded with 0 warnings and 0 errors.
+570 passed, 3 skipped for the full test project.
+```
+
 Milestone 007 slice 1 is implemented in the current working tree. RadarPulse
 now has the first hardening option/profile contracts:
 `RadarProcessingRebalanceHardeningOptions`,
