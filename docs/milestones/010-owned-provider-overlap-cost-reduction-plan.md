@@ -789,7 +789,7 @@ implementation.
 ## Completion Checklist
 
 ```text
-[ ] milestone 009 cost anchors are confirmed and preserved as comparison fields
+[x] milestone 009 cost anchors are confirmed and preserved as comparison fields
 [ ] retained payload strategy contracts are implemented and tested
 [ ] retained resource lifecycle is implemented and tested
 [ ] one lower-allocation retained payload strategy is implemented and tested

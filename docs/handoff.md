@@ -11,11 +11,10 @@ implementation plan is recorded in
 Milestone 010 starts from the closed milestone 009 owned-provider boundary:
 `queued-owned` is correct and measurable, but still opt-in because owned
 snapshot allocation is the dominant cost and the current archive benchmark does
-not overlap replay with processing. The next implementation work should follow
-the plan slices: confirm milestone 009 cost anchors, define retained payload
-strategy and resource lifecycle contracts, implement one lower-allocation
-retention strategy, add a retained-byte-aware queue window, then add the true
-producer/consumer archive overlap contour and performance gate.
+not overlap replay with processing. Milestone 010 slice 1 is now complete:
+the milestone 009 cost anchors and contract surfaces are confirmed. The next
+implementation work should start slice 2 by defining retained payload strategy
+and resource lifecycle contracts before changing retention mechanics.
 
 `blocking-borrowed` remains the default provider mode and same-run oracle.
 `queued-owned` remains an explicit validation and measurement mode until the
@@ -649,6 +648,53 @@ lower-allocation retention implementation, retained-byte-aware queue window,
 producer/consumer overlap runner, ordered consumer topology pinning, overlap
 telemetry and allocation attribution, optimized queued validation, archive
 benchmark/CLI integration, and the Release performance gate.
+
+Milestone 010 slice 1 baseline audit is complete. Confirmed baseline cost
+anchors and code paths:
+
+```text
+RadarEventBatch.ToOwnedSnapshot()
+  -> current snapshot-copy retention path for leased provider batches
+
+ArchiveOwnedRadarEventBatchQueueingPublisher.Publish()
+  -> captures allocation delta and elapsed time around ToOwnedSnapshot()
+  -> enqueues only owned RadarEventBatch input
+
+RadarProcessingQueuedBatch
+  -> carries OwnedSnapshotTime and OwnedSnapshotAllocatedBytes
+
+RadarProcessingProviderQueueTelemetryRecorder/Summary
+  -> accumulates owned snapshot count, payload bytes, payload values,
+     allocated bytes, elapsed time, enqueue wait, depth high-water mark,
+     queued payload bytes high-water mark, drain time, and recent details
+
+RadarProcessingArchiveRebalanceBenchmark
+  -> passes queue telemetry owned allocation into
+     RadarProcessingRebalanceAllocationSummary.ForArchiveReplay()
+  -> current cache queued-owned contour still drains after each file publish
+
+RadarProcessingArchiveRebalanceBenchmarkResult and CacheBenchmarkResult
+  -> expose OwnedSnapshotAllocatedBytes, OwnedSnapshotElapsed,
+     EnqueueWaitElapsed, QueueDrainElapsed, and queue telemetry
+
+RadarPulse.Cli rebalance-archive output
+  -> prints provider mode, queue capacity, owned snapshot allocation/time,
+     enqueue counters, enqueue wait, drain, queue depth high-water mark,
+     payload-byte high-water mark, provider-to-processing latency, and recent
+     detail counts
+```
+
+Latest verification after milestone 010 slice 1:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarEventBatchBuilderTests|FullyQualifiedName~RadarProcessingOwnedBatchQueueTests|FullyQualifiedName~RadarProcessingProviderQueueTelemetryRecorderTests|FullyQualifiedName~RadarProcessingQueuedProviderValidatorTests|FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+```
+
+Recorded result:
+
+```text
+72 passed, 0 failed, 0 skipped.
+```
 
 Milestone 008 slice 1 is implemented in the current working tree. RadarPulse
 now has the first async execution option contracts:
