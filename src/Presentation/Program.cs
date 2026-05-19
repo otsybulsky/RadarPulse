@@ -178,7 +178,7 @@ static int PrintUsage()
     Console.WriteLine("  radarpulse archive benchmark stream (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse processing benchmark synthetic [--mode sequential|partitioned|async] [--sources n] [--batches n] [--events-per-batch n] [--payload-values n] [--partitions n] [--shards n] [--workers n] [--queue-capacity n] [--handlers none|counter-checksum] [--iterations n] [--warmup-iterations n]");
     Console.WriteLine("  radarpulse processing benchmark rebalance-synthetic [--workload balanced|hot-shard|intrinsic-hot|oscillating|cooldown-storm|quarantine-ttl-retry|quarantine-cooling-clear|quarantine-pressure-change-retry|quarantine-retry-reentry|quarantine-successful-relief-clear|long-no-hot-shard|long-cooldown-rejection|long-unsafe-target-rejection|long-mixed-skipped-reasons|counters-only-retention|all] [--mode static|sampling|rebalance|all] [--execution sync|async] [--workers n] [--queue-capacity n] [--validation-profile off|essential|diagnostic|benchmark] [--quarantine-ttl-evaluations n] [--quarantine-sustained-cooling-samples n] [--quarantine-material-pressure-change n] [--iterations n] [--warmup-iterations n]");
-    Console.WriteLine("  radarpulse processing benchmark rebalance-archive (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--mode static|sampling|rebalance|all] [--execution sync|async] [--workers n] [--queue-capacity n] [--partitions n] [--shards n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress] [--validation-profile off|essential|diagnostic|benchmark] [--quarantine-ttl-evaluations n] [--quarantine-sustained-cooling-samples n] [--quarantine-material-pressure-change n] [--retention-mode counters|recent|diagnostic] [--max-retained-decisions n] [--max-retained-transitions n] [--max-retained-accepted-moves n] [--max-retained-validation-failures n] [--skew-profile none|hot-shard|rotating-hot-shard|hot-partition|target-starvation|budget-storm] [--skew-factor n] [--skew-period n]");
+    Console.WriteLine("  radarpulse processing benchmark rebalance-archive (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--mode static|sampling|rebalance|all] [--provider blocking-borrowed|queued-owned] [--execution sync|async] [--workers n] [--queue-capacity n] [--queue-timeout-ms n] [--queue-telemetry none|summary|recent] [--partitions n] [--shards n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress] [--validation-profile off|essential|diagnostic|benchmark] [--quarantine-ttl-evaluations n] [--quarantine-sustained-cooling-samples n] [--quarantine-material-pressure-change n] [--retention-mode counters|recent|diagnostic] [--max-retained-decisions n] [--max-retained-transitions n] [--max-retained-accepted-moves n] [--max-retained-validation-failures n] [--skew-profile none|hot-shard|rotating-hot-shard|hot-partition|target-starvation|budget-storm] [--skew-factor n] [--skew-period n]");
     Console.WriteLine("  radarpulse archive validate decompress (--file path | --cache data/nexrad [--radar KTLX] [--max-files n])");
     Console.WriteLine("  radarpulse archive validate replay-shape (--file path | --cache data/nexrad [--radar KTLX] [--max-files n]) [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     return 2;
@@ -475,8 +475,11 @@ static int BenchmarkProcessingRebalanceArchive(string[] args)
                 hardeningOptions,
                 options.PressureSkew,
                 options.ExecutionMode,
-                options.AsyncExecution);
-            PrintProcessingArchiveRebalanceCacheBenchmarkResult(cacheResult);
+                options.AsyncExecution,
+                options.ProviderMode,
+                options.ProviderQueueCapacity,
+                options.ProviderQueueTimeout);
+            PrintProcessingArchiveRebalanceCacheBenchmarkResult(cacheResult, options.QueueTelemetryOutput);
         }
         else
         {
@@ -492,8 +495,11 @@ static int BenchmarkProcessingRebalanceArchive(string[] args)
                 hardeningOptions,
                 options.PressureSkew,
                 options.ExecutionMode,
-                options.AsyncExecution);
-            PrintProcessingArchiveRebalanceBenchmarkResult(result);
+                options.AsyncExecution,
+                options.ProviderMode,
+                options.ProviderQueueCapacity,
+                options.ProviderQueueTimeout);
+            PrintProcessingArchiveRebalanceBenchmarkResult(result, options.QueueTelemetryOutput);
         }
 
         printedResult = true;
@@ -622,15 +628,21 @@ static void PrintProcessingRebalanceBenchmarkResult(RadarProcessingSyntheticReba
     PrintProcessingRebalanceMovePressures(result.AcceptedMovePressures);
 }
 
-static void PrintProcessingArchiveRebalanceBenchmarkResult(RadarProcessingArchiveRebalanceBenchmarkResult result)
+static void PrintProcessingArchiveRebalanceBenchmarkResult(
+    RadarProcessingArchiveRebalanceBenchmarkResult result,
+    ProcessingBenchmarkProviderQueueTelemetryOutput queueTelemetryOutput)
 {
     Console.WriteLine("Processing benchmark: rebalance-archive");
     Console.WriteLine("Measured contour: Archive replay to RadarEventBatch plus processing rebalance callback");
     Console.WriteLine("Processing-only timing: RadarEventBatch callback inside archive publisher");
-    Console.WriteLine("Batch lifetime: leased batches are processed during the callback and are not retained");
+    Console.WriteLine(result.ProviderMode == RadarProcessingArchiveProviderMode.QueuedOwned
+        ? "Batch lifetime: leased batches are converted to owned snapshots before provider queue enqueue"
+        : "Batch lifetime: leased batches are processed during the callback and are not retained");
     Console.WriteLine($"File: {result.FilePath}");
     Console.WriteLine($"Decompressor: {result.Decompressor}");
     Console.WriteLine($"Archive parallelism: {FormatNumber(result.DegreeOfParallelism)}");
+    Console.WriteLine($"Provider mode: {FormatProcessingArchiveProviderMode(result.ProviderMode)}");
+    Console.WriteLine($"Provider queue capacity: {FormatNumber(result.QueueCapacity)}");
     Console.WriteLine($"Execution mode: {FormatProcessingMode(result.ExecutionMode)}");
     Console.WriteLine($"Benchmark mode: {FormatProcessingRebalanceMode(result.Mode)}");
     Console.WriteLine($"Validation profile: {FormatProcessingValidationProfile(result.ValidationProfile)}");
@@ -673,6 +685,7 @@ static void PrintProcessingArchiveRebalanceBenchmarkResult(RadarProcessingArchiv
     Console.WriteLine($"End-to-end elapsed ms: {FormatDecimal(result.Elapsed.TotalMilliseconds)}");
     Console.WriteLine($"Processing callback elapsed ms: {FormatDecimal(result.ProcessingElapsed.TotalMilliseconds)}");
     Console.WriteLine($"Replay and batch construction elapsed ms: {FormatDecimal(result.ReplayAndBatchConstructionElapsed.TotalMilliseconds)}");
+    PrintProcessingProviderQueueTelemetryForArchiveFile(result, queueTelemetryOutput);
     Console.WriteLine($"Compressed MB/s: {FormatDecimal(result.CompressedMegabytesPerSecond)}");
     Console.WriteLine($"Decompressed MB/s: {FormatDecimal(result.DecompressedMegabytesPerSecond)}");
     Console.WriteLine($"End-to-end stream events/s: {FormatDecimal(result.EventsPerSecond)}");
@@ -697,12 +710,16 @@ static void PrintProcessingArchiveRebalanceBenchmarkResult(RadarProcessingArchiv
     PrintProcessingRebalanceMovePressures(result.AcceptedMovePressures);
 }
 
-static void PrintProcessingArchiveRebalanceCacheBenchmarkResult(RadarProcessingArchiveRebalanceCacheBenchmarkResult result)
+static void PrintProcessingArchiveRebalanceCacheBenchmarkResult(
+    RadarProcessingArchiveRebalanceCacheBenchmarkResult result,
+    ProcessingBenchmarkProviderQueueTelemetryOutput queueTelemetryOutput)
 {
     Console.WriteLine("Processing benchmark: rebalance-archive cache");
     Console.WriteLine("Measured contour: Archive cache replay to RadarEventBatch plus processing rebalance callback");
     Console.WriteLine("Processing-only timing: RadarEventBatch callback inside archive publisher");
-    Console.WriteLine("Batch lifetime: leased batches are processed during the callback and are not retained");
+    Console.WriteLine(result.ProviderMode == RadarProcessingArchiveProviderMode.QueuedOwned
+        ? "Batch lifetime: leased batches are converted to owned snapshots before provider queue enqueue"
+        : "Batch lifetime: leased batches are processed during the callback and are not retained");
     Console.WriteLine($"Cache: {result.CachePath}");
     if (result.Date is { } date)
     {
@@ -716,6 +733,8 @@ static void PrintProcessingArchiveRebalanceCacheBenchmarkResult(RadarProcessingA
 
     Console.WriteLine($"Decompressor: {result.Decompressor}");
     Console.WriteLine($"Archive parallelism: {FormatNumber(result.DegreeOfParallelism)}");
+    Console.WriteLine($"Provider mode: {FormatProcessingArchiveProviderMode(result.ProviderMode)}");
+    Console.WriteLine($"Provider queue capacity: {FormatNumber(result.QueueCapacity)}");
     Console.WriteLine($"Execution mode: {FormatProcessingMode(result.ExecutionMode)}");
     Console.WriteLine($"Benchmark mode: {FormatProcessingRebalanceMode(result.Mode)}");
     Console.WriteLine($"Validation profile: {FormatProcessingValidationProfile(result.ValidationProfile)}");
@@ -761,6 +780,7 @@ static void PrintProcessingArchiveRebalanceCacheBenchmarkResult(RadarProcessingA
     Console.WriteLine($"End-to-end elapsed ms: {FormatDecimal(result.Elapsed.TotalMilliseconds)}");
     Console.WriteLine($"Processing callback elapsed ms: {FormatDecimal(result.ProcessingElapsed.TotalMilliseconds)}");
     Console.WriteLine($"Replay and batch construction elapsed ms: {FormatDecimal(result.ReplayAndBatchConstructionElapsed.TotalMilliseconds)}");
+    PrintProcessingProviderQueueTelemetryForArchiveCache(result, queueTelemetryOutput);
     Console.WriteLine($"Compressed MB/s: {FormatDecimal(result.CompressedMegabytesPerSecond)}");
     Console.WriteLine($"Decompressed MB/s: {FormatDecimal(result.DecompressedMegabytesPerSecond)}");
     Console.WriteLine($"Files/s: {FormatDecimal(result.FilesPerSecond)}");
@@ -784,6 +804,99 @@ static void PrintProcessingArchiveRebalanceCacheBenchmarkResult(RadarProcessingA
     }
 
     PrintProcessingRebalanceMovePressures(result.AcceptedMovePressures);
+}
+
+static void PrintProcessingProviderQueueTelemetryForArchiveFile(
+    RadarProcessingArchiveRebalanceBenchmarkResult result,
+    ProcessingBenchmarkProviderQueueTelemetryOutput queueTelemetryOutput)
+{
+    if (!result.HasQueueTelemetry ||
+        queueTelemetryOutput == ProcessingBenchmarkProviderQueueTelemetryOutput.None)
+    {
+        return;
+    }
+
+    PrintProcessingProviderQueueTelemetrySummary(
+        result.QueueTelemetry,
+        result.OwnedSnapshotAllocatedBytesPerPayloadValue,
+        queueTelemetryOutput);
+}
+
+static void PrintProcessingProviderQueueTelemetryForArchiveCache(
+    RadarProcessingArchiveRebalanceCacheBenchmarkResult result,
+    ProcessingBenchmarkProviderQueueTelemetryOutput queueTelemetryOutput)
+{
+    if (!result.HasQueueTelemetry ||
+        queueTelemetryOutput == ProcessingBenchmarkProviderQueueTelemetryOutput.None)
+    {
+        return;
+    }
+
+    PrintProcessingProviderQueueTelemetrySummary(
+        result.QueueTelemetry,
+        result.OwnedSnapshotAllocatedBytesPerPayloadValue,
+        queueTelemetryOutput);
+}
+
+static void PrintProcessingProviderQueueTelemetrySummary(
+    RadarProcessingProviderQueueTelemetrySummary telemetry,
+    double ownedSnapshotAllocatedBytesPerPayloadValue,
+    ProcessingBenchmarkProviderQueueTelemetryOutput queueTelemetryOutput)
+{
+    Console.WriteLine($"Provider queue telemetry: {FormatProviderQueueTelemetryOutput(queueTelemetryOutput)}");
+    Console.WriteLine($"Provider queue owned snapshots: {FormatNumber(telemetry.OwnedSnapshotCount)}");
+    Console.WriteLine($"Provider queue owned snapshot payload bytes: {FormatNumber(telemetry.OwnedSnapshotPayloadBytes)}");
+    Console.WriteLine($"Provider queue owned snapshot payload values: {FormatNumber(telemetry.OwnedSnapshotPayloadValueCount)}");
+    Console.WriteLine($"Provider queue owned snapshot elapsed ms: {FormatDecimal(telemetry.TotalOwnedSnapshotTime.TotalMilliseconds)}");
+    Console.WriteLine($"Provider queue owned snapshot allocated bytes: {FormatNumber(telemetry.OwnedSnapshotAllocatedBytes)}");
+    Console.WriteLine($"Provider queue owned snapshot allocated bytes / payload value: {FormatDecimal(ownedSnapshotAllocatedBytesPerPayloadValue)}");
+    Console.WriteLine($"Provider queue enqueue attempts: {FormatNumber(telemetry.EnqueueAttemptCount)}");
+    Console.WriteLine($"Provider queue enqueued batches: {FormatNumber(telemetry.EnqueuedBatchCount)}");
+    Console.WriteLine($"Provider queue full batches: {FormatNumber(telemetry.EnqueueFullCount)}");
+    Console.WriteLine($"Provider queue timed out batches: {FormatNumber(telemetry.EnqueueTimedOutCount)}");
+    Console.WriteLine($"Provider queue canceled enqueue batches: {FormatNumber(telemetry.EnqueueCanceledCount)}");
+    Console.WriteLine($"Provider queue closed enqueue batches: {FormatNumber(telemetry.EnqueueClosedCount)}");
+    Console.WriteLine($"Provider queue faulted enqueue batches: {FormatNumber(telemetry.EnqueueFaultedCount)}");
+    Console.WriteLine($"Provider queue enqueue wait ms: {FormatDecimal(telemetry.TotalEnqueueWaitTime.TotalMilliseconds)}");
+    Console.WriteLine($"Provider queue dequeued batches: {FormatNumber(telemetry.DequeuedBatchCount)}");
+    Console.WriteLine($"Provider queue completed batches: {FormatNumber(telemetry.CompletedBatchCount)}");
+    Console.WriteLine($"Provider queue failed batches: {FormatNumber(telemetry.FailedBatchCount)}");
+    Console.WriteLine($"Provider queue canceled batches: {FormatNumber(telemetry.CanceledBatchCount)}");
+    Console.WriteLine($"Provider queue skipped after fault batches: {FormatNumber(telemetry.SkippedAfterFaultCount)}");
+    Console.WriteLine($"Provider queue drain ms: {FormatDecimal(telemetry.TotalDrainTime.TotalMilliseconds)}");
+    Console.WriteLine($"Provider queue depth high watermark: {FormatNumber(telemetry.QueueDepthHighWatermark)}");
+    Console.WriteLine($"Provider queue payload bytes high watermark: {FormatNumber(telemetry.QueuedPayloadBytesHighWatermark)}");
+    Console.WriteLine($"Provider-to-processing latency ms: {FormatDecimal(telemetry.TotalProviderToProcessingLatency.TotalMilliseconds)}");
+    Console.WriteLine($"Provider queue retained recent details: {FormatNumber(telemetry.RetainedRecentDetailCount)}");
+    Console.WriteLine($"Provider queue dropped recent details: {FormatNumber(telemetry.DroppedRecentDetailCount)}");
+
+    if (queueTelemetryOutput == ProcessingBenchmarkProviderQueueTelemetryOutput.Recent)
+    {
+        PrintProcessingProviderQueueRecentDetails(telemetry.RecentDetails);
+    }
+}
+
+static void PrintProcessingProviderQueueRecentDetails(
+    IReadOnlyList<RadarProcessingProviderQueueRecentDetail> recentDetails)
+{
+    if (recentDetails.Count == 0)
+    {
+        Console.WriteLine("Provider queue recent details: (none)");
+        return;
+    }
+
+    Console.WriteLine("Provider queue recent details:");
+    for (var i = 0; i < recentDetails.Count; i++)
+    {
+        var detail = recentDetails[i];
+        Console.WriteLine(
+            $"  {FormatNumber(i + 1)}. {FormatProcessingProviderQueueRecentDetailKind(detail.Kind)} " +
+            $"sequence {FormatProcessingProviderQueueSequence(detail.Sequence)} " +
+            $"enqueue {FormatProcessingProviderQueueEnqueueStatus(detail.EnqueueStatus)} " +
+            $"processing {FormatProcessingProviderQueueProcessingStatus(detail.ProcessingStatus)} " +
+            $"events {FormatNumber(detail.StreamEventCount)} payload bytes {FormatNumber(detail.PayloadBytes)} " +
+            $"payload values {FormatNumber(detail.PayloadValueCount)} queue depth {FormatNumber(detail.QueueDepth)}");
+    }
 }
 
 static void PrintProcessingRebalanceMovePressures(
@@ -930,6 +1043,63 @@ static string FormatProcessingPressureSkewProfile(RadarProcessingPressureSkewPro
         RadarProcessingPressureSkewProfile.TargetStarvation => "target-starvation",
         RadarProcessingPressureSkewProfile.BudgetStorm => "budget-storm",
         _ => profile.ToString()
+    };
+
+static string FormatProcessingArchiveProviderMode(RadarProcessingArchiveProviderMode providerMode) =>
+    providerMode switch
+    {
+        RadarProcessingArchiveProviderMode.BlockingBorrowed => "blocking-borrowed",
+        RadarProcessingArchiveProviderMode.QueuedOwned => "queued-owned",
+        _ => providerMode.ToString()
+    };
+
+static string FormatProviderQueueTelemetryOutput(ProcessingBenchmarkProviderQueueTelemetryOutput output) =>
+    output switch
+    {
+        ProcessingBenchmarkProviderQueueTelemetryOutput.None => "none",
+        ProcessingBenchmarkProviderQueueTelemetryOutput.Summary => "summary",
+        ProcessingBenchmarkProviderQueueTelemetryOutput.Recent => "recent",
+        _ => output.ToString()
+    };
+
+static string FormatProcessingProviderQueueRecentDetailKind(RadarProcessingProviderQueueRecentDetailKind kind) =>
+    kind switch
+    {
+        RadarProcessingProviderQueueRecentDetailKind.Enqueue => "enqueue",
+        RadarProcessingProviderQueueRecentDetailKind.Dequeue => "dequeue",
+        RadarProcessingProviderQueueRecentDetailKind.Processing => "processing",
+        _ => kind.ToString()
+    };
+
+static string FormatProcessingProviderQueueSequence(RadarProcessingQueuedBatchSequence? sequence) =>
+    sequence.HasValue
+        ? FormatNumber(sequence.Value.Value)
+        : "n/a";
+
+static string FormatProcessingProviderQueueEnqueueStatus(RadarProcessingQueuedBatchEnqueueStatus? status) =>
+    status switch
+    {
+        RadarProcessingQueuedBatchEnqueueStatus.Accepted => "accepted",
+        RadarProcessingQueuedBatchEnqueueStatus.Full => "full",
+        RadarProcessingQueuedBatchEnqueueStatus.TimedOut => "timed-out",
+        RadarProcessingQueuedBatchEnqueueStatus.Canceled => "canceled",
+        RadarProcessingQueuedBatchEnqueueStatus.Closed => "closed",
+        RadarProcessingQueuedBatchEnqueueStatus.Faulted => "faulted",
+        null => "n/a",
+        _ => status.Value.ToString()
+    };
+
+static string FormatProcessingProviderQueueProcessingStatus(RadarProcessingQueuedBatchProcessingStatus? status) =>
+    status switch
+    {
+        RadarProcessingQueuedBatchProcessingStatus.Succeeded => "succeeded",
+        RadarProcessingQueuedBatchProcessingStatus.FailedProcessing => "failed-processing",
+        RadarProcessingQueuedBatchProcessingStatus.FailedValidation => "failed-validation",
+        RadarProcessingQueuedBatchProcessingStatus.FailedMigration => "failed-migration",
+        RadarProcessingQueuedBatchProcessingStatus.Canceled => "canceled",
+        RadarProcessingQueuedBatchProcessingStatus.SkippedAfterFault => "skipped-after-fault",
+        null => "n/a",
+        _ => status.Value.ToString()
     };
 
 static string FormatBoolean(bool value) =>
@@ -2457,6 +2627,11 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
     ProcessingBenchmarkQuarantineLifecycleOptionOverrides QuarantineLifecycleOverrides,
     RadarProcessingTelemetryRetentionOptions TelemetryRetention,
     RadarProcessingPressureSkewOptions PressureSkew,
+    RadarProcessingArchiveProviderMode ProviderMode = RadarProcessingArchiveProviderMode.BlockingBorrowed,
+    int ProviderQueueCapacity = 1,
+    TimeSpan? ProviderQueueTimeout = null,
+    ProcessingBenchmarkProviderQueueTelemetryOutput QueueTelemetryOutput =
+        ProcessingBenchmarkProviderQueueTelemetryOutput.Summary,
     RadarProcessingExecutionMode ExecutionMode = RadarProcessingExecutionMode.PartitionedBarrier,
     RadarProcessingAsyncExecutionOptions? AsyncExecution = null)
 {
@@ -2493,6 +2668,9 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
         var skewProfile = RadarProcessingPressureSkewOptions.None.Profile;
         var skewFactor = RadarProcessingPressureSkewOptions.None.Factor;
         var skewPeriod = RadarProcessingPressureSkewOptions.None.Period;
+        var providerMode = RadarProcessingArchiveProviderMode.BlockingBorrowed;
+        TimeSpan? queueTimeout = null;
+        var queueTelemetryOutput = ProcessingBenchmarkProviderQueueTelemetryOutput.Summary;
         var executionMode = RadarProcessingExecutionMode.PartitionedBarrier;
         int? workerCount = null;
         int? queueCapacity = null;
@@ -2520,6 +2698,9 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
                 case "--mode":
                     modes = ParseMode(RequireValue(args, ref i, "--mode"));
                     break;
+                case "--provider":
+                    providerMode = ParseProviderMode(RequireValue(args, ref i, "--provider"));
+                    break;
                 case "--execution":
                     executionMode = ParseExecutionMode(RequireValue(args, ref i, "--execution"));
                     break;
@@ -2528,6 +2709,13 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
                     break;
                 case "--queue-capacity":
                     queueCapacity = int.Parse(RequireValue(args, ref i, "--queue-capacity"));
+                    break;
+                case "--queue-timeout-ms":
+                    queueTimeout = TimeSpan.FromMilliseconds(
+                        double.Parse(RequireValue(args, ref i, "--queue-timeout-ms"), CultureInfo.InvariantCulture));
+                    break;
+                case "--queue-telemetry":
+                    queueTelemetryOutput = ParseQueueTelemetryOutput(RequireValue(args, ref i, "--queue-telemetry"));
                     break;
                 case "--partitions":
                     partitionCount = int.Parse(RequireValue(args, ref i, "--partitions"));
@@ -2656,6 +2844,18 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
             throw new InvalidOperationException("--queue-capacity must be greater than zero.");
         }
 
+        if (queueTimeout.HasValue &&
+            queueTimeout.Value <= TimeSpan.Zero)
+        {
+            throw new InvalidOperationException("--queue-timeout-ms must be greater than zero.");
+        }
+
+        if (queueTimeout.HasValue &&
+            providerMode != RadarProcessingArchiveProviderMode.QueuedOwned)
+        {
+            throw new InvalidOperationException("--queue-timeout-ms requires --provider queued-owned.");
+        }
+
         RadarProcessingAsyncExecutionOptions? asyncExecution = null;
         if (executionMode == RadarProcessingExecutionMode.AsyncShardTransport)
         {
@@ -2663,10 +2863,19 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
                 workerCount: workerCount ?? shardCount,
                 queueCapacity: queueCapacity ?? 1);
         }
-        else if (workerCount.HasValue || queueCapacity.HasValue)
+        else if (workerCount.HasValue)
         {
             throw new InvalidOperationException("--workers and --queue-capacity require --execution async.");
         }
+        else if (queueCapacity.HasValue &&
+            providerMode != RadarProcessingArchiveProviderMode.QueuedOwned)
+        {
+            throw new InvalidOperationException("--queue-capacity requires --execution async or --provider queued-owned.");
+        }
+
+        var providerQueueCapacity = providerMode == RadarProcessingArchiveProviderMode.QueuedOwned
+            ? queueCapacity ?? 1
+            : 1;
 
         ArchiveBZip2Decompressors.Create(decompressor);
         var telemetryRetention = new RadarProcessingTelemetryRetentionOptions(
@@ -2702,6 +2911,10 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
             quarantineLifecycleOverrides,
             telemetryRetention,
             pressureSkew,
+            providerMode,
+            providerQueueCapacity,
+            queueTimeout,
+            queueTelemetryOutput,
             executionMode,
             asyncExecution);
     }
@@ -2744,6 +2957,25 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
             "async" or "async-partitioned" or "async-shard" or "async-shard-transport" =>
                 RadarProcessingExecutionMode.AsyncShardTransport,
             _ => throw new ArgumentException($"Unknown archive rebalance execution mode: {value}")
+        };
+
+    private static RadarProcessingArchiveProviderMode ParseProviderMode(string value) =>
+        value.ToLowerInvariant() switch
+        {
+            "blocking" or "borrowed" or "blocking-borrowed" =>
+                RadarProcessingArchiveProviderMode.BlockingBorrowed,
+            "queued" or "owned" or "queued-owned" =>
+                RadarProcessingArchiveProviderMode.QueuedOwned,
+            _ => throw new ArgumentException($"Unknown archive rebalance provider mode: {value}")
+        };
+
+    private static ProcessingBenchmarkProviderQueueTelemetryOutput ParseQueueTelemetryOutput(string value) =>
+        value.ToLowerInvariant() switch
+        {
+            "none" or "off" => ProcessingBenchmarkProviderQueueTelemetryOutput.None,
+            "summary" => ProcessingBenchmarkProviderQueueTelemetryOutput.Summary,
+            "recent" or "details" => ProcessingBenchmarkProviderQueueTelemetryOutput.Recent,
+            _ => throw new ArgumentException($"Unknown archive rebalance queue telemetry mode: {value}")
         };
 
     private static RadarProcessingValidationProfile ParseValidationProfile(string value) =>
@@ -3567,5 +3799,12 @@ internal sealed record ArchiveValidateReplayShapeOptions(
         index++;
         return args[index];
     }
+}
+
+public enum ProcessingBenchmarkProviderQueueTelemetryOutput
+{
+    None = 1,
+    Summary = 2,
+    Recent = 3
 }
 

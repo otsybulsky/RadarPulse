@@ -706,7 +706,7 @@ implementation.
 [x] queue telemetry is bounded and tested
 [x] queued validation proves parity against borrowed blocking references
 [x] archive benchmark exposes blocking-borrowed and queued-owned provider modes
-[ ] CLI exposes provider mode, queue capacity, and queued telemetry options
+[x] CLI exposes provider mode, queue capacity, and queued telemetry options
 [ ] same-run single-file comparisons are captured
 [ ] same-run full-cache comparisons are captured where local data is available
 [ ] performance assessment interprets owned-copy, queue, worker, and rebalance costs

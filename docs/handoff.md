@@ -519,6 +519,47 @@ Recorded result:
 487 passed for Processing-focused coverage.
 ```
 
+Milestone 009 slice 10 CLI surface is implemented in the current working
+tree. `processing benchmark rebalance-archive` now accepts
+`--provider blocking-borrowed|queued-owned`, `--queue-timeout-ms <ms>`, and
+`--queue-telemetry none|summary|recent`. The existing `--queue-capacity`
+flag remains compatible with milestone 008 async worker queues; when
+`--provider queued-owned` is selected, the same flag also configures the
+provider owned-batch queue, including sync execution where no worker queue is
+present. Blocking borrowed remains the default provider mode.
+
+The archive rebalance CLI output now labels provider mode and provider queue
+capacity for file and cache benchmarks, adjusts the batch lifetime text for
+queued-owned runs, and prints provider queue summary telemetry by default.
+Queued output includes owned snapshot counts, payload bytes/values, owned
+snapshot time and allocation, enqueue attempts and wait time, dequeue and
+processing completion counters, drain time, queue high-water marks,
+provider-to-processing latency, and bounded recent-detail retention. Passing
+`--queue-telemetry recent` prints retained queue details; `none` suppresses
+the queue telemetry block.
+
+Latest verification after milestone 009 slice 10:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RebalanceArchiveBenchmark
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Presentation
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Archive
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Processing
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+16 passed for CLI rebalance benchmark coverage.
+8 passed for archive rebalance benchmark queued-provider coverage.
+18 passed for Presentation-focused coverage.
+97 passed, 3 skipped for Archive-focused coverage.
+487 passed for Processing-focused coverage.
+660 passed, 3 skipped for the full test project.
+```
+
 Milestone 008 slice 1 is implemented in the current working tree. RadarPulse
 now has the first async execution option contracts:
 `RadarProcessingExecutionMode.AsyncShardTransport`,

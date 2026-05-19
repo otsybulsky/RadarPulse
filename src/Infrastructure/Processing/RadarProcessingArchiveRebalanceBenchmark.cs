@@ -37,7 +37,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         RadarProcessingExecutionMode executionMode = RadarProcessingExecutionMode.PartitionedBarrier,
         RadarProcessingAsyncExecutionOptions? asyncExecution = null,
         RadarProcessingArchiveProviderMode providerMode = RadarProcessingArchiveProviderMode.BlockingBorrowed,
-        int queueCapacity = 1)
+        int queueCapacity = 1,
+        TimeSpan? queueTimeout = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         EnsureKnownMode(mode);
@@ -49,6 +50,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(shardCount);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(degreeOfParallelism);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(queueCapacity);
+        ValidateQueueTimeout(queueTimeout);
 
         if (partitionCount < shardCount)
         {
@@ -111,6 +113,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                     workerGroup,
                     providerMode,
                     queueCapacity,
+                    queueTimeout,
                     cancellationToken);
             }
 
@@ -137,6 +140,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                     workerGroup,
                     providerMode,
                     queueCapacity,
+                    queueTimeout,
                     cancellationToken);
                 if (expectedIteration.HasValue && !expectedIteration.Value.HasSameStableTotals(iterationTelemetry))
                 {
@@ -236,7 +240,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         RadarProcessingExecutionMode executionMode = RadarProcessingExecutionMode.PartitionedBarrier,
         RadarProcessingAsyncExecutionOptions? asyncExecution = null,
         RadarProcessingArchiveProviderMode providerMode = RadarProcessingArchiveProviderMode.BlockingBorrowed,
-        int queueCapacity = 1)
+        int queueCapacity = 1,
+        TimeSpan? queueTimeout = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(cachePath);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxFiles);
@@ -249,6 +254,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(shardCount);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(degreeOfParallelism);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(queueCapacity);
+        ValidateQueueTimeout(queueTimeout);
 
         if (partitionCount < shardCount)
         {
@@ -317,6 +323,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                     workerGroup,
                     providerMode,
                     queueCapacity,
+                    queueTimeout,
                     cancellationToken);
             }
 
@@ -346,6 +353,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                     workerGroup,
                     providerMode,
                     queueCapacity,
+                    queueTimeout,
                     cancellationToken);
                 if (expectedIteration.HasValue && !expectedIteration.Value.HasSameStableTotals(iterationTelemetry))
                 {
@@ -448,6 +456,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         RadarProcessingAsyncWorkerGroup? workerGroup,
         RadarProcessingArchiveProviderMode providerMode,
         int queueCapacity,
+        TimeSpan? queueTimeout,
         CancellationToken cancellationToken)
     {
         using var processor = new ArchiveRebalanceBatchProcessor(
@@ -472,6 +481,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             filePath,
             processor,
             queueCapacity,
+            queueTimeout,
             cancellationToken);
         return processor
             .BuildTelemetry(queuedResult.PublishResult)
@@ -496,6 +506,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         RadarProcessingAsyncWorkerGroup? workerGroup,
         RadarProcessingArchiveProviderMode providerMode,
         int queueCapacity,
+        TimeSpan? queueTimeout,
         CancellationToken cancellationToken)
     {
         using var processor = new ArchiveRebalanceBatchProcessor(
@@ -545,6 +556,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                     fileInfo.FullName,
                     processor,
                     queueCapacity,
+                    queueTimeout,
                     cancellationToken);
                 publishResult = queuedResult.PublishResult;
                 queueTelemetry = AddQueueTelemetry(queueTelemetry, queuedResult.QueueTelemetry);
@@ -563,10 +575,13 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         string filePath,
         ArchiveRebalanceBatchProcessor processor,
         int queueCapacity,
+        TimeSpan? queueTimeout,
         CancellationToken cancellationToken)
     {
         using var queue = new RadarProcessingOwnedBatchQueue(
-            new RadarProcessingProviderQueueOptions(capacity: queueCapacity));
+            new RadarProcessingProviderQueueOptions(
+                capacity: queueCapacity,
+                enqueueTimeout: queueTimeout));
         using var queueingPublisher = new ArchiveOwnedRadarEventBatchQueueingPublisher(queue);
 
         var publishResult = archiveSession.PublishFile(filePath, queueingPublisher, cancellationToken);
@@ -824,6 +839,18 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             not RadarProcessingArchiveProviderMode.QueuedOwned)
         {
             throw new ArgumentOutOfRangeException(nameof(providerMode));
+        }
+    }
+
+    private static void ValidateQueueTimeout(TimeSpan? queueTimeout)
+    {
+        if (queueTimeout.HasValue &&
+            queueTimeout.Value <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(queueTimeout),
+                queueTimeout,
+                "Queue timeout must be positive when specified.");
         }
     }
 

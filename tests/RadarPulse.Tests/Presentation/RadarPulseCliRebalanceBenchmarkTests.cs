@@ -317,6 +317,10 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
         Assert.NotNull(options.AsyncExecution);
         Assert.Equal(3, options.AsyncExecution.WorkerCount);
         Assert.Equal(2, options.AsyncExecution.QueueCapacity);
+        Assert.Equal(RadarProcessingArchiveProviderMode.BlockingBorrowed, options.ProviderMode);
+        Assert.Equal(1, options.ProviderQueueCapacity);
+        Assert.Null(options.ProviderQueueTimeout);
+        Assert.Equal(ProcessingBenchmarkProviderQueueTelemetryOutput.Summary, options.QueueTelemetryOutput);
         Assert.Equal(RadarProcessingValidationProfile.Essential, options.ValidationProfile);
         var quarantineLifecycle = options.QuarantineLifecycleOverrides.ApplyTo(
             RadarProcessingQuarantineLifecycleOptions.Default);
@@ -324,6 +328,33 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
         Assert.Equal(5, quarantineLifecycle.SustainedCoolingSampleCount);
         Assert.Equal(0.75, quarantineLifecycle.MaterialPressureChangeThreshold);
         Assert.Equal(RadarProcessingDiagnosticRetentionMode.Recent, options.TelemetryRetention.RetentionMode);
+    }
+
+    [Fact]
+    public void ArchiveRebalanceBenchmarkOptionsParseQueuedProviderSettings()
+    {
+        var options = global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
+        [
+            "--cache",
+            "data/nexrad",
+            "--provider",
+            "queued-owned",
+            "--queue-capacity",
+            "3",
+            "--queue-timeout-ms",
+            "250",
+            "--queue-telemetry",
+            "recent",
+            "--mode",
+            "static"
+        ]);
+
+        Assert.Equal(RadarProcessingArchiveProviderMode.QueuedOwned, options.ProviderMode);
+        Assert.Equal(3, options.ProviderQueueCapacity);
+        Assert.Equal(TimeSpan.FromMilliseconds(250), options.ProviderQueueTimeout);
+        Assert.Equal(ProcessingBenchmarkProviderQueueTelemetryOutput.Recent, options.QueueTelemetryOutput);
+        Assert.Equal(RadarProcessingExecutionMode.PartitionedBarrier, options.ExecutionMode);
+        Assert.Null(options.AsyncExecution);
     }
 
     [Fact]
@@ -481,6 +512,48 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             [
                 "--cache",
                 "data/nexrad",
+                "--provider",
+                "leased"
+            ]));
+        Assert.Throws<ArgumentException>(
+            () => global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
+            [
+                "--cache",
+                "data/nexrad",
+                "--queue-telemetry",
+                "verbose"
+            ]));
+        Assert.Throws<InvalidOperationException>(
+            () => global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
+            [
+                "--cache",
+                "data/nexrad",
+                "--queue-capacity",
+                "2"
+            ]));
+        Assert.Throws<InvalidOperationException>(
+            () => global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
+            [
+                "--cache",
+                "data/nexrad",
+                "--provider",
+                "queued-owned",
+                "--queue-timeout-ms",
+                "0"
+            ]));
+        Assert.Throws<InvalidOperationException>(
+            () => global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
+            [
+                "--cache",
+                "data/nexrad",
+                "--queue-timeout-ms",
+                "10"
+            ]));
+        Assert.Throws<ArgumentException>(
+            () => global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
+            [
+                "--cache",
+                "data/nexrad",
                 "--execution",
                 "parallel"
             ]));
@@ -514,6 +587,58 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
                 "--workers",
                 "2"
             ]));
+    }
+
+    [Fact]
+    public void ArchiveRebalanceBenchmarkCommandEmitsQueuedProviderTelemetry()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "RadarPulse.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        File.WriteAllBytes(Path.Combine(directory, "notes.txt"), [1, 2, 3]);
+
+        try
+        {
+            var result = RunCli(
+                "processing",
+                "benchmark",
+                "rebalance-archive",
+                "--cache",
+                directory,
+                "--max-files",
+                "1",
+                "--mode",
+                "static",
+                "--provider",
+                "queued-owned",
+                "--queue-capacity",
+                "2",
+                "--queue-telemetry",
+                "summary",
+                "--partitions",
+                "4",
+                "--shards",
+                "2",
+                "--iterations",
+                "1",
+                "--warmup-iterations",
+                "0");
+
+            Assert.Equal(0, result.ExitCode);
+            Assert.Contains("Processing benchmark: rebalance-archive cache", result.StandardOutput);
+            Assert.Contains("Provider mode: queued-owned", result.StandardOutput);
+            Assert.Contains("Provider queue capacity: 2", result.StandardOutput);
+            Assert.Contains(
+                "Batch lifetime: leased batches are converted to owned snapshots before provider queue enqueue",
+                result.StandardOutput);
+            Assert.Contains("Provider queue telemetry: summary", result.StandardOutput);
+            Assert.Contains("Provider queue owned snapshots: 0", result.StandardOutput);
+            Assert.Contains("Provider queue drain ms:", result.StandardOutput);
+            Assert.Equal(string.Empty, result.StandardError);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
     }
 
     private static CliResult RunCli(params string[] args)
