@@ -962,6 +962,7 @@ static void PrintProcessingProviderOverlapTelemetrySummary(
     Console.WriteLine($"Provider overlap has queued-ahead overlap: {FormatBoolean(telemetry.HasQueuedAheadOverlap)}");
     Console.WriteLine($"Provider overlap queue depth high watermark: {FormatNumber(telemetry.QueueDepthHighWatermark)}");
     Console.WriteLine($"Provider overlap retained payload bytes high watermark: {FormatNumber(telemetry.RetainedPayloadBytesHighWatermark)}");
+    PrintProcessingRetainedResourcePressureSummary("Provider overlap", telemetry.RetainedResourcePressure);
     Console.WriteLine($"Provider overlap provider blocked ms: {FormatDecimal(telemetry.ProviderBlockedTime.TotalMilliseconds)}");
     Console.WriteLine($"Provider overlap consumer idle ms: {FormatDecimal(telemetry.ConsumerIdleTime.TotalMilliseconds)}");
     Console.WriteLine($"Provider overlap provider-to-processing latency ms: {FormatDecimal(telemetry.TotalProviderToProcessingLatency.TotalMilliseconds)}");
@@ -1078,6 +1079,7 @@ static void PrintProcessingProviderQueueTelemetrySummary(
     Console.WriteLine($"Provider queue depth high watermark: {FormatNumber(telemetry.QueueDepthHighWatermark)}");
     Console.WriteLine($"Provider queue payload bytes high watermark: {FormatNumber(telemetry.QueuedPayloadBytesHighWatermark)}");
     Console.WriteLine($"Provider queue retained payload bytes high watermark: {FormatNumber(telemetry.RetainedPayloadBytesHighWatermark)}");
+    PrintProcessingRetainedResourcePressureSummary("Provider queue", telemetry.RetainedResourcePressure);
     Console.WriteLine($"Provider-to-processing latency ms: {FormatDecimal(telemetry.TotalProviderToProcessingLatency.TotalMilliseconds)}");
     Console.WriteLine($"Provider queue retained recent details: {FormatNumber(telemetry.RetainedRecentDetailCount)}");
     Console.WriteLine($"Provider queue dropped recent details: {FormatNumber(telemetry.DroppedRecentDetailCount)}");
@@ -1109,6 +1111,24 @@ static void PrintProcessingProviderQueueRecentDetails(
             $"events {FormatNumber(detail.StreamEventCount)} payload bytes {FormatNumber(detail.PayloadBytes)} " +
             $"payload values {FormatNumber(detail.PayloadValueCount)} queue depth {FormatNumber(detail.QueueDepth)}");
     }
+}
+
+static void PrintProcessingRetainedResourcePressureSummary(
+    string prefix,
+    RadarProcessingRetainedResourcePressureSummary telemetry)
+{
+    Console.WriteLine($"{prefix} current pending retained batches: {FormatNumber(telemetry.CurrentPendingRetainedBatchCount)}");
+    Console.WriteLine($"{prefix} current pending retained payload bytes: {FormatNumber(telemetry.CurrentPendingRetainedPayloadBytes)}");
+    Console.WriteLine($"{prefix} pending retained batches high watermark: {FormatNumber(telemetry.PendingRetainedBatchCountHighWatermark)}");
+    Console.WriteLine($"{prefix} pending retained payload bytes high watermark: {FormatNumber(telemetry.PendingRetainedPayloadBytesHighWatermark)}");
+    Console.WriteLine($"{prefix} current active retained batches: {FormatNumber(telemetry.CurrentActiveRetainedBatchCount)}");
+    Console.WriteLine($"{prefix} current active retained payload bytes: {FormatNumber(telemetry.CurrentActiveRetainedPayloadBytes)}");
+    Console.WriteLine($"{prefix} active retained batches high watermark: {FormatNumber(telemetry.ActiveRetainedBatchCountHighWatermark)}");
+    Console.WriteLine($"{prefix} active retained payload bytes high watermark: {FormatNumber(telemetry.ActiveRetainedPayloadBytesHighWatermark)}");
+    Console.WriteLine($"{prefix} current combined retained batches: {FormatNumber(telemetry.CurrentCombinedRetainedBatchCount)}");
+    Console.WriteLine($"{prefix} current combined retained payload bytes: {FormatNumber(telemetry.CurrentCombinedRetainedPayloadBytes)}");
+    Console.WriteLine($"{prefix} combined retained batches high watermark: {FormatNumber(telemetry.CombinedRetainedBatchCountHighWatermark)}");
+    Console.WriteLine($"{prefix} combined retained payload bytes high watermark: {FormatNumber(telemetry.CombinedRetainedPayloadBytesHighWatermark)}");
 }
 
 static void PrintProcessingRebalanceMovePressures(

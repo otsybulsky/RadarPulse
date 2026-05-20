@@ -379,6 +379,34 @@ coverage.
 732 passed, 0 failed, 3 skipped for the full test project.
 ```
 
+Milestone 011 slice 9 CLI and operator telemetry output is implemented in the
+current working tree. Provider queue telemetry now prints current pending,
+active, and combined retained batch/payload pressure plus pending, active, and
+combined retained batch/payload high-water marks. Provider overlap telemetry
+prints the same retained pressure fields while preserving the milestone 010
+queue-only retained payload high-water label.
+
+Summary telemetry remains aggregate-only; no unbounded per-batch output was
+added. CLI smoke coverage verifies the new queue and overlap pressure fields,
+the controlled/default-candidate labels, and that `--queue-telemetry none`
+plus `--overlap-telemetry none` suppresses optional queue/overlap pressure
+blocks instead of presenting disabled telemetry as readiness evidence.
+
+Latest verification after milestone 011 slice 9:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+20 passed, 0 failed, 0 skipped for focused CLI rebalance benchmark coverage.
+733 passed, 0 failed, 3 skipped for the full test project.
+```
+
 Milestone 010 remains complete. The architecture is recorded in
 `docs/milestones/010-owned-provider-overlap-cost-reduction.md`, and the
 implementation plan is recorded in
@@ -3167,6 +3195,7 @@ Done:
   tested.
 - `011` slice 8 failure, cancellation, and cleanup gate coverage is
   implemented and tested.
+- `011` slice 9 CLI and operator telemetry output is implemented and tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.

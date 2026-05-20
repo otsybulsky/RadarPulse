@@ -809,6 +809,12 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             Assert.Contains("Provider queue owned snapshots: 0", result.StandardOutput);
             Assert.Contains("Provider queue owned snapshot events: 0", result.StandardOutput);
             Assert.Contains("Provider queue drain ms:", result.StandardOutput);
+            Assert.Contains("Provider queue current pending retained batches: 0", result.StandardOutput);
+            Assert.Contains("Provider queue current active retained batches: 0", result.StandardOutput);
+            Assert.Contains("Provider queue current combined retained batches: 0", result.StandardOutput);
+            Assert.Contains("Provider queue pending retained payload bytes high watermark: 0", result.StandardOutput);
+            Assert.Contains("Provider queue active retained payload bytes high watermark: 0", result.StandardOutput);
+            Assert.Contains("Provider queue combined retained payload bytes high watermark: 0", result.StandardOutput);
             Assert.Contains("Retained payload telemetry: summary", result.StandardOutput);
             Assert.Contains("Retained payload attempts: 0", result.StandardOutput);
             Assert.DoesNotContain("Provider overlap telemetry:", result.StandardOutput);
@@ -871,6 +877,12 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             Assert.Contains("Provider overlap telemetry: summary", result.StandardOutput);
             Assert.Contains("Provider overlap retained payload strategy: pooled-copy", result.StandardOutput);
             Assert.Contains("Provider overlap retained payload bytes high watermark: 0", result.StandardOutput);
+            Assert.Contains("Provider overlap current pending retained batches: 0", result.StandardOutput);
+            Assert.Contains("Provider overlap current active retained batches: 0", result.StandardOutput);
+            Assert.Contains("Provider overlap current combined retained batches: 0", result.StandardOutput);
+            Assert.Contains("Provider overlap pending retained payload bytes high watermark: 0", result.StandardOutput);
+            Assert.Contains("Provider overlap active retained payload bytes high watermark: 0", result.StandardOutput);
+            Assert.Contains("Provider overlap combined retained payload bytes high watermark: 0", result.StandardOutput);
             Assert.Equal(string.Empty, result.StandardError);
         }
         finally
@@ -934,7 +946,65 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             Assert.Contains("Provider queue retained byte capacity: 536_870_912", result.StandardOutput);
             Assert.Contains("Default-candidate contour: yes", result.StandardOutput);
             Assert.Contains("Provider overlap evidence contour: natural-default-candidate", result.StandardOutput);
+            Assert.Contains("Provider queue combined retained payload bytes high watermark: 0", result.StandardOutput);
+            Assert.Contains("Provider overlap combined retained payload bytes high watermark: 0", result.StandardOutput);
             Assert.Contains("Execution mode: async", result.StandardOutput);
+            Assert.Equal(string.Empty, result.StandardError);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ArchiveRebalanceBenchmarkCommandSuppressesOptionalTelemetryWhenNone()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "RadarPulse.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        File.WriteAllBytes(Path.Combine(directory, "notes.txt"), [1, 2, 3]);
+
+        try
+        {
+            var result = RunCli(
+                "processing",
+                "benchmark",
+                "rebalance-archive",
+                "--cache",
+                directory,
+                "--max-files",
+                "1",
+                "--mode",
+                "static",
+                "--provider",
+                "queued-owned",
+                "--provider-overlap",
+                "producer-consumer",
+                "--retention-strategy",
+                "pooled-copy",
+                "--queue-telemetry",
+                "none",
+                "--overlap-telemetry",
+                "none",
+                "--partitions",
+                "4",
+                "--shards",
+                "2",
+                "--iterations",
+                "1",
+                "--warmup-iterations",
+                "0");
+
+            Assert.Equal(0, result.ExitCode);
+            Assert.Contains("Provider mode: queued-owned", result.StandardOutput);
+            Assert.Contains("Provider overlap mode: producer-consumer", result.StandardOutput);
+            Assert.Contains("Retained payload telemetry: summary", result.StandardOutput);
+            Assert.DoesNotContain("Provider queue telemetry:", result.StandardOutput);
+            Assert.DoesNotContain("Provider queue current pending retained batches:", result.StandardOutput);
+            Assert.DoesNotContain("Provider queue active retained payload bytes high watermark:", result.StandardOutput);
+            Assert.DoesNotContain("Provider overlap telemetry:", result.StandardOutput);
+            Assert.DoesNotContain("Provider overlap current pending retained batches:", result.StandardOutput);
+            Assert.DoesNotContain("Provider overlap active retained payload bytes high watermark:", result.StandardOutput);
             Assert.Equal(string.Empty, result.StandardError);
         }
         finally

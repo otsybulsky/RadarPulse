@@ -1110,6 +1110,37 @@ Do not add unbounded per-batch output to default summary telemetry. Use recent
 mode for bounded details.
 ```
 
+Implemented in slice 9:
+
+```text
+CLI provider queue telemetry now prints current pending, active, and combined
+retained batch/payload pressure plus pending, active, and combined retained
+batch/payload high-water marks
+CLI provider overlap telemetry now prints the same retained pressure fields
+while preserving the milestone 010 queue-only retained payload high-water label
+summary telemetry remains aggregate-only and does not add unbounded per-batch
+output
+queue/overlap telemetry set to none suppresses the optional queue and overlap
+pressure blocks, so disabled telemetry is not presented as readiness evidence
+CLI smoke coverage asserts the new queue and overlap pressure fields, preserves
+the controlled/default-candidate labels, and verifies none-mode suppression
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+20 passed, 0 failed, 0 skipped for focused CLI rebalance benchmark coverage.
+733 passed, 0 failed, 3 skipped for the full test project.
+```
+
 ### 10. Natural Release Gate Matrix
 
 Capture repeated natural Release gates using the default-candidate contour and
@@ -1315,7 +1346,7 @@ controlled proof rows separated if captured
     telemetry correctly
 [x] overlap telemetry carries active and combined retained pressure
 [x] archive benchmark file/cache result shapes carry readiness pressure fields
-[ ] CLI output prints active and combined retained pressure fields
+[x] CLI output prints active and combined retained pressure fields
 [x] candidate configuration output is explicit and reproducible
 [x] readiness validation/gate contracts are implemented or documented
 [x] failure and cancellation cleanup paths are tested
