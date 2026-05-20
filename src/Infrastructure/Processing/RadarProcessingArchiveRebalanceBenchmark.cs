@@ -683,7 +683,9 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             queueTelemetry.OwnedSnapshotPayloadValueCount,
             queueTelemetry.TotalProviderToProcessingLatency,
             queueTelemetry.RecentDetails,
-            queueTelemetry.DroppedRecentDetailCount);
+            queueTelemetry.DroppedRecentDetailCount,
+            queueTelemetry.OwnedSnapshotEventCount,
+            queueTelemetry.TotalDequeueWaitTime);
     }
 
     private static RadarProcessingProviderQueueTelemetrySummary AddQueueTelemetry(
@@ -722,7 +724,9 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             checked(current.OwnedSnapshotPayloadValueCount + next.OwnedSnapshotPayloadValueCount),
             current.TotalProviderToProcessingLatency + next.TotalProviderToProcessingLatency,
             recentDetails,
-            checked(current.DroppedRecentDetailCount + next.DroppedRecentDetailCount + droppedRecentDetails));
+            checked(current.DroppedRecentDetailCount + next.DroppedRecentDetailCount + droppedRecentDetails),
+            checked(current.OwnedSnapshotEventCount + next.OwnedSnapshotEventCount),
+            current.TotalDequeueWaitTime + next.TotalDequeueWaitTime);
     }
 
     private static IReadOnlyCollection<RadarProcessingProviderQueueRecentDetail> CreateBoundedRecentDetails(

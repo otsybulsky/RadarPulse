@@ -19,6 +19,7 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
     private bool disposed;
     private string faultMessage = string.Empty;
     private long ownedSnapshotCount;
+    private long ownedSnapshotEventCount;
     private long ownedSnapshotPayloadBytes;
     private long ownedSnapshotAllocatedBytes;
     private TimeSpan totalOwnedSnapshotTime;
@@ -30,6 +31,7 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
     private long enqueueClosedCount;
     private long enqueueFaultedCount;
     private TimeSpan totalEnqueueWaitTime;
+    private TimeSpan totalDequeueWaitTime;
     private long dequeuedBatchCount;
     private int queueDepthHighWatermark;
     private long queuedPayloadBytesHighWatermark;
@@ -168,10 +170,11 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
                 RadarProcessingOwnedBatchDequeueStatus.Disposed);
         }
 
+        var started = Stopwatch.GetTimestamp();
         try
         {
             var batch = await channel.Reader.ReadAsync(cancellationToken).ConfigureAwait(false);
-            RecordDequeue(batch);
+            RecordDequeue(batch, Stopwatch.GetElapsedTime(started));
 
             if (IsDisposed)
             {
@@ -185,13 +188,16 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            AddDequeueWaitTime(Stopwatch.GetElapsedTime(started));
             return new RadarProcessingOwnedBatchDequeueResult(
                 RadarProcessingOwnedBatchDequeueStatus.Canceled);
         }
         catch (ChannelClosedException)
         {
+            var dequeueWaitTime = Stopwatch.GetElapsedTime(started);
             lock (sync)
             {
+                totalDequeueWaitTime += dequeueWaitTime;
                 if (disposed)
                 {
                     return new RadarProcessingOwnedBatchDequeueResult(
@@ -271,7 +277,9 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
                 recordedSummary.OwnedSnapshotPayloadValueCount,
                 recordedSummary.TotalProviderToProcessingLatency,
                 recordedSummary.RecentDetails,
-                recordedSummary.DroppedRecentDetailCount);
+                recordedSummary.DroppedRecentDetailCount,
+                ownedSnapshotEventCount,
+                totalDequeueWaitTime);
         }
     }
 
@@ -520,6 +528,7 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
         pendingCount++;
         pendingPayloadBytes = checked(pendingPayloadBytes + batch.PayloadBytes);
         ownedSnapshotCount++;
+        ownedSnapshotEventCount = checked(ownedSnapshotEventCount + batch.StreamEventCount);
         ownedSnapshotPayloadBytes = checked(ownedSnapshotPayloadBytes + batch.PayloadBytes);
         ownedSnapshotAllocatedBytes = checked(ownedSnapshotAllocatedBytes + batch.OwnedSnapshotAllocatedBytes);
         totalOwnedSnapshotTime += batch.OwnedSnapshotTime;
@@ -591,19 +600,31 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
     }
 
     private void RecordDequeue(
-        RadarProcessingQueuedBatch batch)
+        RadarProcessingQueuedBatch batch,
+        TimeSpan dequeueWaitTime)
     {
-        RemovePending(batch, countDequeued: true);
+        RemovePending(batch, countDequeued: true, dequeueWaitTime);
         telemetryRecorder.RecordDequeuedBatch(
             batch,
             batch.EnqueuedTimestamp == 0 ? TimeSpan.Zero : Stopwatch.GetElapsedTime(batch.EnqueuedTimestamp),
             PendingCount,
-            PendingPayloadBytes);
+            PendingPayloadBytes,
+            dequeueWaitTime);
+    }
+
+    private void AddDequeueWaitTime(
+        TimeSpan dequeueWaitTime)
+    {
+        lock (sync)
+        {
+            totalDequeueWaitTime += dequeueWaitTime;
+        }
     }
 
     private void RemovePending(
         RadarProcessingQueuedBatch batch,
-        bool countDequeued)
+        bool countDequeued,
+        TimeSpan dequeueWaitTime = default)
     {
         lock (sync)
         {
@@ -612,6 +633,7 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
             if (countDequeued)
             {
                 dequeuedBatchCount++;
+                totalDequeueWaitTime += dequeueWaitTime;
             }
 
             SignalRetainedByteBudgetChangedUnsafe();

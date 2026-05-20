@@ -270,6 +270,7 @@ public sealed class RadarProcessingProviderQueueContractTests
             queuedPayloadBytesHighWatermark: 128,
             ownedSnapshotPayloadValueCount: 64,
             totalProviderToProcessingLatency: TimeSpan.FromMilliseconds(11),
+            totalDequeueWaitTime: TimeSpan.FromMilliseconds(13),
             recentDetails:
             [
                 new RadarProcessingProviderQueueRecentDetail(
@@ -279,10 +280,12 @@ public sealed class RadarProcessingProviderQueueContractTests
                     payloadBytes: 64,
                     payloadValueCount: 32)
             ],
-            droppedRecentDetailCount: 3);
+            droppedRecentDetailCount: 3,
+            ownedSnapshotEventCount: 5);
 
         Assert.Equal(2, summary.OwnedSnapshotCount);
         Assert.Equal(128, summary.OwnedSnapshotPayloadBytes);
+        Assert.Equal(5, summary.OwnedSnapshotEventCount);
         Assert.Equal(64, summary.OwnedSnapshotPayloadValueCount);
         Assert.Equal(256, summary.OwnedSnapshotAllocatedBytes);
         Assert.Equal(TimeSpan.FromMilliseconds(3), summary.TotalOwnedSnapshotTime);
@@ -291,6 +294,7 @@ public sealed class RadarProcessingProviderQueueContractTests
         Assert.Equal(1, summary.EnqueueFullCount);
         Assert.Equal(1, summary.EnqueueTimedOutCount);
         Assert.Equal(TimeSpan.FromMilliseconds(5), summary.TotalEnqueueWaitTime);
+        Assert.Equal(TimeSpan.FromMilliseconds(13), summary.TotalDequeueWaitTime);
         Assert.Equal(2, summary.DequeuedBatchCount);
         Assert.Equal(1, summary.CompletedBatchCount);
         Assert.Equal(1, summary.FailedBatchCount);
@@ -325,6 +329,10 @@ public sealed class RadarProcessingProviderQueueContractTests
                 recentDetails: new RadarProcessingProviderQueueRecentDetail[] { null! }));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new RadarProcessingProviderQueueTelemetrySummary(droppedRecentDetailCount: -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RadarProcessingProviderQueueTelemetrySummary(ownedSnapshotEventCount: -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RadarProcessingProviderQueueTelemetrySummary(totalDequeueWaitTime: TimeSpan.FromTicks(-1)));
     }
 
     [Fact]

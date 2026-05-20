@@ -94,6 +94,7 @@ public sealed class RadarProcessingOwnedBatchQueueTests
         Assert.Equal(64, summary.OwnedSnapshotAllocatedBytes);
         Assert.Equal(TimeSpan.FromMilliseconds(2), summary.TotalOwnedSnapshotTime);
         Assert.Equal(1, summary.DequeuedBatchCount);
+        Assert.True(summary.TotalDequeueWaitTime >= TimeSpan.Zero);
         Assert.True(summary.TotalProviderToProcessingLatency >= TimeSpan.Zero);
         Assert.Equal(1, summary.QueueDepthHighWatermark);
         Assert.Equal(2, summary.QueuedPayloadBytesHighWatermark);

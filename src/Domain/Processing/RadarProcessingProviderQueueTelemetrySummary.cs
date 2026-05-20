@@ -26,12 +26,15 @@ public sealed record RadarProcessingProviderQueueTelemetrySummary
         long ownedSnapshotPayloadValueCount = 0,
         TimeSpan totalProviderToProcessingLatency = default,
         IReadOnlyCollection<RadarProcessingProviderQueueRecentDetail>? recentDetails = null,
-        long droppedRecentDetailCount = 0)
+        long droppedRecentDetailCount = 0,
+        long ownedSnapshotEventCount = 0,
+        TimeSpan totalDequeueWaitTime = default)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(ownedSnapshotCount);
         ArgumentOutOfRangeException.ThrowIfNegative(ownedSnapshotPayloadBytes);
         ArgumentOutOfRangeException.ThrowIfNegative(ownedSnapshotAllocatedBytes);
         EnsureNonNegative(totalOwnedSnapshotTime, nameof(totalOwnedSnapshotTime));
+        ArgumentOutOfRangeException.ThrowIfNegative(ownedSnapshotEventCount);
         ArgumentOutOfRangeException.ThrowIfNegative(enqueueAttemptCount);
         ArgumentOutOfRangeException.ThrowIfNegative(enqueuedBatchCount);
         ArgumentOutOfRangeException.ThrowIfNegative(enqueueFullCount);
@@ -40,6 +43,7 @@ public sealed record RadarProcessingProviderQueueTelemetrySummary
         ArgumentOutOfRangeException.ThrowIfNegative(enqueueClosedCount);
         ArgumentOutOfRangeException.ThrowIfNegative(enqueueFaultedCount);
         EnsureNonNegative(totalEnqueueWaitTime, nameof(totalEnqueueWaitTime));
+        EnsureNonNegative(totalDequeueWaitTime, nameof(totalDequeueWaitTime));
         ArgumentOutOfRangeException.ThrowIfNegative(dequeuedBatchCount);
         ArgumentOutOfRangeException.ThrowIfNegative(completedBatchCount);
         ArgumentOutOfRangeException.ThrowIfNegative(failedBatchCount);
@@ -72,6 +76,7 @@ public sealed record RadarProcessingProviderQueueTelemetrySummary
         OwnedSnapshotPayloadBytes = ownedSnapshotPayloadBytes;
         OwnedSnapshotAllocatedBytes = ownedSnapshotAllocatedBytes;
         TotalOwnedSnapshotTime = totalOwnedSnapshotTime;
+        OwnedSnapshotEventCount = ownedSnapshotEventCount;
         EnqueueAttemptCount = enqueueAttemptCount;
         EnqueuedBatchCount = enqueuedBatchCount;
         EnqueueFullCount = enqueueFullCount;
@@ -80,6 +85,7 @@ public sealed record RadarProcessingProviderQueueTelemetrySummary
         EnqueueClosedCount = enqueueClosedCount;
         EnqueueFaultedCount = enqueueFaultedCount;
         TotalEnqueueWaitTime = totalEnqueueWaitTime;
+        TotalDequeueWaitTime = totalDequeueWaitTime;
         DequeuedBatchCount = dequeuedBatchCount;
         CompletedBatchCount = completedBatchCount;
         FailedBatchCount = failedBatchCount;
@@ -108,6 +114,8 @@ public sealed record RadarProcessingProviderQueueTelemetrySummary
 
     public TimeSpan TotalOwnedSnapshotTime { get; }
 
+    public long OwnedSnapshotEventCount { get; }
+
     public long EnqueueAttemptCount { get; }
 
     public long EnqueuedBatchCount { get; }
@@ -123,6 +131,8 @@ public sealed record RadarProcessingProviderQueueTelemetrySummary
     public long EnqueueFaultedCount { get; }
 
     public TimeSpan TotalEnqueueWaitTime { get; }
+
+    public TimeSpan TotalDequeueWaitTime { get; }
 
     public long DequeuedBatchCount { get; }
 

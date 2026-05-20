@@ -6,6 +6,7 @@ public sealed class RadarProcessingProviderQueueTelemetryRecorder
     private readonly RadarProcessingProviderQueueOptions options;
     private readonly RadarProcessingBoundedTelemetryWindow<RadarProcessingProviderQueueRecentDetail> recentDetails;
     private long ownedSnapshotCount;
+    private long ownedSnapshotEventCount;
     private long ownedSnapshotPayloadBytes;
     private long ownedSnapshotPayloadValueCount;
     private long ownedSnapshotAllocatedBytes;
@@ -18,6 +19,7 @@ public sealed class RadarProcessingProviderQueueTelemetryRecorder
     private long enqueueClosedCount;
     private long enqueueFaultedCount;
     private TimeSpan totalEnqueueWaitTime;
+    private TimeSpan totalDequeueWaitTime;
     private long dequeuedBatchCount;
     private long completedBatchCount;
     private long failedBatchCount;
@@ -59,6 +61,7 @@ public sealed class RadarProcessingProviderQueueTelemetryRecorder
                                 throw new ArgumentException("Accepted enqueue results require a queued batch.", nameof(result));
                     enqueuedBatchCount++;
                     ownedSnapshotCount++;
+                    ownedSnapshotEventCount = checked(ownedSnapshotEventCount + batch.StreamEventCount);
                     ownedSnapshotPayloadBytes = checked(ownedSnapshotPayloadBytes + batch.PayloadBytes);
                     ownedSnapshotPayloadValueCount = checked(ownedSnapshotPayloadValueCount + batch.PayloadValueCount);
                     ownedSnapshotAllocatedBytes = checked(ownedSnapshotAllocatedBytes + batch.OwnedSnapshotAllocatedBytes);
@@ -104,16 +107,19 @@ public sealed class RadarProcessingProviderQueueTelemetryRecorder
         RadarProcessingQueuedBatch batch,
         TimeSpan providerToProcessingLatency = default,
         int queueDepth = 0,
-        long queuedPayloadBytes = 0)
+        long queuedPayloadBytes = 0,
+        TimeSpan dequeueWaitTime = default)
     {
         ArgumentNullException.ThrowIfNull(batch);
         EnsureNonNegative(providerToProcessingLatency, nameof(providerToProcessingLatency));
         ArgumentOutOfRangeException.ThrowIfNegative(queueDepth);
         ArgumentOutOfRangeException.ThrowIfNegative(queuedPayloadBytes);
+        EnsureNonNegative(dequeueWaitTime, nameof(dequeueWaitTime));
 
         lock (sync)
         {
             dequeuedBatchCount++;
+            totalDequeueWaitTime += dequeueWaitTime;
             totalProviderToProcessingLatency += providerToProcessingLatency;
             queueDepthHighWatermark = Math.Max(queueDepthHighWatermark, queueDepth);
             queuedPayloadBytesHighWatermark = Math.Max(queuedPayloadBytesHighWatermark, queuedPayloadBytes);
@@ -199,7 +205,9 @@ public sealed class RadarProcessingProviderQueueTelemetryRecorder
                 ownedSnapshotPayloadValueCount,
                 totalProviderToProcessingLatency,
                 recentDetails.Snapshot(),
-                recentDetails.DroppedCount);
+                recentDetails.DroppedCount,
+                ownedSnapshotEventCount,
+                totalDequeueWaitTime);
         }
     }
 
@@ -208,6 +216,7 @@ public sealed class RadarProcessingProviderQueueTelemetryRecorder
         lock (sync)
         {
             ownedSnapshotCount = 0;
+            ownedSnapshotEventCount = 0;
             ownedSnapshotPayloadBytes = 0;
             ownedSnapshotPayloadValueCount = 0;
             ownedSnapshotAllocatedBytes = 0;
@@ -220,6 +229,7 @@ public sealed class RadarProcessingProviderQueueTelemetryRecorder
             enqueueClosedCount = 0;
             enqueueFaultedCount = 0;
             totalEnqueueWaitTime = TimeSpan.Zero;
+            totalDequeueWaitTime = TimeSpan.Zero;
             dequeuedBatchCount = 0;
             completedBatchCount = 0;
             failedBatchCount = 0;

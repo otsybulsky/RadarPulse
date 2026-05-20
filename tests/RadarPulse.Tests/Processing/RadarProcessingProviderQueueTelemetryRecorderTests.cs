@@ -27,13 +27,15 @@ public sealed class RadarProcessingProviderQueueTelemetryRecorderTests
             queuedPayloadBytes: queued.PayloadBytes);
         recorder.RecordDequeuedBatch(
             queued,
-            providerToProcessingLatency: TimeSpan.FromMilliseconds(5));
+            providerToProcessingLatency: TimeSpan.FromMilliseconds(5),
+            dequeueWaitTime: TimeSpan.FromMilliseconds(3));
         recorder.RecordProcessingResult(processing);
         recorder.AddDrainTime(TimeSpan.FromMilliseconds(7));
 
         var summary = recorder.CreateSummary();
 
         Assert.Equal(1, summary.OwnedSnapshotCount);
+        Assert.Equal(1, summary.OwnedSnapshotEventCount);
         Assert.Equal(2, summary.OwnedSnapshotPayloadBytes);
         Assert.Equal(2, summary.OwnedSnapshotPayloadValueCount);
         Assert.Equal(64, summary.OwnedSnapshotAllocatedBytes);
@@ -41,6 +43,7 @@ public sealed class RadarProcessingProviderQueueTelemetryRecorderTests
         Assert.Equal(1, summary.EnqueueAttemptCount);
         Assert.Equal(1, summary.EnqueuedBatchCount);
         Assert.Equal(TimeSpan.FromMilliseconds(1), summary.TotalEnqueueWaitTime);
+        Assert.Equal(TimeSpan.FromMilliseconds(3), summary.TotalDequeueWaitTime);
         Assert.Equal(1, summary.DequeuedBatchCount);
         Assert.Equal(1, summary.CompletedBatchCount);
         Assert.Equal(TimeSpan.FromMilliseconds(5), summary.TotalProviderToProcessingLatency);
@@ -91,6 +94,7 @@ public sealed class RadarProcessingProviderQueueTelemetryRecorderTests
         var reset = recorder.CreateSummary();
 
         Assert.Equal(0, reset.EnqueueAttemptCount);
+        Assert.Equal(TimeSpan.Zero, reset.TotalDequeueWaitTime);
         Assert.Empty(reset.RecentDetails);
         Assert.Equal(0, reset.DroppedRecentDetailCount);
     }

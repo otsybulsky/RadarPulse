@@ -34,6 +34,7 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
         ArgumentNullException.ThrowIfNull(consume);
 
         var effectiveOptions = options ?? RadarProcessingArchiveQueuedOverlapOptions.Default;
+        var allocationBefore = RadarProcessingBenchmarkAllocationSnapshot.Capture();
         var started = Stopwatch.GetTimestamp();
         using var queue = new RadarProcessingOwnedBatchQueue(effectiveOptions.QueueOptions);
         using var publisher = new ArchiveOwnedRadarEventBatchQueueingPublisher(queue);
@@ -53,12 +54,22 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
             telemetry = producer.ProviderResult.Telemetry;
         }
 
+        var elapsed = Stopwatch.GetElapsedTime(started);
+        var measuredAllocatedBytes = RadarProcessingBenchmarkAllocationSnapshot.Capture().DeltaSince(allocationBefore);
+        var overlapTelemetry = RadarProcessingArchiveOverlapTelemetrySummary.FromOverlapResult(
+            producer,
+            consumer,
+            telemetry,
+            elapsed,
+            measuredAllocatedBytes);
+
         return new RadarProcessingArchiveQueuedOverlapResult(
             status,
             producer,
             consumer,
             telemetry,
-            Stopwatch.GetElapsedTime(started),
+            overlapTelemetry,
+            elapsed,
             message);
     }
 

@@ -11,14 +11,16 @@ implementation plan is recorded in
 Milestone 010 starts from the closed milestone 009 owned-provider boundary:
 `queued-owned` is correct and measurable, but still opt-in because owned
 snapshot allocation is the dominant cost and the current archive benchmark does
-not overlap replay with processing. Milestone 010 slices 1 through 7 are now
+not overlap replay with processing. Milestone 010 slices 1 through 8 are now
 complete: the milestone 009 cost anchors are confirmed, retained payload
 strategy contracts are implemented and tested, and the resource-owned queued
 batch lifecycle, one lower-allocation retained payload implementation, and
 retained-byte-aware provider queue accounting plus the first producer/consumer
-archive overlap runner with ordered rebalance topology pinning are implemented
-and tested. The next implementation work should start slice 8 by adding overlap
-telemetry and allocation attribution fields around the retained/overlap path.
+archive overlap runner with ordered rebalance topology pinning and overlap
+telemetry/allocation attribution are implemented and tested. The next
+implementation work should start slice 9 by extending optimized queued
+validation so the overlapped retained path still proves borrowed-reference
+parity.
 
 `blocking-borrowed` remains the default provider mode and same-run oracle.
 `queued-owned` remains an explicit validation and measurement mode until the
@@ -992,6 +994,54 @@ Recorded result:
 5 passed, 0 failed, 0 skipped for overlap runner/topology focused coverage.
 19 passed, 0 failed, 0 skipped for overlap runner plus queued/direct rebalance coverage.
 691 passed, 3 skipped for the full test project.
+```
+
+Milestone 010 slice 8 overlap telemetry and allocation attribution is
+implemented in the current working tree. New accounting surfaces:
+
+```text
+RadarProcessingArchiveOverlapTelemetrySummary
+  -> reports retention strategy, elapsed time, producer active time, consumer
+     active time, overlap elapsed time, measured allocation delta, queue
+     telemetry, and retained payload telemetry
+  -> exposes queue depth and retained-byte high-water marks, provider blocked
+     time from enqueue wait, consumer idle time from dequeue wait, retained
+     batch/event/payload counters, retention allocation, provider-to-processing
+     latency, release counts, and unattributed allocation
+
+RadarProcessingArchiveQueuedOverlapResult.OverlapTelemetry
+RadarProcessingArchiveQueuedOverlapResult.Telemetry
+  -> attach the overlap attribution summary to every overlap run while keeping
+     the existing QueueTelemetry surface intact
+
+RadarProcessingProviderQueueTelemetrySummary.OwnedSnapshotEventCount
+RadarProcessingProviderQueueTelemetrySummary.TotalDequeueWaitTime
+  -> preserve retained event count independently of bounded recent details and
+     expose time the consumer spent waiting on the provider queue
+```
+
+`RadarProcessingArchiveQueuedOverlapRunner.RunAsync()` now captures an
+allocation snapshot around the overlapped producer/consumer run and builds the
+overlap summary from producer timing, consumer timing, queue telemetry, and the
+current snapshot-copy retention path. Queue/session/benchmark telemetry
+reconstruction preserves the new retained event and dequeue wait fields, and
+archive benchmark queue aggregation sums them across iterations. The current
+runtime still uses `SnapshotCopy` through
+`ArchiveOwnedRadarEventBatchQueueingPublisher`; pooled-copy strategy selection,
+benchmark result output, and CLI flags remain for later milestone 010 slices.
+
+Latest verification after milestone 010 slice 8:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingProviderQueueContractTests|FullyQualifiedName~RadarProcessingProviderQueueTelemetryRecorderTests|FullyQualifiedName~RadarProcessingOwnedBatchQueueTests"
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+35 passed, 0 failed, 0 skipped for overlap telemetry plus queue telemetry coverage.
+691 passed, 0 failed, 3 skipped for the full test project.
 ```
 
 Milestone 008 slice 1 is implemented in the current working tree. RadarPulse

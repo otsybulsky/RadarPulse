@@ -39,6 +39,68 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunnerTests
                 new RadarProcessingArchiveQueuedProviderResult()));
         Assert.Throws<ArgumentNullException>(() =>
             RadarProcessingArchiveQueuedOverlapProducerResult.Failed(null!));
+
+        var queueTelemetry = new RadarProcessingProviderQueueTelemetrySummary(
+            ownedSnapshotCount: 2,
+            ownedSnapshotPayloadBytes: 4,
+            ownedSnapshotAllocatedBytes: 128,
+            totalOwnedSnapshotTime: TimeSpan.FromMilliseconds(1),
+            totalEnqueueWaitTime: TimeSpan.FromMilliseconds(2),
+            queueDepthHighWatermark: 2,
+            queuedPayloadBytesHighWatermark: 4,
+            totalDequeueWaitTime: TimeSpan.FromMilliseconds(3),
+            ownedSnapshotPayloadValueCount: 4,
+            ownedSnapshotEventCount: 2);
+        var retentionTelemetry = new RadarProcessingRetainedPayloadTelemetrySummary(
+            RadarProcessingRetainedPayloadStrategy.SnapshotCopy,
+            retentionAttemptCount: 2,
+            retainedBatchCount: 2,
+            retainedEventCount: 2,
+            retainedPayloadBytes: 4,
+            retainedPayloadValueCount: 4,
+            allocatedBytes: 128,
+            totalRetentionTime: TimeSpan.FromMilliseconds(1),
+            releaseAttemptCount: 2,
+            releaseNotRequiredCount: 2);
+        var overlap = new RadarProcessingArchiveOverlapTelemetrySummary(
+            RadarProcessingRetainedPayloadStrategy.SnapshotCopy,
+            elapsed: TimeSpan.FromMilliseconds(10),
+            producerActiveTime: TimeSpan.FromMilliseconds(6),
+            consumerActiveTime: TimeSpan.FromMilliseconds(7),
+            overlapElapsed: TimeSpan.FromMilliseconds(6),
+            measuredAllocatedBytes: 256,
+            queueTelemetry,
+            retentionTelemetry);
+
+        Assert.True(overlap.HasProducerConsumerOverlap);
+        Assert.True(overlap.HasQueuedAheadOverlap);
+        Assert.Equal(2, overlap.RetainedEventCount);
+        Assert.Equal(4, overlap.RetainedPayloadBytes);
+        Assert.Equal(128, overlap.RetentionAllocatedBytes);
+        Assert.Equal(TimeSpan.FromMilliseconds(2), overlap.ProviderBlockedTime);
+        Assert.Equal(TimeSpan.FromMilliseconds(2), overlap.ProducerBlockedTime);
+        Assert.Equal(TimeSpan.FromMilliseconds(3), overlap.ConsumerIdleTime);
+        Assert.Equal(128, overlap.UnattributedAllocatedBytes);
+        Assert.Equal(2, overlap.ReleaseNotRequiredCount);
+
+        var completed = new RadarProcessingArchiveQueuedOverlapResult(
+            RadarProcessingArchiveQueuedOverlapStatus.Completed,
+            RadarProcessingArchiveQueuedOverlapProducerResult.Canceled(),
+            RadarProcessingArchiveQueuedOverlapConsumerResult.Canceled());
+
+        Assert.Same(RadarProcessingArchiveOverlapTelemetrySummary.Empty, completed.OverlapTelemetry);
+        Assert.Same(completed.OverlapTelemetry, completed.Telemetry);
+        Assert.Equal(TimeSpan.Zero, RadarProcessingArchiveOverlapTelemetrySummary.Empty.OverlapElapsed);
+        Assert.Equal(0, RadarProcessingArchiveOverlapTelemetrySummary.Empty.RetainedBatchCount);
+        Assert.Equal(0, RadarProcessingArchiveOverlapTelemetrySummary.Empty.UnattributedAllocatedBytes);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RadarProcessingArchiveOverlapTelemetrySummary(
+                producerActiveTime: TimeSpan.FromMilliseconds(1),
+                consumerActiveTime: TimeSpan.FromMilliseconds(1),
+                overlapElapsed: TimeSpan.FromMilliseconds(2)));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RadarProcessingArchiveOverlapTelemetrySummary(elapsed: TimeSpan.FromTicks(-1)));
     }
 
     [Fact]
@@ -72,11 +134,32 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunnerTests
         Assert.Equal(0, result.ProviderResult.RejectedPublishCount);
         Assert.Equal(3, result.QueueTelemetry.EnqueuedBatchCount);
         Assert.Equal(3, result.QueueTelemetry.DequeuedBatchCount);
+        Assert.Equal(3, result.QueueTelemetry.OwnedSnapshotEventCount);
         Assert.Equal(3, result.Consumer.SessionResult.ProcessingResults.Count);
         Assert.Equal([0L, 1L, 2L], result.Consumer.SessionResult.ProcessingResults
             .Select(static item => item.Sequence.Value)
             .ToArray());
         Assert.True(result.QueueTelemetry.QueueDepthHighWatermark > 1);
+
+        var overlapTelemetry = result.OverlapTelemetry;
+        Assert.Equal(result.QueueTelemetry, overlapTelemetry.QueueTelemetry);
+        Assert.Equal(RadarProcessingRetainedPayloadStrategy.SnapshotCopy, overlapTelemetry.RetentionStrategy);
+        Assert.Equal(result.Elapsed, overlapTelemetry.Elapsed);
+        Assert.Equal(result.Producer.Elapsed, overlapTelemetry.ProducerActiveTime);
+        Assert.Equal(result.Consumer.Elapsed, overlapTelemetry.ConsumerActiveTime);
+        Assert.True(overlapTelemetry.HasProducerConsumerOverlap);
+        Assert.True(overlapTelemetry.HasQueuedAheadOverlap);
+        Assert.Equal(3, overlapTelemetry.RetainedBatchCount);
+        Assert.Equal(3, overlapTelemetry.RetainedEventCount);
+        Assert.Equal(6, overlapTelemetry.RetainedPayloadBytes);
+        Assert.Equal(6, overlapTelemetry.RetainedPayloadValueCount);
+        Assert.Equal(result.QueueTelemetry.OwnedSnapshotAllocatedBytes, overlapTelemetry.RetentionAllocatedBytes);
+        Assert.Equal(result.QueueTelemetry.TotalOwnedSnapshotTime, overlapTelemetry.TotalRetentionTime);
+        Assert.Equal(result.QueueTelemetry.TotalProviderToProcessingLatency, overlapTelemetry.TotalProviderToProcessingLatency);
+        Assert.Equal(result.QueueTelemetry.TotalEnqueueWaitTime, overlapTelemetry.ProviderBlockedTime);
+        Assert.Equal(result.QueueTelemetry.TotalDequeueWaitTime, overlapTelemetry.ConsumerIdleTime);
+        Assert.Equal(3, overlapTelemetry.ReleaseAttemptCount);
+        Assert.Equal(3, overlapTelemetry.ReleaseNotRequiredCount);
     }
 
     [Fact]
@@ -282,7 +365,9 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunnerTests
             queueSummary.OwnedSnapshotPayloadValueCount,
             queueSummary.TotalProviderToProcessingLatency,
             queueSummary.RecentDetails,
-            queueSummary.DroppedRecentDetailCount);
+            queueSummary.DroppedRecentDetailCount,
+            queueSummary.OwnedSnapshotEventCount,
+            queueSummary.TotalDequeueWaitTime);
 
         return new RadarProcessingQueuedSessionResult(
             status,

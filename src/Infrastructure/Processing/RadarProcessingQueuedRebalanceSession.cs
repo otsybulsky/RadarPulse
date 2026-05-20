@@ -409,7 +409,9 @@ public sealed class RadarProcessingQueuedRebalanceSession : IDisposable, IAsyncD
             queueSummary.OwnedSnapshotPayloadValueCount,
             queueSummary.TotalProviderToProcessingLatency,
             queueSummary.RecentDetails,
-            queueSummary.DroppedRecentDetailCount);
+            queueSummary.DroppedRecentDetailCount,
+            queueSummary.OwnedSnapshotEventCount,
+            queueSummary.TotalDequeueWaitTime);
     }
 
     private static RadarProcessingAsyncRebalanceSession? CreateAsyncRebalanceSessionIfNeeded(

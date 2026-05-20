@@ -10,6 +10,7 @@ public sealed class RadarProcessingArchiveQueuedOverlapResult
         RadarProcessingArchiveQueuedOverlapProducerResult producer,
         RadarProcessingArchiveQueuedOverlapConsumerResult consumer,
         RadarProcessingProviderQueueTelemetrySummary? queueTelemetry = null,
+        RadarProcessingArchiveOverlapTelemetrySummary? overlapTelemetry = null,
         TimeSpan elapsed = default,
         string message = "")
     {
@@ -27,6 +28,7 @@ public sealed class RadarProcessingArchiveQueuedOverlapResult
         Producer = producer;
         Consumer = consumer;
         QueueTelemetry = queueTelemetry ?? RadarProcessingProviderQueueTelemetrySummary.Empty;
+        OverlapTelemetry = overlapTelemetry ?? RadarProcessingArchiveOverlapTelemetrySummary.Empty;
         Elapsed = elapsed;
         Message = message;
     }
@@ -38,6 +40,10 @@ public sealed class RadarProcessingArchiveQueuedOverlapResult
     public RadarProcessingArchiveQueuedOverlapConsumerResult Consumer { get; }
 
     public RadarProcessingProviderQueueTelemetrySummary QueueTelemetry { get; }
+
+    public RadarProcessingArchiveOverlapTelemetrySummary OverlapTelemetry { get; }
+
+    public RadarProcessingArchiveOverlapTelemetrySummary Telemetry => OverlapTelemetry;
 
     public TimeSpan Elapsed { get; }
 
