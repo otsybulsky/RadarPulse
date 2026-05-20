@@ -1,6 +1,6 @@
 # Milestone 010: Owned Provider Overlap And Cost Reduction Plan
 
-Status: draft.
+Status: complete.
 
 This plan implements the milestone 010 architecture defined in
 `010-owned-provider-overlap-cost-reduction.md`.
@@ -952,7 +952,7 @@ implementation.
 [x] controlled consumer-delay contour proves queued-ahead overlap
 [ ] natural full-cache contour proves queued-ahead overlap without synthetic delay
 [x] decision trace is written
-[ ] closeout is written
+[x] closeout is written
 [ ] handoff is updated for the next milestone
 ```
 

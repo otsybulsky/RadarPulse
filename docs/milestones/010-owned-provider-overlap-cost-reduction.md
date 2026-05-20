@@ -1,6 +1,6 @@
 # Milestone 010: Owned Provider Overlap And Cost Reduction Architecture
 
-Status: draft.
+Status: complete.
 
 RadarPulse milestone 010 starts from the closed milestone 009 owned-payload
 provider decoupling substrate and defines the architecture for making
