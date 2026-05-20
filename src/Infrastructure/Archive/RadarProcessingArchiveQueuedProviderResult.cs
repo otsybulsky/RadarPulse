@@ -8,17 +8,21 @@ public sealed class RadarProcessingArchiveQueuedProviderResult
 
     public RadarProcessingArchiveQueuedProviderResult(
         IReadOnlyCollection<RadarProcessingQueuedBatchEnqueueResult>? enqueueResults = null,
-        RadarProcessingProviderQueueTelemetrySummary? telemetry = null)
+        RadarProcessingProviderQueueTelemetrySummary? telemetry = null,
+        RadarProcessingRetainedPayloadTelemetrySummary? retentionTelemetry = null)
     {
         this.enqueueResults = CopyRequired(
             enqueueResults ?? Array.Empty<RadarProcessingQueuedBatchEnqueueResult>(),
             nameof(enqueueResults));
         Telemetry = telemetry ?? RadarProcessingProviderQueueTelemetrySummary.Empty;
+        RetentionTelemetry = retentionTelemetry ?? RadarProcessingRetainedPayloadTelemetrySummary.Empty;
     }
 
     public IReadOnlyList<RadarProcessingQueuedBatchEnqueueResult> EnqueueResults => enqueueResults;
 
     public RadarProcessingProviderQueueTelemetrySummary Telemetry { get; }
+
+    public RadarProcessingRetainedPayloadTelemetrySummary RetentionTelemetry { get; }
 
     public long PublishAttemptCount => enqueueResults.Count;
 

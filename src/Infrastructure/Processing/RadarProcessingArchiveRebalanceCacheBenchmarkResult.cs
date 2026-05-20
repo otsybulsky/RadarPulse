@@ -57,11 +57,20 @@ public sealed record RadarProcessingArchiveRebalanceCacheBenchmarkResult(
     RadarProcessingWorkerTelemetrySummary? WorkerTelemetry = null,
     RadarProcessingArchiveProviderMode ProviderMode = RadarProcessingArchiveProviderMode.BlockingBorrowed,
     int QueueCapacity = 0,
-    RadarProcessingProviderQueueTelemetrySummary? QueueTelemetry = null)
+    RadarProcessingQueuedProviderOverlapMode ProviderOverlapMode = RadarProcessingQueuedProviderOverlapMode.None,
+    RadarProcessingRetainedPayloadStrategy RetentionStrategy = RadarProcessingRetainedPayloadStrategy.SnapshotCopy,
+    long? QueueRetainedPayloadBytes = null,
+    RadarProcessingProviderQueueTelemetrySummary? QueueTelemetry = null,
+    RadarProcessingRetainedPayloadTelemetrySummary? RetentionTelemetry = null,
+    RadarProcessingArchiveOverlapTelemetrySummary? OverlapTelemetry = null)
 {
     public bool HasWorkerTelemetry => WorkerTelemetry is not null;
 
     public bool HasQueueTelemetry => ProviderMode == RadarProcessingArchiveProviderMode.QueuedOwned;
+
+    public bool HasRetentionTelemetry => ProviderMode == RadarProcessingArchiveProviderMode.QueuedOwned;
+
+    public bool HasOverlapTelemetry => ProviderOverlapMode != RadarProcessingQueuedProviderOverlapMode.None;
 
     public IReadOnlyList<RadarProcessingRebalanceSkippedReasonCounter> SkippedReasonCounters { get; init; } =
         SkippedReasonCounters;
@@ -81,6 +90,12 @@ public sealed record RadarProcessingArchiveRebalanceCacheBenchmarkResult(
 
     public RadarProcessingProviderQueueTelemetrySummary QueueTelemetry { get; init; } =
         QueueTelemetry ?? RadarProcessingProviderQueueTelemetrySummary.Empty;
+
+    public RadarProcessingRetainedPayloadTelemetrySummary RetentionTelemetry { get; init; } =
+        RetentionTelemetry ?? RadarProcessingRetainedPayloadTelemetrySummary.Empty;
+
+    public RadarProcessingArchiveOverlapTelemetrySummary OverlapTelemetry { get; init; } =
+        OverlapTelemetry ?? RadarProcessingArchiveOverlapTelemetrySummary.Empty;
 
     public long TotalExaminedFiles => ExaminedFilesPerIteration * Iterations;
 

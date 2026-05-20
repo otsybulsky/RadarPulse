@@ -2,8 +2,7 @@
 
 ## Current Goal
 
-Milestone 010 architecture and implementation planning are drafted. The
-architecture is recorded in
+Milestone 010 is in implementation. The architecture is recorded in
 `docs/milestones/010-owned-provider-overlap-cost-reduction.md`, and the
 implementation plan is recorded in
 `docs/milestones/010-owned-provider-overlap-cost-reduction-plan.md`.
@@ -11,16 +10,19 @@ implementation plan is recorded in
 Milestone 010 starts from the closed milestone 009 owned-provider boundary:
 `queued-owned` is correct and measurable, but still opt-in because owned
 snapshot allocation is the dominant cost and the current archive benchmark does
-not overlap replay with processing. Milestone 010 slices 1 through 9 are now
+not overlap replay with processing. Milestone 010 slices 1 through 10 are now
 complete: the milestone 009 cost anchors are confirmed, retained payload
 strategy contracts are implemented and tested, and the resource-owned queued
 batch lifecycle, one lower-allocation retained payload implementation, and
 retained-byte-aware provider queue accounting plus the first producer/consumer
 archive overlap runner with ordered rebalance topology pinning and overlap
 telemetry/allocation attribution plus optimized queued validation are
-implemented and tested. The next implementation work should start slice 10 by
-exposing retention strategy and provider overlap controls through the archive
-benchmark and CLI surfaces.
+implemented and tested. Slice 10 exposes retention strategy, retained-byte
+budget, provider overlap, retention telemetry, and overlap telemetry through the
+archive benchmark and CLI surfaces. The next implementation work should start
+the milestone 010 performance gate and closeout evidence: same-run borrowed
+reference comparisons, single-file compatibility measurements, full-cache
+overlap measurements where local data exists, decision trace, and closeout.
 
 `blocking-borrowed` remains the default provider mode and same-run oracle.
 `queued-owned` remains an explicit validation and measurement mode until the
@@ -31,9 +33,9 @@ resource cleanup.
 Milestone 009 remains complete. RadarPulse has the first explicit
 owned-payload provider decoupling substrate: archive replay can remain on the
 borrowed blocking path by default, or opt into `queued-owned` provider mode
-where leased `RadarEventBatch` values are converted to owned snapshots,
-enqueued into a bounded provider-to-processing queue, drained in provider
-sequence order, and validated against the borrowed reference.
+where leased `RadarEventBatch` values are retained through the selected
+strategy, enqueued into a bounded provider-to-processing queue, drained in
+provider sequence order, and validated against the borrowed reference.
 
 Milestone 004 is complete. RadarPulse now has a compact, deterministic,
 normalized `RadarEventBatch` stream with append-only dense identity catalogs, an
@@ -1104,6 +1106,68 @@ Recorded result:
 19 passed, 0 failed, 0 skipped for optimized queued provider validation coverage.
 527 passed, 0 failed, 0 skipped for Processing-focused coverage.
 700 passed, 0 failed, 3 skipped for the full test project.
+```
+
+Milestone 010 slice 10 archive benchmark and CLI integration is implemented in
+the current working tree. The archive benchmark can now run the queued-owned
+provider with explicit retention and overlap controls instead of only the
+milestone 009 snapshot-copy compatibility path:
+
+```text
+RadarProcessingArchiveRebalanceBenchmark.MeasureFile/MeasureCache
+  -> accept provider overlap mode, retained payload strategy, and retained-byte
+     queue budget
+
+RadarProcessingArchiveRebalanceBenchmarkResult
+RadarProcessingArchiveRebalanceCacheBenchmarkResult
+  -> report provider overlap mode, retention strategy, retained-byte budget,
+     queue telemetry, retention telemetry, and overlap telemetry
+
+ArchiveOwnedRadarEventBatchQueueingPublisher
+  -> retains archive batches through RadarProcessingRetainedPayloadFactory,
+     tracks retained resources by provider sequence, and releases resources
+     when the consumer completes a queued batch
+
+RadarProcessingArchiveQueuedOverlapRunner
+  -> accepts consumers that can release publisher-owned retained resources and
+     refreshes provider telemetry after the consumer has released pending
+     resources
+```
+
+CLI controls added in this slice:
+
+```text
+--provider-overlap none|producer-consumer
+--retention-strategy snapshot-copy|pooled-copy|builder-transfer
+--queue-retained-bytes <bytes>
+--overlap-telemetry none|summary|recent
+```
+
+CLI behavior:
+
+```text
+blocking-borrowed remains the default provider mode
+provider overlap requires --provider queued-owned
+retention strategy selection requires --provider queued-owned
+retained-byte budget requires --provider queued-owned
+builder-transfer is parsed but guarded as unsupported
+output separates provider mode, queue capacity, overlap mode, retention
+  strategy, retained-byte budget, queue telemetry, retention lifecycle counters,
+  and overlap allocation/timing attribution
+```
+
+Latest focused verification after milestone 010 slice 10:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests"
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+40 passed, 0 failed, 0 skipped for archive benchmark, CLI, and overlap runner focused coverage.
+702 passed, 0 failed, 3 skipped for the full test project.
 ```
 
 Milestone 008 slice 1 is implemented in the current working tree. RadarPulse

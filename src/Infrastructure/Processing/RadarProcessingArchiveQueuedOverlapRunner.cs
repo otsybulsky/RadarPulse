@@ -19,7 +19,7 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
 
         return RunAsync(
             produce,
-            (queue, token) => DrainRebalanceAsync(rebalanceSession, queue, token),
+            (queue, publisher, token) => DrainRebalanceAsync(rebalanceSession, queue, publisher, token),
             options,
             cancellationToken);
     }
@@ -27,6 +27,18 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
     public async ValueTask<RadarProcessingArchiveQueuedOverlapResult> RunAsync(
         Func<IArchiveRadarEventBatchPublisher, CancellationToken, ArchiveRadarEventBatchPublishResult> produce,
         Func<RadarProcessingOwnedBatchQueue, CancellationToken, ValueTask<RadarProcessingQueuedSessionResult>> consume,
+        RadarProcessingArchiveQueuedOverlapOptions? options = null,
+        CancellationToken cancellationToken = default) =>
+        await RunAsync(
+                produce,
+                (queue, _, token) => consume(queue, token),
+                options,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+    public async ValueTask<RadarProcessingArchiveQueuedOverlapResult> RunAsync(
+        Func<IArchiveRadarEventBatchPublisher, CancellationToken, ArchiveRadarEventBatchPublishResult> produce,
+        Func<RadarProcessingOwnedBatchQueue, ArchiveOwnedRadarEventBatchQueueingPublisher, CancellationToken, ValueTask<RadarProcessingQueuedSessionResult>> consume,
         RadarProcessingArchiveQueuedOverlapOptions? options = null,
         CancellationToken cancellationToken = default)
     {
@@ -37,15 +49,19 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
         var allocationBefore = RadarProcessingBenchmarkAllocationSnapshot.Capture();
         var started = Stopwatch.GetTimestamp();
         using var queue = new RadarProcessingOwnedBatchQueue(effectiveOptions.QueueOptions);
-        using var publisher = new ArchiveOwnedRadarEventBatchQueueingPublisher(queue);
+        using var publisher = new ArchiveOwnedRadarEventBatchQueueingPublisher(
+            queue,
+            retainedPayloadOptions: effectiveOptions.RetainedPayloadOptions);
 
-        var consumerTask = RunConsumerAsync(queue, consume, cancellationToken).AsTask();
+        var consumerTask = RunConsumerAsync(queue, publisher, consume, cancellationToken).AsTask();
         var producerTask = RunProducerAsync(publisher, produce, cancellationToken).AsTask();
 
         await Task.WhenAll(producerTask, consumerTask).ConfigureAwait(false);
 
         var producer = await producerTask.ConfigureAwait(false);
         var consumer = await consumerTask.ConfigureAwait(false);
+        publisher.ReleasePendingResources();
+        producer = CreateProducerResultWithFinalProviderTelemetry(producer, publisher.CreateResult());
         var status = DetermineStatus(producer, consumer);
         var message = DetermineMessage(status, producer, consumer);
         var telemetry = consumer.SessionResult.Telemetry;
@@ -112,14 +128,16 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
 
     private static async ValueTask<RadarProcessingArchiveQueuedOverlapConsumerResult> RunConsumerAsync(
         RadarProcessingOwnedBatchQueue queue,
-        Func<RadarProcessingOwnedBatchQueue, CancellationToken, ValueTask<RadarProcessingQueuedSessionResult>> consume,
+        ArchiveOwnedRadarEventBatchQueueingPublisher publisher,
+        Func<RadarProcessingOwnedBatchQueue, ArchiveOwnedRadarEventBatchQueueingPublisher, CancellationToken, ValueTask<RadarProcessingQueuedSessionResult>> consume,
         CancellationToken cancellationToken)
     {
         var started = Stopwatch.GetTimestamp();
         try
         {
-            var sessionResult = await consume(queue, cancellationToken).ConfigureAwait(false) ??
+            var sessionResult = await consume(queue, publisher, cancellationToken).ConfigureAwait(false) ??
                                 throw new InvalidOperationException("Archive overlap consumer returned null.");
+            publisher.ReleasePendingResources();
             return new RadarProcessingArchiveQueuedOverlapConsumerResult(
                 sessionResult,
                 Stopwatch.GetElapsedTime(started));
@@ -127,6 +145,7 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             queue.Close();
+            publisher.ReleasePendingResources();
             return CreateConsumerResult(
                 queue,
                 RadarProcessingQueuedSessionStatus.Canceled,
@@ -135,6 +154,7 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
         }
         catch (ObjectDisposedException exception)
         {
+            publisher.ReleasePendingResources();
             return CreateConsumerResult(
                 queue,
                 RadarProcessingQueuedSessionStatus.Disposed,
@@ -144,6 +164,7 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
         catch (Exception exception)
         {
             queue.Fault(exception.Message);
+            publisher.ReleasePendingResources();
             return CreateConsumerResult(
                 queue,
                 RadarProcessingQueuedSessionStatus.Faulted,
@@ -163,6 +184,29 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
                 queue.CreateTelemetrySummary(),
                 message: message),
             elapsed);
+
+    private static RadarProcessingArchiveQueuedOverlapProducerResult CreateProducerResultWithFinalProviderTelemetry(
+        RadarProcessingArchiveQueuedOverlapProducerResult producer,
+        RadarProcessingArchiveQueuedProviderResult providerResult) =>
+        producer.Status switch
+        {
+            RadarProcessingArchiveQueuedOverlapProducerStatus.Completed =>
+                RadarProcessingArchiveQueuedOverlapProducerResult.Completed(
+                    producer.PublishResult!,
+                    providerResult,
+                    producer.Elapsed),
+            RadarProcessingArchiveQueuedOverlapProducerStatus.Canceled =>
+                RadarProcessingArchiveQueuedOverlapProducerResult.Canceled(
+                    providerResult,
+                    producer.Elapsed,
+                    producer.Message),
+            RadarProcessingArchiveQueuedOverlapProducerStatus.Failed =>
+                RadarProcessingArchiveQueuedOverlapProducerResult.Failed(
+                    producer.Message,
+                    providerResult,
+                    producer.Elapsed),
+            _ => throw new ArgumentOutOfRangeException(nameof(producer))
+        };
 
     private static RadarProcessingArchiveQueuedOverlapStatus DetermineStatus(
         RadarProcessingArchiveQueuedOverlapProducerResult producer,
@@ -212,6 +256,7 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
     private static async ValueTask<RadarProcessingQueuedSessionResult> DrainRebalanceAsync(
         RadarProcessingRebalanceSession rebalanceSession,
         RadarProcessingOwnedBatchQueue queue,
+        ArchiveOwnedRadarEventBatchQueueingPublisher publisher,
         CancellationToken cancellationToken)
     {
         RadarProcessingAsyncRebalanceSession? asyncRebalanceSession = null;
@@ -228,6 +273,8 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
             asyncRebalanceSession,
             ownsQueue: false,
             ownsAsyncRebalanceSession: ownsAsyncRebalanceSession);
-        return await queuedSession.DrainAsync(cancellationToken).ConfigureAwait(false);
+        var result = await queuedSession.DrainAsync(cancellationToken).ConfigureAwait(false);
+        publisher.ReleasePendingResources();
+        return result;
     }
 }

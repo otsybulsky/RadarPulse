@@ -112,15 +112,21 @@ public sealed record RadarProcessingArchiveOverlapTelemetrySummary
         ArgumentNullException.ThrowIfNull(queueTelemetry);
 
         var overlapElapsed = CalculateOverlapElapsed(producer.Elapsed, consumer.Elapsed, elapsed);
+        var retentionTelemetry = producer.ProviderResult.RetentionTelemetry;
+        if (ReferenceEquals(retentionTelemetry, RadarProcessingRetainedPayloadTelemetrySummary.Empty))
+        {
+            retentionTelemetry = CreateSnapshotRetentionTelemetry(queueTelemetry);
+        }
+
         return new RadarProcessingArchiveOverlapTelemetrySummary(
-            RadarProcessingRetainedPayloadStrategy.SnapshotCopy,
+            retentionTelemetry.Strategy,
             elapsed,
             producer.Elapsed,
             consumer.Elapsed,
             overlapElapsed,
             measuredAllocatedBytes,
             queueTelemetry,
-            CreateSnapshotRetentionTelemetry(queueTelemetry));
+            retentionTelemetry);
     }
 
     private static RadarProcessingRetainedPayloadTelemetrySummary CreateSnapshotRetentionTelemetry(

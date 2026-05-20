@@ -11,21 +11,51 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisher : IArchiveRadar
     private readonly object sync = new();
     private readonly RadarProcessingOwnedBatchQueue queue;
     private readonly bool ownsQueue;
+    private readonly RadarProcessingRetainedPayloadFactory retainedPayloadFactory;
+    private readonly RadarProcessingRetainedPayloadOptions retainedPayloadOptions;
     private readonly List<RadarProcessingQueuedBatchEnqueueResult> enqueueResults = [];
+    private readonly Dictionary<long, RadarProcessingRetainedBatchResource> retainedResources = [];
+    private long retentionAttemptCount;
+    private long retainedBatchCount;
+    private long retentionUnsupportedStrategyCount;
+    private long retentionFailedCopyCount;
+    private long retentionCanceledCount;
+    private long retentionInvalidInputCount;
+    private long retainedEventCount;
+    private long retainedPayloadBytes;
+    private long retainedPayloadValueCount;
+    private long retainedAllocatedBytes;
+    private TimeSpan totalRetentionTime;
+    private long releaseAttemptCount;
+    private long releasedBatchCount;
+    private long alreadyReleasedBatchCount;
+    private long releaseFailedCount;
+    private long releaseNotRequiredCount;
+    private TimeSpan totalReleaseTime;
     private bool disposed;
 
     public ArchiveOwnedRadarEventBatchQueueingPublisher(
-        RadarProcessingProviderQueueOptions? queueOptions = null)
-        : this(new RadarProcessingOwnedBatchQueue(queueOptions), ownsQueue: true)
+        RadarProcessingProviderQueueOptions? queueOptions = null,
+        RadarProcessingRetainedPayloadOptions? retainedPayloadOptions = null,
+        RadarProcessingRetainedPayloadFactory? retainedPayloadFactory = null)
+        : this(
+            new RadarProcessingOwnedBatchQueue(queueOptions),
+            ownsQueue: true,
+            retainedPayloadOptions,
+            retainedPayloadFactory)
     {
     }
 
     public ArchiveOwnedRadarEventBatchQueueingPublisher(
         RadarProcessingOwnedBatchQueue queue,
-        bool ownsQueue = false)
+        bool ownsQueue = false,
+        RadarProcessingRetainedPayloadOptions? retainedPayloadOptions = null,
+        RadarProcessingRetainedPayloadFactory? retainedPayloadFactory = null)
     {
         this.queue = queue ?? throw new ArgumentNullException(nameof(queue));
         this.ownsQueue = ownsQueue;
+        this.retainedPayloadOptions = retainedPayloadOptions ?? RadarProcessingRetainedPayloadOptions.Default;
+        this.retainedPayloadFactory = retainedPayloadFactory ?? new RadarProcessingRetainedPayloadFactory();
     }
 
     public RadarProcessingOwnedBatchQueue Queue => queue;
@@ -60,19 +90,18 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisher : IArchiveRadar
             throw CreateRejectedPublishException(stateRejection, cancellationToken);
         }
 
-        var allocationBefore = RadarProcessingBenchmarkAllocationSnapshot.Capture();
-        var snapshotStarted = Stopwatch.GetTimestamp();
-        var owned = batch.ToOwnedSnapshot();
-        var ownedSnapshotTime = Stopwatch.GetElapsedTime(snapshotStarted);
-        var ownedSnapshotAllocatedBytes = RadarProcessingBenchmarkAllocationSnapshot
-            .Capture()
-            .DeltaSince(allocationBefore);
+        var retention = retainedPayloadFactory.Retain(batch, retainedPayloadOptions, cancellationToken);
+        RecordRetentionResult(retention);
+        if (!retention.IsSuccessful)
+        {
+            throw CreateRejectedRetentionException(retention, cancellationToken);
+        }
 
         var enqueue = queue
             .EnqueueAsync(
-                owned,
-                ownedSnapshotTime,
-                ownedSnapshotAllocatedBytes,
+                retention.Batch!,
+                retention.Elapsed,
+                retention.AllocatedBytes,
                 cancellationToken)
             .AsTask()
             .GetAwaiter()
@@ -81,14 +110,57 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisher : IArchiveRadar
         RecordEnqueueResult(enqueue);
         if (!enqueue.IsAccepted)
         {
+            if (retention.Resource is not null)
+            {
+                RecordReleaseResult(retention.Resource.Release());
+            }
+
             throw CreateRejectedPublishException(enqueue, cancellationToken);
         }
+
+        TrackRetainedResource(enqueue.Sequence!.Value, retention.Resource!);
     }
 
     public void CompleteAdding() => queue.Close();
 
     public RadarProcessingArchiveQueuedProviderResult CreateResult() =>
-        new(GetEnqueueResultsSnapshot(), queue.CreateTelemetrySummary());
+        new(GetEnqueueResultsSnapshot(), queue.CreateTelemetrySummary(), CreateRetentionTelemetrySummary());
+
+    public RadarProcessingRetainedPayloadReleaseResult ReleaseConsumerResource(
+        RadarProcessingQueuedBatchSequence sequence)
+    {
+        RadarProcessingRetainedBatchResource resource;
+        lock (sync)
+        {
+            if (!retainedResources.Remove(sequence.Value, out resource!))
+            {
+                throw new InvalidOperationException($"No retained resource was found for queued provider sequence {sequence.Value}.");
+            }
+        }
+
+        resource.TransferToConsumer();
+        var release = resource.Release();
+        RecordReleaseResult(release);
+        return release;
+    }
+
+    public RadarProcessingRetainedResourceCleanupResult ReleasePendingResources()
+    {
+        RadarProcessingRetainedBatchResource[] pending;
+        lock (sync)
+        {
+            pending = retainedResources.Values.ToArray();
+            retainedResources.Clear();
+        }
+
+        var cleanup = RadarProcessingRetainedResourceCleanupResult.ReleaseAll(pending);
+        foreach (var release in cleanup.ReleaseResults)
+        {
+            RecordReleaseResult(release);
+        }
+
+        return cleanup;
+    }
 
     public void Dispose()
     {
@@ -103,6 +175,8 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisher : IArchiveRadar
         {
             queue.Dispose();
         }
+
+        ReleasePendingResources();
     }
 
     private bool IsDisposed
@@ -130,6 +204,114 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisher : IArchiveRadar
         lock (sync)
         {
             enqueueResults.Add(result);
+        }
+    }
+
+    private void RecordRetentionResult(
+        RadarProcessingRetainedPayloadRetentionResult result)
+    {
+        lock (sync)
+        {
+            retentionAttemptCount++;
+            switch (result.Status)
+            {
+                case RadarProcessingRetainedPayloadRetentionStatus.Succeeded:
+                    retainedBatchCount++;
+                    retainedEventCount = checked(retainedEventCount + result.EventCount);
+                    retainedPayloadBytes = checked(retainedPayloadBytes + result.PayloadBytes);
+                    retainedPayloadValueCount = checked(retainedPayloadValueCount + result.PayloadValueCount);
+                    retainedAllocatedBytes = checked(retainedAllocatedBytes + result.AllocatedBytes);
+                    totalRetentionTime += result.Elapsed;
+                    break;
+
+                case RadarProcessingRetainedPayloadRetentionStatus.UnsupportedStrategy:
+                    retentionUnsupportedStrategyCount++;
+                    break;
+
+                case RadarProcessingRetainedPayloadRetentionStatus.FailedCopy:
+                    retentionFailedCopyCount++;
+                    break;
+
+                case RadarProcessingRetainedPayloadRetentionStatus.Canceled:
+                    retentionCanceledCount++;
+                    break;
+
+                case RadarProcessingRetainedPayloadRetentionStatus.InvalidInput:
+                    retentionInvalidInputCount++;
+                    break;
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(result));
+            }
+        }
+    }
+
+    private void RecordReleaseResult(
+        RadarProcessingRetainedPayloadReleaseResult result)
+    {
+        lock (sync)
+        {
+            releaseAttemptCount++;
+            totalReleaseTime += result.Elapsed;
+            switch (result.Status)
+            {
+                case RadarProcessingRetainedPayloadReleaseStatus.Released:
+                    releasedBatchCount++;
+                    break;
+
+                case RadarProcessingRetainedPayloadReleaseStatus.AlreadyReleased:
+                    alreadyReleasedBatchCount++;
+                    break;
+
+                case RadarProcessingRetainedPayloadReleaseStatus.Failed:
+                    releaseFailedCount++;
+                    break;
+
+                case RadarProcessingRetainedPayloadReleaseStatus.NotRequired:
+                    releaseNotRequiredCount++;
+                    break;
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(result));
+            }
+        }
+    }
+
+    private void TrackRetainedResource(
+        RadarProcessingQueuedBatchSequence sequence,
+        RadarProcessingRetainedBatchResource resource)
+    {
+        lock (sync)
+        {
+            resource.TransferToQueue();
+            retainedResources.Add(sequence.Value, resource);
+        }
+    }
+
+    private RadarProcessingRetainedPayloadTelemetrySummary CreateRetentionTelemetrySummary()
+    {
+        lock (sync)
+        {
+            return new RadarProcessingRetainedPayloadTelemetrySummary(
+                retainedPayloadOptions.Strategy,
+                retentionAttemptCount,
+                retainedBatchCount,
+                retentionUnsupportedStrategyCount,
+                retentionFailedCopyCount,
+                retentionCanceledCount,
+                retentionInvalidInputCount,
+                retainedEventCount,
+                retainedPayloadBytes,
+                retainedPayloadValueCount,
+                retainedAllocatedBytes,
+                totalRetentionTime,
+                transferCount: retainedBatchCount,
+                releaseAttemptCount: releaseAttemptCount,
+                releasedBatchCount: releasedBatchCount,
+                alreadyReleasedBatchCount: alreadyReleasedBatchCount,
+                releaseFailedCount: releaseFailedCount,
+                releaseNotRequiredCount: releaseNotRequiredCount,
+                totalReleaseTime: totalReleaseTime);
         }
     }
 
@@ -162,6 +344,21 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisher : IArchiveRadar
         var message = string.IsNullOrEmpty(result.Message)
             ? $"Archive queued provider enqueue was rejected with status {result.Status}."
             : $"Archive queued provider enqueue was rejected with status {result.Status}: {result.Message}";
+        return new InvalidOperationException(message);
+    }
+
+    private static Exception CreateRejectedRetentionException(
+        RadarProcessingRetainedPayloadRetentionResult result,
+        CancellationToken cancellationToken)
+    {
+        if (result.Status == RadarProcessingRetainedPayloadRetentionStatus.Canceled)
+        {
+            return new OperationCanceledException(cancellationToken);
+        }
+
+        var message = string.IsNullOrEmpty(result.Message)
+            ? $"Archive queued provider retention was rejected with status {result.Status}."
+            : $"Archive queued provider retention was rejected with status {result.Status}: {result.Message}";
         return new InvalidOperationException(message);
     }
 }

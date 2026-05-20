@@ -694,6 +694,24 @@ CLI keeps existing milestone 009 provider output compatibility where practical
 benchmark result includes retention strategy and overlap mode fields
 ```
 
+Implemented slice 10 status:
+
+```text
+archive benchmark MeasureFile/MeasureCache expose provider overlap mode,
+  retained payload strategy, retained-byte budget, retention telemetry, and
+  overlap telemetry
+queued-owned provider publishing now uses the retained payload factory instead
+  of hard-coded snapshot copy
+producer-consumer overlap runs through the archive overlap runner and releases
+  retained resources from the consumer side
+CLI exposes --provider-overlap, --retention-strategy,
+  --queue-retained-bytes, and --overlap-telemetry
+CLI output prints provider mode, queue capacity, overlap mode, retention
+  strategy, retained-byte budget, retention lifecycle counters, queue timing,
+  and overlap allocation/timing attribution
+builder-transfer remains a guarded unsupported retention strategy
+```
+
 Guardrail:
 
 ```text
@@ -780,7 +798,7 @@ Candidate smoke commands:
 ```powershell
 dotnet src\Presentation\bin\Debug\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --file data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_000245_V06 --mode rebalance --provider blocking-borrowed --execution async --workers 4 --iterations 1 --warmup-iterations 0 --parallelism 24
 dotnet src\Presentation\bin\Debug\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --file data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_000245_V06 --mode rebalance --provider queued-owned --execution async --workers 4 --queue-capacity 1 --retention-strategy snapshot-copy --iterations 1 --warmup-iterations 0 --parallelism 24
-dotnet src\Presentation\bin\Debug\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --cache-root data\nexrad --date 2026-05-04 --radar KTLX --max-files 32 --mode rebalance --provider queued-owned --provider-overlap producer-consumer --execution async --workers 4 --queue-capacity 8 --retention-strategy pooled-copy --iterations 1 --warmup-iterations 0 --parallelism 24
+dotnet src\Presentation\bin\Debug\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --cache data\nexrad --date 2026-05-04 --radar KTLX --max-files 32 --mode rebalance --provider queued-owned --provider-overlap producer-consumer --execution async --workers 4 --queue-capacity 8 --retention-strategy pooled-copy --queue-retained-bytes 104857600 --overlap-telemetry summary --iterations 1 --warmup-iterations 0 --parallelism 24
 ```
 
 The final command set should be adjusted to the actual CLI option names after
@@ -798,8 +816,8 @@ implementation.
 [x] ordered consumer topology pinning rules are implemented and tested
 [x] overlap telemetry and allocation attribution are implemented and tested
 [x] optimized queued validation proves borrowed-reference parity
-[ ] archive benchmark exposes retention strategy and overlap contours
-[ ] CLI exposes retention strategy, overlap mode, and retained-byte controls
+[x] archive benchmark exposes retention strategy and overlap contours
+[x] CLI exposes retention strategy, overlap mode, and retained-byte controls
 [ ] same-run single-file compatibility comparisons are captured
 [ ] same-run full-cache overlap comparisons are captured where local data exists
 [ ] performance assessment interprets allocation, overlap, queue, worker,

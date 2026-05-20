@@ -653,7 +653,10 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
             Assert.Equal(0, blocking.QueueCapacity);
             Assert.Equal(RadarProcessingArchiveProviderMode.QueuedOwned, queued.ProviderMode);
             Assert.True(queued.HasQueueTelemetry);
+            Assert.True(queued.HasRetentionTelemetry);
             Assert.Equal(1, queued.QueueCapacity);
+            Assert.Equal(RadarProcessingQueuedProviderOverlapMode.None, queued.ProviderOverlapMode);
+            Assert.Equal(RadarProcessingRetainedPayloadStrategy.SnapshotCopy, queued.RetentionStrategy);
             Assert.Equal(blocking.BatchesPerIteration, queued.BatchesPerIteration);
             Assert.Equal(blocking.EventsPerIteration, queued.EventsPerIteration);
             Assert.Equal(blocking.PayloadValuesPerIteration, queued.PayloadValuesPerIteration);
@@ -666,11 +669,80 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
             Assert.Equal(0, queued.QueueTelemetry.FailedBatchCount);
             Assert.Equal(queued.PayloadBytesPerIteration, queued.QueueTelemetry.OwnedSnapshotPayloadBytes);
             Assert.Equal(queued.PayloadValuesPerIteration, queued.QueueTelemetry.OwnedSnapshotPayloadValueCount);
+            Assert.Equal(1, queued.RetentionTelemetry.RetentionAttemptCount);
+            Assert.Equal(1, queued.RetentionTelemetry.RetainedBatchCount);
+            Assert.Equal(1, queued.RetentionTelemetry.ReleaseAttemptCount);
+            Assert.Equal(1, queued.RetentionTelemetry.ReleaseNotRequiredCount);
+            Assert.Equal(queued.QueueTelemetry.OwnedSnapshotPayloadBytes, queued.RetentionTelemetry.RetainedPayloadBytes);
+            Assert.Equal(queued.QueueTelemetry.OwnedSnapshotPayloadValueCount, queued.RetentionTelemetry.RetainedPayloadValueCount);
             Assert.True(queued.OwnedSnapshotAllocatedBytes > 0);
             Assert.Equal(queued.QueueTelemetry.OwnedSnapshotAllocatedBytes, queued.OwnedSnapshotAllocatedBytes);
             Assert.True(queued.OwnedSnapshotElapsed >= TimeSpan.Zero);
             Assert.True(queued.QueueDrainElapsed >= TimeSpan.Zero);
             Assert.True(queued.AllocationSummary.OwnedSnapshotAllocatedBytesPerPayloadValue(queued.TotalPayloadValues) >= 0);
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(path)!, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void RebalanceArchiveBenchmarkFileSupportsQueuedOwnedOverlapAndRetentionStrategy()
+    {
+        var record = BuildMessage(31, BuildEightBitType31Payload("REF", [1, 2, 3], scale: 2f, offset: 66f));
+        var compressedPayload = BuildFakeBZip2Payload(1);
+        var path = WriteTempFile(
+            "KTLX20260504_000245_V06",
+            BuildArchiveTwoHeader()
+                .Concat(BuildCompressedRecord(compressedPayload.Length, compressedPayload))
+                .ToArray());
+        var benchmark = new RadarProcessingArchiveRebalanceBenchmark(
+            new FakeArchiveBZip2Decompressor(new Dictionary<byte, byte[]>
+            {
+                [1] = record
+            }));
+
+        try
+        {
+            var result = benchmark.MeasureFile(
+                path,
+                RadarProcessingSyntheticRebalanceBenchmarkMode.PressureSamplingOnly,
+                iterations: 1,
+                warmupIterations: 0,
+                partitionCount: 4,
+                shardCount: 2,
+                degreeOfParallelism: 1,
+                CancellationToken.None,
+                providerMode: RadarProcessingArchiveProviderMode.QueuedOwned,
+                queueCapacity: 2,
+                providerOverlapMode: RadarProcessingQueuedProviderOverlapMode.ProducerConsumer,
+                retentionStrategy: RadarProcessingRetainedPayloadStrategy.PooledCopy,
+                queueRetainedPayloadBytes: 4096);
+
+            Assert.Equal(RadarProcessingArchiveProviderMode.QueuedOwned, result.ProviderMode);
+            Assert.Equal(RadarProcessingQueuedProviderOverlapMode.ProducerConsumer, result.ProviderOverlapMode);
+            Assert.Equal(RadarProcessingRetainedPayloadStrategy.PooledCopy, result.RetentionStrategy);
+            Assert.Equal(4096, result.QueueRetainedPayloadBytes);
+            Assert.True(result.HasQueueTelemetry);
+            Assert.True(result.HasRetentionTelemetry);
+            Assert.True(result.HasOverlapTelemetry);
+            Assert.Equal(1, result.QueueTelemetry.EnqueuedBatchCount);
+            Assert.Equal(1, result.QueueTelemetry.DequeuedBatchCount);
+            Assert.Equal(1, result.QueueTelemetry.CompletedBatchCount);
+            Assert.Equal(RadarProcessingRetainedPayloadStrategy.PooledCopy, result.RetentionTelemetry.Strategy);
+            Assert.Equal(1, result.RetentionTelemetry.RetentionAttemptCount);
+            Assert.Equal(1, result.RetentionTelemetry.RetainedBatchCount);
+            Assert.Equal(1, result.RetentionTelemetry.ReleaseAttemptCount);
+            Assert.Equal(1, result.RetentionTelemetry.ReleasedBatchCount);
+            Assert.Equal(result.PayloadBytesPerIteration, result.RetentionTelemetry.RetainedPayloadBytes);
+            Assert.Equal(RadarProcessingRetainedPayloadStrategy.PooledCopy, result.OverlapTelemetry.RetentionStrategy);
+            Assert.Equal(result.RetentionTelemetry, result.OverlapTelemetry.RetentionTelemetry);
+            Assert.Equal(result.QueueTelemetry.EnqueuedBatchCount, result.OverlapTelemetry.QueueTelemetry.EnqueuedBatchCount);
+            Assert.Equal(result.QueueTelemetry.DequeuedBatchCount, result.OverlapTelemetry.QueueTelemetry.DequeuedBatchCount);
+            Assert.Equal(result.QueueTelemetry.CompletedBatchCount, result.OverlapTelemetry.QueueTelemetry.CompletedBatchCount);
+            Assert.True(result.OverlapTelemetry.Elapsed >= TimeSpan.Zero);
+            Assert.True(result.ValidationSucceeded);
         }
         finally
         {
@@ -767,6 +839,64 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
                     CancellationToken.None,
                     providerMode: RadarProcessingArchiveProviderMode.QueuedOwned,
                     queueCapacity: 0));
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                benchmark.MeasureFile(
+                    path,
+                    RadarProcessingSyntheticRebalanceBenchmarkMode.StaticNoRebalance,
+                    iterations: 1,
+                    warmupIterations: 0,
+                    partitionCount: 4,
+                    shardCount: 2,
+                    degreeOfParallelism: 1,
+                    CancellationToken.None,
+                    providerMode: RadarProcessingArchiveProviderMode.QueuedOwned,
+                    providerOverlapMode: (RadarProcessingQueuedProviderOverlapMode)255));
+            Assert.Throws<InvalidOperationException>(() =>
+                benchmark.MeasureFile(
+                    path,
+                    RadarProcessingSyntheticRebalanceBenchmarkMode.StaticNoRebalance,
+                    iterations: 1,
+                    warmupIterations: 0,
+                    partitionCount: 4,
+                    shardCount: 2,
+                    degreeOfParallelism: 1,
+                    CancellationToken.None,
+                    providerOverlapMode: RadarProcessingQueuedProviderOverlapMode.ProducerConsumer));
+            Assert.Throws<InvalidOperationException>(() =>
+                benchmark.MeasureFile(
+                    path,
+                    RadarProcessingSyntheticRebalanceBenchmarkMode.StaticNoRebalance,
+                    iterations: 1,
+                    warmupIterations: 0,
+                    partitionCount: 4,
+                    shardCount: 2,
+                    degreeOfParallelism: 1,
+                    CancellationToken.None,
+                    retentionStrategy: RadarProcessingRetainedPayloadStrategy.PooledCopy));
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                benchmark.MeasureFile(
+                    path,
+                    RadarProcessingSyntheticRebalanceBenchmarkMode.StaticNoRebalance,
+                    iterations: 1,
+                    warmupIterations: 0,
+                    partitionCount: 4,
+                    shardCount: 2,
+                    degreeOfParallelism: 1,
+                    CancellationToken.None,
+                    providerMode: RadarProcessingArchiveProviderMode.QueuedOwned,
+                    queueRetainedPayloadBytes: 0));
+            Assert.Throws<NotSupportedException>(() =>
+                benchmark.MeasureFile(
+                    path,
+                    RadarProcessingSyntheticRebalanceBenchmarkMode.StaticNoRebalance,
+                    iterations: 1,
+                    warmupIterations: 0,
+                    partitionCount: 4,
+                    shardCount: 2,
+                    degreeOfParallelism: 1,
+                    CancellationToken.None,
+                    providerMode: RadarProcessingArchiveProviderMode.QueuedOwned,
+                    retentionStrategy: RadarProcessingRetainedPayloadStrategy.BuilderTransfer));
         }
         finally
         {
@@ -908,6 +1038,11 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
             Assert.Equal(2, result.QueueTelemetry.DequeuedBatchCount);
             Assert.Equal(2, result.QueueTelemetry.CompletedBatchCount);
             Assert.Equal(result.PayloadValuesPerIteration, result.QueueTelemetry.OwnedSnapshotPayloadValueCount);
+            Assert.Equal(2, result.RetentionTelemetry.RetentionAttemptCount);
+            Assert.Equal(2, result.RetentionTelemetry.RetainedBatchCount);
+            Assert.Equal(2, result.RetentionTelemetry.ReleaseAttemptCount);
+            Assert.Equal(2, result.RetentionTelemetry.ReleaseNotRequiredCount);
+            Assert.Equal(result.PayloadValuesPerIteration, result.RetentionTelemetry.RetainedPayloadValueCount);
             Assert.True(result.QueueDrainElapsed >= TimeSpan.Zero);
         }
         finally
