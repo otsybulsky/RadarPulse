@@ -1,6 +1,6 @@
 # Milestone 011: Queued-Owned Default Readiness Plan
 
-Status: in progress.
+Status: complete.
 
 This plan implements the milestone 011 architecture defined in
 `011-queued-owned-default-readiness.md`.
@@ -1495,6 +1495,45 @@ default switch, record that as next milestone input for an explicit rollout
 decision.
 ```
 
+Implemented in slice 13:
+
+```text
+docs/milestones/011-queued-owned-default-readiness-decision-trace.md records
+  the final decision matrix
+docs/milestones/011-queued-owned-default-readiness-closeout.md records the
+  final milestone status, verification, gate summary, and carry-forward items
+the optimized queued-owned contour is accepted as a future default-rollout
+  candidate under the measured limits
+blocking-borrowed remains the current default provider and same-run oracle
+residual allocation overhead is carried forward as a rollout caution, not a
+  milestone blocker
+natural queue depth 1 is recorded as balanced measured pipeline behavior, with
+  controlled delay preserved as mechanics-only proof
+builder-transfer, durable queues, live ingestion, and concurrent rebalance
+  remain out of scope
+handoff now points at the closed milestone 011 docs and the next explicit
+  default-rollout decision input
+```
+
+Verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests"
+
+dotnet build RadarPulse.sln -c Release --no-restore
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+38 passed, 0 failed, 0 skipped for focused CLI, readiness gate, and overlap
+runner coverage.
+Release build succeeded with 0 warnings and 0 errors.
+740 passed, 0 failed, 3 skipped for the full test project.
+```
+
 ## Verification Strategy
 
 Use focused tests after each implementation slice and broader verification
@@ -1555,9 +1594,9 @@ controlled proof rows separated if captured
 [x] repeated natural Release gate matrix is captured
 [x] performance gate interprets correctness, allocation, memory pressure,
     cleanup, throughput, and variance
-[ ] decision trace is written
-[ ] closeout is written
-[ ] handoff is updated for the next milestone
+[x] decision trace is written
+[x] closeout is written
+[x] handoff is updated for the next milestone
 ```
 
 ## Non-Goals

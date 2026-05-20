@@ -1,6 +1,6 @@
 # Milestone 011: Queued-Owned Default Readiness Architecture
 
-Status: draft.
+Status: complete.
 
 RadarPulse milestone 011 starts from the closed milestone 010 optimized
 owned-provider overlap contour and defines the architecture for deciding

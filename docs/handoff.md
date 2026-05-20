@@ -1,31 +1,28 @@
-# Handoff: Milestone 011 Planning
+# Handoff: Milestone 011 Complete
 
 ## Current Goal
 
-Milestone 011 is in progress. The architecture is recorded in
-`docs/milestones/011-queued-owned-default-readiness.md`, and the implementation
-plan is recorded in
-`docs/milestones/011-queued-owned-default-readiness-plan.md`.
+Milestone 011 is complete. The closed documents are:
 
-Milestone 011 starts from the closed milestone 010 optimized owned-provider
-overlap contour. The goal is default-readiness evidence for
-`queued-owned + pooled-copy + producer-consumer`, not a provider default
-change. The plan focuses on in-flight retained-resource high-water telemetry
-after dequeue, combined pending-plus-active retained memory pressure, a
-reproducible default-candidate contour, same-run borrowed-reference readiness
-validation, repeated natural Release gates, controlled-proof separation,
-failure/cancellation cleanup checks, a performance gate, decision trace,
-closeout, and final handoff.
+```text
+docs/milestones/011-queued-owned-default-readiness.md
+docs/milestones/011-queued-owned-default-readiness-plan.md
+docs/milestones/011-queued-owned-default-readiness-performance-gate.md
+docs/milestones/011-queued-owned-default-readiness-decision-trace.md
+docs/milestones/011-queued-owned-default-readiness-closeout.md
+```
 
-The first implementation slice should freeze the milestone 010 readiness
-baseline and candidate contour before runtime changes. Important baseline
-surfaces are `RadarProcessingProviderQueueTelemetrySummary`,
-`RadarProcessingArchiveOverlapTelemetrySummary`,
-`RadarProcessingOwnedBatchQueue`,
-`ArchiveOwnedRadarEventBatchQueueingPublisher`,
-`RadarProcessingArchiveQueuedOverlapRunner`,
-`RadarProcessingArchiveRebalanceBenchmark`, CLI rebalance benchmark output, and
-the milestone 010 performance gate.
+Milestone 011 concludes that
+`queued-owned + pooled-copy + producer-consumer` is credible enough to propose
+for an explicit default-rollout milestone under the measured limits.
+`blocking-borrowed` remains the current default provider and same-run oracle.
+The provider default was not changed in milestone 011.
+
+The next milestone should be an explicit default rollout decision. It should
+decide whether and how to switch the default provider mode, preserve
+`blocking-borrowed` as an operator-selectable fallback, and keep guardrails for
+allocation ratio, retained pressure, release failures, validation parity, and
+run variance.
 
 Milestone 011 slice 1 baseline readiness audit is complete. There were no
 runtime changes. The current pending retained-byte field is
@@ -636,6 +633,39 @@ Recorded result:
 runner coverage.
 Release build succeeded with 0 warnings and 0 errors.
 740 passed, 0 failed, 3 skipped for the full test project.
+```
+
+Milestone 011 slice 13 decision trace, closeout, and final handoff are
+implemented in the current working tree.
+`docs/milestones/011-queued-owned-default-readiness-decision-trace.md` records
+the final decision matrix, and
+`docs/milestones/011-queued-owned-default-readiness-closeout.md` records the
+closed milestone status, verification, performance gate summary, final decision,
+and carry-forward items.
+
+Final milestone 011 decision:
+
+```text
+queued-owned + pooled-copy + producer-consumer is accepted as a future
+  default-rollout candidate under the measured contour
+blocking-borrowed remains the current default provider and same-run oracle
+the provider default does not change in milestone 011
+residual allocation overhead is a rollout caution, not a milestone blocker
+natural queue depth 1 is balanced measured pipeline behavior, not a failed
+  queued-ahead proof
+controlled delay remains mechanics-only evidence
+```
+
+Carry forward to the next milestone:
+
+```text
+decide whether and how to switch the provider default
+preserve blocking-borrowed as an operator-selectable fallback
+keep same-run borrowed comparison available for benchmark gates
+define rollout thresholds for allocation ratio, retained pressure, release
+  failures, validation parity, and run variance
+avoid bundling default rollout with builder-transfer, durable queues, live
+  ingestion, or concurrent rebalance execution
 ```
 
 Milestone 010 remains complete. The architecture is recorded in
@@ -3433,6 +3463,7 @@ Done:
   measured, and documented.
 - `011` slice 12 controlled proof separation hardening is implemented and
   tested.
+- `011` slice 13 decision trace, closeout, and final handoff are complete.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
