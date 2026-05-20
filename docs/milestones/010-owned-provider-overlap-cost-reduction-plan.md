@@ -719,7 +719,54 @@ Do not make queued-owned or overlap mode the default in this milestone. The
 performance gate must justify any later default-mode decision.
 ```
 
-### 11. Performance Gate And Closeout
+### 11. Cache-Level Producer Pipeline
+
+The initial performance gate showed that pooled-copy solves the retained
+allocation problem, but useful queued-ahead overlap is still missing. The
+archive benchmark currently invokes the overlap runner one file at a time, so
+the queue depth high watermark remains 1 even with larger queue capacity.
+
+Required behavior:
+
+```text
+cache benchmark can run one producer/consumer overlap session across the
+  selected archive file set
+producer enumerates eligible cache files and publishes retained batches into
+  one shared provider queue
+consumer drains the shared provider queue in provider sequence order
+processing still commits batches in deterministic provider order
+topology publication remains ordered and borrowed-reference parity is preserved
+queue capacity greater than 1 can produce queued-ahead overlap when producer
+  outruns consumer
+retained-byte budget applies across the whole cache-level overlap session
+retained resources are released exactly once even when producer, consumer, or
+  validation fails
+existing single-file compatibility contour remains available
+```
+
+Expected tests:
+
+```text
+cache-level overlap publishes multiple files through one shared queue
+cache-level overlap preserves borrowed-reference checksum and rebalance totals
+cache-level overlap reports queue depth high watermark greater than 1 in a
+  controlled delayed-consumer test
+capacity 1 remains a conservative backpressure contour
+retained-byte budget throttles the producer across files
+producer failure releases retained resources and faults the queue
+consumer failure releases pending retained resources and faults the run
+CLI cache overlap uses the cache-level contour when provider-overlap is enabled
+```
+
+Guardrail:
+
+```text
+Do not fake overlap by disabling rebalance, relaxing provider order, or
+processing batches out of sequence. Useful overlap must preserve the same
+semantic surface as the borrowed reference.
+```
+
+### 12. Performance Gate And Closeout
 
 Capture the final milestone assessment.
 
@@ -757,11 +804,13 @@ processing, worker, validation, and rebalance costs
 resource release success/failure counts
 whether queued-owned remains only a measurement mode or is ready for production
 configuration work in a later milestone
+whether the cache-level producer pipeline produced useful queued-ahead overlap
 ```
 
 Closeout artifacts:
 
 ```text
+docs/milestones/010-owned-provider-overlap-cost-reduction-performance-gate.md
 docs/milestones/010-owned-provider-overlap-cost-reduction-decision-trace.md
 docs/milestones/010-owned-provider-overlap-cost-reduction-closeout.md
 docs/handoff.md update
@@ -818,10 +867,12 @@ implementation.
 [x] optimized queued validation proves borrowed-reference parity
 [x] archive benchmark exposes retention strategy and overlap contours
 [x] CLI exposes retention strategy, overlap mode, and retained-byte controls
-[ ] same-run single-file compatibility comparisons are captured
-[ ] same-run full-cache overlap comparisons are captured where local data exists
-[ ] performance assessment interprets allocation, overlap, queue, worker,
+[x] same-run single-file compatibility comparisons are captured
+[x] same-run full-cache overlap comparisons are captured where local data exists
+[x] performance assessment interprets allocation, overlap, queue, worker,
     validation, rebalance, and resource lifecycle costs
+[ ] cache-level producer pipeline proves useful queued-ahead overlap
+[ ] repeated performance gate captures the cache-level overlap contour
 [ ] decision trace is written
 [ ] closeout is written
 [ ] handoff is updated for the next milestone
