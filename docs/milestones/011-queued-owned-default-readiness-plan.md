@@ -389,6 +389,66 @@ This slice defines pressure accounting only. It should not reinterpret existing
 queue telemetry fields or change benchmark output yet.
 ```
 
+Slice 2 implementation capture:
+
+```text
+status:
+  complete
+
+runtime integration:
+  not started; this slice adds contracts only
+
+new contracts:
+  RadarProcessingRetainedResourcePressureSnapshot
+  RadarProcessingRetainedResourcePressureSummary
+  RadarProcessingRetainedResourcePressureRecorder
+
+summary behavior:
+  current pending retained batch/byte counts
+  current active retained batch/byte counts
+  computed current combined pending-plus-active batch/byte counts
+  pending retained batch/byte high-water marks
+  active retained batch/byte high-water marks
+  combined retained batch/byte high-water marks
+  immutable current snapshot projection
+  zero/default empty summary
+
+recorder behavior:
+  AddPending()
+  RemovePending()
+  MovePendingToActive()
+  RemoveActive()
+  CreateSnapshot()
+  CreateSummary()
+  thread-safe state transitions through a private lock
+
+guardrails:
+  negative counts and bytes are rejected
+  operation batch counts must be positive
+  high-water marks cannot be lower than current values
+  combined high-water marks cannot be lower than pending or active high-water
+  pending and active removals cannot underflow batch count or payload bytes
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingRetainedResourcePressureContractTests
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingRetainedResourcePressureContractTests|FullyQualifiedName~RadarProcessingRetainedPayloadContractTests"
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+6 passed, 0 failed, 0 skipped for retained-resource pressure contracts.
+11 passed, 0 failed, 0 skipped for retained-resource pressure plus retained
+payload contracts.
+710 passed, 0 failed, 3 skipped for the full test project.
+```
+
 ### 3. Provider Queue Telemetry Compatibility Extensions
 
 Extend existing queue telemetry so old pending-byte fields remain compatible
@@ -1006,7 +1066,7 @@ controlled proof rows separated if captured
 ```text
 [x] baseline readiness audit is captured
 [x] default-candidate contour is frozen and reproducible
-[ ] retained-resource pressure contracts are implemented and tested
+[x] retained-resource pressure contracts are implemented and tested
 [ ] provider queue telemetry exposes pending, active, and combined retained
     pressure without breaking milestone 010 fields
 [ ] active consumer retained-resource accounting is wired into queued drains

@@ -68,6 +68,53 @@ Recorded result:
 41 passed, 0 failed, 0 skipped.
 ```
 
+Milestone 011 slice 2 retained-resource pressure contracts are implemented in
+the current working tree. This slice adds domain contracts only; queue,
+overlap, benchmark, and CLI runtime integration remains for later slices.
+New domain contracts:
+
+```text
+RadarProcessingRetainedResourcePressureSnapshot
+  -> immutable current pending/active batch and payload byte snapshot
+  -> exposes computed combined pending-plus-active counts and bytes
+
+RadarProcessingRetainedResourcePressureSummary
+  -> immutable current pending, active, and combined pressure summary
+  -> carries pending, active, and combined batch/byte high-water marks
+  -> rejects negative values and impossible high-water shapes
+
+RadarProcessingRetainedResourcePressureRecorder
+  -> thread-safe AddPending, RemovePending, MovePendingToActive, RemoveActive,
+     CreateSnapshot, and CreateSummary operations
+  -> rejects negative payload bytes, non-positive operation batch counts, and
+     underflowing pending or active removals
+  -> updates combined high-water marks whenever pending or active state changes
+```
+
+Focused tests cover empty/default summaries, negative constructor validation,
+pending-to-active movement, active release, combined high-water accounting,
+invalid underflow transitions, and concurrent pending updates through the
+recorder.
+
+Latest verification after milestone 011 slice 2:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingRetainedResourcePressureContractTests
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingRetainedResourcePressureContractTests|FullyQualifiedName~RadarProcessingRetainedPayloadContractTests"
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+6 passed, 0 failed, 0 skipped for retained-resource pressure contracts.
+11 passed, 0 failed, 0 skipped for retained-resource pressure plus retained
+payload contracts.
+710 passed, 0 failed, 3 skipped for the full test project.
+```
+
 Milestone 010 remains complete. The architecture is recorded in
 `docs/milestones/010-owned-provider-overlap-cost-reduction.md`, and the
 implementation plan is recorded in
@@ -2843,6 +2890,8 @@ Done:
 - `011` queued-owned default-readiness implementation plan is drafted.
 - `011` slice 1 baseline readiness audit and candidate contour freeze is
   complete.
+- `011` slice 2 retained-resource pressure contracts are implemented and
+  tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -5339,6 +5388,10 @@ constant and moment data blocks.
 - `docs/milestones/010-owned-provider-overlap-cost-reduction-closeout.md`
 - `docs/milestones/011-queued-owned-default-readiness.md`
 - `docs/milestones/011-queued-owned-default-readiness-plan.md`
+- `src/Domain/Processing/RadarProcessingRetainedResourcePressureSnapshot.cs`
+- `src/Domain/Processing/RadarProcessingRetainedResourcePressureSummary.cs`
+- `src/Domain/Processing/RadarProcessingRetainedResourcePressureRecorder.cs`
+- `tests/RadarPulse.Tests/Processing/RadarProcessingRetainedResourcePressureContractTests.cs`
 - `src/Domain/Processing/RadarProcessingAsyncExecutionOptions.cs`
 - `src/Domain/Processing/RadarProcessingWorkerAffinity.cs`
 - `src/Domain/Processing/RadarProcessingWorkerTimeoutPolicy.cs`
