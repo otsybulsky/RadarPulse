@@ -590,6 +590,54 @@ Expanded mixed-cache candidate validation succeeded with 0 failed releases and
 4_063_709_976 end-to-end allocated bytes.
 ```
 
+Milestone 011 slice 12 controlled proof separation hardening is implemented in
+the current working tree. The CLI now prints a stable provider-overlap evidence
+scope next to the existing evidence contour, and both parsed options and printed
+benchmark output use the same `ProcessingBenchmarkArchiveRebalanceOptions`
+formatter. This prevents the operator-facing labels from drifting away from the
+readiness-gate interpretation.
+
+Evidence labels after slice 12:
+
+```text
+natural default-candidate:
+  Provider overlap evidence contour: natural-default-candidate
+  Provider overlap evidence scope: natural-readiness
+controlled consumer-delay proof:
+  Provider overlap evidence contour: controlled-proof
+  Provider overlap evidence scope: controlled-mechanics-proof
+natural queued-owned producer-consumer opt-in diagnostic:
+  Provider overlap evidence contour: natural-opt-in
+  Provider overlap evidence scope: opt-in-diagnostic
+not applicable:
+  Provider overlap evidence contour: not-applicable
+  Provider overlap evidence scope: not-applicable
+```
+
+`--overlap-consumer-delay-ms` remains rejected unless the command uses
+`--provider queued-owned --provider-overlap producer-consumer`, and controlled
+delay remains excluded from natural readiness by
+`RadarProcessingQueuedProviderReadinessEvaluator`.
+
+Latest focused verification after milestone 011 slice 12:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests"
+
+dotnet build RadarPulse.sln -c Release --no-restore
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+38 passed, 0 failed, 0 skipped for focused CLI, readiness gate, and overlap
+runner coverage.
+Release build succeeded with 0 warnings and 0 errors.
+740 passed, 0 failed, 3 skipped for the full test project.
+```
+
 Milestone 010 remains complete. The architecture is recorded in
 `docs/milestones/010-owned-provider-overlap-cost-reduction.md`, and the
 implementation plan is recorded in
@@ -3383,6 +3431,8 @@ Done:
   documented.
 - `011` slice 11 retained payload allocation optimization is implemented,
   measured, and documented.
+- `011` slice 12 controlled proof separation hardening is implemented and
+  tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.

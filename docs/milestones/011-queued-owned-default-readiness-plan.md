@@ -1406,6 +1406,50 @@ Controlled queue-ahead proof may demonstrate mechanics. It must not justify a
 provider default switch.
 ```
 
+Implemented in slice 12:
+
+```text
+ProcessingBenchmarkArchiveRebalanceOptions now owns the provider-overlap
+  evidence contour formatter used by both parsed options and CLI output
+provider-overlap evidence contours remain:
+  natural-default-candidate
+  controlled-proof
+  natural-opt-in
+  not-applicable
+CLI output now also prints provider-overlap evidence scope:
+  natural-readiness
+  controlled-mechanics-proof
+  opt-in-diagnostic
+  not-applicable
+controlled consumer delay remains rejected unless the command uses
+  --provider queued-owned --provider-overlap producer-consumer
+controlled-delay output explicitly identifies both the delay value and
+  controlled-mechanics-proof scope
+natural default-candidate output explicitly identifies natural-readiness scope
+natural opt-in rows with disabled optional queue/overlap telemetry are labeled
+  opt-in-diagnostic instead of natural readiness
+readiness gate coverage still rejects controlled-delay rows as natural evidence
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests"
+
+dotnet build RadarPulse.sln -c Release --no-restore
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+38 passed, 0 failed, 0 skipped for focused CLI, readiness gate, and overlap
+runner coverage.
+Release build succeeded with 0 warnings and 0 errors.
+740 passed, 0 failed, 3 skipped for the full test project.
+```
+
 ### 13. Decision Trace, Closeout, And Handoff
 
 Capture the final milestone assessment.

@@ -664,8 +664,11 @@ static void PrintProcessingArchiveRebalanceBenchmarkResult(
     Console.WriteLine($"Provider overlap consumer delay ms: {FormatDecimal(result.OverlapConsumerDelay.TotalMilliseconds)}");
     Console.WriteLine($"Retention strategy: {FormatProcessingRetentionStrategy(result.RetentionStrategy)}");
     Console.WriteLine($"Provider queue retained byte capacity: {FormatOptionalNumber(result.QueueRetainedPayloadBytes)}");
+    var providerOverlapEvidenceContour =
+        FormatProviderOverlapEvidenceContourForFileBenchmark(result, queueTelemetryOutput, overlapTelemetryOutput);
     Console.WriteLine($"Default-candidate contour: {FormatBoolean(IsDefaultCandidateFileBenchmarkContour(result, queueTelemetryOutput, overlapTelemetryOutput))}");
-    Console.WriteLine($"Provider overlap evidence contour: {FormatProviderOverlapEvidenceContourForFileBenchmark(result, queueTelemetryOutput, overlapTelemetryOutput)}");
+    Console.WriteLine($"Provider overlap evidence contour: {providerOverlapEvidenceContour}");
+    Console.WriteLine($"Provider overlap evidence scope: {FormatProviderOverlapEvidenceScope(providerOverlapEvidenceContour)}");
     Console.WriteLine($"Execution mode: {FormatProcessingMode(result.ExecutionMode)}");
     Console.WriteLine($"Benchmark mode: {FormatProcessingRebalanceMode(result.Mode)}");
     Console.WriteLine($"Validation profile: {FormatProcessingValidationProfile(result.ValidationProfile)}");
@@ -765,8 +768,11 @@ static void PrintProcessingArchiveRebalanceCacheBenchmarkResult(
     Console.WriteLine($"Provider overlap consumer delay ms: {FormatDecimal(result.OverlapConsumerDelay.TotalMilliseconds)}");
     Console.WriteLine($"Retention strategy: {FormatProcessingRetentionStrategy(result.RetentionStrategy)}");
     Console.WriteLine($"Provider queue retained byte capacity: {FormatOptionalNumber(result.QueueRetainedPayloadBytes)}");
+    var providerOverlapEvidenceContour =
+        FormatProviderOverlapEvidenceContourForCacheBenchmark(result, queueTelemetryOutput, overlapTelemetryOutput);
     Console.WriteLine($"Default-candidate contour: {FormatBoolean(IsDefaultCandidateCacheBenchmarkContour(result, queueTelemetryOutput, overlapTelemetryOutput))}");
-    Console.WriteLine($"Provider overlap evidence contour: {FormatProviderOverlapEvidenceContourForCacheBenchmark(result, queueTelemetryOutput, overlapTelemetryOutput)}");
+    Console.WriteLine($"Provider overlap evidence contour: {providerOverlapEvidenceContour}");
+    Console.WriteLine($"Provider overlap evidence scope: {FormatProviderOverlapEvidenceScope(providerOverlapEvidenceContour)}");
     Console.WriteLine($"Execution mode: {FormatProcessingMode(result.ExecutionMode)}");
     Console.WriteLine($"Benchmark mode: {FormatProcessingRebalanceMode(result.Mode)}");
     Console.WriteLine($"Validation profile: {FormatProcessingValidationProfile(result.ValidationProfile)}");
@@ -1033,20 +1039,15 @@ static string FormatProviderOverlapEvidenceContourCore(
     RadarProcessingArchiveProviderMode providerMode,
     RadarProcessingQueuedProviderOverlapMode providerOverlapMode,
     TimeSpan overlapConsumerDelay,
-    bool isDefaultCandidateContour)
-{
-    if (isDefaultCandidateContour)
-    {
-        return "natural-default-candidate";
-    }
+    bool isDefaultCandidateContour) =>
+    ProcessingBenchmarkArchiveRebalanceOptions.FormatProviderOverlapEvidenceContour(
+        providerMode,
+        providerOverlapMode,
+        overlapConsumerDelay,
+        isDefaultCandidateContour);
 
-    return providerMode == RadarProcessingArchiveProviderMode.QueuedOwned &&
-        providerOverlapMode == RadarProcessingQueuedProviderOverlapMode.ProducerConsumer
-        ? overlapConsumerDelay > TimeSpan.Zero
-            ? "controlled-proof"
-            : "natural-opt-in"
-        : "not-applicable";
-}
+static string FormatProviderOverlapEvidenceScope(string providerOverlapEvidenceContour) =>
+    ProcessingBenchmarkArchiveRebalanceOptions.FormatProviderOverlapEvidenceScope(providerOverlapEvidenceContour);
 
 static void PrintProcessingProviderQueueTelemetrySummary(
     RadarProcessingProviderQueueTelemetrySummary telemetry,
@@ -2901,6 +2902,14 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
 {
     public const int DefaultCandidateProviderQueueCapacity = 8;
     public const long DefaultCandidateRetainedPayloadBytes = 536_870_912;
+    public const string NaturalDefaultCandidateEvidenceContour = "natural-default-candidate";
+    public const string ControlledProofEvidenceContour = "controlled-proof";
+    public const string NaturalOptInEvidenceContour = "natural-opt-in";
+    public const string NotApplicableEvidenceContour = "not-applicable";
+    public const string NaturalReadinessEvidenceScope = "natural-readiness";
+    public const string ControlledMechanicsEvidenceScope = "controlled-mechanics-proof";
+    public const string OptInDiagnosticEvidenceScope = "opt-in-diagnostic";
+    public const string NotApplicableEvidenceScope = "not-applicable";
 
     public bool IsDefaultCandidateContour =>
         MatchesDefaultCandidateContour(
@@ -2920,14 +2929,14 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
         OverlapConsumerDelay > TimeSpan.Zero;
 
     public string ProviderOverlapEvidenceContour =>
-        IsDefaultCandidateContour
-            ? "natural-default-candidate"
-            : IsControlledProviderOverlapProof
-                ? "controlled-proof"
-                : ProviderMode == RadarProcessingArchiveProviderMode.QueuedOwned &&
-                  ProviderOverlapMode == RadarProcessingQueuedProviderOverlapMode.ProducerConsumer
-                    ? "natural-opt-in"
-                    : "not-applicable";
+        FormatProviderOverlapEvidenceContour(
+            ProviderMode,
+            ProviderOverlapMode,
+            OverlapConsumerDelay,
+            IsDefaultCandidateContour);
+
+    public string ProviderOverlapEvidenceScope =>
+        FormatProviderOverlapEvidenceScope(ProviderOverlapEvidenceContour);
 
     public static bool MatchesDefaultCandidateContour(
         RadarProcessingArchiveProviderMode providerMode,
@@ -2948,6 +2957,46 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
         queueTelemetryOutput != ProcessingBenchmarkProviderQueueTelemetryOutput.None &&
         overlapTelemetryOutput != ProcessingBenchmarkProviderOverlapTelemetryOutput.None &&
         executionMode == RadarProcessingExecutionMode.AsyncShardTransport;
+
+    public static string FormatProviderOverlapEvidenceContour(
+        RadarProcessingArchiveProviderMode providerMode,
+        RadarProcessingQueuedProviderOverlapMode providerOverlapMode,
+        TimeSpan overlapConsumerDelay,
+        bool isDefaultCandidateContour)
+    {
+        if (overlapConsumerDelay < TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(overlapConsumerDelay));
+        }
+
+        if (isDefaultCandidateContour)
+        {
+            return NaturalDefaultCandidateEvidenceContour;
+        }
+
+        return providerMode == RadarProcessingArchiveProviderMode.QueuedOwned &&
+            providerOverlapMode == RadarProcessingQueuedProviderOverlapMode.ProducerConsumer
+            ? overlapConsumerDelay > TimeSpan.Zero
+                ? ControlledProofEvidenceContour
+                : NaturalOptInEvidenceContour
+            : NotApplicableEvidenceContour;
+    }
+
+    public static string FormatProviderOverlapEvidenceScope(string providerOverlapEvidenceContour)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(providerOverlapEvidenceContour);
+
+        return providerOverlapEvidenceContour switch
+        {
+            NaturalDefaultCandidateEvidenceContour => NaturalReadinessEvidenceScope,
+            ControlledProofEvidenceContour => ControlledMechanicsEvidenceScope,
+            NaturalOptInEvidenceContour => OptInDiagnosticEvidenceScope,
+            NotApplicableEvidenceContour => NotApplicableEvidenceScope,
+            _ => throw new ArgumentException(
+                "Unknown provider overlap evidence contour.",
+                nameof(providerOverlapEvidenceContour))
+        };
+    }
 
     public static ProcessingBenchmarkArchiveRebalanceOptions Parse(string[] args)
     {

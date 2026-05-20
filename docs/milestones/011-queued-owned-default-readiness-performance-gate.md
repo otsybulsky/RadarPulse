@@ -477,8 +477,9 @@ should record the residual overhead rather than claiming zero allocation cost.
 
 ## Gate Decision
 
-The slice 10 natural Release gate is captured, and slice 11 records the
-allocation follow-up against the expanded mixed-cache contour.
+The slice 10 natural Release gate is captured, slice 11 records the allocation
+follow-up against the expanded mixed-cache contour, and slice 12 hardens the
+controlled-proof separation contract in CLI output and tests.
 
 Evidence that supports the candidate:
 
@@ -495,6 +496,24 @@ natural and controlled evidence remain separated
 expanded local cache now covers multiple radar/date shapes
 ```
 
+Slice 12 output contract:
+
+```text
+natural default-candidate rows print:
+  Provider overlap evidence contour: natural-default-candidate
+  Provider overlap evidence scope: natural-readiness
+controlled consumer-delay rows print:
+  Provider overlap evidence contour: controlled-proof
+  Provider overlap evidence scope: controlled-mechanics-proof
+natural queued-owned producer-consumer opt-in rows outside the readiness
+  contour print:
+  Provider overlap evidence contour: natural-opt-in
+  Provider overlap evidence scope: opt-in-diagnostic
+non queued-owned producer-consumer rows print:
+  Provider overlap evidence contour: not-applicable
+  Provider overlap evidence scope: not-applicable
+```
+
 Remaining default-readiness caution after the allocation follow-up:
 
 ```text
@@ -505,6 +524,6 @@ default rollout still requires an explicit decision trace and rollout
 ```
 
 `queued-owned + pooled-copy + producer-consumer` should remain opt-in. The next
-slice should harden controlled-proof separation, then the decision trace should
-record the residual allocation overhead and decide whether the optimized
-contour is ready to feed a separate default-rollout milestone.
+slice should produce the decision trace and closeout, recording the residual
+allocation overhead and deciding whether the optimized contour is ready to feed
+a separate default-rollout milestone.

@@ -329,6 +329,7 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
         Assert.False(options.IsDefaultCandidateContour);
         Assert.False(options.IsControlledProviderOverlapProof);
         Assert.Equal("not-applicable", options.ProviderOverlapEvidenceContour);
+        Assert.Equal("not-applicable", options.ProviderOverlapEvidenceScope);
         Assert.Equal(RadarProcessingValidationProfile.Essential, options.ValidationProfile);
         var quarantineLifecycle = options.QuarantineLifecycleOverrides.ApplyTo(
             RadarProcessingQuarantineLifecycleOptions.Default);
@@ -379,6 +380,7 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
         Assert.False(options.IsDefaultCandidateContour);
         Assert.True(options.IsControlledProviderOverlapProof);
         Assert.Equal("controlled-proof", options.ProviderOverlapEvidenceContour);
+        Assert.Equal("controlled-mechanics-proof", options.ProviderOverlapEvidenceScope);
         Assert.Equal(RadarProcessingExecutionMode.PartitionedBarrier, options.ExecutionMode);
         Assert.Null(options.AsyncExecution);
     }
@@ -415,6 +417,7 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
         Assert.True(options.IsDefaultCandidateContour);
         Assert.False(options.IsControlledProviderOverlapProof);
         Assert.Equal("natural-default-candidate", options.ProviderOverlapEvidenceContour);
+        Assert.Equal("natural-readiness", options.ProviderOverlapEvidenceScope);
         Assert.Equal(RadarProcessingArchiveProviderMode.QueuedOwned, options.ProviderMode);
         Assert.Equal(8, options.ProviderQueueCapacity);
         Assert.Equal(RadarProcessingQueuedProviderOverlapMode.ProducerConsumer, options.ProviderOverlapMode);
@@ -719,6 +722,14 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
                 "--overlap-consumer-delay-ms",
                 "10"
             ]));
+        Assert.Throws<InvalidOperationException>(
+            () => global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
+            [
+                "--cache",
+                "data/nexrad",
+                "--overlap-consumer-delay-ms",
+                "10"
+            ]));
         Assert.Throws<ArgumentException>(
             () => global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
             [
@@ -802,6 +813,7 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             Assert.Contains("Provider queue retained byte capacity: none", result.StandardOutput);
             Assert.Contains("Default-candidate contour: no", result.StandardOutput);
             Assert.Contains("Provider overlap evidence contour: not-applicable", result.StandardOutput);
+            Assert.Contains("Provider overlap evidence scope: not-applicable", result.StandardOutput);
             Assert.Contains(
                 "Batch lifetime: leased batches are converted to owned snapshots before provider queue enqueue",
                 result.StandardOutput);
@@ -873,6 +885,7 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             Assert.Contains("Provider queue retained byte capacity: 4_096", result.StandardOutput);
             Assert.Contains("Default-candidate contour: no", result.StandardOutput);
             Assert.Contains("Provider overlap evidence contour: controlled-proof", result.StandardOutput);
+            Assert.Contains("Provider overlap evidence scope: controlled-mechanics-proof", result.StandardOutput);
             Assert.Contains("Retained payload strategy: pooled-copy", result.StandardOutput);
             Assert.Contains("Provider overlap telemetry: summary", result.StandardOutput);
             Assert.Contains("Provider overlap retained payload strategy: pooled-copy", result.StandardOutput);
@@ -946,6 +959,7 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             Assert.Contains("Provider queue retained byte capacity: 536_870_912", result.StandardOutput);
             Assert.Contains("Default-candidate contour: yes", result.StandardOutput);
             Assert.Contains("Provider overlap evidence contour: natural-default-candidate", result.StandardOutput);
+            Assert.Contains("Provider overlap evidence scope: natural-readiness", result.StandardOutput);
             Assert.Contains("Provider queue combined retained payload bytes high watermark: 0", result.StandardOutput);
             Assert.Contains("Provider overlap combined retained payload bytes high watermark: 0", result.StandardOutput);
             Assert.Contains("Execution mode: async", result.StandardOutput);
@@ -998,6 +1012,9 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             Assert.Equal(0, result.ExitCode);
             Assert.Contains("Provider mode: queued-owned", result.StandardOutput);
             Assert.Contains("Provider overlap mode: producer-consumer", result.StandardOutput);
+            Assert.Contains("Default-candidate contour: no", result.StandardOutput);
+            Assert.Contains("Provider overlap evidence contour: natural-opt-in", result.StandardOutput);
+            Assert.Contains("Provider overlap evidence scope: opt-in-diagnostic", result.StandardOutput);
             Assert.Contains("Retained payload telemetry: summary", result.StandardOutput);
             Assert.DoesNotContain("Provider queue telemetry:", result.StandardOutput);
             Assert.DoesNotContain("Provider queue current pending retained batches:", result.StandardOutput);
