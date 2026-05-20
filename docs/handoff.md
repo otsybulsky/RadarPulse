@@ -18,7 +18,8 @@ payload implementation, retained-byte-aware provider queue accounting,
 producer/consumer archive overlap runner, ordered rebalance topology pinning,
 overlap telemetry/allocation attribution, optimized queued validation, CLI
 controls, cache-level producer pipeline, and benchmark-only overlap consumer
-delay are implemented and tested.
+delay are implemented and tested. The decision trace is recorded in
+`docs/milestones/010-owned-provider-overlap-cost-reduction-decision-trace.md`.
 
 `blocking-borrowed` remains the default provider mode and same-run oracle.
 `queued-owned` remains an explicit validation and measurement mode. The repeated
@@ -36,9 +37,8 @@ over `data\nexrad` with `--max-files 1000000`, the same 150 ms consumer delay,
 and queue capacity 8 examined 244 files, published 220 files, reached queue
 depth 8, reported `HasQueuedAheadOverlap = yes`, preserved validation success,
 and released 220 retained batches with 0 failed releases. The next work is
-decision trace, closeout, and handoff for the next milestone; in-flight
-retained-resource high-water telemetry remains a candidate follow-up before any
-default change.
+closeout and handoff for the next milestone; in-flight retained-resource
+high-water telemetry remains a candidate follow-up before any default change.
 
 Milestone 009 remains complete. RadarPulse has the first explicit
 owned-payload provider decoupling substrate: archive replay can remain on the

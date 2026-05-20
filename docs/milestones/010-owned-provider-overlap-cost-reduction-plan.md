@@ -951,7 +951,7 @@ implementation.
 [x] repeated performance gate captures the cache-level overlap contour
 [x] controlled consumer-delay contour proves queued-ahead overlap
 [ ] natural full-cache contour proves queued-ahead overlap without synthetic delay
-[ ] decision trace is written
+[x] decision trace is written
 [ ] closeout is written
 [ ] handoff is updated for the next milestone
 ```
