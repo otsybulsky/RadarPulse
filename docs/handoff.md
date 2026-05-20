@@ -330,6 +330,55 @@ validator coverage.
 726 passed, 0 failed, 3 skipped for the full test project.
 ```
 
+Milestone 011 slice 8 failure, cancellation, and cleanup gate coverage is
+implemented in the current working tree. This slice is test-focused; it does
+not change runtime provider defaults or make Release performance gates depend
+on injected fault behavior.
+
+New focused coverage:
+
+```text
+ArchiveOwnedRadarEventBatchQueueingPublisher
+  -> release callback failure is recorded in release telemetry, current
+     pending/active/combined pressure returns to zero, and readiness release
+     health fails
+  -> retained copy failure after an earlier accepted retained batch stops the
+     current publish and leaves the earlier accepted resource visible for
+     terminal cleanup
+
+RadarProcessingQueuedProcessingSession
+  -> consumer validation failure from a throwing handler releases the active
+     retained resource and returns current retained pressure to zero
+
+RadarProcessingArchiveQueuedOverlapRunner
+  -> producer failure after an accepted enqueue releases pending retained
+     resources, faults the overlap result, and leaves current retained pressure
+     at zero
+  -> cancellation after an accepted enqueue releases pending retained resources,
+     returns a canceled overlap result, and leaves current retained pressure at
+     zero
+
+RadarProcessingRetainedBatchResource
+  -> release callback exceptions become terminal cleanup failures and do not
+     invoke the callback again
+```
+
+Latest verification after milestone 011 slice 8:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingQueuedProcessingSessionTests|FullyQualifiedName~RadarProcessingQueuedRebalanceSessionTests|FullyQualifiedName~RadarProcessingRetainedBatchResourceTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests"
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+49 passed, 0 failed, 0 skipped for focused failure/cancellation cleanup gate
+coverage.
+732 passed, 0 failed, 3 skipped for the full test project.
+```
+
 Milestone 010 remains complete. The architecture is recorded in
 `docs/milestones/010-owned-provider-overlap-cost-reduction.md`, and the
 implementation plan is recorded in
@@ -3116,6 +3165,8 @@ Done:
 - `011` slice 6 candidate configuration surface is implemented and tested.
 - `011` slice 7 readiness validation and gate contracts are implemented and
   tested.
+- `011` slice 8 failure, cancellation, and cleanup gate coverage is
+  implemented and tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.

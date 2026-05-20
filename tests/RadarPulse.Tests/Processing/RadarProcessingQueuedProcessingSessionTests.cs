@@ -1,5 +1,6 @@
 using RadarPulse.Domain.Processing;
 using RadarPulse.Domain.Streaming;
+using RadarPulse.Infrastructure.Archive;
 using RadarPulse.Infrastructure.Processing;
 
 namespace RadarPulse.Tests.Processing;
@@ -163,6 +164,46 @@ public sealed class RadarProcessingQueuedProcessingSessionTests
     }
 
     [Fact]
+    public async Task ConsumerValidationFailureReleasesActiveResource()
+    {
+        var universe = CreateUniverse(sourceCount: 1);
+        var core = CreateCore(
+            universe,
+            RadarProcessingExecutionMode.Sequential,
+            handlers: [new ThrowingHandler()]);
+        using var queue = new RadarProcessingOwnedBatchQueue(
+            new RadarProcessingProviderQueueOptions(capacity: 1));
+        using var publisher = new ArchiveOwnedRadarEventBatchQueueingPublisher(
+            queue,
+            retainedPayloadOptions: new RadarProcessingRetainedPayloadOptions(
+                RadarProcessingRetainedPayloadStrategy.PooledCopy));
+        using var session = new RadarProcessingQueuedProcessingSession(
+            core,
+            queue,
+            ownsQueue: false,
+            consumerResourceLeaseFactory: publisher.AcquireConsumerResourceLease);
+
+        PublishLeased(publisher, universe.Version, [1, 2]);
+        publisher.CompleteAdding();
+
+        var result = await session.DrainAsync();
+        var provider = publisher.CreateResult();
+
+        Assert.True(result.IsFaulted);
+        var processing = Assert.Single(result.ProcessingResults);
+        Assert.Equal(RadarProcessingQueuedBatchProcessingStatus.FailedValidation, processing.Status);
+        Assert.Contains("handler failed", processing.Message, StringComparison.Ordinal);
+        Assert.Equal(0, provider.Telemetry.CurrentPendingRetainedBatchCount);
+        Assert.Equal(0, provider.Telemetry.CurrentActiveRetainedBatchCount);
+        Assert.Equal(0, provider.Telemetry.CurrentCombinedRetainedBatchCount);
+        Assert.Equal(1, provider.Telemetry.ActiveRetainedBatchCountHighWatermark);
+        Assert.Equal(2, provider.Telemetry.ActiveRetainedPayloadBytesHighWatermark);
+        Assert.Equal(1, provider.RetentionTelemetry.ReleaseAttemptCount);
+        Assert.Equal(1, provider.RetentionTelemetry.ReleasedBatchCount);
+        Assert.Equal(0, provider.RetentionTelemetry.ReleaseFailedCount);
+    }
+
+    [Fact]
     public async Task DrainCancellationBeforeDequeueReturnsCanceledSessionResult()
     {
         var universe = CreateUniverse(sourceCount: 1);
@@ -216,14 +257,16 @@ public sealed class RadarProcessingQueuedProcessingSessionTests
         RadarProcessingExecutionMode executionMode,
         int partitionCount = 1,
         int shardCount = 1,
-        RadarProcessingAsyncExecutionOptions? asyncOptions = null) =>
+        RadarProcessingAsyncExecutionOptions? asyncOptions = null,
+        IReadOnlyList<IRadarSourceProcessingHandler>? handlers = null) =>
         new(
             universe,
             new RadarProcessingCoreOptions(
                 executionMode,
                 partitionCount,
                 shardCount,
-                asyncExecution: asyncOptions));
+                asyncExecution: asyncOptions,
+                handlers: handlers));
 
     private static RadarSourceUniverse CreateUniverse(int sourceCount) =>
         new(
@@ -322,6 +365,21 @@ public sealed class RadarProcessingQueuedProcessingSessionTests
             payload: payload);
     }
 
+    private static void PublishLeased(
+        ArchiveOwnedRadarEventBatchQueueingPublisher publisher,
+        SourceUniverseVersion sourceUniverseVersion,
+        byte[] payload)
+    {
+        var builder = new RadarEventBatchBuilder(initialEventCapacity: 1, initialPayloadCapacity: payload.Length);
+        AddEvent(
+            builder,
+            sourceUniverseVersion,
+            sourceId: 0,
+            messageTimestampUtcTicks: 100,
+            payload);
+        builder.ConsumeLeased(batch => publisher.Publish(batch, CancellationToken.None));
+    }
+
     private sealed class CallbackDisposable : IDisposable
     {
         private readonly Action dispose;
@@ -335,5 +393,16 @@ public sealed class RadarProcessingQueuedProcessingSessionTests
         {
             dispose();
         }
+    }
+
+    private sealed class ThrowingHandler : IRadarSourceProcessingHandler
+    {
+        public RadarSourceProcessingHandlerDescriptor Descriptor { get; } =
+            new("throwing", int64SlotCount: 0, doubleSlotCount: 0);
+
+        public void Process(
+            in RadarSourceProcessingHandlerContext context,
+            RadarSourceProcessingState state) =>
+            throw new InvalidOperationException("handler failed");
     }
 }

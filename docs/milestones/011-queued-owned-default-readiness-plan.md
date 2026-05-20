@@ -1012,6 +1012,42 @@ Failure-path cleanup should be tested with small synthetic batches. Do not make
 Release performance gates depend on injected fault behavior.
 ```
 
+Implemented in slice 8:
+
+```text
+no runtime default/provider behavior was changed; this slice strengthens
+failure and cancellation coverage around existing cleanup paths
+ArchiveOwnedRadarEventBatchQueueingPublisher tests now cover release callback
+failure visibility, failed-release readiness failure, terminal pending pressure
+cleanup, retention-copy failure after an earlier accepted retained batch, and
+cleanup of the earlier accepted resource
+RadarProcessingQueuedProcessingSession tests now verify that a consumer
+validation failure from a throwing handler releases the active retained resource
+and returns active/current pressure to zero
+RadarProcessingArchiveQueuedOverlapRunner tests now verify that producer failure
+and cancellation after an accepted enqueue release pending retained resources,
+fault/cancel the overlap result, and leave current pending/active/combined
+pressure at zero
+RadarProcessingRetainedBatchResource tests now cover release callback
+exceptions as terminal cleanup failures without invoking the callback again
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingQueuedProcessingSessionTests|FullyQualifiedName~RadarProcessingQueuedRebalanceSessionTests|FullyQualifiedName~RadarProcessingRetainedBatchResourceTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests"
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+49 passed, 0 failed, 0 skipped for focused failure/cancellation cleanup gate
+coverage.
+732 passed, 0 failed, 3 skipped for the full test project.
+```
+
 ### 9. CLI And Operator Telemetry Output
 
 Print readiness-critical fields in a stable, bounded, operator-readable shape.
@@ -1282,7 +1318,7 @@ controlled proof rows separated if captured
 [ ] CLI output prints active and combined retained pressure fields
 [x] candidate configuration output is explicit and reproducible
 [x] readiness validation/gate contracts are implemented or documented
-[ ] failure and cancellation cleanup paths are tested
+[x] failure and cancellation cleanup paths are tested
 [x] controlled consumer-delay proof is labeled and separated from natural gates
 [ ] repeated natural Release gate matrix is captured
 [ ] performance gate interprets correctness, allocation, memory pressure,

@@ -239,6 +239,87 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunnerTests
     }
 
     [Fact]
+    public async Task ProducerFailureReleasesPendingResourcesAndFaultsOverlap()
+    {
+        var runner = new RadarProcessingArchiveQueuedOverlapRunner();
+        var options = new RadarProcessingArchiveQueuedOverlapOptions(
+            new RadarProcessingProviderQueueOptions(capacity: 2, recentDetailCapacity: 16),
+            new RadarProcessingRetainedPayloadOptions(RadarProcessingRetainedPayloadStrategy.PooledCopy));
+
+        var result = await runner.RunAsync(
+            (publisher, cancellationToken) =>
+            {
+                PublishLeased(publisher, [1, 2], cancellationToken);
+                throw new InvalidOperationException("producer failed");
+            },
+            async (queue, cancellationToken) =>
+            {
+                await Task.Delay(10, cancellationToken);
+                return CreateSessionResult(
+                    queue,
+                    Array.Empty<RadarProcessingQueuedBatchProcessingResult>());
+            },
+            options);
+
+        Assert.Equal(RadarProcessingArchiveQueuedOverlapStatus.ProducerFailed, result.Status);
+        Assert.True(result.IsFaulted);
+        Assert.True(result.Producer.IsFailed);
+        Assert.Equal("producer failed", result.Message);
+        Assert.Equal(1, result.ProviderResult.AcceptedPublishCount);
+        Assert.Equal(1, result.QueueTelemetry.EnqueuedBatchCount);
+        Assert.Equal(0, result.QueueTelemetry.DequeuedBatchCount);
+        Assert.Equal(0, result.QueueTelemetry.CurrentPendingRetainedBatchCount);
+        Assert.Equal(0, result.QueueTelemetry.CurrentActiveRetainedBatchCount);
+        Assert.Equal(0, result.QueueTelemetry.CurrentCombinedRetainedBatchCount);
+        Assert.Equal(1, result.QueueTelemetry.PendingRetainedBatchCountHighWatermark);
+        Assert.Equal(2, result.QueueTelemetry.PendingRetainedPayloadBytesHighWatermark);
+        Assert.Equal(1, result.ProviderResult.RetentionTelemetry.ReleaseAttemptCount);
+        Assert.Equal(1, result.ProviderResult.RetentionTelemetry.ReleasedBatchCount);
+        Assert.Equal(0, result.ProviderResult.RetentionTelemetry.ReleaseFailedCount);
+    }
+
+    [Fact]
+    public async Task CancellationAfterAcceptedEnqueueReleasesPendingResource()
+    {
+        var runner = new RadarProcessingArchiveQueuedOverlapRunner();
+        var options = new RadarProcessingArchiveQueuedOverlapOptions(
+            new RadarProcessingProviderQueueOptions(capacity: 2, recentDetailCapacity: 16),
+            new RadarProcessingRetainedPayloadOptions(RadarProcessingRetainedPayloadStrategy.PooledCopy));
+        using var cancellation = new CancellationTokenSource();
+
+        var result = await runner.RunAsync(
+            (publisher, cancellationToken) =>
+            {
+                PublishLeased(publisher, [1, 2], cancellationToken);
+                cancellation.Cancel();
+                cancellationToken.ThrowIfCancellationRequested();
+                return CreatePublishResult(batchCount: 1);
+            },
+            async (queue, cancellationToken) =>
+            {
+                await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
+                return CreateSessionResult(
+                    queue,
+                    Array.Empty<RadarProcessingQueuedBatchProcessingResult>());
+            },
+            options,
+            cancellation.Token);
+
+        Assert.Equal(RadarProcessingArchiveQueuedOverlapStatus.Canceled, result.Status);
+        Assert.True(result.IsCanceled);
+        Assert.True(result.Producer.IsCanceled);
+        Assert.True(result.Consumer.IsCanceled);
+        Assert.Equal(1, result.ProviderResult.AcceptedPublishCount);
+        Assert.Equal(1, result.QueueTelemetry.EnqueuedBatchCount);
+        Assert.Equal(0, result.QueueTelemetry.CurrentPendingRetainedBatchCount);
+        Assert.Equal(0, result.QueueTelemetry.CurrentActiveRetainedBatchCount);
+        Assert.Equal(0, result.QueueTelemetry.CurrentCombinedRetainedBatchCount);
+        Assert.Equal(1, result.ProviderResult.RetentionTelemetry.ReleaseAttemptCount);
+        Assert.Equal(1, result.ProviderResult.RetentionTelemetry.ReleasedBatchCount);
+        Assert.Equal(0, result.ProviderResult.RetentionTelemetry.ReleaseFailedCount);
+    }
+
+    [Fact]
     public async Task RebalanceOverlapCapturesLatestTopologyWhenQueuedBatchWaitsBehindMigration()
     {
         var universe = CreateUniverse(sourceCount: 4);
@@ -599,4 +680,35 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunnerTests
             DictionarySnapshot: normalizer.CreateDictionarySnapshot(DictionaryVersion.Initial));
     }
 
+    private static void PublishLeased(
+        IArchiveRadarEventBatchPublisher publisher,
+        byte[] payload,
+        CancellationToken cancellationToken)
+    {
+        var builder = new RadarEventBatchBuilder(initialEventCapacity: 1, initialPayloadCapacity: payload.Length);
+        builder.AddEvent(
+            new RadarStreamIdentity(
+                sourceId: 0,
+                radarOrdinal: 0,
+                momentId: 0,
+                elevationSlot: 0,
+                azimuthBucket: 0,
+                rangeBand: 0,
+                dictionaryVersion: DictionaryVersion.Initial,
+                sourceUniverseVersion: SourceUniverseVersion.Initial),
+            volumeTimestampUtcTicks: 90,
+            messageTimestampUtcTicks: 100,
+            sourceRecord: 1,
+            sourceMessage: 1,
+            radialSequence: 1,
+            gateStart: 0,
+            gateCount: (ushort)payload.Length,
+            wordSize: RadarStreamWordSize.EightBit,
+            scale: 1.0f,
+            offset: 0.0f,
+            statusModel: RadarStreamStatusModel.ArchiveTwoMoment,
+            payload: payload);
+
+        builder.ConsumeLeased(batch => publisher.Publish(batch, cancellationToken));
+    }
 }
