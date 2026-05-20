@@ -268,6 +268,68 @@ coverage.
 715 passed, 0 failed, 3 skipped for the full test project.
 ```
 
+Milestone 011 slice 7 readiness validation and gate contracts are implemented
+in the current working tree. This slice adds domain contracts and an evidence
+interpreter only; it does not mutate runtime provider defaults, silently rerun
+failed queued-owned work through the borrowed path, or add CLI readiness
+reporting yet.
+
+New domain contracts:
+
+```text
+RadarProcessingQueuedProviderReadinessStatus
+  -> passed, failed, inconclusive, and not-evaluated outcomes
+
+RadarProcessingQueuedProviderReadinessGate
+  -> correctness parity, topology/rebalance parity, release health, retained
+     pressure, allocation movement, performance delta, run variance, effective
+     configuration, and natural evidence dimensions
+
+RadarProcessingQueuedProviderReadinessError
+  -> explicit failure/inconclusive reasons for missing borrowed reference,
+     validation mismatch, checksum mismatch, topology/rebalance mismatch,
+     release failure, cleanup incompleteness, missing pressure telemetry,
+     combined retained payload budget excess, controlled-proof exclusion,
+     candidate-contour mismatch, performance regression, variance, and
+     allocation regression
+
+RadarProcessingQueuedProviderReadinessResult
+  -> carries gate, status, error, message, and checksum/count/byte/ratio
+     diagnostics while rejecting invalid result shapes
+
+RadarProcessingQueuedProviderReadinessEvaluator
+  -> interprets queued-provider validation results, retained payload release
+     telemetry, retained-resource pressure summaries, natural-vs-controlled
+     evidence, same-run borrowed performance deltas, allocation movement
+     ratios, and repeated-run variance
+```
+
+Focused coverage validates the stable contracts, missing borrowed-reference
+inconclusive status, checksum and rebalance mismatch failures, failed retained
+release failure even when correctness passes, controlled-delay exclusion from
+natural readiness, combined retained payload budget failure, missing active
+pressure telemetry as inconclusive, and performance regression independent of
+correctness. Allocation movement handles missing reference measurements as
+not-evaluated and allocation regressions as failed readiness. Run variance
+requires repeated natural measurements and fails when the configured variance
+threshold is exceeded.
+
+Latest verification after milestone 011 slice 7:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingQueuedProviderValidatorTests"
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+30 passed, 0 failed, 0 skipped for focused queued-provider readiness gate and
+validator coverage.
+726 passed, 0 failed, 3 skipped for the full test project.
+```
+
 Milestone 010 remains complete. The architecture is recorded in
 `docs/milestones/010-owned-provider-overlap-cost-reduction.md`, and the
 implementation plan is recorded in
@@ -3052,6 +3114,8 @@ Done:
 - `011` slice 5 overlap telemetry and benchmark result propagation is
   implemented and tested.
 - `011` slice 6 candidate configuration surface is implemented and tested.
+- `011` slice 7 readiness validation and gate contracts are implemented and
+  tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.

@@ -921,6 +921,48 @@ This gate interprets evidence. It must not mutate runtime provider defaults or
 silently rerun failed queued-owned work through the borrowed path.
 ```
 
+Implemented in slice 7:
+
+```text
+RadarProcessingQueuedProviderReadinessStatus defines passed, failed,
+inconclusive, and not-evaluated readiness outcomes
+RadarProcessingQueuedProviderReadinessGate identifies independent readiness
+dimensions for correctness parity, topology/rebalance parity, release health,
+retained pressure, allocation movement, performance delta, variance,
+configuration, and natural evidence
+RadarProcessingQueuedProviderReadinessError preserves explicit failure and
+inconclusive reasons for borrowed-reference absence, validation mismatch,
+release failure, cleanup incompleteness, missing active pressure telemetry,
+combined retained payload budget excess, controlled-proof exclusion,
+candidate-contour mismatch, performance regression, variance, and allocation
+regression
+RadarProcessingQueuedProviderReadinessResult carries gate status, message text,
+checksum/count/byte/ratio diagnostics, and rejects invalid result shapes
+RadarProcessingQueuedProviderReadinessEvaluator interprets existing queued
+provider validation results, retained payload release telemetry, retained
+resource pressure summaries, natural-vs-controlled evidence, and same-run
+borrowed performance deltas, allocation movement ratios, and repeated-run
+variance without changing provider runtime behavior
+readiness dimensions are independent, so correctness can pass while memory,
+release, or performance gates fail
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingQueuedProviderValidatorTests"
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+30 passed, 0 failed, 0 skipped for focused queued-provider readiness gate and
+validator coverage.
+726 passed, 0 failed, 3 skipped for the full test project.
+```
+
 ### 8. Failure, Cancellation, And Cleanup Gate
 
 Strengthen focused tests around failure paths before relying on retained
@@ -1239,7 +1281,7 @@ controlled proof rows separated if captured
 [x] archive benchmark file/cache result shapes carry readiness pressure fields
 [ ] CLI output prints active and combined retained pressure fields
 [x] candidate configuration output is explicit and reproducible
-[ ] readiness validation/gate contracts are implemented or documented
+[x] readiness validation/gate contracts are implemented or documented
 [ ] failure and cancellation cleanup paths are tested
 [x] controlled consumer-delay proof is labeled and separated from natural gates
 [ ] repeated natural Release gate matrix is captured
