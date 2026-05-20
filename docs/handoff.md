@@ -1,20 +1,42 @@
-# Handoff: Milestone 010 Closeout
+# Handoff: Milestone 011 Planning
 
 ## Current Goal
 
-Milestone 010 implementation and closeout are complete. The architecture is
-recorded in `docs/milestones/010-owned-provider-overlap-cost-reduction.md`,
-and the implementation plan is recorded in
-`docs/milestones/010-owned-provider-overlap-cost-reduction-plan.md`.
+Milestone 011 architecture and implementation planning are drafted. The
+architecture is recorded in
+`docs/milestones/011-queued-owned-default-readiness.md`, and the implementation
+plan is recorded in
+`docs/milestones/011-queued-owned-default-readiness-plan.md`.
 
-Milestone 010 starts from the closed milestone 009 owned-provider boundary:
-`queued-owned` is correct and measurable, but remains opt-in while its
-production-readiness tradeoffs are being proven. Milestone 010 slices 1 through
-12 plus the repeated performance gate and controlled queue-ahead proof are now
-complete: the milestone 009 cost
-anchors are confirmed, retained payload strategy contracts are implemented and
-tested, and the resource-owned queued batch lifecycle, lower-allocation retained
-payload implementation, retained-byte-aware provider queue accounting,
+Milestone 011 starts from the closed milestone 010 optimized owned-provider
+overlap contour. The goal is default-readiness evidence for
+`queued-owned + pooled-copy + producer-consumer`, not a provider default
+change. The plan focuses on in-flight retained-resource high-water telemetry
+after dequeue, combined pending-plus-active retained memory pressure, a
+reproducible default-candidate contour, same-run borrowed-reference readiness
+validation, repeated natural Release gates, controlled-proof separation,
+failure/cancellation cleanup checks, a performance gate, decision trace,
+closeout, and final handoff.
+
+The first implementation slice should freeze the milestone 010 readiness
+baseline and candidate contour before runtime changes. Important baseline
+surfaces are `RadarProcessingProviderQueueTelemetrySummary`,
+`RadarProcessingArchiveOverlapTelemetrySummary`,
+`RadarProcessingOwnedBatchQueue`,
+`ArchiveOwnedRadarEventBatchQueueingPublisher`,
+`RadarProcessingArchiveQueuedOverlapRunner`,
+`RadarProcessingArchiveRebalanceBenchmark`, CLI rebalance benchmark output, and
+the milestone 010 performance gate.
+
+Milestone 010 remains complete. The architecture is recorded in
+`docs/milestones/010-owned-provider-overlap-cost-reduction.md`, and the
+implementation plan is recorded in
+`docs/milestones/010-owned-provider-overlap-cost-reduction-plan.md`. Milestone
+010 slices 1 through 12 plus the repeated performance gate and controlled
+queue-ahead proof are complete: the milestone 009 cost anchors are confirmed,
+retained payload strategy contracts are implemented and tested, and the
+resource-owned queued batch lifecycle, lower-allocation retained payload
+implementation, retained-byte-aware provider queue accounting,
 producer/consumer archive overlap runner, ordered rebalance topology pinning,
 overlap telemetry/allocation attribution, optimized queued validation, CLI
 controls, cache-level producer pipeline, and benchmark-only overlap consumer
@@ -38,9 +60,9 @@ The controlled slice 12 contour with `--overlap-consumer-delay-ms 150`,
 over `data\nexrad` with `--max-files 1000000`, the same 150 ms consumer delay,
 and queue capacity 8 examined 244 files, published 220 files, reached queue
 depth 8, reported `HasQueuedAheadOverlap = yes`, preserved validation success,
-and released 220 retained batches with 0 failed releases. The next work is
-handoff for the next milestone; in-flight retained-resource high-water
-telemetry remains a candidate follow-up before any default change.
+and released 220 retained batches with 0 failed releases. In-flight
+retained-resource high-water telemetry remains the immediate milestone 011
+follow-up before any default change.
 
 Milestone 009 remains complete. RadarPulse has the first explicit
 owned-payload provider decoupling substrate: archive replay can remain on the
@@ -2774,6 +2796,11 @@ Done:
 - `007` closeout is written, the final comprehensive performance comparison is
   captured and interpreted, the implementation plan completion criteria are
   checked off, and this handoff now records the closed milestone 007 baseline.
+- `008` retained async shard transport milestone is complete.
+- `009` owned payload provider decoupling milestone is complete.
+- `010` owned provider overlap and cost reduction milestone is complete.
+- `011` queued-owned default-readiness architecture is drafted.
+- `011` queued-owned default-readiness implementation plan is drafted.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -5258,6 +5285,18 @@ constant and moment data blocks.
 - `docs/milestones/008-retained-async-shard-transport-plan.md`
 - `docs/milestones/008-retained-async-shard-transport-decision-trace.md`
 - `docs/milestones/008-retained-async-shard-transport-closeout.md`
+- `docs/milestones/009-owned-payload-provider-decoupling.md`
+- `docs/milestones/009-owned-payload-provider-decoupling-plan.md`
+- `docs/milestones/009-owned-payload-provider-decoupling-performance-gate.md`
+- `docs/milestones/009-owned-payload-provider-decoupling-decision-trace.md`
+- `docs/milestones/009-owned-payload-provider-decoupling-closeout.md`
+- `docs/milestones/010-owned-provider-overlap-cost-reduction.md`
+- `docs/milestones/010-owned-provider-overlap-cost-reduction-plan.md`
+- `docs/milestones/010-owned-provider-overlap-cost-reduction-performance-gate.md`
+- `docs/milestones/010-owned-provider-overlap-cost-reduction-decision-trace.md`
+- `docs/milestones/010-owned-provider-overlap-cost-reduction-closeout.md`
+- `docs/milestones/011-queued-owned-default-readiness.md`
+- `docs/milestones/011-queued-owned-default-readiness-plan.md`
 - `src/Domain/Processing/RadarProcessingAsyncExecutionOptions.cs`
 - `src/Domain/Processing/RadarProcessingWorkerAffinity.cs`
 - `src/Domain/Processing/RadarProcessingWorkerTimeoutPolicy.cs`
