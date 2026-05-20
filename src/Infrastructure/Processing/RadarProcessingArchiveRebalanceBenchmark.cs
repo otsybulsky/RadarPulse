@@ -41,7 +41,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         TimeSpan? queueTimeout = null,
         RadarProcessingQueuedProviderOverlapMode providerOverlapMode = RadarProcessingQueuedProviderOverlapMode.None,
         RadarProcessingRetainedPayloadStrategy retentionStrategy = RadarProcessingRetainedPayloadStrategy.SnapshotCopy,
-        long? queueRetainedPayloadBytes = null)
+        long? queueRetainedPayloadBytes = null,
+        TimeSpan overlapConsumerDelay = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         EnsureKnownMode(mode);
@@ -57,7 +58,13 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(queueCapacity);
         ValidateQueueTimeout(queueTimeout);
         ValidateQueueRetainedPayloadBytes(queueRetainedPayloadBytes);
-        ValidateQueuedProviderControls(providerMode, providerOverlapMode, retentionStrategy, queueRetainedPayloadBytes);
+        ValidateOverlapConsumerDelay(overlapConsumerDelay);
+        ValidateQueuedProviderControls(
+            providerMode,
+            providerOverlapMode,
+            retentionStrategy,
+            queueRetainedPayloadBytes,
+            overlapConsumerDelay);
 
         if (partitionCount < shardCount)
         {
@@ -124,6 +131,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                     providerOverlapMode,
                     retentionStrategy,
                     queueRetainedPayloadBytes,
+                    overlapConsumerDelay,
                     cancellationToken);
             }
 
@@ -154,6 +162,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                     providerOverlapMode,
                     retentionStrategy,
                     queueRetainedPayloadBytes,
+                    overlapConsumerDelay,
                     cancellationToken);
                 if (expectedIteration.HasValue && !expectedIteration.Value.HasSameStableTotals(iterationTelemetry))
                 {
@@ -230,7 +239,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 providerMode == RadarProcessingArchiveProviderMode.QueuedOwned ? queueRetainedPayloadBytes : null,
                 aggregate.QueueTelemetry,
                 aggregate.RetentionTelemetry,
-                aggregate.OverlapTelemetry);
+                aggregate.OverlapTelemetry,
+                overlapConsumerDelay);
         }
         finally
         {
@@ -262,7 +272,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         TimeSpan? queueTimeout = null,
         RadarProcessingQueuedProviderOverlapMode providerOverlapMode = RadarProcessingQueuedProviderOverlapMode.None,
         RadarProcessingRetainedPayloadStrategy retentionStrategy = RadarProcessingRetainedPayloadStrategy.SnapshotCopy,
-        long? queueRetainedPayloadBytes = null)
+        long? queueRetainedPayloadBytes = null,
+        TimeSpan overlapConsumerDelay = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(cachePath);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxFiles);
@@ -279,7 +290,13 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(queueCapacity);
         ValidateQueueTimeout(queueTimeout);
         ValidateQueueRetainedPayloadBytes(queueRetainedPayloadBytes);
-        ValidateQueuedProviderControls(providerMode, providerOverlapMode, retentionStrategy, queueRetainedPayloadBytes);
+        ValidateOverlapConsumerDelay(overlapConsumerDelay);
+        ValidateQueuedProviderControls(
+            providerMode,
+            providerOverlapMode,
+            retentionStrategy,
+            queueRetainedPayloadBytes,
+            overlapConsumerDelay);
 
         if (partitionCount < shardCount)
         {
@@ -352,6 +369,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                     providerOverlapMode,
                     retentionStrategy,
                     queueRetainedPayloadBytes,
+                    overlapConsumerDelay,
                     cancellationToken);
             }
 
@@ -385,6 +403,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                     providerOverlapMode,
                     retentionStrategy,
                     queueRetainedPayloadBytes,
+                    overlapConsumerDelay,
                     cancellationToken);
                 if (expectedIteration.HasValue && !expectedIteration.Value.HasSameStableTotals(iterationTelemetry))
                 {
@@ -466,7 +485,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 providerMode == RadarProcessingArchiveProviderMode.QueuedOwned ? queueRetainedPayloadBytes : null,
                 aggregate.QueueTelemetry,
                 aggregate.RetentionTelemetry,
-                aggregate.OverlapTelemetry);
+                aggregate.OverlapTelemetry,
+                overlapConsumerDelay);
         }
         finally
         {
@@ -496,6 +516,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         RadarProcessingQueuedProviderOverlapMode providerOverlapMode,
         RadarProcessingRetainedPayloadStrategy retentionStrategy,
         long? queueRetainedPayloadBytes,
+        TimeSpan overlapConsumerDelay,
         CancellationToken cancellationToken)
     {
         using var processor = new ArchiveRebalanceBatchProcessor(
@@ -524,6 +545,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 queueTimeout,
                 retentionStrategy,
                 queueRetainedPayloadBytes,
+                overlapConsumerDelay,
                 cancellationToken)
             : PublishFileQueuedOwned(
                 archiveSession,
@@ -563,6 +585,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         RadarProcessingQueuedProviderOverlapMode providerOverlapMode,
         RadarProcessingRetainedPayloadStrategy retentionStrategy,
         long? queueRetainedPayloadBytes,
+        TimeSpan overlapConsumerDelay,
         CancellationToken cancellationToken)
     {
         using var processor = new ArchiveRebalanceBatchProcessor(
@@ -599,6 +622,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 queueTimeout,
                 retentionStrategy,
                 queueRetainedPayloadBytes,
+                overlapConsumerDelay,
                 cancellationToken);
 
             return processor
@@ -645,6 +669,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                         queueTimeout,
                         retentionStrategy,
                         queueRetainedPayloadBytes,
+                        overlapConsumerDelay,
                         cancellationToken)
                     : PublishFileQueuedOwned(
                         archiveSession,
@@ -772,12 +797,18 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         TimeSpan? queueTimeout,
         RadarProcessingRetainedPayloadStrategy retentionStrategy,
         long? queueRetainedPayloadBytes,
+        TimeSpan overlapConsumerDelay,
         CancellationToken cancellationToken)
     {
         var runner = new RadarProcessingArchiveQueuedOverlapRunner();
         var result = runner.RunAsync(
                 (publisher, token) => archiveSession.PublishFile(filePath, publisher, token),
-                (queue, publisher, token) => DrainQueueToProcessorAsync(queue, publisher, processor, token),
+                (queue, publisher, token) => DrainQueueToProcessorAsync(
+                    queue,
+                    publisher,
+                    processor,
+                    overlapConsumerDelay,
+                    token),
                 new RadarProcessingArchiveQueuedOverlapOptions(
                     new RadarProcessingProviderQueueOptions(
                         capacity: queueCapacity,
@@ -807,6 +838,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         RadarProcessingOwnedBatchQueue queue,
         ArchiveOwnedRadarEventBatchQueueingPublisher publisher,
         ArchiveRebalanceBatchProcessor processor,
+        TimeSpan overlapConsumerDelay,
         CancellationToken cancellationToken)
     {
         var drainStarted = System.Diagnostics.Stopwatch.GetTimestamp();
@@ -822,6 +854,11 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                     var queuedBatch = dequeue.Batch!;
                     try
                     {
+                        if (overlapConsumerDelay > TimeSpan.Zero)
+                        {
+                            await Task.Delay(overlapConsumerDelay, cancellationToken).ConfigureAwait(false);
+                        }
+
                         processor.Publish(queuedBatch.Batch, cancellationToken);
                         completed++;
                     }
@@ -881,6 +918,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         TimeSpan? queueTimeout,
         RadarProcessingRetainedPayloadStrategy retentionStrategy,
         long? queueRetainedPayloadBytes,
+        TimeSpan overlapConsumerDelay,
         CancellationToken cancellationToken)
     {
         var selection = SelectCacheArchiveFiles(directoryInfo, date, radarId, maxFiles, cancellationToken);
@@ -914,7 +952,12 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                         totals,
                         lastPublishResult ?? throw new InvalidOperationException("Cache overlap producer did not publish any archive files."));
                 },
-                (queue, publisher, token) => DrainQueueToProcessorAsync(queue, publisher, processor, token),
+                (queue, publisher, token) => DrainQueueToProcessorAsync(
+                    queue,
+                    publisher,
+                    processor,
+                    overlapConsumerDelay,
+                    token),
                 new RadarProcessingArchiveQueuedOverlapOptions(
                     new RadarProcessingProviderQueueOptions(
                         capacity: queueCapacity,
@@ -1314,11 +1357,23 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         }
     }
 
+    private static void ValidateOverlapConsumerDelay(TimeSpan overlapConsumerDelay)
+    {
+        if (overlapConsumerDelay < TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(overlapConsumerDelay),
+                overlapConsumerDelay,
+                "Overlap consumer delay cannot be negative.");
+        }
+    }
+
     private static void ValidateQueuedProviderControls(
         RadarProcessingArchiveProviderMode providerMode,
         RadarProcessingQueuedProviderOverlapMode providerOverlapMode,
         RadarProcessingRetainedPayloadStrategy retentionStrategy,
-        long? queueRetainedPayloadBytes)
+        long? queueRetainedPayloadBytes,
+        TimeSpan overlapConsumerDelay)
     {
         if (providerOverlapMode != RadarProcessingQueuedProviderOverlapMode.None &&
             providerMode != RadarProcessingArchiveProviderMode.QueuedOwned)
@@ -1336,6 +1391,14 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             providerMode != RadarProcessingArchiveProviderMode.QueuedOwned)
         {
             throw new InvalidOperationException("Queue retained payload byte capacity requires queued-owned archive provider mode.");
+        }
+
+        if (overlapConsumerDelay > TimeSpan.Zero &&
+            (providerMode != RadarProcessingArchiveProviderMode.QueuedOwned ||
+             providerOverlapMode != RadarProcessingQueuedProviderOverlapMode.ProducerConsumer))
+        {
+            throw new InvalidOperationException(
+                "Overlap consumer delay requires queued-owned producer-consumer archive provider overlap.");
         }
 
         if (providerMode == RadarProcessingArchiveProviderMode.QueuedOwned &&

@@ -180,7 +180,7 @@ static int PrintUsage()
     Console.WriteLine("  radarpulse archive benchmark stream (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse processing benchmark synthetic [--mode sequential|partitioned|async] [--sources n] [--batches n] [--events-per-batch n] [--payload-values n] [--partitions n] [--shards n] [--workers n] [--queue-capacity n] [--handlers none|counter-checksum] [--iterations n] [--warmup-iterations n]");
     Console.WriteLine("  radarpulse processing benchmark rebalance-synthetic [--workload balanced|hot-shard|intrinsic-hot|oscillating|cooldown-storm|quarantine-ttl-retry|quarantine-cooling-clear|quarantine-pressure-change-retry|quarantine-retry-reentry|quarantine-successful-relief-clear|long-no-hot-shard|long-cooldown-rejection|long-unsafe-target-rejection|long-mixed-skipped-reasons|counters-only-retention|all] [--mode static|sampling|rebalance|all] [--execution sync|async] [--workers n] [--queue-capacity n] [--validation-profile off|essential|diagnostic|benchmark] [--quarantine-ttl-evaluations n] [--quarantine-sustained-cooling-samples n] [--quarantine-material-pressure-change n] [--iterations n] [--warmup-iterations n]");
-    Console.WriteLine("  radarpulse processing benchmark rebalance-archive (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--mode static|sampling|rebalance|all] [--provider blocking-borrowed|queued-owned] [--provider-overlap none|producer-consumer] [--retention-strategy snapshot-copy|pooled-copy|builder-transfer] [--execution sync|async] [--workers n] [--queue-capacity n] [--queue-timeout-ms n] [--queue-retained-bytes n] [--queue-telemetry none|summary|recent] [--overlap-telemetry none|summary|recent] [--partitions n] [--shards n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress] [--validation-profile off|essential|diagnostic|benchmark] [--quarantine-ttl-evaluations n] [--quarantine-sustained-cooling-samples n] [--quarantine-material-pressure-change n] [--retention-mode counters|recent|diagnostic] [--max-retained-decisions n] [--max-retained-transitions n] [--max-retained-accepted-moves n] [--max-retained-validation-failures n] [--skew-profile none|hot-shard|rotating-hot-shard|hot-partition|target-starvation|budget-storm] [--skew-factor n] [--skew-period n]");
+    Console.WriteLine("  radarpulse processing benchmark rebalance-archive (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--mode static|sampling|rebalance|all] [--provider blocking-borrowed|queued-owned] [--provider-overlap none|producer-consumer] [--retention-strategy snapshot-copy|pooled-copy|builder-transfer] [--execution sync|async] [--workers n] [--queue-capacity n] [--queue-timeout-ms n] [--queue-retained-bytes n] [--queue-telemetry none|summary|recent] [--overlap-telemetry none|summary|recent] [--overlap-consumer-delay-ms n] [--partitions n] [--shards n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress] [--validation-profile off|essential|diagnostic|benchmark] [--quarantine-ttl-evaluations n] [--quarantine-sustained-cooling-samples n] [--quarantine-material-pressure-change n] [--retention-mode counters|recent|diagnostic] [--max-retained-decisions n] [--max-retained-transitions n] [--max-retained-accepted-moves n] [--max-retained-validation-failures n] [--skew-profile none|hot-shard|rotating-hot-shard|hot-partition|target-starvation|budget-storm] [--skew-factor n] [--skew-period n]");
     Console.WriteLine("  radarpulse archive validate decompress (--file path | --cache data/nexrad [--radar KTLX] [--max-files n])");
     Console.WriteLine("  radarpulse archive validate replay-shape (--file path | --cache data/nexrad [--radar KTLX] [--max-files n]) [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     return 2;
@@ -483,7 +483,8 @@ static int BenchmarkProcessingRebalanceArchive(string[] args)
                 options.ProviderQueueTimeout,
                 options.ProviderOverlapMode,
                 options.RetentionStrategy,
-                options.ProviderQueueRetainedPayloadBytes);
+                options.ProviderQueueRetainedPayloadBytes,
+                options.OverlapConsumerDelay);
             PrintProcessingArchiveRebalanceCacheBenchmarkResult(
                 cacheResult,
                 options.QueueTelemetryOutput,
@@ -509,7 +510,8 @@ static int BenchmarkProcessingRebalanceArchive(string[] args)
                 options.ProviderQueueTimeout,
                 options.ProviderOverlapMode,
                 options.RetentionStrategy,
-                options.ProviderQueueRetainedPayloadBytes);
+                options.ProviderQueueRetainedPayloadBytes,
+                options.OverlapConsumerDelay);
             PrintProcessingArchiveRebalanceBenchmarkResult(
                 result,
                 options.QueueTelemetryOutput,
@@ -659,6 +661,7 @@ static void PrintProcessingArchiveRebalanceBenchmarkResult(
     Console.WriteLine($"Provider mode: {FormatProcessingArchiveProviderMode(result.ProviderMode)}");
     Console.WriteLine($"Provider queue capacity: {FormatNumber(result.QueueCapacity)}");
     Console.WriteLine($"Provider overlap mode: {FormatProcessingProviderOverlapMode(result.ProviderOverlapMode)}");
+    Console.WriteLine($"Provider overlap consumer delay ms: {FormatDecimal(result.OverlapConsumerDelay.TotalMilliseconds)}");
     Console.WriteLine($"Retention strategy: {FormatProcessingRetentionStrategy(result.RetentionStrategy)}");
     Console.WriteLine($"Provider queue retained byte capacity: {FormatOptionalNumber(result.QueueRetainedPayloadBytes)}");
     Console.WriteLine($"Execution mode: {FormatProcessingMode(result.ExecutionMode)}");
@@ -757,6 +760,7 @@ static void PrintProcessingArchiveRebalanceCacheBenchmarkResult(
     Console.WriteLine($"Provider mode: {FormatProcessingArchiveProviderMode(result.ProviderMode)}");
     Console.WriteLine($"Provider queue capacity: {FormatNumber(result.QueueCapacity)}");
     Console.WriteLine($"Provider overlap mode: {FormatProcessingProviderOverlapMode(result.ProviderOverlapMode)}");
+    Console.WriteLine($"Provider overlap consumer delay ms: {FormatDecimal(result.OverlapConsumerDelay.TotalMilliseconds)}");
     Console.WriteLine($"Retention strategy: {FormatProcessingRetentionStrategy(result.RetentionStrategy)}");
     Console.WriteLine($"Provider queue retained byte capacity: {FormatOptionalNumber(result.QueueRetainedPayloadBytes)}");
     Console.WriteLine($"Execution mode: {FormatProcessingMode(result.ExecutionMode)}");
@@ -2794,6 +2798,7 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
     RadarProcessingQueuedProviderOverlapMode ProviderOverlapMode = RadarProcessingQueuedProviderOverlapMode.None,
     RadarProcessingRetainedPayloadStrategy RetentionStrategy = RadarProcessingRetainedPayloadStrategy.SnapshotCopy,
     long? ProviderQueueRetainedPayloadBytes = null,
+    TimeSpan OverlapConsumerDelay = default,
     ProcessingBenchmarkProviderQueueTelemetryOutput QueueTelemetryOutput =
         ProcessingBenchmarkProviderQueueTelemetryOutput.Summary,
     ProcessingBenchmarkProviderOverlapTelemetryOutput OverlapTelemetryOutput =
@@ -2843,6 +2848,8 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
         var queueTelemetryOutput = ProcessingBenchmarkProviderQueueTelemetryOutput.Summary;
         var overlapTelemetryOutput = ProcessingBenchmarkProviderOverlapTelemetryOutput.Summary;
         var overlapTelemetryWasProvided = false;
+        var overlapConsumerDelay = TimeSpan.Zero;
+        var overlapConsumerDelayWasProvided = false;
         var executionMode = RadarProcessingExecutionMode.PartitionedBarrier;
         int? workerCount = null;
         int? queueCapacity = null;
@@ -2903,6 +2910,13 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
                     overlapTelemetryOutput = ParseOverlapTelemetryOutput(
                         RequireValue(args, ref i, "--overlap-telemetry"));
                     overlapTelemetryWasProvided = true;
+                    break;
+                case "--overlap-consumer-delay-ms":
+                    overlapConsumerDelay = TimeSpan.FromMilliseconds(
+                        double.Parse(
+                            RequireValue(args, ref i, "--overlap-consumer-delay-ms"),
+                            CultureInfo.InvariantCulture));
+                    overlapConsumerDelayWasProvided = true;
                     break;
                 case "--partitions":
                     partitionCount = int.Parse(RequireValue(args, ref i, "--partitions"));
@@ -3080,6 +3094,20 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
             throw new InvalidOperationException("--overlap-telemetry requires --provider-overlap producer-consumer.");
         }
 
+        if (overlapConsumerDelayWasProvided &&
+            overlapConsumerDelay <= TimeSpan.Zero)
+        {
+            throw new InvalidOperationException("--overlap-consumer-delay-ms must be greater than zero.");
+        }
+
+        if (overlapConsumerDelayWasProvided &&
+            (providerMode != RadarProcessingArchiveProviderMode.QueuedOwned ||
+             providerOverlapMode != RadarProcessingQueuedProviderOverlapMode.ProducerConsumer))
+        {
+            throw new InvalidOperationException(
+                "--overlap-consumer-delay-ms requires --provider queued-owned --provider-overlap producer-consumer.");
+        }
+
         RadarProcessingAsyncExecutionOptions? asyncExecution = null;
         if (executionMode == RadarProcessingExecutionMode.AsyncShardTransport)
         {
@@ -3141,6 +3169,7 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
             providerOverlapMode,
             retentionStrategy,
             queueRetainedPayloadBytes,
+            overlapConsumerDelay,
             queueTelemetryOutput,
             overlapTelemetryOutput,
             executionMode,

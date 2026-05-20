@@ -62,7 +62,8 @@ public sealed record RadarProcessingArchiveRebalanceCacheBenchmarkResult(
     long? QueueRetainedPayloadBytes = null,
     RadarProcessingProviderQueueTelemetrySummary? QueueTelemetry = null,
     RadarProcessingRetainedPayloadTelemetrySummary? RetentionTelemetry = null,
-    RadarProcessingArchiveOverlapTelemetrySummary? OverlapTelemetry = null)
+    RadarProcessingArchiveOverlapTelemetrySummary? OverlapTelemetry = null,
+    TimeSpan OverlapConsumerDelay = default)
 {
     public bool HasWorkerTelemetry => WorkerTelemetry is not null;
 

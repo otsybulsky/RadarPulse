@@ -323,6 +323,7 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
         Assert.Equal(RadarProcessingQueuedProviderOverlapMode.None, options.ProviderOverlapMode);
         Assert.Equal(RadarProcessingRetainedPayloadStrategy.SnapshotCopy, options.RetentionStrategy);
         Assert.Null(options.ProviderQueueRetainedPayloadBytes);
+        Assert.Equal(TimeSpan.Zero, options.OverlapConsumerDelay);
         Assert.Equal(ProcessingBenchmarkProviderQueueTelemetryOutput.Summary, options.QueueTelemetryOutput);
         Assert.Equal(ProcessingBenchmarkProviderOverlapTelemetryOutput.Summary, options.OverlapTelemetryOutput);
         Assert.Equal(RadarProcessingValidationProfile.Essential, options.ValidationProfile);
@@ -353,6 +354,8 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             "pooled-copy",
             "--queue-retained-bytes",
             "4096",
+            "--overlap-consumer-delay-ms",
+            "25",
             "--queue-telemetry",
             "recent",
             "--overlap-telemetry",
@@ -367,6 +370,7 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
         Assert.Equal(RadarProcessingQueuedProviderOverlapMode.ProducerConsumer, options.ProviderOverlapMode);
         Assert.Equal(RadarProcessingRetainedPayloadStrategy.PooledCopy, options.RetentionStrategy);
         Assert.Equal(4096, options.ProviderQueueRetainedPayloadBytes);
+        Assert.Equal(TimeSpan.FromMilliseconds(25), options.OverlapConsumerDelay);
         Assert.Equal(ProcessingBenchmarkProviderQueueTelemetryOutput.Recent, options.QueueTelemetryOutput);
         Assert.Equal(ProcessingBenchmarkProviderOverlapTelemetryOutput.Recent, options.OverlapTelemetryOutput);
         Assert.Equal(RadarProcessingExecutionMode.PartitionedBarrier, options.ExecutionMode);
@@ -643,6 +647,28 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
                 "--overlap-telemetry",
                 "summary"
             ]));
+        Assert.Throws<InvalidOperationException>(
+            () => global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
+            [
+                "--cache",
+                "data/nexrad",
+                "--provider",
+                "queued-owned",
+                "--provider-overlap",
+                "producer-consumer",
+                "--overlap-consumer-delay-ms",
+                "0"
+            ]));
+        Assert.Throws<InvalidOperationException>(
+            () => global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
+            [
+                "--cache",
+                "data/nexrad",
+                "--provider",
+                "queued-owned",
+                "--overlap-consumer-delay-ms",
+                "10"
+            ]));
         Assert.Throws<ArgumentException>(
             () => global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
             [
@@ -769,6 +795,8 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
                 "pooled-copy",
                 "--queue-retained-bytes",
                 "4096",
+                "--overlap-consumer-delay-ms",
+                "1",
                 "--overlap-telemetry",
                 "summary",
                 "--partitions",
@@ -782,6 +810,7 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
 
             Assert.Equal(0, result.ExitCode);
             Assert.Contains("Provider overlap mode: producer-consumer", result.StandardOutput);
+            Assert.Contains("Provider overlap consumer delay ms: 1.00", result.StandardOutput);
             Assert.Contains("Retention strategy: pooled-copy", result.StandardOutput);
             Assert.Contains("Provider queue retained byte capacity: 4_096", result.StandardOutput);
             Assert.Contains("Retained payload strategy: pooled-copy", result.StandardOutput);

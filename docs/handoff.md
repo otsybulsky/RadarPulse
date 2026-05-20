@@ -10,13 +10,15 @@ implementation plan is recorded in
 Milestone 010 starts from the closed milestone 009 owned-provider boundary:
 `queued-owned` is correct and measurable, but remains opt-in while its
 production-readiness tradeoffs are being proven. Milestone 010 slices 1 through
-11 plus the repeated performance gate are now complete: the milestone 009 cost
+12 plus the repeated performance gate and controlled queue-ahead proof are now
+complete: the milestone 009 cost
 anchors are confirmed, retained payload strategy contracts are implemented and
 tested, and the resource-owned queued batch lifecycle, lower-allocation retained
 payload implementation, retained-byte-aware provider queue accounting,
 producer/consumer archive overlap runner, ordered rebalance topology pinning,
 overlap telemetry/allocation attribution, optimized queued validation, CLI
-controls, and cache-level producer pipeline are implemented and tested.
+controls, cache-level producer pipeline, and benchmark-only overlap consumer
+delay are implemented and tested.
 
 `blocking-borrowed` remains the default provider mode and same-run oracle.
 `queued-owned` remains an explicit validation and measurement mode. The repeated
@@ -25,9 +27,18 @@ ordered topology publication, complete retained resource cleanup, and useful
 cache-level wall-clock producer/consumer overlap. The best repeated pooled-copy
 overlap contour was 14_947.99 ms versus 16_915.80 ms for borrowed async and
 17_158.62 ms for non-overlapped queued-owned pooled-copy. Queue depth still
-peaks at 1 and `HasQueuedAheadOverlap` remains `no`, so the next work is
-in-flight retained-resource telemetry refinement, decision trace, closeout, and
-handoff for the next milestone.
+peaks at 1 and `HasQueuedAheadOverlap` remains `no` on the natural contour.
+The controlled slice 12 contour with `--overlap-consumer-delay-ms 150`,
+`--max-files 32`, and queue capacity 8 reached queue depth 8 and
+`HasQueuedAheadOverlap = yes`, while preserving validation success and releasing
+29 retained batches with 0 failed releases. The full-cache controlled contour
+over `data\nexrad` with `--max-files 1000000`, the same 150 ms consumer delay,
+and queue capacity 8 examined 244 files, published 220 files, reached queue
+depth 8, reported `HasQueuedAheadOverlap = yes`, preserved validation success,
+and released 220 retained batches with 0 failed releases. The next work is
+decision trace, closeout, and handoff for the next milestone; in-flight
+retained-resource high-water telemetry remains a candidate follow-up before any
+default change.
 
 Milestone 009 remains complete. RadarPulse has the first explicit
 owned-payload provider decoupling substrate: archive replay can remain on the
@@ -1140,6 +1151,7 @@ CLI controls added in this slice:
 --retention-strategy snapshot-copy|pooled-copy|builder-transfer
 --queue-retained-bytes <bytes>
 --overlap-telemetry none|summary|recent
+--overlap-consumer-delay-ms <ms> for controlled queue-ahead proof only
 ```
 
 CLI behavior:

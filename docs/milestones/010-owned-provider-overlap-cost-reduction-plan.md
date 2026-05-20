@@ -664,6 +664,7 @@ Candidate benchmark controls:
 --queue-timeout-ms <ms>
 --queue-telemetry none|summary|recent
 --overlap-telemetry none|summary|recent
+--overlap-consumer-delay-ms <ms> for controlled queue-ahead proof only
 ```
 
 The exact option names should follow existing CLI conventions when implemented.
@@ -781,7 +782,66 @@ processing batches out of sequence. Useful overlap must preserve the same
 semantic surface as the borrowed reference.
 ```
 
-### 12. Performance Gate And Closeout
+### 12. Controlled Queue-Ahead Overlap Proof
+
+The repeated cache-level gate proves useful wall-clock producer/consumer
+overlap, but the natural KTLX contour still does not fill the provider queue
+ahead of the consumer. Add a controlled benchmark-only delay that slows the
+consumer after dequeue so the producer can run ahead under a bounded queue.
+
+Required behavior:
+
+```text
+archive rebalance benchmark exposes an opt-in consumer delay for overlap runs
+delay is disabled by default and has no effect on blocking-borrowed or
+  non-overlapped queued-owned contours
+delay applies only after a retained batch is dequeued and before processing
+CLI rejects the delay unless provider mode is queued-owned and overlap mode is
+  producer-consumer
+controlled cache-level contour with queue capacity greater than 1 reports
+  queue depth high watermark greater than 1
+controlled contour reports HasQueuedAheadOverlap = yes
+deterministic borrowed-reference parity and retained resource cleanup still
+  hold under the delayed consumer
+documentation labels the delayed contour as synthetic/control evidence, not a
+  production throughput benchmark
+```
+
+Expected tests:
+
+```text
+CLI parses --overlap-consumer-delay-ms and prints the configured delay
+CLI rejects delay without queued-owned producer-consumer overlap
+archive benchmark rejects negative delay and non-overlap delay use
+controlled cache overlap test reaches queue depth greater than 1
+controlled cache overlap test preserves checksum parity and release counters
+```
+
+Implemented slice 12 status:
+
+```text
+rebalance archive benchmark accepts an overlap consumer delay and applies it
+  only in the queued-owned producer-consumer consumer path
+CLI exposes --overlap-consumer-delay-ms
+controlled cache-level test proves queued-ahead overlap with queue depth
+  greater than 1 and HasQueuedAheadOverlap = true
+Release control contour with max-files 32, queue capacity 8, and 150 ms
+  consumer delay reached queue depth 8 and HasQueuedAheadOverlap = yes
+full-cache control contour over data\nexrad with max-files 1000000, queue
+  capacity 8, and 150 ms consumer delay reached queue depth 8,
+  HasQueuedAheadOverlap = yes, validation success, and 220 released retained
+  batches with 0 failed releases
+```
+
+Guardrail:
+
+```text
+Do not treat the delayed contour as natural throughput evidence. It proves the
+queue-ahead mechanics, bounded backpressure, telemetry, and cleanup under a
+controlled slow consumer.
+```
+
+### 13. Performance Gate And Closeout
 
 Capture the final milestone assessment.
 
@@ -889,7 +949,8 @@ implementation.
 [x] cache-level producer pipeline is implemented and tested
 [x] cache-level producer pipeline proves useful wall-clock overlap
 [x] repeated performance gate captures the cache-level overlap contour
-[ ] cache-level producer pipeline proves useful queued-ahead overlap
+[x] controlled consumer-delay contour proves queued-ahead overlap
+[ ] natural full-cache contour proves queued-ahead overlap without synthetic delay
 [ ] decision trace is written
 [ ] closeout is written
 [ ] handoff is updated for the next milestone

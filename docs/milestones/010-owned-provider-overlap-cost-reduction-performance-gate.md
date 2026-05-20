@@ -254,6 +254,97 @@ captured and in-flight retention pressure telemetry is strengthened.
 `queued-owned + pooled-copy + producer-consumer` is now a credible optimized
 benchmark contour, not merely a correctness measurement mode.
 
+## Controlled Queue-Ahead Proof
+
+Slice 12 added a benchmark-only consumer delay for producer-consumer overlap
+contours. The delay is disabled by default and is rejected outside
+`queued-owned + producer-consumer`. Its purpose is to prove bounded
+queue-ahead mechanics under a controlled slow consumer; it is not a production
+throughput contour.
+
+Release build:
+
+```powershell
+dotnet build RadarPulse.sln -c Release --no-restore
+```
+
+Result: Release build succeeded with 0 warnings and 0 errors.
+
+Controlled contour command:
+
+```powershell
+dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --cache data\nexrad --date 2026-05-04 --radar KTLX --max-files 32 --mode rebalance --provider queued-owned --provider-overlap producer-consumer --execution async --workers 4 --queue-capacity 8 --retention-strategy pooled-copy --queue-retained-bytes 536870912 --overlap-telemetry summary --overlap-consumer-delay-ms 150 --iterations 1 --warmup-iterations 0 --parallelism 24 --partitions 24 --shards 4
+```
+
+Controlled contour deterministic output:
+
+```text
+examined files: 32
+skipped files: 3
+published files: 29
+payload values: 1_124_012_160
+validation checksum: 565_693_621_370_143_062
+accepted moves: 2
+skipped decisions: 54
+failed migrations: 0
+```
+
+| Contour | Queue capacity | Consumer delay ms | End-to-end ms | Callback ms | Replay/build ms | Retained allocated bytes | Queue depth high watermark | Retained bytes high watermark | Queued-ahead overlap | Provider blocked ms | Consumer idle ms | Released batches | Failed releases |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: |
+| queued-owned pooled-copy overlap control | 8 | 150.00 | 5_347.63 | 438.48 | 4_909.15 | 1_385_432_184 | 8 | 386_058_240 | yes | 936.31 | 321.04 | 29 | 0 |
+
+Controlled proof interpretation:
+
+- The shared cache-level producer pipeline can queue ahead when the consumer is
+  slower than archive replay.
+- Queue depth high watermark reached the configured capacity of 8, and
+  `HasQueuedAheadOverlap` reported `yes`.
+- Bounded backpressure is visible: provider blocked time rose to 936.31 ms.
+- Retained-byte pressure is visible in the pending queue high watermark:
+  386_058_240 bytes.
+- Correctness and cleanup still hold: validation succeeded, rebalance totals
+  remained deterministic, 29 retained batches were released, and failed
+  releases stayed at 0.
+- This closes the controlled mechanics proof. It does not change the natural
+  full-cache interpretation, where queue depth still stayed at 1 without a
+  synthetic consumer delay.
+
+Full-cache controlled contour command:
+
+```powershell
+dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --cache data\nexrad --max-files 1000000 --mode rebalance --provider queued-owned --provider-overlap producer-consumer --execution async --workers 4 --queue-capacity 8 --retention-strategy pooled-copy --queue-retained-bytes 536870912 --overlap-telemetry summary --overlap-consumer-delay-ms 150 --iterations 1 --warmup-iterations 0 --parallelism 24 --partitions 24 --shards 4
+```
+
+Full-cache controlled deterministic output:
+
+```text
+examined files: 244
+skipped files: 24
+published files: 220
+payload values: 8_513_587_200
+validation checksum: 12_759_860_675_563_334_608
+accepted moves: 2
+skipped decisions: 436
+failed migrations: 0
+```
+
+| Contour | Queue capacity | Consumer delay ms | End-to-end ms | Callback ms | Replay/build ms | Retained allocated bytes | Queue depth high watermark | Retained bytes high watermark | Queued-ahead overlap | Provider blocked ms | Consumer idle ms | Released batches | Failed releases |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: |
+| queued-owned pooled-copy overlap full-cache control | 8 | 150.00 | 37_967.62 | 2_748.63 | 35_218.98 | 2_455_845_488 | 8 | 386_058_240 | yes | 16_548.62 | 422.86 | 220 | 0 |
+
+Full-cache control interpretation:
+
+- The full local `data\nexrad` cache reached queue depth 8 with the same
+  controlled consumer delay, so queued-ahead overlap is not limited to the
+  32-file smoke contour.
+- The retained-byte queue high watermark stayed below the configured 512 MiB
+  budget at 386_058_240 bytes.
+- Bounded backpressure is clear at full cache scale: provider blocked time was
+  16_548.62 ms while the consumer drained 220 retained batches.
+- Correctness and cleanup still held across the whole cache: validation
+  succeeded, 220 retained batches were released, and failed releases stayed at
+  0.
+
 ## Next Work From This Gate
 
 ```text
