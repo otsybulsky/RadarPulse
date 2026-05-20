@@ -10,7 +10,7 @@ public sealed class RadarProcessingRetainedPayloadFactory
     private readonly ArrayPool<byte> payloadPool;
 
     public RadarProcessingRetainedPayloadFactory()
-        : this(ArrayPool<RadarStreamEvent>.Shared, ArrayPool<byte>.Shared)
+        : this(ArrayPool<RadarStreamEvent>.Shared, new RadarProcessingRetainedPayloadByteArrayPool())
     {
     }
 

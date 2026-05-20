@@ -2,8 +2,7 @@
 
 ## Current Goal
 
-Milestone 011 architecture and implementation planning are drafted. The
-architecture is recorded in
+Milestone 011 is in progress. The architecture is recorded in
 `docs/milestones/011-queued-owned-default-readiness.md`, and the implementation
 plan is recorded in
 `docs/milestones/011-queued-owned-default-readiness-plan.md`.
@@ -500,6 +499,95 @@ Release build succeeded with 0 warnings and 0 errors before gate capture.
 coverage after the retained-resource registration race fix.
 Release build succeeded with 0 warnings and 0 errors after the fix.
 735 passed, 0 failed, 3 skipped for the full test project.
+```
+
+Milestone 011 slice 11 retained payload allocation optimization is implemented
+in the current working tree. The default `RadarProcessingRetainedPayloadFactory`
+now uses `RadarProcessingRetainedPayloadByteArrayPool` for retained payload byte
+buffers. Small arrays still route through `ArrayPool<byte>.Shared`; large arrays
+are retained in a bounded idle pool, rent capacity is rounded upward for reuse,
+and idle eviction prefers keeping larger reusable arrays within the count/byte
+budget. The defaults retain up to 4 idle large arrays and 128 MiB. Custom
+injected payload pools remain supported for tests and fault injection.
+
+The slice keeps the milestone 011 candidate contour unchanged:
+
+```text
+provider: queued-owned
+provider overlap: producer-consumer
+retention strategy: pooled-copy
+execution: async
+workers: 4
+queue capacity: 8
+retained-byte budget: 536870912
+queue telemetry: summary
+overlap telemetry: summary
+overlap consumer delay: disabled
+```
+
+Post-optimization expanded mixed-cache result:
+
+```text
+examined files: 1_554
+published base-data files: 828
+payload values: 32_306_203_200
+raw value checksum: 958_518_408_830
+validation checksum: 615_051_108_812_661_629
+end-to-end elapsed ms: 71_181.17
+provider queue depth high watermark: 1
+provider queue combined retained payload bytes high watermark: 54_413_280
+retained payload allocated bytes: 247_679_944
+retained payload released batches: 828
+retained payload failed releases: 0
+provider overlap has producer-consumer overlap: yes
+provider overlap has queued-ahead overlap: no
+end-to-end allocated bytes: 4_063_709_976
+processing callback allocated bytes: 3_654_244_544
+replay and batch construction allocated bytes: 409_465_432
+end-to-end allocated bytes / payload value: 0.13
+```
+
+Allocation movement:
+
+```text
+borrowed end-to-end allocated bytes: 3_811_549_280
+pre-optimization candidate allocated bytes: 5_897_703_080
+post-optimization candidate allocated bytes: 4_063_709_976
+pre-optimization candidate ratio to borrowed: 1.547x
+post-optimization candidate ratio to borrowed: 1.066x
+candidate excess allocation reduction: 87.91%
+retained payload allocation reduction: 88.12%
+end-to-end candidate allocation reduction: 31.10%
+```
+
+Interpretation: the retained-payload allocation regression is no longer a major
+default-readiness blocker on the expanded mixed-cache contour. The optimized
+candidate still allocates about 6.6% more than borrowed, so the decision trace
+should record residual overhead instead of claiming allocation parity. Correctness
+parity, release health, retained pressure, and the natural overlap
+interpretation are unchanged.
+
+Latest verification after milestone 011 slice 11:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests|FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests"
+
+dotnet build RadarPulse.sln -c Release --no-restore
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+
+dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --cache data\nexrad --max-files 1000000 --mode rebalance --provider queued-owned --provider-overlap producer-consumer --retention-strategy pooled-copy --execution async --workers 4 --queue-capacity 8 --queue-retained-bytes 536870912 --queue-telemetry summary --overlap-telemetry summary --iterations 1 --warmup-iterations 0 --parallelism 24 --partitions 24 --shards 4
+```
+
+Recorded result:
+
+```text
+22 passed, 0 failed, 0 skipped for retained payload factory and archive queue
+coverage after capacity rounding.
+Release build succeeded with 0 warnings and 0 errors.
+740 passed, 0 failed, 3 skipped for the full test project.
+Expanded mixed-cache candidate validation succeeded with 0 failed releases and
+4_063_709_976 end-to-end allocated bytes.
 ```
 
 Milestone 010 remains complete. The architecture is recorded in
@@ -3293,6 +3381,8 @@ Done:
 - `011` slice 9 CLI and operator telemetry output is implemented and tested.
 - `011` slice 10 natural Release gate matrix is captured, interpreted, and
   documented.
+- `011` slice 11 retained payload allocation optimization is implemented,
+  measured, and documented.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.

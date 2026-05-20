@@ -2,9 +2,9 @@
 
 Date: 2026-05-20
 
-Scope: natural Release gate capture for the milestone 011 queued-owned
-default-readiness candidate. This is not the milestone closeout or decision
-trace, and it does not change the default provider.
+Scope: natural Release gate capture and allocation follow-up for the milestone
+011 queued-owned default-readiness candidate. This is not the milestone
+closeout or decision trace, and it does not change the default provider.
 
 Candidate contour:
 
@@ -327,11 +327,12 @@ natural measured contours, depth 1 is evidence that the consumer keeps up with
 the producer and retained pressure stays bounded. The only claim to avoid is
 attributing the favorable timing directly to queued-ahead buffering.
 
-Allocation movement: failed for default-readiness. The queued-owned candidate
-allocated about 2.03x the borrowed reference on the repeated primary matrix
-and about 1.99x the borrowed reference on the larger local row. The time result
-is favorable, but the allocation regression must be carried into the decision
-trace before any default-rollout milestone is proposed.
+Initial allocation movement: failed for default-readiness. The queued-owned
+candidate allocated about 2.03x the borrowed reference on the repeated primary
+matrix and about 1.99x the borrowed reference on the larger local row. The time
+result was favorable, but the allocation regression required the follow-up
+optimization captured below before any default-rollout milestone could be
+proposed.
 
 Input diversity: incomplete. The local cache only had one radar/date shape
 available, so this gate cannot claim cross-shape readiness.
@@ -402,9 +403,82 @@ mechanics work when backpressure exists. On the natural contours, the absence
 of backlog is favorable pipeline behavior: replay, retention, queueing, and
 processing stay balanced enough that retained queue pressure does not build.
 
+## Allocation Optimization Follow-Up
+
+Slice 11 targets allocation churn in the retained payload copy path without
+changing the candidate contour, provider default, queue capacity, retained-byte
+budget, release semantics, or correctness oracle.
+
+Implementation:
+
+```text
+RadarProcessingRetainedPayloadByteArrayPool now backs the default retained
+  payload factory byte pool
+small arrays still route to ArrayPool<byte>.Shared
+large arrays are retained in a bounded idle pool
+large rent capacity is rounded upward to improve cross-file reuse
+the idle pool defaults to 4 arrays and 128 MiB
+eviction prefers keeping larger reusable arrays within the count/byte budget
+injected payload pools keep existing test and fault-injection behavior
+```
+
+Validation command:
+
+```powershell
+dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --cache data\nexrad --max-files 1000000 --mode rebalance --provider queued-owned --provider-overlap producer-consumer --retention-strategy pooled-copy --execution async --workers 4 --queue-capacity 8 --queue-retained-bytes 536870912 --queue-telemetry summary --overlap-telemetry summary --iterations 1 --warmup-iterations 0 --parallelism 24 --partitions 24 --shards 4
+```
+
+Post-optimization mixed-cache result:
+
+```text
+examined files: 1_554
+published base-data files: 828
+payload values: 32_306_203_200
+raw value checksum: 958_518_408_830
+validation checksum: 615_051_108_812_661_629
+end-to-end elapsed ms: 71_181.17
+provider queue depth high watermark: 1
+provider queue combined retained payload bytes high watermark: 54_413_280
+retained payload attempts: 828
+retained payload released batches: 828
+retained payload failed releases: 0
+provider overlap has producer-consumer overlap: yes
+provider overlap has queued-ahead overlap: no
+retained payload allocated bytes: 247_679_944
+end-to-end allocated bytes: 4_063_709_976
+processing callback allocated bytes: 3_654_244_544
+replay and batch construction allocated bytes: 409_465_432
+end-to-end allocated bytes / payload value: 0.13
+```
+
+Allocation movement against the expanded-cache borrowed reference:
+
+```text
+borrowed end-to-end allocated bytes: 3_811_549_280
+pre-optimization candidate allocated bytes: 5_897_703_080
+post-optimization candidate allocated bytes: 4_063_709_976
+pre-optimization candidate ratio to borrowed: 1.547x
+post-optimization candidate ratio to borrowed: 1.066x
+candidate excess allocation before optimization: 2_086_153_800
+candidate excess allocation after optimization: 252_160_696
+candidate excess allocation reduction: 87.91%
+retained payload allocated bytes before optimization: 2_084_784_408
+retained payload allocated bytes after optimization: 247_679_944
+retained payload allocation reduction: 88.12%
+end-to-end candidate allocation reduction: 31.10%
+```
+
+Interpretation: the allocation blocker is reduced from a major readiness
+failure to a small residual overhead trace item on the expanded mixed-cache
+contour. Correctness parity, release health, retained pressure, and natural
+overlap interpretation are unchanged. The post-optimization candidate still
+allocates about 6.6% more than borrowed on this contour, so the decision trace
+should record the residual overhead rather than claiming zero allocation cost.
+
 ## Gate Decision
 
-The slice 10 natural Release gate is captured.
+The slice 10 natural Release gate is captured, and slice 11 records the
+allocation follow-up against the expanded mixed-cache contour.
 
 Evidence that supports the candidate:
 
@@ -421,13 +495,16 @@ natural and controlled evidence remain separated
 expanded local cache now covers multiple radar/date shapes
 ```
 
-Remaining default-readiness blocker after the expanded-cache follow-up:
+Remaining default-readiness caution after the allocation follow-up:
 
 ```text
-allocation movement regresses versus borrowed reference
+post-optimization candidate allocation remains 1.066x borrowed on the measured
+  expanded-cache contour
+default rollout still requires an explicit decision trace and rollout
+  milestone; this gate does not change the provider default
 ```
 
 `queued-owned + pooled-copy + producer-consumer` should remain opt-in. The next
 slice should harden controlled-proof separation, then the decision trace should
-record whether the allocation regression requires a follow-up optimization or
-broader evidence milestone before any default rollout is considered.
+record the residual allocation overhead and decide whether the optimized
+contour is ready to feed a separate default-rollout milestone.

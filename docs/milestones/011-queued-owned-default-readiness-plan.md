@@ -1231,8 +1231,8 @@ all natural rows keep overlap consumer delay disabled and are labeled
 correctness parity, release health, and retained pressure budget checks passed
   on the measured rows
 candidate performance was faster than borrowed on the measured local rows, but
-  allocation movement regressed versus borrowed and remains a default-readiness
-  blocker for the decision trace
+  allocation movement regressed versus borrowed and exposed the follow-up
+  optimization target for slice 11
 expanded-cache follow-up downloaded 2026-05-04/KINX and 2026-05-05/KTLX,
   closing the local input-diversity gap for follow-up measurement
 expanded mixed-cache natural candidate published 828 base-data files across
@@ -1271,7 +1271,100 @@ Release build succeeded with 0 warnings and 0 errors after the fix.
 735 passed, 0 failed, 3 skipped for the full test project.
 ```
 
-### 11. Controlled Proof Separation Hardening
+### 11. Retained Payload Allocation Optimization
+
+Reduce the retained payload allocation regression exposed by the natural
+Release gate while preserving the already-measured candidate contour.
+
+Candidate focus:
+
+```text
+RadarProcessingRetainedPayloadFactory
+RadarProcessingRetainedPayloadByteArrayPool
+RadarProcessingRetainedPayloadFactoryTests
+011 performance gate document
+handoff
+```
+
+Required behavior:
+
+```text
+default retained payload factory uses a bounded large byte-array pool
+small payload buffers continue through ArrayPool<byte>.Shared
+large payload buffers can be reused across archive files
+large rent capacity is rounded enough to avoid near-miss cold allocations
+idle retained buffers are bounded by array count and byte budget
+eviction prefers larger reusable buffers within the idle budget
+injected payload pools keep existing factory test and failure-injection behavior
+candidate contour, provider default, queue capacity, retained-byte budget,
+  release semantics, and correctness oracle do not change
+```
+
+Expected tests or checks:
+
+```text
+large returned arrays are reused
+small arrays stay delegated to fallback pool
+large rent capacity is rounded for reuse
+retained idle arrays are bounded by count and bytes
+larger reusable arrays are preferred within the idle budget
+focused retained-payload and archive queue release tests pass
+Release build succeeds
+expanded mixed-cache Release benchmark records before/after allocation movement
+```
+
+Guardrail:
+
+```text
+Do not hide live retained-resource pressure inside allocation metrics. The idle
+large-array reuse pool is separate from pending/active/combined retained
+resource telemetry and must stay bounded.
+```
+
+Implemented in slice 11:
+
+```text
+RadarProcessingRetainedPayloadByteArrayPool now backs the default retained
+  payload factory byte pool
+large byte arrays are retained in a bounded idle pool with defaults of 4 arrays
+  and 128 MiB
+large rent requests are rounded upward to improve reuse across nearby payload
+  sizes
+retained idle eviction removes smaller arrays first so larger reusable buffers
+  survive within the budget
+small arrays still route through the fallback ArrayPool<byte>.Shared path
+custom injected payload pools remain supported for tests and fault injection
+expanded mixed-cache candidate allocation improved from 5_897_703_080 bytes to
+  4_063_709_976 bytes end-to-end
+retained payload allocated bytes improved from 2_084_784_408 to 247_679_944
+candidate excess allocation versus borrowed dropped by 87.91%
+post-optimization candidate allocation is 1.066x the expanded-cache borrowed
+  reference, so the remaining overhead is a decision-trace item rather than the
+  earlier major default-readiness blocker
+correctness parity, release health, retained pressure, and natural overlap
+  interpretation were unchanged on the measured contour
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests|FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests"
+
+dotnet build RadarPulse.sln -c Release --no-restore
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+22 passed, 0 failed, 0 skipped for retained payload factory and archive queue
+coverage after capacity rounding.
+Release build succeeded with 0 warnings and 0 errors.
+740 passed, 0 failed, 3 skipped for the full test project.
+```
+
+### 12. Controlled Proof Separation Hardening
 
 Keep controlled queue-ahead proof available while preventing it from being
 mistaken for natural readiness evidence.
@@ -1313,7 +1406,7 @@ Controlled queue-ahead proof may demonstrate mechanics. It must not justify a
 provider default switch.
 ```
 
-### 12. Decision Trace, Closeout, And Handoff
+### 13. Decision Trace, Closeout, And Handoff
 
 Capture the final milestone assessment.
 
