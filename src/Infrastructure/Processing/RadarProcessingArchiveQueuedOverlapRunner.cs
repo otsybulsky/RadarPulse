@@ -64,10 +64,15 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
         producer = CreateProducerResultWithFinalProviderTelemetry(producer, publisher.CreateResult());
         var status = DetermineStatus(producer, consumer);
         var message = DetermineMessage(status, producer, consumer);
+        var providerTelemetry = producer.ProviderResult.Telemetry;
         var telemetry = consumer.SessionResult.Telemetry;
         if (ReferenceEquals(telemetry, RadarProcessingProviderQueueTelemetrySummary.Empty))
         {
-            telemetry = producer.ProviderResult.Telemetry;
+            telemetry = providerTelemetry;
+        }
+        else
+        {
+            telemetry = telemetry.WithRetainedResourcePressure(providerTelemetry.RetainedResourcePressure);
         }
 
         var elapsed = Stopwatch.GetElapsedTime(started);
@@ -272,7 +277,8 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
             queue,
             asyncRebalanceSession,
             ownsQueue: false,
-            ownsAsyncRebalanceSession: ownsAsyncRebalanceSession);
+            ownsAsyncRebalanceSession: ownsAsyncRebalanceSession,
+            consumerResourceLeaseFactory: publisher.AcquireConsumerResourceLease);
         var result = await queuedSession.DrainAsync(cancellationToken).ConfigureAwait(false);
         publisher.ReleasePendingResources();
         return result;

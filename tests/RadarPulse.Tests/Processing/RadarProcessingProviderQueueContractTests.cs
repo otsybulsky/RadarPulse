@@ -364,6 +364,22 @@ public sealed class RadarProcessingProviderQueueContractTests
         Assert.Same(pressure, explicitPressure.RetainedResourcePressure);
         Assert.Equal(1, explicitPressure.CurrentPendingRetainedBatchCount);
         Assert.Equal(64, explicitPressure.CurrentPendingRetainedPayloadBytes);
+
+        var activePressure = new RadarProcessingRetainedResourcePressureSummary(
+            currentActiveRetainedBatchCount: 1,
+            currentActiveRetainedPayloadBytes: 32,
+            activeRetainedBatchCountHighWatermark: 1,
+            activeRetainedPayloadBytesHighWatermark: 32,
+            combinedRetainedBatchCountHighWatermark: 1,
+            combinedRetainedPayloadBytesHighWatermark: 32);
+        var updatedPressure = explicitPressure.WithRetainedResourcePressure(activePressure);
+
+        Assert.Equal(explicitPressure.EnqueuedBatchCount, updatedPressure.EnqueuedBatchCount);
+        Assert.Same(activePressure, updatedPressure.RetainedResourcePressure);
+        Assert.Equal(1, updatedPressure.CurrentActiveRetainedBatchCount);
+        Assert.Equal(32, updatedPressure.CurrentActiveRetainedPayloadBytes);
+        Assert.Throws<ArgumentNullException>(() =>
+            explicitPressure.WithRetainedResourcePressure(null!));
     }
 
     [Fact]

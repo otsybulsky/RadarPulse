@@ -12,6 +12,7 @@ public sealed class RadarProcessingQueuedRebalanceSession : IDisposable, IAsyncD
     private readonly RadarProcessingAsyncRebalanceSession? asyncRebalanceSession;
     private readonly bool ownsQueue;
     private readonly bool ownsAsyncRebalanceSession;
+    private readonly Func<RadarProcessingQueuedBatchSequence, IDisposable?>? consumerResourceLeaseFactory;
     private readonly List<RadarProcessingQueuedBatchEnqueueResult> enqueueResults = [];
     private readonly List<RadarProcessingQueuedBatchProcessingResult> processingResults = [];
     private TimeSpan totalDrainTime;
@@ -22,13 +23,15 @@ public sealed class RadarProcessingQueuedRebalanceSession : IDisposable, IAsyncD
 
     public RadarProcessingQueuedRebalanceSession(
         RadarProcessingRebalanceSession rebalanceSession,
-        RadarProcessingProviderQueueOptions? queueOptions = null)
+        RadarProcessingProviderQueueOptions? queueOptions = null,
+        Func<RadarProcessingQueuedBatchSequence, IDisposable?>? consumerResourceLeaseFactory = null)
         : this(
             rebalanceSession,
             new RadarProcessingOwnedBatchQueue(queueOptions),
             CreateAsyncRebalanceSessionIfNeeded(rebalanceSession),
             ownsQueue: true,
-            ownsAsyncRebalanceSession: RequiresAsyncRebalanceSession(rebalanceSession))
+            ownsAsyncRebalanceSession: RequiresAsyncRebalanceSession(rebalanceSession),
+            consumerResourceLeaseFactory: consumerResourceLeaseFactory)
     {
     }
 
@@ -37,7 +40,8 @@ public sealed class RadarProcessingQueuedRebalanceSession : IDisposable, IAsyncD
         RadarProcessingOwnedBatchQueue queue,
         RadarProcessingAsyncRebalanceSession? asyncRebalanceSession = null,
         bool ownsQueue = false,
-        bool ownsAsyncRebalanceSession = false)
+        bool ownsAsyncRebalanceSession = false,
+        Func<RadarProcessingQueuedBatchSequence, IDisposable?>? consumerResourceLeaseFactory = null)
     {
         ArgumentNullException.ThrowIfNull(rebalanceSession);
         ArgumentNullException.ThrowIfNull(queue);
@@ -64,6 +68,7 @@ public sealed class RadarProcessingQueuedRebalanceSession : IDisposable, IAsyncD
         this.asyncRebalanceSession = asyncRebalanceSession;
         this.ownsQueue = ownsQueue;
         this.ownsAsyncRebalanceSession = ownsAsyncRebalanceSession;
+        this.consumerResourceLeaseFactory = consumerResourceLeaseFactory;
     }
 
     public RadarProcessingRebalanceSession RebalanceSession => rebalanceSession;
@@ -193,17 +198,18 @@ public sealed class RadarProcessingQueuedRebalanceSession : IDisposable, IAsyncD
         RadarProcessingQueuedBatch queuedBatch,
         CancellationToken cancellationToken)
     {
-        if (IsFaulted)
-        {
-            RecordProcessingResult(
-                RadarProcessingQueuedBatchProcessingResult.SkippedAfterFault(
-                    queuedBatch.Sequence,
-                    faultMessage));
-            return;
-        }
-
         try
         {
+            using var consumerResourceLease = consumerResourceLeaseFactory?.Invoke(queuedBatch.Sequence);
+            if (IsFaulted)
+            {
+                RecordProcessingResult(
+                    RadarProcessingQueuedBatchProcessingResult.SkippedAfterFault(
+                        queuedBatch.Sequence,
+                        faultMessage));
+                return;
+            }
+
             var rebalanceResult = asyncRebalanceSession is null
                 ? rebalanceSession.Process(queuedBatch.Batch, cancellationToken)
                 : await asyncRebalanceSession.ProcessAsync(queuedBatch.Batch, cancellationToken).ConfigureAwait(false);

@@ -734,15 +734,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                     try
                     {
                         var queuedBatch = dequeue.Batch!;
-                        try
-                        {
-                            processor.Publish(queuedBatch.Batch, cancellationToken);
-                        }
-                        finally
-                        {
-                            queueingPublisher.ReleaseConsumerResource(queuedBatch.Sequence);
-                        }
-
+                        using var consumerResourceLease = queueingPublisher.AcquireConsumerResourceLease(queuedBatch.Sequence);
+                        processor.Publish(queuedBatch.Batch, cancellationToken);
                         completed++;
                     }
                     catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -759,14 +752,15 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                     break;
 
                 case RadarProcessingOwnedBatchDequeueStatus.Closed:
-                    var queueTelemetry = WithQueueCompletionTelemetry(
-                        queue.CreateTelemetrySummary(),
-                        completed,
-                        failed,
-                        canceled,
-                        skippedAfterFault: 0,
-                        System.Diagnostics.Stopwatch.GetElapsedTime(drainStarted));
                     var providerResult = queueingPublisher.CreateResult();
+                    var queueTelemetry = WithQueueCompletionTelemetry(
+                            queue.CreateTelemetrySummary(),
+                            completed,
+                            failed,
+                            canceled,
+                            skippedAfterFault: 0,
+                            System.Diagnostics.Stopwatch.GetElapsedTime(drainStarted))
+                        .WithRetainedResourcePressure(providerResult.Telemetry.RetainedResourcePressure);
                     return new QueuedArchivePublishResult(
                         publishResult,
                         queueTelemetry,
@@ -854,6 +848,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                     var queuedBatch = dequeue.Batch!;
                     try
                     {
+                        using var consumerResourceLease = publisher.AcquireConsumerResourceLease(queuedBatch.Sequence);
                         if (overlapConsumerDelay > TimeSpan.Zero)
                         {
                             await Task.Delay(overlapConsumerDelay, cancellationToken).ConfigureAwait(false);
@@ -871,10 +866,6 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                     {
                         failed++;
                         throw;
-                    }
-                    finally
-                    {
-                        publisher.ReleaseConsumerResource(queuedBatch.Sequence);
                     }
 
                     break;

@@ -134,6 +134,35 @@ public sealed class RadarProcessingQueuedProcessingSessionTests
     }
 
     [Fact]
+    public async Task ConsumerResourceLeaseFactoryWrapsDequeuedBatchesIncludingSkippedAfterFault()
+    {
+        var universe = CreateUniverse(sourceCount: 1);
+        var acquired = new List<long>();
+        var released = new List<long>();
+        using var session = new RadarProcessingQueuedProcessingSession(
+            CreateCore(universe, RadarProcessingExecutionMode.Sequential),
+            new RadarProcessingProviderQueueOptions(capacity: 2),
+            sequence =>
+            {
+                acquired.Add(sequence.Value);
+                return new CallbackDisposable(() => released.Add(sequence.Value));
+            });
+
+        await session.EnqueueAsync(CreateInvalidSourceBatch(universe.Version));
+        await session.EnqueueAsync(
+            CreateBatch(universe.Version, sourceId: 0, messageTimestampUtcTicks: 100, firstPayloadValue: 1));
+
+        var result = await session.DrainAsync();
+
+        Assert.True(result.IsFaulted);
+        Assert.Equal(
+            [RadarProcessingQueuedBatchProcessingStatus.FailedValidation, RadarProcessingQueuedBatchProcessingStatus.SkippedAfterFault],
+            result.ProcessingResults.Select(static item => item.Status).ToArray());
+        Assert.Equal([0L, 1L], acquired);
+        Assert.Equal([0L, 1L], released);
+    }
+
+    [Fact]
     public async Task DrainCancellationBeforeDequeueReturnsCanceledSessionResult()
     {
         var universe = CreateUniverse(sourceCount: 1);
@@ -291,5 +320,20 @@ public sealed class RadarProcessingQueuedProcessingSessionTests
             offset: 0.0f,
             statusModel: RadarStreamStatusModel.ArchiveTwoMoment,
             payload: payload);
+    }
+
+    private sealed class CallbackDisposable : IDisposable
+    {
+        private readonly Action dispose;
+
+        public CallbackDisposable(Action dispose)
+        {
+            this.dispose = dispose;
+        }
+
+        public void Dispose()
+        {
+            dispose();
+        }
     }
 }

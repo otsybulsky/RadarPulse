@@ -267,13 +267,16 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunnerTests
         var rebalanceSession = CreateRebalanceSession(universe);
         var runner = new RadarProcessingArchiveQueuedOverlapRunner();
         var options = new RadarProcessingArchiveQueuedOverlapOptions(
-            new RadarProcessingProviderQueueOptions(capacity: 2, recentDetailCapacity: 16));
+            new RadarProcessingProviderQueueOptions(capacity: 2, recentDetailCapacity: 16),
+            new RadarProcessingRetainedPayloadOptions(RadarProcessingRetainedPayloadStrategy.PooledCopy));
 
         var result = await runner.RunRebalanceAsync(
             (publisher, cancellationToken) =>
             {
-                publisher.Publish(
-                    CreateEightBitBatch(universe.Version, [0, 0, 0, 0, 1, 1]),
+                PublishEightBitLeased(
+                    publisher,
+                    universe.Version,
+                    [0, 0, 0, 0, 1, 1],
                     cancellationToken);
                 publisher.Publish(
                     CreateEmptyBatch(universe.Version),
@@ -292,6 +295,15 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunnerTests
             result.Consumer.SessionResult.ProcessingResults
                 .Select(static processing => processing.TopologyVersion)
                 .ToArray());
+        Assert.Equal(0, result.QueueTelemetry.CurrentCombinedRetainedBatchCount);
+        Assert.Equal(0, result.QueueTelemetry.CurrentCombinedRetainedPayloadBytes);
+        Assert.InRange(result.QueueTelemetry.PendingRetainedBatchCountHighWatermark, 1, 2);
+        Assert.Equal(6, result.QueueTelemetry.PendingRetainedPayloadBytesHighWatermark);
+        Assert.Equal(1, result.QueueTelemetry.ActiveRetainedBatchCountHighWatermark);
+        Assert.Equal(6, result.QueueTelemetry.ActiveRetainedPayloadBytesHighWatermark);
+        Assert.True(result.QueueTelemetry.CombinedRetainedBatchCountHighWatermark >= result.QueueTelemetry.ActiveRetainedBatchCountHighWatermark);
+        Assert.True(result.QueueTelemetry.CombinedRetainedBatchCountHighWatermark >= result.QueueTelemetry.PendingRetainedBatchCountHighWatermark);
+        Assert.Equal(6, result.QueueTelemetry.CombinedRetainedPayloadBytesHighWatermark);
     }
 
     private static async ValueTask<RadarProcessingQueuedSessionResult> DrainAllAsync(
@@ -492,6 +504,45 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunnerTests
             sourceUniverseVersion,
             events,
             payload);
+    }
+
+    private static void PublishEightBitLeased(
+        IArchiveRadarEventBatchPublisher publisher,
+        SourceUniverseVersion sourceUniverseVersion,
+        int[] sourceIds,
+        CancellationToken cancellationToken)
+    {
+        var builder = new RadarEventBatchBuilder(
+            initialEventCapacity: sourceIds.Length,
+            initialPayloadCapacity: sourceIds.Length);
+
+        for (var i = 0; i < sourceIds.Length; i++)
+        {
+            builder.AddEvent(
+                new RadarStreamIdentity(
+                    sourceIds[i],
+                    radarOrdinal: 0,
+                    momentId: 0,
+                    elevationSlot: 0,
+                    azimuthBucket: (ushort)sourceIds[i],
+                    rangeBand: 0,
+                    dictionaryVersion: DictionaryVersion.Initial,
+                    sourceUniverseVersion: sourceUniverseVersion),
+                volumeTimestampUtcTicks: 90,
+                messageTimestampUtcTicks: 100 + i,
+                sourceRecord: 1,
+                sourceMessage: 1,
+                radialSequence: i,
+                gateStart: 0,
+                gateCount: 1,
+                wordSize: RadarStreamWordSize.EightBit,
+                scale: 1.0f,
+                offset: 0.0f,
+                statusModel: RadarStreamStatusModel.ArchiveTwoMoment,
+                payload: [(byte)(i + 1)]);
+        }
+
+        builder.ConsumeLeased(batch => publisher.Publish(batch, cancellationToken));
     }
 
     private static RadarStreamEvent CreateEvent(

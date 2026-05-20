@@ -12,6 +12,7 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
     private readonly RadarProcessingAsyncCoreSession? asyncCoreSession;
     private readonly bool ownsQueue;
     private readonly bool ownsAsyncCoreSession;
+    private readonly Func<RadarProcessingQueuedBatchSequence, IDisposable?>? consumerResourceLeaseFactory;
     private readonly List<RadarProcessingQueuedBatchEnqueueResult> enqueueResults = [];
     private readonly List<RadarProcessingQueuedBatchProcessingResult> processingResults = [];
     private TimeSpan totalDrainTime;
@@ -22,13 +23,15 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
 
     public RadarProcessingQueuedProcessingSession(
         RadarProcessingCore core,
-        RadarProcessingProviderQueueOptions? queueOptions = null)
+        RadarProcessingProviderQueueOptions? queueOptions = null,
+        Func<RadarProcessingQueuedBatchSequence, IDisposable?>? consumerResourceLeaseFactory = null)
         : this(
             core,
             new RadarProcessingOwnedBatchQueue(queueOptions),
             CreateAsyncCoreSessionIfNeeded(core),
             ownsQueue: true,
-            ownsAsyncCoreSession: core.Options.ExecutionMode == RadarProcessingExecutionMode.AsyncShardTransport)
+            ownsAsyncCoreSession: core.Options.ExecutionMode == RadarProcessingExecutionMode.AsyncShardTransport,
+            consumerResourceLeaseFactory: consumerResourceLeaseFactory)
     {
     }
 
@@ -37,7 +40,8 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
         RadarProcessingOwnedBatchQueue queue,
         RadarProcessingAsyncCoreSession? asyncCoreSession = null,
         bool ownsQueue = false,
-        bool ownsAsyncCoreSession = false)
+        bool ownsAsyncCoreSession = false,
+        Func<RadarProcessingQueuedBatchSequence, IDisposable?>? consumerResourceLeaseFactory = null)
     {
         ArgumentNullException.ThrowIfNull(core);
         ArgumentNullException.ThrowIfNull(queue);
@@ -64,6 +68,7 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
         this.asyncCoreSession = asyncCoreSession;
         this.ownsQueue = ownsQueue;
         this.ownsAsyncCoreSession = ownsAsyncCoreSession;
+        this.consumerResourceLeaseFactory = consumerResourceLeaseFactory;
     }
 
     public RadarProcessingCore Core => core;
@@ -189,17 +194,18 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
         RadarProcessingQueuedBatch queuedBatch,
         CancellationToken cancellationToken)
     {
-        if (IsFaulted)
-        {
-            RecordProcessingResult(
-                RadarProcessingQueuedBatchProcessingResult.SkippedAfterFault(
-                    queuedBatch.Sequence,
-                    faultMessage));
-            return;
-        }
-
         try
         {
+            using var consumerResourceLease = consumerResourceLeaseFactory?.Invoke(queuedBatch.Sequence);
+            if (IsFaulted)
+            {
+                RecordProcessingResult(
+                    RadarProcessingQueuedBatchProcessingResult.SkippedAfterFault(
+                        queuedBatch.Sequence,
+                        faultMessage));
+                return;
+            }
+
             var processingResult = asyncCoreSession is null
                 ? core.Process(queuedBatch.Batch, cancellationToken)
                 : await asyncCoreSession.ProcessAsync(queuedBatch.Batch, cancellationToken).ConfigureAwait(false);

@@ -14,7 +14,8 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisher : IArchiveRadar
     private readonly RadarProcessingRetainedPayloadFactory retainedPayloadFactory;
     private readonly RadarProcessingRetainedPayloadOptions retainedPayloadOptions;
     private readonly List<RadarProcessingQueuedBatchEnqueueResult> enqueueResults = [];
-    private readonly Dictionary<long, RadarProcessingRetainedBatchResource> retainedResources = [];
+    private readonly Dictionary<long, RetainedResourceEntry> retainedResources = [];
+    private readonly RadarProcessingRetainedResourcePressureRecorder retainedResourcePressureRecorder = new();
     private long retentionAttemptCount;
     private long retainedBatchCount;
     private long retentionUnsupportedStrategyCount;
@@ -118,48 +119,96 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisher : IArchiveRadar
             throw CreateRejectedPublishException(enqueue, cancellationToken);
         }
 
-        TrackRetainedResource(enqueue.Sequence!.Value, retention.Resource!);
+        TrackRetainedResource(
+            enqueue.Sequence!.Value,
+            retention.Resource!,
+            retention.Batch!.PayloadLength);
     }
 
     public void CompleteAdding() => queue.Close();
 
     public RadarProcessingArchiveQueuedProviderResult CreateResult() =>
-        new(GetEnqueueResultsSnapshot(), queue.CreateTelemetrySummary(), CreateRetentionTelemetrySummary());
+        new(GetEnqueueResultsSnapshot(), CreateQueueTelemetrySummary(), CreateRetentionTelemetrySummary());
 
-    public RadarProcessingRetainedPayloadReleaseResult ReleaseConsumerResource(
+    public ArchiveOwnedRadarEventBatchConsumerResourceLease AcquireConsumerResourceLease(
         RadarProcessingQueuedBatchSequence sequence)
     {
-        RadarProcessingRetainedBatchResource resource;
+        RetainedResourceEntry entry;
         lock (sync)
         {
-            if (!retainedResources.Remove(sequence.Value, out resource!))
+            if (!retainedResources.Remove(sequence.Value, out entry!))
             {
                 throw new InvalidOperationException($"No retained resource was found for queued provider sequence {sequence.Value}.");
             }
         }
 
-        resource.TransferToConsumer();
-        var release = resource.Release();
-        RecordReleaseResult(release);
-        return release;
+        entry.Resource.TransferToConsumer();
+        retainedResourcePressureRecorder.MovePendingToActive(entry.PressurePayloadBytes);
+        return new ArchiveOwnedRadarEventBatchConsumerResourceLease(
+            this,
+            entry.Resource,
+            entry.PressurePayloadBytes);
+    }
+
+    public RadarProcessingRetainedPayloadReleaseResult ReleaseConsumerResource(
+        RadarProcessingQueuedBatchSequence sequence)
+    {
+        using var lease = AcquireConsumerResourceLease(sequence);
+        return lease.Release();
     }
 
     public RadarProcessingRetainedResourceCleanupResult ReleasePendingResources()
     {
-        RadarProcessingRetainedBatchResource[] pending;
+        RetainedResourceEntry[] pending;
         lock (sync)
         {
             pending = retainedResources.Values.ToArray();
             retainedResources.Clear();
         }
 
-        var cleanup = RadarProcessingRetainedResourceCleanupResult.ReleaseAll(pending);
-        foreach (var release in cleanup.ReleaseResults)
+        var releaseResults = new List<RadarProcessingRetainedPayloadReleaseResult>(pending.Length);
+        foreach (var entry in pending)
         {
+            var release = entry.Resource.Release();
+            releaseResults.Add(release);
             RecordReleaseResult(release);
+            retainedResourcePressureRecorder.RemovePending(entry.PressurePayloadBytes);
         }
 
-        return cleanup;
+        return new RadarProcessingRetainedResourceCleanupResult(releaseResults);
+    }
+
+    public sealed class ArchiveOwnedRadarEventBatchConsumerResourceLease : IDisposable
+    {
+        private readonly object sync = new();
+        private readonly ArchiveOwnedRadarEventBatchQueueingPublisher publisher;
+        private readonly RadarProcessingRetainedBatchResource resource;
+        private readonly long pressurePayloadBytes;
+        private RadarProcessingRetainedPayloadReleaseResult? releaseResult;
+
+        internal ArchiveOwnedRadarEventBatchConsumerResourceLease(
+            ArchiveOwnedRadarEventBatchQueueingPublisher publisher,
+            RadarProcessingRetainedBatchResource resource,
+            long pressurePayloadBytes)
+        {
+            this.publisher = publisher;
+            this.resource = resource;
+            this.pressurePayloadBytes = pressurePayloadBytes;
+        }
+
+        public RadarProcessingRetainedPayloadReleaseResult Release()
+        {
+            lock (sync)
+            {
+                releaseResult ??= publisher.ReleaseConsumerResource(resource, pressurePayloadBytes);
+                return releaseResult;
+            }
+        }
+
+        public void Dispose()
+        {
+            Release();
+        }
     }
 
     public void Dispose()
@@ -277,15 +326,42 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisher : IArchiveRadar
         }
     }
 
+    private RadarProcessingProviderQueueTelemetrySummary CreateQueueTelemetrySummary() =>
+        queue.CreateTelemetrySummary().WithRetainedResourcePressure(
+            retainedResourcePressureRecorder.CreateSummary());
+
+    private sealed record RetainedResourceEntry(
+        RadarProcessingRetainedBatchResource Resource,
+        long PressurePayloadBytes);
+
+    private RadarProcessingRetainedPayloadReleaseResult ReleaseConsumerResource(
+        RadarProcessingRetainedBatchResource resource,
+        long pressurePayloadBytes)
+    {
+        try
+        {
+            var release = resource.Release();
+            RecordReleaseResult(release);
+            return release;
+        }
+        finally
+        {
+            retainedResourcePressureRecorder.RemoveActive(pressurePayloadBytes);
+        }
+    }
+
     private void TrackRetainedResource(
         RadarProcessingQueuedBatchSequence sequence,
-        RadarProcessingRetainedBatchResource resource)
+        RadarProcessingRetainedBatchResource resource,
+        long pressurePayloadBytes)
     {
         lock (sync)
         {
             resource.TransferToQueue();
-            retainedResources.Add(sequence.Value, resource);
+            retainedResources.Add(sequence.Value, new RetainedResourceEntry(resource, pressurePayloadBytes));
         }
+
+        retainedResourcePressureRecorder.AddPending(pressurePayloadBytes);
     }
 
     private RadarProcessingRetainedPayloadTelemetrySummary CreateRetentionTelemetrySummary()

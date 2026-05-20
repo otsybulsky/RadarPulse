@@ -631,6 +631,45 @@ accounting should describe the current ordered consumer, not introduce a wider
 scheduler.
 ```
 
+Implemented in slice 4:
+
+```text
+ArchiveOwnedRadarEventBatchQueueingPublisher now owns a retained-resource
+pressure recorder for accepted retained resources
+accepted enqueue adds pending pressure after the queue accepts the batch
+pressure bytes come from the retained queued batch payload length, so
+  not-required release handles still report active batch pressure
+consumer acquisition removes the sequence from pending resources, transfers
+the retained resource to consumer ownership, and moves pressure from pending to
+active
+consumer leases release exactly once and remove active pressure after release
+pending cleanup releases still-queued resources and removes pending pressure
+queued processing/rebalance sessions accept an optional consumer-resource
+lease factory and wrap every dequeued batch, including skipped-after-fault
+batches
+RunRebalanceAsync passes publisher leases into the queued rebalance session
+overlap runner final queue telemetry carries provider pressure from the final
+publisher result
+benchmark queued-owned drains acquire retained-resource leases before
+processing and release them after processing/cancellation/failure
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests|FullyQualifiedName~RadarProcessingQueuedProcessingSessionTests|FullyQualifiedName~RadarProcessingQueuedRebalanceSessionTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingProviderQueueContractTests"
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+35 passed, 0 failed, 0 skipped for focused active retained-resource lifecycle
+coverage.
+713 passed, 0 failed, 3 skipped for the full test project.
+```
+
 ### 5. Overlap Telemetry And Allocation Attribution Propagation
 
 Carry retained-resource pressure into overlap telemetry and benchmark result
@@ -1124,8 +1163,8 @@ controlled proof rows separated if captured
 [x] retained-resource pressure contracts are implemented and tested
 [x] provider queue telemetry exposes pending, active, and combined retained
     pressure without breaking milestone 010 fields
-[ ] active consumer retained-resource accounting is wired into queued drains
-[ ] pending cleanup and active release paths update pressure and release
+[x] active consumer retained-resource accounting is wired into queued drains
+[x] pending cleanup and active release paths update pressure and release
     telemetry correctly
 [ ] overlap telemetry carries active and combined retained pressure
 [ ] archive benchmark file/cache result shapes carry readiness pressure fields

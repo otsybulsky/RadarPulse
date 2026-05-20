@@ -161,6 +161,45 @@ Recorded result:
 710 passed, 0 failed, 3 skipped for the full test project.
 ```
 
+Milestone 011 slice 4 active consumer retained-resource lifecycle integration
+is implemented in the current working tree. `ArchiveOwnedRadarEventBatchQueueingPublisher`
+now records retained-resource pressure for accepted resources, moves pressure
+from pending to active when a consumer acquires a queued sequence, and releases
+active resources through an idempotent consumer lease. `ReleasePendingResources()`
+now removes pending pressure while recording release telemetry for resources
+that never became active. Pressure bytes are tracked from the retained queued
+batch payload length, so not-required release handles still report active batch
+pressure.
+
+Queued processing and rebalance sessions now accept an optional consumer
+resource lease factory and wrap every dequeued batch, including
+skipped-after-fault work. `RadarProcessingArchiveQueuedOverlapRunner.RunRebalanceAsync`
+passes publisher leases into queued rebalance drains, and the runner overlays
+the final provider pressure summary onto the final queue telemetry. The archive
+rebalance benchmark queued-owned drains acquire the lease before processing and
+release it after processing, cancellation, or failure.
+
+New focused coverage validates the pending-to-active-to-released transition for
+pooled-copy retained resources, session lease hooks for failed and skipped
+batches, `RunRebalanceAsync` active pressure propagation, and the queue
+telemetry pressure overlay helper.
+
+Latest verification after milestone 011 slice 4:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests|FullyQualifiedName~RadarProcessingQueuedProcessingSessionTests|FullyQualifiedName~RadarProcessingQueuedRebalanceSessionTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingProviderQueueContractTests"
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+35 passed, 0 failed, 0 skipped for focused active retained-resource lifecycle
+coverage.
+713 passed, 0 failed, 3 skipped for the full test project.
+```
+
 Milestone 010 remains complete. The architecture is recorded in
 `docs/milestones/010-owned-provider-overlap-cost-reduction.md`, and the
 implementation plan is recorded in

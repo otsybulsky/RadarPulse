@@ -212,6 +212,41 @@ public sealed record RadarProcessingProviderQueueTelemetrySummary
         EnqueueTimedOutCount > 0 ||
         TotalEnqueueWaitTime > TimeSpan.Zero;
 
+    public RadarProcessingProviderQueueTelemetrySummary WithRetainedResourcePressure(
+        RadarProcessingRetainedResourcePressureSummary retainedResourcePressure)
+    {
+        ArgumentNullException.ThrowIfNull(retainedResourcePressure);
+
+        return new RadarProcessingProviderQueueTelemetrySummary(
+            OwnedSnapshotCount,
+            OwnedSnapshotPayloadBytes,
+            OwnedSnapshotAllocatedBytes,
+            TotalOwnedSnapshotTime,
+            EnqueueAttemptCount,
+            EnqueuedBatchCount,
+            EnqueueFullCount,
+            EnqueueTimedOutCount,
+            EnqueueCanceledCount,
+            EnqueueClosedCount,
+            EnqueueFaultedCount,
+            TotalEnqueueWaitTime,
+            DequeuedBatchCount,
+            CompletedBatchCount,
+            FailedBatchCount,
+            CanceledBatchCount,
+            SkippedAfterFaultCount,
+            TotalDrainTime,
+            QueueDepthHighWatermark,
+            QueuedPayloadBytesHighWatermark,
+            OwnedSnapshotPayloadValueCount,
+            TotalProviderToProcessingLatency,
+            RecentDetails,
+            DroppedRecentDetailCount,
+            OwnedSnapshotEventCount,
+            TotalDequeueWaitTime,
+            retainedResourcePressure);
+    }
+
     public static RadarProcessingProviderQueueTelemetrySummary Empty { get; } = new();
 
     private static void EnsureNonNegative(
