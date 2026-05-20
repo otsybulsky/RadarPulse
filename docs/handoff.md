@@ -1193,6 +1193,33 @@ consumer under bounded queue and retained-byte pressure while preserving
 provider sequence order, topology ordering, borrowed-reference parity, and
 retained resource cleanup.
 
+Milestone 010 slice 11 cache-level producer pipeline is implemented in the
+current working tree. `MeasureCache` now uses one shared
+`RadarProcessingArchiveQueuedOverlapRunner` invocation for
+`queued-owned + producer-consumer` cache runs instead of invoking overlap once
+per file. The producer selects the cache file set with the existing date,
+radar, `max-files`, skipped-file, and Archive Two base-data rules, then
+publishes every selected base-data file into one retained provider queue. The
+consumer drains that shared queue through the existing ordered processing
+callback, and the result aggregates cache totals, queue telemetry, retention
+telemetry, and overlap telemetry for the whole run.
+
+Latest focused verification after milestone 010 slice 11:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests"
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests"
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+19 passed, 0 failed, 0 skipped for archive publisher and archive benchmark focused coverage.
+41 passed, 0 failed, 0 skipped for archive benchmark, CLI, and overlap runner focused coverage.
+703 passed, 0 failed, 3 skipped for the full test project.
+```
+
 Milestone 008 slice 1 is implemented in the current working tree. RadarPulse
 now has the first async execution option contracts:
 `RadarProcessingExecutionMode.AsyncShardTransport`,

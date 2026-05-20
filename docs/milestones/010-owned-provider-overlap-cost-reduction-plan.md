@@ -758,6 +758,21 @@ consumer failure releases pending retained resources and faults the run
 CLI cache overlap uses the cache-level contour when provider-overlap is enabled
 ```
 
+Implemented slice 11 status:
+
+```text
+MeasureCache now routes queued-owned producer-consumer overlap through one
+  shared overlap runner for the selected cache file set
+producer selection preserves max-files, radar, date, skipped-file, and base-data
+  filtering semantics before publishing retained batches
+consumer drains the shared queue into the existing ordered processing callback
+cache-level overlap aggregates file totals, queue telemetry, retention telemetry,
+  and overlap telemetry across the shared run
+focused archive benchmark coverage compares cache-level overlap against the
+  borrowed reference and verifies shared queue/retention release counters across
+  multiple files
+```
+
 Guardrail:
 
 ```text
@@ -871,6 +886,7 @@ implementation.
 [x] same-run full-cache overlap comparisons are captured where local data exists
 [x] performance assessment interprets allocation, overlap, queue, worker,
     validation, rebalance, and resource lifecycle costs
+[x] cache-level producer pipeline is implemented and tested
 [ ] cache-level producer pipeline proves useful queued-ahead overlap
 [ ] repeated performance gate captures the cache-level overlap contour
 [ ] decision trace is written
