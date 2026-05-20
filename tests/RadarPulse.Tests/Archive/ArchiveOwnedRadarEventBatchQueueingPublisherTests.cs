@@ -157,6 +157,35 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisherTests
     }
 
     [Fact]
+    public async Task WaitingConsumerCanAcquireRetainedResourceForAcceptedPublish()
+    {
+        using var queue = new RadarProcessingOwnedBatchQueue(
+            new RadarProcessingProviderQueueOptions(capacity: 1));
+        using var publisher = new ArchiveOwnedRadarEventBatchQueueingPublisher(
+            queue,
+            retainedPayloadOptions: new RadarProcessingRetainedPayloadOptions(
+                RadarProcessingRetainedPayloadStrategy.PooledCopy));
+
+        var consumer = Task.Run(async () =>
+        {
+            var dequeue = await queue.DequeueAsync();
+            Assert.Equal(RadarProcessingOwnedBatchDequeueStatus.Item, dequeue.Status);
+
+            using var lease = publisher.AcquireConsumerResourceLease(dequeue.Batch!.Sequence);
+            return publisher.CreateResult().Telemetry;
+        });
+
+        await Task.Delay(50);
+        PublishLeased(publisher, [1, 2, 3]);
+        var telemetry = await consumer.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(0, telemetry.CurrentPendingRetainedBatchCount);
+        Assert.Equal(1, telemetry.CurrentActiveRetainedBatchCount);
+        Assert.Equal(3, telemetry.CurrentActiveRetainedPayloadBytes);
+        Assert.Equal(1, telemetry.ActiveRetainedBatchCountHighWatermark);
+    }
+
+    [Fact]
     public async Task ConsumerResourcePressureUsesBatchPayloadBytesWhenReleaseIsNotRequired()
     {
         using var queue = new RadarProcessingOwnedBatchQueue(

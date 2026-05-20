@@ -407,6 +407,101 @@ Recorded result:
 733 passed, 0 failed, 3 skipped for the full test project.
 ```
 
+Milestone 011 slice 10 natural Release gate matrix is implemented in the
+current working tree. The gate document is
+`docs/milestones/011-queued-owned-default-readiness-performance-gate.md`.
+
+The first natural candidate Release run exposed a retained-resource
+registration race: a waiting consumer could dequeue an accepted queued batch
+before `ArchiveOwnedRadarEventBatchQueueingPublisher` registered the retained
+resource for that sequence. `RadarProcessingOwnedBatchQueue.EnqueueAsync` now
+supports an accepted-batch callback that executes while the queue lock is still
+held, before a waiting `DequeueAsync` can return to consumer code. The archive
+queueing publisher uses that callback to register retained resources for
+accepted publishes. Focused regression coverage verifies the callback/dequeue
+ordering and that a waiting archive consumer can acquire the retained resource.
+
+The natural Release matrix captures three repeated KTLX 2026-05-04
+`--max-files 220` borrowed/candidate rows and one larger local `--max-files
+1000000` row. Local cache availability was limited to one radar/date shape, so
+cross-shape input diversity remains incomplete. All natural candidate rows kept
+`--overlap-consumer-delay-ms` disabled and were labeled
+`natural-default-candidate`.
+
+Gate interpretation:
+
+```text
+correctness parity: passed on all captured rows
+release health: passed, failed releases stayed at 0
+retained pressure: passed, combined retained payload high-water was 48_257_280
+  bytes, about 8.99% of the 536_870_912 byte budget
+performance delta: favorable on measured local contours; repeated primary
+  candidate average was 15_635.33 ms versus 17_281.31 ms borrowed, -9.52%
+run variance: captured on the primary contour; borrowed spread 1.95% and
+  candidate spread 5.01% of average
+controlled queued-ahead overlap mechanics: already proven by controlled
+  consumer-delay rows
+natural queue backlog: not accumulated; queue depth high watermark stayed 1
+  and HasQueuedAheadOverlap stayed no because the measured pipeline keeps up
+allocation movement: failed for default-readiness; candidate allocation was
+  about 2.03x borrowed on the repeated primary contour
+```
+
+Expanded-cache follow-up after slice 10:
+
+```text
+downloaded 2026-05-04/KINX: 231 files, 1_404_409_198 bytes
+downloaded 2026-05-05/KTLX: 424 files, 2_232_413_173 bytes
+expanded cache shapes: 2026-05-04/KINX, 2026-05-04/KTLX, 2026-05-05/KTLX
+mixed-cache contour: --cache data\nexrad --max-files 1000000
+examined files: 1_554
+published base-data files: 828
+payload values: 32_306_203_200
+raw value checksum: 958_518_408_830
+validation checksum: 615_051_108_812_661_629
+borrowed async elapsed ms: 77_530.68
+queued-owned candidate elapsed ms: 72_440.28
+candidate release failures: 0
+candidate combined retained payload high-water: 54_413_280 bytes
+candidate queue depth high watermark: 1
+candidate HasQueuedAheadOverlap: no
+```
+
+The local input-diversity gap is now closed for follow-up measurement: the
+cache has multiple radars and dates. The expanded mixed-cache candidate, an
+archive-parallelism-96 natural stress row, and a workers-1 natural stress row
+all kept queue depth at 1 with no controlled delay. This is favorable pipeline
+behavior, not a failed overlap proof: the controlled consumer-delay rows already
+proved queue-ahead mechanics, while the natural rows show replay, retention,
+queueing, and processing staying balanced enough that retained queue backlog
+does not accumulate.
+
+Latest verification after milestone 011 slice 10:
+
+```powershell
+dotnet build RadarPulse.sln -c Release --no-restore
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests"
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingOwnedBatchQueueTests|FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+Release build succeeded with 0 warnings and 0 errors before gate capture.
+20 passed, 0 failed, 0 skipped for CLI rebalance benchmark coverage.
+18 passed, 0 failed, 0 skipped for overlap runner and readiness gate coverage.
+53 passed, 0 failed, 0 skipped for focused queue, publisher, overlap, and CLI
+coverage after the retained-resource registration race fix.
+Release build succeeded with 0 warnings and 0 errors after the fix.
+735 passed, 0 failed, 3 skipped for the full test project.
+```
+
 Milestone 010 remains complete. The architecture is recorded in
 `docs/milestones/010-owned-provider-overlap-cost-reduction.md`, and the
 implementation plan is recorded in
@@ -3196,6 +3291,8 @@ Done:
 - `011` slice 8 failure, cancellation, and cleanup gate coverage is
   implemented and tested.
 - `011` slice 9 CLI and operator telemetry output is implemented and tested.
+- `011` slice 10 natural Release gate matrix is captured, interpreted, and
+  documented.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.

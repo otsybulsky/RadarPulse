@@ -59,6 +59,37 @@ public sealed class RadarProcessingOwnedBatchQueueTests
     }
 
     [Fact]
+    public async Task AcceptedCallbackRunsBeforeWaitingDequeueReturns()
+    {
+        using var queue = new RadarProcessingOwnedBatchQueue(
+            new RadarProcessingProviderQueueOptions(capacity: 1));
+        using var callbackEntered = new ManualResetEventSlim();
+        using var releaseCallback = new ManualResetEventSlim();
+
+        var pendingDequeue = queue.DequeueAsync().AsTask();
+        var pendingEnqueue = Task.Run(async () =>
+            await queue.EnqueueAsync(
+                CreateOwnedBatch(1),
+                onAccepted: queuedBatch =>
+                {
+                    Assert.Equal(0, queuedBatch.Sequence.Value);
+                    callbackEntered.Set();
+                    Assert.True(releaseCallback.Wait(TimeSpan.FromSeconds(5)));
+                }));
+
+        Assert.True(callbackEntered.Wait(TimeSpan.FromSeconds(5)));
+        Assert.False(pendingDequeue.IsCompleted);
+
+        releaseCallback.Set();
+        var enqueue = await pendingEnqueue.WaitAsync(TimeSpan.FromSeconds(5));
+        var dequeue = await pendingDequeue.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.True(enqueue.IsAccepted);
+        Assert.True(dequeue.HasItem);
+        Assert.Equal(enqueue.Sequence, dequeue.Batch!.Sequence);
+    }
+
+    [Fact]
     public async Task ReturnFullModeRejectsFullQueueAndReusesSpaceAfterDequeue()
     {
         using var queue = new RadarProcessingOwnedBatchQueue(

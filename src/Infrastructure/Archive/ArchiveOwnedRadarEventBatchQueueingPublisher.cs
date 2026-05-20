@@ -103,7 +103,11 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisher : IArchiveRadar
                 retention.Batch!,
                 retention.Elapsed,
                 retention.AllocatedBytes,
-                cancellationToken)
+                cancellationToken,
+                queuedBatch => TrackRetainedResource(
+                    queuedBatch.Sequence,
+                    retention.Resource!,
+                    queuedBatch.PayloadBytes))
             .AsTask()
             .GetAwaiter()
             .GetResult();
@@ -118,11 +122,6 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisher : IArchiveRadar
 
             throw CreateRejectedPublishException(enqueue, cancellationToken);
         }
-
-        TrackRetainedResource(
-            enqueue.Sequence!.Value,
-            retention.Resource!,
-            retention.Batch!.PayloadLength);
     }
 
     public void CompleteAdding() => queue.Close();

@@ -114,7 +114,8 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
         RadarEventBatch batch,
         TimeSpan ownedSnapshotTime = default,
         long ownedSnapshotAllocatedBytes = 0,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Action<RadarProcessingQueuedBatch>? onAccepted = null)
     {
         ArgumentNullException.ThrowIfNull(batch);
         if (batch.Lifetime != RadarEventBatchLifetime.Owned)
@@ -156,8 +157,14 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
         }
 
         return Options.FullMode == RadarProcessingProviderQueueFullMode.ReturnFull
-            ? TryEnqueueWithoutWaiting(batch, ownedSnapshotTime, ownedSnapshotAllocatedBytes, started)
-            : await EnqueueWithWaitAsync(batch, ownedSnapshotTime, ownedSnapshotAllocatedBytes, started, cancellationToken)
+            ? TryEnqueueWithoutWaiting(batch, ownedSnapshotTime, ownedSnapshotAllocatedBytes, started, onAccepted)
+            : await EnqueueWithWaitAsync(
+                    batch,
+                    ownedSnapshotTime,
+                    ownedSnapshotAllocatedBytes,
+                    started,
+                    cancellationToken,
+                    onAccepted)
                 .ConfigureAwait(false);
     }
 
@@ -315,7 +322,8 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
         RadarEventBatch batch,
         TimeSpan ownedSnapshotTime,
         long allocatedBytes,
-        long started)
+        long started,
+        Action<RadarProcessingQueuedBatch>? onAccepted)
     {
         lock (sync)
         {
@@ -353,7 +361,9 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
                     Stopwatch.GetElapsedTime(started));
             }
 
-            return RecordAcceptedUnsafe(queuedBatch, Stopwatch.GetElapsedTime(started));
+            var accepted = RecordAcceptedUnsafe(queuedBatch, Stopwatch.GetElapsedTime(started));
+            onAccepted?.Invoke(queuedBatch);
+            return accepted;
         }
     }
 
@@ -362,7 +372,8 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
         TimeSpan ownedSnapshotTime,
         long allocatedBytes,
         long started,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Action<RadarProcessingQueuedBatch>? onAccepted)
     {
         using var timeout = Options.EnqueueTimeout.HasValue
             ? new CancellationTokenSource(Options.EnqueueTimeout.Value)
@@ -429,7 +440,9 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
                 }
                 else if (channel.Writer.TryWrite(queuedBatch))
                 {
-                    return RecordAcceptedUnsafe(queuedBatch, Stopwatch.GetElapsedTime(started));
+                    var accepted = RecordAcceptedUnsafe(queuedBatch, Stopwatch.GetElapsedTime(started));
+                    onAccepted?.Invoke(queuedBatch);
+                    return accepted;
                 }
             }
 

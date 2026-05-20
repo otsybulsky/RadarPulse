@@ -1207,6 +1207,70 @@ natural readiness evidence from controlled mechanics proof and from run-to-run
 variance.
 ```
 
+Implemented in slice 10:
+
+```text
+docs/milestones/011-queued-owned-default-readiness-performance-gate.md now
+records the natural Release gate matrix
+the first natural candidate run exposed a retained-resource registration race:
+  a waiting consumer could dequeue an accepted queue item before the publisher
+  registered the retained resource for that sequence
+RadarProcessingOwnedBatchQueue.EnqueueAsync now accepts an accepted-batch
+  callback that runs while the queue lock is still held and before a waiting
+  DequeueAsync can return to consumer code
+ArchiveOwnedRadarEventBatchQueueingPublisher registers retained resources
+  through the accepted-batch callback instead of after EnqueueAsync returns
+regression coverage verifies accepted-callback/dequeue ordering and waiting
+  archive consumer retained-resource acquisition
+Release matrix captures three repeated natural KTLX 2026-05-04 max-files 220
+  borrowed/candidate rows plus one larger local max-files 1000000 row
+local cache contained no different radar/date shape, so input diversity remains
+  incomplete for decision trace purposes
+all natural rows keep overlap consumer delay disabled and are labeled
+  natural-default-candidate for the queued-owned candidate
+correctness parity, release health, and retained pressure budget checks passed
+  on the measured rows
+candidate performance was faster than borrowed on the measured local rows, but
+  allocation movement regressed versus borrowed and remains a default-readiness
+  blocker for the decision trace
+expanded-cache follow-up downloaded 2026-05-04/KINX and 2026-05-05/KTLX,
+  closing the local input-diversity gap for follow-up measurement
+expanded mixed-cache natural candidate published 828 base-data files across
+  multiple radar/date shapes with correctness parity, 0 release failures, and
+  54_413_280 byte combined retained payload high-water
+expanded mixed-cache, archive-parallelism-96, and workers-1 natural stress rows
+  still kept queue depth high-water at 1 and HasQueuedAheadOverlap at no; this
+  is interpreted as balanced natural pipeline behavior because the controlled
+  delay proof already demonstrated that queued-ahead mechanics work when the
+  consumer is intentionally slowed
+```
+
+Focused verification:
+
+```powershell
+dotnet build RadarPulse.sln -c Release --no-restore
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests"
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingOwnedBatchQueueTests|FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+Release build succeeded with 0 warnings and 0 errors before gate capture.
+20 passed, 0 failed, 0 skipped for CLI rebalance benchmark coverage.
+18 passed, 0 failed, 0 skipped for overlap runner and readiness gate coverage.
+53 passed, 0 failed, 0 skipped for focused queue, publisher, overlap, and CLI
+coverage after the retained-resource registration race fix.
+Release build succeeded with 0 warnings and 0 errors after the fix.
+735 passed, 0 failed, 3 skipped for the full test project.
+```
+
 ### 11. Controlled Proof Separation Hardening
 
 Keep controlled queue-ahead proof available while preventing it from being
@@ -1351,8 +1415,8 @@ controlled proof rows separated if captured
 [x] readiness validation/gate contracts are implemented or documented
 [x] failure and cancellation cleanup paths are tested
 [x] controlled consumer-delay proof is labeled and separated from natural gates
-[ ] repeated natural Release gate matrix is captured
-[ ] performance gate interprets correctness, allocation, memory pressure,
+[x] repeated natural Release gate matrix is captured
+[x] performance gate interprets correctness, allocation, memory pressure,
     cleanup, throughput, and variance
 [ ] decision trace is written
 [ ] closeout is written
