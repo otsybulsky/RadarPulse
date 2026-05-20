@@ -719,6 +719,40 @@ Do not fold active retained bytes into retained allocation. Allocation and live
 retained pressure are different metrics.
 ```
 
+Implemented in slice 5:
+
+```text
+RadarProcessingArchiveOverlapTelemetrySummary now exposes the retained-resource
+pressure summary plus pending, active, and combined current/high-water fields
+it keeps RetainedPayloadBytesHighWatermark as the milestone 010 queue-only
+compatibility alias
+RadarProcessingArchiveQueuedOverlapResult exposes direct retained pressure
+high-water accessors for overlap result consumers
+RadarProcessingArchiveRebalanceBenchmarkResult and
+RadarProcessingArchiveRebalanceCacheBenchmarkResult expose the same direct
+pending/active/combined retained pressure fields carried by QueueTelemetry
+overlap telemetry preserves the exact retained pressure summary from the final
+queue/provider telemetry
+file and cache benchmark tests assert pressure propagation through result
+shapes without changing allocation attribution
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarProcessingProviderQueueContractTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+53 passed, 0 failed, 0 skipped for focused overlap/benchmark retained pressure
+propagation coverage.
+713 passed, 0 failed, 3 skipped for the full test project.
+```
+
 ### 6. Candidate Configuration Surface
 
 Make the milestone 011 default-candidate contour reproducible without changing
@@ -1166,8 +1200,8 @@ controlled proof rows separated if captured
 [x] active consumer retained-resource accounting is wired into queued drains
 [x] pending cleanup and active release paths update pressure and release
     telemetry correctly
-[ ] overlap telemetry carries active and combined retained pressure
-[ ] archive benchmark file/cache result shapes carry readiness pressure fields
+[x] overlap telemetry carries active and combined retained pressure
+[x] archive benchmark file/cache result shapes carry readiness pressure fields
 [ ] CLI output prints active and combined retained pressure fields
 [ ] candidate configuration output is explicit and reproducible
 [ ] readiness validation/gate contracts are implemented or documented

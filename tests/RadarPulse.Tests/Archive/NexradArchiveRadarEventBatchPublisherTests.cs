@@ -651,6 +651,9 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
             Assert.Equal(RadarProcessingArchiveProviderMode.BlockingBorrowed, blocking.ProviderMode);
             Assert.False(blocking.HasQueueTelemetry);
             Assert.Equal(0, blocking.QueueCapacity);
+            Assert.Equal(RadarProcessingRetainedResourcePressureSummary.Empty, blocking.RetainedResourcePressure);
+            Assert.Equal(0, blocking.ActiveRetainedPayloadBytesHighWatermark);
+            Assert.False(blocking.AllocationSummary.IncludesCliFormatting);
             Assert.Equal(RadarProcessingArchiveProviderMode.QueuedOwned, queued.ProviderMode);
             Assert.True(queued.HasQueueTelemetry);
             Assert.True(queued.HasRetentionTelemetry);
@@ -680,6 +683,11 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
             Assert.True(queued.OwnedSnapshotElapsed >= TimeSpan.Zero);
             Assert.True(queued.QueueDrainElapsed >= TimeSpan.Zero);
             Assert.True(queued.AllocationSummary.OwnedSnapshotAllocatedBytesPerPayloadValue(queued.TotalPayloadValues) >= 0);
+            Assert.Equal(queued.QueueTelemetry.RetainedResourcePressure, queued.RetainedResourcePressure);
+            Assert.Equal(0, queued.CurrentCombinedRetainedBatchCount);
+            Assert.Equal(0, queued.CurrentCombinedRetainedPayloadBytes);
+            Assert.Equal(queued.PayloadBytesPerIteration, queued.ActiveRetainedPayloadBytesHighWatermark);
+            Assert.Equal(queued.PayloadBytesPerIteration, queued.CombinedRetainedPayloadBytesHighWatermark);
         }
         finally
         {
@@ -741,6 +749,12 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
             Assert.Equal(result.QueueTelemetry.EnqueuedBatchCount, result.OverlapTelemetry.QueueTelemetry.EnqueuedBatchCount);
             Assert.Equal(result.QueueTelemetry.DequeuedBatchCount, result.OverlapTelemetry.QueueTelemetry.DequeuedBatchCount);
             Assert.Equal(result.QueueTelemetry.CompletedBatchCount, result.OverlapTelemetry.QueueTelemetry.CompletedBatchCount);
+            Assert.Equal(result.QueueTelemetry.RetainedResourcePressure, result.OverlapTelemetry.RetainedResourcePressure);
+            Assert.Equal(result.QueueTelemetry.ActiveRetainedPayloadBytesHighWatermark, result.OverlapTelemetry.ActiveRetainedPayloadBytesHighWatermark);
+            Assert.Equal(result.QueueTelemetry.CombinedRetainedPayloadBytesHighWatermark, result.OverlapTelemetry.CombinedRetainedPayloadBytesHighWatermark);
+            Assert.Equal(result.QueueTelemetry.RetainedResourcePressure, result.RetainedResourcePressure);
+            Assert.Equal(result.PayloadBytesPerIteration, result.ActiveRetainedPayloadBytesHighWatermark);
+            Assert.Equal(result.PayloadBytesPerIteration, result.CombinedRetainedPayloadBytesHighWatermark);
             Assert.True(result.OverlapTelemetry.Elapsed >= TimeSpan.Zero);
             Assert.True(result.ValidationSucceeded);
         }
@@ -1069,6 +1083,11 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
             Assert.Equal(2, result.RetentionTelemetry.ReleaseNotRequiredCount);
             Assert.Equal(result.PayloadValuesPerIteration, result.RetentionTelemetry.RetainedPayloadValueCount);
             Assert.True(result.QueueDrainElapsed >= TimeSpan.Zero);
+            Assert.Equal(result.QueueTelemetry.RetainedResourcePressure, result.RetainedResourcePressure);
+            Assert.Equal(0, result.CurrentCombinedRetainedBatchCount);
+            Assert.Equal(0, result.CurrentCombinedRetainedPayloadBytes);
+            Assert.True(result.ActiveRetainedPayloadBytesHighWatermark > 0);
+            Assert.True(result.CombinedRetainedPayloadBytesHighWatermark >= result.ActiveRetainedPayloadBytesHighWatermark);
         }
         finally
         {
@@ -1161,6 +1180,13 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
             Assert.Equal(overlap.QueueTelemetry.EnqueuedBatchCount, overlap.OverlapTelemetry.RetainedBatchCount);
             Assert.Equal(overlap.RetentionTelemetry, overlap.OverlapTelemetry.RetentionTelemetry);
             Assert.Equal(overlap.QueueTelemetry.EnqueuedBatchCount, overlap.OverlapTelemetry.QueueTelemetry.EnqueuedBatchCount);
+            Assert.Equal(overlap.QueueTelemetry.RetainedResourcePressure, overlap.OverlapTelemetry.RetainedResourcePressure);
+            Assert.Equal(overlap.QueueTelemetry.RetainedResourcePressure, overlap.RetainedResourcePressure);
+            Assert.Equal(overlap.QueueTelemetry.PendingRetainedPayloadBytesHighWatermark, overlap.OverlapTelemetry.PendingRetainedPayloadBytesHighWatermark);
+            Assert.Equal(overlap.QueueTelemetry.ActiveRetainedPayloadBytesHighWatermark, overlap.OverlapTelemetry.ActiveRetainedPayloadBytesHighWatermark);
+            Assert.Equal(overlap.QueueTelemetry.CombinedRetainedPayloadBytesHighWatermark, overlap.OverlapTelemetry.CombinedRetainedPayloadBytesHighWatermark);
+            Assert.True(overlap.ActiveRetainedPayloadBytesHighWatermark > 0);
+            Assert.True(overlap.CombinedRetainedPayloadBytesHighWatermark >= overlap.ActiveRetainedPayloadBytesHighWatermark);
         }
         finally
         {
@@ -1249,6 +1275,9 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
             Assert.True(overlap.QueueTelemetry.QueueDepthHighWatermark > 1);
             Assert.True(overlap.OverlapTelemetry.HasQueuedAheadOverlap);
             Assert.Equal(overlap.QueueTelemetry.QueueDepthHighWatermark, overlap.OverlapTelemetry.QueueDepthHighWatermark);
+            Assert.Equal(overlap.QueueTelemetry.RetainedResourcePressure, overlap.OverlapTelemetry.RetainedResourcePressure);
+            Assert.True(overlap.OverlapTelemetry.ActiveRetainedPayloadBytesHighWatermark > 0);
+            Assert.True(overlap.OverlapTelemetry.CombinedRetainedPayloadBytesHighWatermark >= overlap.OverlapTelemetry.ActiveRetainedPayloadBytesHighWatermark);
             Assert.Equal(3, overlap.RetentionTelemetry.ReleaseAttemptCount);
             Assert.Equal(3, overlap.RetentionTelemetry.ReleasedBatchCount);
             Assert.Equal(0, overlap.RetentionTelemetry.ReleaseFailedCount);

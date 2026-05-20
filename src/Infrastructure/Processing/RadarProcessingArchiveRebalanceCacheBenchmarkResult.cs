@@ -172,6 +172,47 @@ public sealed record RadarProcessingArchiveRebalanceCacheBenchmarkResult(
 
     public TimeSpan QueueDrainElapsed => QueueTelemetry.TotalDrainTime;
 
+    public long RetainedPayloadBytesHighWatermark => QueueTelemetry.RetainedPayloadBytesHighWatermark;
+
+    public RadarProcessingRetainedResourcePressureSummary RetainedResourcePressure =>
+        QueueTelemetry.RetainedResourcePressure;
+
+    public long CurrentPendingRetainedBatchCount =>
+        RetainedResourcePressure.CurrentPendingRetainedBatchCount;
+
+    public long CurrentPendingRetainedPayloadBytes =>
+        RetainedResourcePressure.CurrentPendingRetainedPayloadBytes;
+
+    public long PendingRetainedBatchCountHighWatermark =>
+        RetainedResourcePressure.PendingRetainedBatchCountHighWatermark;
+
+    public long PendingRetainedPayloadBytesHighWatermark =>
+        RetainedResourcePressure.PendingRetainedPayloadBytesHighWatermark;
+
+    public long CurrentActiveRetainedBatchCount =>
+        RetainedResourcePressure.CurrentActiveRetainedBatchCount;
+
+    public long CurrentActiveRetainedPayloadBytes =>
+        RetainedResourcePressure.CurrentActiveRetainedPayloadBytes;
+
+    public long ActiveRetainedBatchCountHighWatermark =>
+        RetainedResourcePressure.ActiveRetainedBatchCountHighWatermark;
+
+    public long ActiveRetainedPayloadBytesHighWatermark =>
+        RetainedResourcePressure.ActiveRetainedPayloadBytesHighWatermark;
+
+    public long CurrentCombinedRetainedBatchCount =>
+        RetainedResourcePressure.CurrentCombinedRetainedBatchCount;
+
+    public long CurrentCombinedRetainedPayloadBytes =>
+        RetainedResourcePressure.CurrentCombinedRetainedPayloadBytes;
+
+    public long CombinedRetainedBatchCountHighWatermark =>
+        RetainedResourcePressure.CombinedRetainedBatchCountHighWatermark;
+
+    public long CombinedRetainedPayloadBytesHighWatermark =>
+        RetainedResourcePressure.CombinedRetainedPayloadBytesHighWatermark;
+
     private static double MegabytesPerSecond(
         long bytes,
         TimeSpan elapsed) =>

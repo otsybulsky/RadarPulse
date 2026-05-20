@@ -14,7 +14,8 @@ public sealed record RadarProcessingArchiveOverlapTelemetrySummary
         TimeSpan overlapElapsed = default,
         long measuredAllocatedBytes = 0,
         RadarProcessingProviderQueueTelemetrySummary? queueTelemetry = null,
-        RadarProcessingRetainedPayloadTelemetrySummary? retentionTelemetry = null)
+        RadarProcessingRetainedPayloadTelemetrySummary? retentionTelemetry = null,
+        RadarProcessingRetainedResourcePressureSummary? retainedResourcePressure = null)
     {
         RadarProcessingRetainedPayloadOptions.EnsureKnownStrategy(retentionStrategy);
         EnsureNonNegative(elapsed, nameof(elapsed));
@@ -39,7 +40,10 @@ public sealed record RadarProcessingArchiveOverlapTelemetrySummary
         ConsumerActiveTime = consumerActiveTime;
         OverlapElapsed = overlapElapsed;
         MeasuredAllocatedBytes = measuredAllocatedBytes;
-        QueueTelemetry = queueTelemetry ?? RadarProcessingProviderQueueTelemetrySummary.Empty;
+        var effectiveQueueTelemetry = queueTelemetry ?? RadarProcessingProviderQueueTelemetrySummary.Empty;
+        QueueTelemetry = retainedResourcePressure is null
+            ? effectiveQueueTelemetry
+            : effectiveQueueTelemetry.WithRetainedResourcePressure(retainedResourcePressure);
         RetentionTelemetry = retentionTelemetry ?? RadarProcessingRetainedPayloadTelemetrySummary.Empty;
     }
 
@@ -66,6 +70,45 @@ public sealed record RadarProcessingArchiveOverlapTelemetrySummary
     public int QueueDepthHighWatermark => QueueTelemetry.QueueDepthHighWatermark;
 
     public long RetainedPayloadBytesHighWatermark => QueueTelemetry.RetainedPayloadBytesHighWatermark;
+
+    public RadarProcessingRetainedResourcePressureSummary RetainedResourcePressure =>
+        QueueTelemetry.RetainedResourcePressure;
+
+    public long CurrentPendingRetainedBatchCount =>
+        RetainedResourcePressure.CurrentPendingRetainedBatchCount;
+
+    public long CurrentPendingRetainedPayloadBytes =>
+        RetainedResourcePressure.CurrentPendingRetainedPayloadBytes;
+
+    public long PendingRetainedBatchCountHighWatermark =>
+        RetainedResourcePressure.PendingRetainedBatchCountHighWatermark;
+
+    public long PendingRetainedPayloadBytesHighWatermark =>
+        RetainedResourcePressure.PendingRetainedPayloadBytesHighWatermark;
+
+    public long CurrentActiveRetainedBatchCount =>
+        RetainedResourcePressure.CurrentActiveRetainedBatchCount;
+
+    public long CurrentActiveRetainedPayloadBytes =>
+        RetainedResourcePressure.CurrentActiveRetainedPayloadBytes;
+
+    public long ActiveRetainedBatchCountHighWatermark =>
+        RetainedResourcePressure.ActiveRetainedBatchCountHighWatermark;
+
+    public long ActiveRetainedPayloadBytesHighWatermark =>
+        RetainedResourcePressure.ActiveRetainedPayloadBytesHighWatermark;
+
+    public long CurrentCombinedRetainedBatchCount =>
+        RetainedResourcePressure.CurrentCombinedRetainedBatchCount;
+
+    public long CurrentCombinedRetainedPayloadBytes =>
+        RetainedResourcePressure.CurrentCombinedRetainedPayloadBytes;
+
+    public long CombinedRetainedBatchCountHighWatermark =>
+        RetainedResourcePressure.CombinedRetainedBatchCountHighWatermark;
+
+    public long CombinedRetainedPayloadBytesHighWatermark =>
+        RetainedResourcePressure.CombinedRetainedPayloadBytesHighWatermark;
 
     public TimeSpan ProviderBlockedTime => QueueTelemetry.TotalEnqueueWaitTime;
 

@@ -200,6 +200,39 @@ coverage.
 713 passed, 0 failed, 3 skipped for the full test project.
 ```
 
+Milestone 011 slice 5 overlap telemetry and benchmark result propagation is
+implemented in the current working tree. `RadarProcessingArchiveOverlapTelemetrySummary`
+now exposes the retained-resource pressure summary and direct pending, active,
+and combined current/high-water fields. The legacy
+`RetainedPayloadBytesHighWatermark` property remains the milestone 010
+queue-only compatibility alias.
+
+`RadarProcessingArchiveQueuedOverlapResult`,
+`RadarProcessingArchiveRebalanceBenchmarkResult`, and
+`RadarProcessingArchiveRebalanceCacheBenchmarkResult` now carry direct retained
+pressure accessors so callers do not need to reach into nested queue telemetry
+to read active/combined readiness fields. File and cache benchmark tests now
+assert that queue telemetry, overlap telemetry, and benchmark result shapes
+preserve the same retained pressure summary. Allocation attribution remains
+unchanged: active retained pressure is live memory pressure, not retained
+allocation.
+
+Latest verification after milestone 011 slice 5:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarProcessingProviderQueueContractTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+53 passed, 0 failed, 0 skipped for focused overlap/benchmark retained pressure
+propagation coverage.
+713 passed, 0 failed, 3 skipped for the full test project.
+```
+
 Milestone 010 remains complete. The architecture is recorded in
 `docs/milestones/010-owned-provider-overlap-cost-reduction.md`, and the
 implementation plan is recorded in

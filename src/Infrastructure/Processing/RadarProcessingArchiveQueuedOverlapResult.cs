@@ -51,6 +51,18 @@ public sealed class RadarProcessingArchiveQueuedOverlapResult
 
     public RadarProcessingArchiveQueuedProviderResult ProviderResult => Producer.ProviderResult;
 
+    public RadarProcessingRetainedResourcePressureSummary RetainedResourcePressure =>
+        QueueTelemetry.RetainedResourcePressure;
+
+    public long PendingRetainedPayloadBytesHighWatermark =>
+        RetainedResourcePressure.PendingRetainedPayloadBytesHighWatermark;
+
+    public long ActiveRetainedPayloadBytesHighWatermark =>
+        RetainedResourcePressure.ActiveRetainedPayloadBytesHighWatermark;
+
+    public long CombinedRetainedPayloadBytesHighWatermark =>
+        RetainedResourcePressure.CombinedRetainedPayloadBytesHighWatermark;
+
     public bool IsCompleted => Status == RadarProcessingArchiveQueuedOverlapStatus.Completed;
 
     public bool IsFaulted =>

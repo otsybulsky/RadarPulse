@@ -40,6 +40,13 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunnerTests
         Assert.Throws<ArgumentNullException>(() =>
             RadarProcessingArchiveQueuedOverlapProducerResult.Failed(null!));
 
+        var pressure = new RadarProcessingRetainedResourcePressureSummary(
+            pendingRetainedBatchCountHighWatermark: 2,
+            pendingRetainedPayloadBytesHighWatermark: 4,
+            activeRetainedBatchCountHighWatermark: 1,
+            activeRetainedPayloadBytesHighWatermark: 3,
+            combinedRetainedBatchCountHighWatermark: 3,
+            combinedRetainedPayloadBytesHighWatermark: 7);
         var queueTelemetry = new RadarProcessingProviderQueueTelemetrySummary(
             ownedSnapshotCount: 2,
             ownedSnapshotPayloadBytes: 4,
@@ -50,7 +57,8 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunnerTests
             queuedPayloadBytesHighWatermark: 4,
             totalDequeueWaitTime: TimeSpan.FromMilliseconds(3),
             ownedSnapshotPayloadValueCount: 4,
-            ownedSnapshotEventCount: 2);
+            ownedSnapshotEventCount: 2,
+            retainedResourcePressure: pressure);
         var retentionTelemetry = new RadarProcessingRetainedPayloadTelemetrySummary(
             RadarProcessingRetainedPayloadStrategy.SnapshotCopy,
             retentionAttemptCount: 2,
@@ -77,11 +85,23 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunnerTests
         Assert.Equal(2, overlap.RetainedEventCount);
         Assert.Equal(4, overlap.RetainedPayloadBytes);
         Assert.Equal(128, overlap.RetentionAllocatedBytes);
+        Assert.Same(pressure, overlap.RetainedResourcePressure);
+        Assert.Equal(4, overlap.RetainedPayloadBytesHighWatermark);
+        Assert.Equal(2, overlap.PendingRetainedBatchCountHighWatermark);
+        Assert.Equal(4, overlap.PendingRetainedPayloadBytesHighWatermark);
+        Assert.Equal(1, overlap.ActiveRetainedBatchCountHighWatermark);
+        Assert.Equal(3, overlap.ActiveRetainedPayloadBytesHighWatermark);
+        Assert.Equal(3, overlap.CombinedRetainedBatchCountHighWatermark);
+        Assert.Equal(7, overlap.CombinedRetainedPayloadBytesHighWatermark);
         Assert.Equal(TimeSpan.FromMilliseconds(2), overlap.ProviderBlockedTime);
         Assert.Equal(TimeSpan.FromMilliseconds(2), overlap.ProducerBlockedTime);
         Assert.Equal(TimeSpan.FromMilliseconds(3), overlap.ConsumerIdleTime);
         Assert.Equal(128, overlap.UnattributedAllocatedBytes);
         Assert.Equal(2, overlap.ReleaseNotRequiredCount);
+
+        var pressureOnly = new RadarProcessingArchiveOverlapTelemetrySummary(
+            retainedResourcePressure: pressure);
+        Assert.Same(pressure, pressureOnly.RetainedResourcePressure);
 
         var completed = new RadarProcessingArchiveQueuedOverlapResult(
             RadarProcessingArchiveQueuedOverlapStatus.Completed,
@@ -158,6 +178,10 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunnerTests
         Assert.Equal(result.QueueTelemetry.TotalProviderToProcessingLatency, overlapTelemetry.TotalProviderToProcessingLatency);
         Assert.Equal(result.QueueTelemetry.TotalEnqueueWaitTime, overlapTelemetry.ProviderBlockedTime);
         Assert.Equal(result.QueueTelemetry.TotalDequeueWaitTime, overlapTelemetry.ConsumerIdleTime);
+        Assert.Same(result.QueueTelemetry.RetainedResourcePressure, overlapTelemetry.RetainedResourcePressure);
+        Assert.Equal(result.QueueTelemetry.PendingRetainedPayloadBytesHighWatermark, overlapTelemetry.PendingRetainedPayloadBytesHighWatermark);
+        Assert.Equal(result.QueueTelemetry.ActiveRetainedPayloadBytesHighWatermark, overlapTelemetry.ActiveRetainedPayloadBytesHighWatermark);
+        Assert.Equal(result.QueueTelemetry.CombinedRetainedPayloadBytesHighWatermark, overlapTelemetry.CombinedRetainedPayloadBytesHighWatermark);
         Assert.Equal(3, overlapTelemetry.ReleaseAttemptCount);
         Assert.Equal(3, overlapTelemetry.ReleaseNotRequiredCount);
     }
@@ -267,16 +291,13 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunnerTests
         var rebalanceSession = CreateRebalanceSession(universe);
         var runner = new RadarProcessingArchiveQueuedOverlapRunner();
         var options = new RadarProcessingArchiveQueuedOverlapOptions(
-            new RadarProcessingProviderQueueOptions(capacity: 2, recentDetailCapacity: 16),
-            new RadarProcessingRetainedPayloadOptions(RadarProcessingRetainedPayloadStrategy.PooledCopy));
+            new RadarProcessingProviderQueueOptions(capacity: 2, recentDetailCapacity: 16));
 
         var result = await runner.RunRebalanceAsync(
             (publisher, cancellationToken) =>
             {
-                PublishEightBitLeased(
-                    publisher,
-                    universe.Version,
-                    [0, 0, 0, 0, 1, 1],
+                publisher.Publish(
+                    CreateEightBitBatch(universe.Version, [0, 0, 0, 0, 1, 1]),
                     cancellationToken);
                 publisher.Publish(
                     CreateEmptyBatch(universe.Version),
@@ -304,6 +325,11 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunnerTests
         Assert.True(result.QueueTelemetry.CombinedRetainedBatchCountHighWatermark >= result.QueueTelemetry.ActiveRetainedBatchCountHighWatermark);
         Assert.True(result.QueueTelemetry.CombinedRetainedBatchCountHighWatermark >= result.QueueTelemetry.PendingRetainedBatchCountHighWatermark);
         Assert.Equal(6, result.QueueTelemetry.CombinedRetainedPayloadBytesHighWatermark);
+        Assert.Same(result.QueueTelemetry.RetainedResourcePressure, result.RetainedResourcePressure);
+        Assert.Same(result.QueueTelemetry.RetainedResourcePressure, result.OverlapTelemetry.RetainedResourcePressure);
+        Assert.Equal(result.QueueTelemetry.PendingRetainedPayloadBytesHighWatermark, result.OverlapTelemetry.PendingRetainedPayloadBytesHighWatermark);
+        Assert.Equal(result.QueueTelemetry.ActiveRetainedPayloadBytesHighWatermark, result.OverlapTelemetry.ActiveRetainedPayloadBytesHighWatermark);
+        Assert.Equal(result.QueueTelemetry.CombinedRetainedPayloadBytesHighWatermark, result.OverlapTelemetry.CombinedRetainedPayloadBytesHighWatermark);
     }
 
     private static async ValueTask<RadarProcessingQueuedSessionResult> DrainAllAsync(
@@ -504,45 +530,6 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunnerTests
             sourceUniverseVersion,
             events,
             payload);
-    }
-
-    private static void PublishEightBitLeased(
-        IArchiveRadarEventBatchPublisher publisher,
-        SourceUniverseVersion sourceUniverseVersion,
-        int[] sourceIds,
-        CancellationToken cancellationToken)
-    {
-        var builder = new RadarEventBatchBuilder(
-            initialEventCapacity: sourceIds.Length,
-            initialPayloadCapacity: sourceIds.Length);
-
-        for (var i = 0; i < sourceIds.Length; i++)
-        {
-            builder.AddEvent(
-                new RadarStreamIdentity(
-                    sourceIds[i],
-                    radarOrdinal: 0,
-                    momentId: 0,
-                    elevationSlot: 0,
-                    azimuthBucket: (ushort)sourceIds[i],
-                    rangeBand: 0,
-                    dictionaryVersion: DictionaryVersion.Initial,
-                    sourceUniverseVersion: sourceUniverseVersion),
-                volumeTimestampUtcTicks: 90,
-                messageTimestampUtcTicks: 100 + i,
-                sourceRecord: 1,
-                sourceMessage: 1,
-                radialSequence: i,
-                gateStart: 0,
-                gateCount: 1,
-                wordSize: RadarStreamWordSize.EightBit,
-                scale: 1.0f,
-                offset: 0.0f,
-                statusModel: RadarStreamStatusModel.ArchiveTwoMoment,
-                payload: [(byte)(i + 1)]);
-        }
-
-        builder.ConsumeLeased(batch => publisher.Publish(batch, cancellationToken));
     }
 
     private static RadarStreamEvent CreateEvent(
