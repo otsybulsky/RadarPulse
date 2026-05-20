@@ -28,6 +28,46 @@ surfaces are `RadarProcessingProviderQueueTelemetrySummary`,
 `RadarProcessingArchiveRebalanceBenchmark`, CLI rebalance benchmark output, and
 the milestone 010 performance gate.
 
+Milestone 011 slice 1 baseline readiness audit is complete. There were no
+runtime changes. The current pending retained-byte field is
+`RadarProcessingProviderQueueTelemetrySummary.QueuedPayloadBytesHighWatermark`;
+the current compatibility alias
+`RadarProcessingProviderQueueTelemetrySummary.RetainedPayloadBytesHighWatermark`
+maps directly to that pending queue high-water field. Overlap telemetry exposes
+the same queue-only retained-byte high-water through
+`RadarProcessingArchiveOverlapTelemetrySummary.RetainedPayloadBytesHighWatermark`,
+and `HasQueuedAheadOverlap` remains derived from `QueueDepthHighWatermark > 1`.
+The active consumer retained-resource gap is now explicitly frozen: there is no
+active retained-byte high-water field and no combined pending-plus-active
+retained-byte high-water field yet.
+
+The milestone 011 default-candidate contour is frozen for later implementation
+and gates:
+
+```text
+provider mode: queued-owned
+retention strategy: pooled-copy
+provider overlap: producer-consumer
+execution: async
+queue capacity: 8
+retained-byte budget: 536870912
+queue telemetry: summary or recent as required by the gate
+overlap telemetry: summary or recent as required by the gate
+overlap consumer delay: disabled for readiness gates
+```
+
+Latest verification after milestone 011 slice 1:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingProviderQueueTelemetryRecorderTests|FullyQualifiedName~RadarProcessingOwnedBatchQueueTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+```
+
+Recorded result:
+
+```text
+41 passed, 0 failed, 0 skipped.
+```
+
 Milestone 010 remains complete. The architecture is recorded in
 `docs/milestones/010-owned-provider-overlap-cost-reduction.md`, and the
 implementation plan is recorded in
@@ -2801,6 +2841,8 @@ Done:
 - `010` owned provider overlap and cost reduction milestone is complete.
 - `011` queued-owned default-readiness architecture is drafted.
 - `011` queued-owned default-readiness implementation plan is drafted.
+- `011` slice 1 baseline readiness audit and candidate contour freeze is
+  complete.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.

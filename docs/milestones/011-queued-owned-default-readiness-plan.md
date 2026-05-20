@@ -1,6 +1,6 @@
 # Milestone 011: Queued-Owned Default Readiness Plan
 
-Status: draft.
+Status: in progress.
 
 This plan implements the milestone 011 architecture defined in
 `011-queued-owned-default-readiness.md`.
@@ -248,6 +248,82 @@ Guardrail:
 ```text
 Do not change runtime behavior or provider defaults in this slice. Establish
 the baseline and the candidate contour vocabulary first.
+```
+
+Slice 1 baseline capture:
+
+```text
+status:
+  complete
+
+runtime changes:
+  none
+
+current pending retained-byte fields:
+  RadarProcessingProviderQueueTelemetrySummary.QueuedPayloadBytesHighWatermark
+  RadarProcessingProviderQueueTelemetrySummary.RetainedPayloadBytesHighWatermark
+
+current compatibility alias:
+  RetainedPayloadBytesHighWatermark => QueuedPayloadBytesHighWatermark
+
+current overlap retained-byte field:
+  RadarProcessingArchiveOverlapTelemetrySummary.RetainedPayloadBytesHighWatermark
+  -> QueueTelemetry.RetainedPayloadBytesHighWatermark
+
+current queue-ahead signal:
+  RadarProcessingArchiveOverlapTelemetrySummary.HasQueuedAheadOverlap
+  -> QueueDepthHighWatermark > 1
+
+current active retained-resource gap:
+  no active consumer retained-byte high-water field exists yet
+  no combined pending-plus-active retained-byte high-water field exists yet
+
+current CLI output:
+  provider mode
+  provider queue capacity
+  provider overlap mode
+  provider overlap consumer delay ms
+  retention strategy
+  provider queue retained byte capacity
+  provider queue payload bytes high watermark
+  provider queue retained payload bytes high watermark
+  provider overlap retained payload bytes high watermark
+  provider blocked ms
+  consumer idle ms
+  retained allocation and release counts
+
+current defaults:
+  provider mode: blocking-borrowed
+  provider overlap: none
+  retention strategy: snapshot-copy
+  queue capacity: 1
+  retained-byte budget: none
+  overlap consumer delay: 0
+  queue telemetry: summary
+  overlap telemetry: summary
+
+milestone 011 candidate contour:
+  provider mode: queued-owned
+  retention strategy: pooled-copy
+  provider overlap: producer-consumer
+  execution: async
+  queue capacity: 8
+  retained-byte budget: 536870912
+  queue telemetry: summary or recent as required by the gate
+  overlap telemetry: summary or recent as required by the gate
+  overlap consumer delay: disabled for readiness gates
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingProviderQueueTelemetryRecorderTests|FullyQualifiedName~RadarProcessingOwnedBatchQueueTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+```
+
+Recorded result:
+
+```text
+41 passed, 0 failed, 0 skipped.
 ```
 
 ### 2. Retained Resource Pressure Contracts
@@ -928,8 +1004,8 @@ controlled proof rows separated if captured
 ## Completion Checklist
 
 ```text
-[ ] baseline readiness audit is captured
-[ ] default-candidate contour is frozen and reproducible
+[x] baseline readiness audit is captured
+[x] default-candidate contour is frozen and reproducible
 [ ] retained-resource pressure contracts are implemented and tested
 [ ] provider queue telemetry exposes pending, active, and combined retained
     pressure without breaking milestone 010 fields
