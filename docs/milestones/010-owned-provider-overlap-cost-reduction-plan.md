@@ -887,8 +887,9 @@ implementation.
 [x] performance assessment interprets allocation, overlap, queue, worker,
     validation, rebalance, and resource lifecycle costs
 [x] cache-level producer pipeline is implemented and tested
+[x] cache-level producer pipeline proves useful wall-clock overlap
+[x] repeated performance gate captures the cache-level overlap contour
 [ ] cache-level producer pipeline proves useful queued-ahead overlap
-[ ] repeated performance gate captures the cache-level overlap contour
 [ ] decision trace is written
 [ ] closeout is written
 [ ] handoff is updated for the next milestone

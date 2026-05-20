@@ -159,13 +159,107 @@ is now a strong allocation and lifecycle substrate, but a later slice or
 milestone still needs a cache-level producer pipeline before overlap can be
 claimed as throughput-useful.
 
+## Repeat Gate After Slice 11
+
+Slice 11 changed the cache contour so `queued-owned + producer-consumer` uses
+one shared overlap runner across the selected cache file set instead of one
+runner per file.
+
+Repeat Release build:
+
+```powershell
+dotnet build RadarPulse.sln -c Release --no-restore
+```
+
+Result: Release build succeeded with 0 warnings and 0 errors.
+
+Repeated full-cache contours used the same KTLX input:
+
+```text
+--cache data\nexrad --date 2026-05-04 --radar KTLX --max-files 220
+```
+
+All repeated contours preserved deterministic output:
+
+```text
+published files: 198
+payload values: 7_660_888_320
+validation checksum: 7_480_064_646_096_449_000
+accepted moves: 2
+skipped decisions: 392
+failed migrations: 0
+```
+
+| Contour | Queue capacity | Retention | Overlap | End-to-end ms | Callback ms | Replay/build ms | Retained allocated bytes | Retention ms | Queue depth high watermark | Retained bytes high watermark | Worker queue wait ms |
+| --- | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| blocking-borrowed async | 0 | n/a | none | 16_915.80 | 2_311.23 | 14_604.57 | n/a | n/a | n/a | n/a | 45.07 |
+| queued-owned async | 1 | pooled-copy | none | 17_158.62 | 2_382.90 | 14_775.72 | 102_811_264 | 339.95 | 1 | 48_257_280 | 47.46 |
+| queued-owned overlap async | 8 | snapshot-copy | producer-consumer | 17_453.76 | 3_182.36 | 14_271.40 | 9_947_502_792 | 844.09 | 1 | 48_257_280 | 194.40 |
+| queued-owned overlap async | 1 | pooled-copy | producer-consumer | 15_330.55 | 3_243.30 | 12_087.25 | 1_971_376_272 | 407.02 | 1 | 48_257_280 | 662.98 |
+| queued-owned overlap async | 8 | pooled-copy | producer-consumer | 14_947.99 | 3_127.38 | 11_820.61 | 1_971_376_296 | 405.04 | 1 | 48_257_280 | 235.32 |
+
+Repeated overlap attribution:
+
+| Contour | Overlap elapsed ms | Producer active ms | Consumer active ms | Shared active ms | Producer/consumer overlap | Queued-ahead overlap | Provider blocked ms | Consumer idle ms | Measured allocated bytes | Unattributed allocated bytes |
+| --- | ---: | ---: | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: |
+| snapshot-copy overlap async, capacity 8 | 17_434.29 | 17_417.95 | 17_432.23 | 17_417.95 | yes | no | 3.62 | 14_221.57 | 11_933_703_960 | 1_986_201_168 |
+| pooled-copy overlap async, capacity 1 | 15_310.74 | 15_294.19 | 15_308.89 | 15_294.19 | yes | no | 3.05 | 12_035.81 | 3_958_226_544 | 1_986_850_272 |
+| pooled-copy overlap async, capacity 8 | 14_928.97 | 14_913.52 | 14_927.34 | 14_913.52 | yes | no | 3.04 | 11_772.13 | 3_959_015_576 | 1_987_639_280 |
+
+Repeat gate interpretation:
+
+- Borrowed-reference parity still holds after the cache-level producer pipeline.
+- Cache-level producer/consumer overlap now improves wall-clock time. The best
+  queued-owned pooled-copy overlap contour is 14_947.99 ms, about 1_967.81 ms
+  faster than the borrowed async baseline in this run.
+- The shared cache overlap contour is also about 2_210.63 ms faster than the
+  non-overlapped queued-owned pooled-copy contour.
+- Capacity 8 improves over capacity 1 by about 382.56 ms and greatly reduces
+  worker queue wait in this run.
+- Pooled-copy remains much cheaper than snapshot-copy on the same overlapped
+  contour: 1_971_376_296 retained allocated bytes versus 9_947_502_792,
+  about an 80.18% reduction.
+- Pooled-copy overlap allocates more than pooled-copy non-overlap because the
+  producer can retain the next batch while the consumer is still processing an
+  earlier retained batch. This is the expected cost of actual producer/consumer
+  overlap with retained owned batches.
+- Queue depth high watermark remains 1 and queued-ahead overlap remains `no`.
+  The useful overlap here is not a deep queued backlog; it is producer replay
+  running while the consumer processes an in-flight retained batch.
+- The current queue telemetry does not report an in-flight retained-resource
+  high watermark after dequeue. Retained-byte high watermark therefore only
+  describes bytes still pending in the queue, not bytes currently held by the
+  consumer.
+
+## Updated Gate Decision
+
+Milestone 010 now passes the correctness, allocation-reduction, resource
+cleanup, and useful wall-clock overlap portions of the gate:
+
+- deterministic borrowed-reference parity holds;
+- pooled-copy remains far cheaper than snapshot-copy;
+- retained resource releases complete with 0 failed releases;
+- cache-level producer/consumer overlap improves end-to-end time versus both
+  borrowed async and non-overlapped queued-owned in this run.
+
+Milestone 010 still does not prove queued-ahead buffering:
+
+- queue depth high watermark remains 1;
+- `HasQueuedAheadOverlap` remains `no`;
+- retained in-flight consumer resources need better high-water telemetry before
+  the gate can explain overlap memory pressure precisely.
+
+`blocking-borrowed` should remain the default until repeated Release runs are
+captured and in-flight retention pressure telemetry is strengthened.
+`queued-owned + pooled-copy + producer-consumer` is now a credible optimized
+benchmark contour, not merely a correctness measurement mode.
+
 ## Next Work From This Gate
 
 ```text
 keep queued-owned opt-in
 keep pooled-copy available as the optimized retention strategy
-add a cache-level producer/consumer benchmark contour that can enqueue across
-  files before the consumer catches up
-carry retained-byte high-water and queue-depth telemetry into that next contour
-repeat the gate after useful queued-ahead overlap exists
+carry in-flight retained-resource high-water telemetry into the overlap contour
+repeat the gate enough times to separate signal from run-to-run variance
+use the updated gate result in the decision trace and closeout
 ```

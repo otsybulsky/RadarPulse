@@ -8,29 +8,26 @@ implementation plan is recorded in
 `docs/milestones/010-owned-provider-overlap-cost-reduction-plan.md`.
 
 Milestone 010 starts from the closed milestone 009 owned-provider boundary:
-`queued-owned` is correct and measurable, but still opt-in because owned
-snapshot allocation is the dominant cost and the current archive benchmark does
-not overlap replay with processing. Milestone 010 slices 1 through 10 plus the
-initial performance gate are now
-complete: the milestone 009 cost anchors are confirmed, retained payload
-strategy contracts are implemented and tested, and the resource-owned queued
-batch lifecycle, one lower-allocation retained payload implementation, and
-retained-byte-aware provider queue accounting plus the first producer/consumer
-archive overlap runner with ordered rebalance topology pinning and overlap
-telemetry/allocation attribution plus optimized queued validation are
-implemented and tested. Slice 10 exposes retention strategy, retained-byte
-budget, provider overlap, retention telemetry, and overlap telemetry through the
-archive benchmark and CLI surfaces. The performance gate proves pooled-copy
-allocation reduction and resource cleanup, but it also shows that useful
-queued-ahead overlap is still missing. The next implementation work is the new
-slice 11 cache-level producer pipeline, followed by a repeated performance
-gate, decision trace, and closeout.
+`queued-owned` is correct and measurable, but remains opt-in while its
+production-readiness tradeoffs are being proven. Milestone 010 slices 1 through
+11 plus the repeated performance gate are now complete: the milestone 009 cost
+anchors are confirmed, retained payload strategy contracts are implemented and
+tested, and the resource-owned queued batch lifecycle, lower-allocation retained
+payload implementation, retained-byte-aware provider queue accounting,
+producer/consumer archive overlap runner, ordered rebalance topology pinning,
+overlap telemetry/allocation attribution, optimized queued validation, CLI
+controls, and cache-level producer pipeline are implemented and tested.
 
 `blocking-borrowed` remains the default provider mode and same-run oracle.
-`queued-owned` remains an explicit validation and measurement mode. The current
+`queued-owned` remains an explicit validation and measurement mode. The repeated
 gate proves lower retained allocation, deterministic borrowed-reference parity,
-ordered topology publication, and complete retained resource cleanup, but it
-does not yet prove useful queued-ahead overlap.
+ordered topology publication, complete retained resource cleanup, and useful
+cache-level wall-clock producer/consumer overlap. The best repeated pooled-copy
+overlap contour was 14_947.99 ms versus 16_915.80 ms for borrowed async and
+17_158.62 ms for non-overlapped queued-owned pooled-copy. Queue depth still
+peaks at 1 and `HasQueuedAheadOverlap` remains `no`, so the next work is
+in-flight retained-resource telemetry refinement, decision trace, closeout, and
+handoff for the next milestone.
 
 Milestone 009 remains complete. RadarPulse has the first explicit
 owned-payload provider decoupling substrate: archive replay can remain on the
