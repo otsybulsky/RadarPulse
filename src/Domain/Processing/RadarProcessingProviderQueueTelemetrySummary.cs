@@ -28,7 +28,8 @@ public sealed record RadarProcessingProviderQueueTelemetrySummary
         IReadOnlyCollection<RadarProcessingProviderQueueRecentDetail>? recentDetails = null,
         long droppedRecentDetailCount = 0,
         long ownedSnapshotEventCount = 0,
-        TimeSpan totalDequeueWaitTime = default)
+        TimeSpan totalDequeueWaitTime = default,
+        RadarProcessingRetainedResourcePressureSummary? retainedResourcePressure = null)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(ownedSnapshotCount);
         ArgumentOutOfRangeException.ThrowIfNegative(ownedSnapshotPayloadBytes);
@@ -98,6 +99,10 @@ public sealed record RadarProcessingProviderQueueTelemetrySummary
         TotalProviderToProcessingLatency = totalProviderToProcessingLatency;
         RecentDetails = CopyRequired(recentDetails ?? Array.Empty<RadarProcessingProviderQueueRecentDetail>(), nameof(recentDetails));
         DroppedRecentDetailCount = droppedRecentDetailCount;
+        RetainedResourcePressure = retainedResourcePressure ??
+                                   CreateQueueOnlyRetainedResourcePressure(
+                                       queuedPayloadBytesHighWatermark,
+                                       queueDepthHighWatermark);
         OwnedSnapshotAllocation = new RadarProcessingOwnedSnapshotAllocationSummary(
             OwnedSnapshotCount,
             OwnedSnapshotPayloadBytes,
@@ -152,6 +157,42 @@ public sealed record RadarProcessingProviderQueueTelemetrySummary
 
     public long RetainedPayloadBytesHighWatermark => QueuedPayloadBytesHighWatermark;
 
+    public long CurrentPendingRetainedBatchCount =>
+        RetainedResourcePressure.CurrentPendingRetainedBatchCount;
+
+    public long CurrentPendingRetainedPayloadBytes =>
+        RetainedResourcePressure.CurrentPendingRetainedPayloadBytes;
+
+    public long PendingRetainedBatchCountHighWatermark =>
+        RetainedResourcePressure.PendingRetainedBatchCountHighWatermark;
+
+    public long PendingRetainedPayloadBytesHighWatermark =>
+        RetainedResourcePressure.PendingRetainedPayloadBytesHighWatermark;
+
+    public long CurrentActiveRetainedBatchCount =>
+        RetainedResourcePressure.CurrentActiveRetainedBatchCount;
+
+    public long CurrentActiveRetainedPayloadBytes =>
+        RetainedResourcePressure.CurrentActiveRetainedPayloadBytes;
+
+    public long ActiveRetainedBatchCountHighWatermark =>
+        RetainedResourcePressure.ActiveRetainedBatchCountHighWatermark;
+
+    public long ActiveRetainedPayloadBytesHighWatermark =>
+        RetainedResourcePressure.ActiveRetainedPayloadBytesHighWatermark;
+
+    public long CurrentCombinedRetainedBatchCount =>
+        RetainedResourcePressure.CurrentCombinedRetainedBatchCount;
+
+    public long CurrentCombinedRetainedPayloadBytes =>
+        RetainedResourcePressure.CurrentCombinedRetainedPayloadBytes;
+
+    public long CombinedRetainedBatchCountHighWatermark =>
+        RetainedResourcePressure.CombinedRetainedBatchCountHighWatermark;
+
+    public long CombinedRetainedPayloadBytesHighWatermark =>
+        RetainedResourcePressure.CombinedRetainedPayloadBytesHighWatermark;
+
     public long OwnedSnapshotPayloadValueCount { get; }
 
     public TimeSpan TotalProviderToProcessingLatency { get; }
@@ -163,6 +204,8 @@ public sealed record RadarProcessingProviderQueueTelemetrySummary
     public long DroppedRecentDetailCount { get; }
 
     public RadarProcessingOwnedSnapshotAllocationSummary OwnedSnapshotAllocation { get; }
+
+    public RadarProcessingRetainedResourcePressureSummary RetainedResourcePressure { get; }
 
     public bool HasBackpressure =>
         EnqueueFullCount > 0 ||
@@ -204,4 +247,13 @@ public sealed record RadarProcessingProviderQueueTelemetrySummary
 
         return Array.AsReadOnly(result.ToArray());
     }
+
+    private static RadarProcessingRetainedResourcePressureSummary CreateQueueOnlyRetainedResourcePressure(
+        long queuedPayloadBytesHighWatermark,
+        int queueDepthHighWatermark) =>
+        new(
+            pendingRetainedBatchCountHighWatermark: queueDepthHighWatermark,
+            pendingRetainedPayloadBytesHighWatermark: queuedPayloadBytesHighWatermark,
+            combinedRetainedBatchCountHighWatermark: queueDepthHighWatermark,
+            combinedRetainedPayloadBytesHighWatermark: queuedPayloadBytesHighWatermark);
 }

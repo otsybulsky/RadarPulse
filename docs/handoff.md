@@ -115,6 +115,52 @@ payload contracts.
 710 passed, 0 failed, 3 skipped for the full test project.
 ```
 
+Milestone 011 slice 3 provider queue telemetry compatibility extensions are
+implemented in the current working tree. `RadarProcessingProviderQueueTelemetrySummary`
+now carries `RadarProcessingRetainedResourcePressureSummary` through
+`RetainedResourcePressure` and exposes explicit pending, active, and combined
+retained pressure fields:
+
+```text
+CurrentPendingRetainedBatchCount
+CurrentPendingRetainedPayloadBytes
+PendingRetainedBatchCountHighWatermark
+PendingRetainedPayloadBytesHighWatermark
+CurrentActiveRetainedBatchCount
+CurrentActiveRetainedPayloadBytes
+ActiveRetainedBatchCountHighWatermark
+ActiveRetainedPayloadBytesHighWatermark
+CurrentCombinedRetainedBatchCount
+CurrentCombinedRetainedPayloadBytes
+CombinedRetainedBatchCountHighWatermark
+CombinedRetainedPayloadBytesHighWatermark
+```
+
+Compatibility is preserved: `QueuedPayloadBytesHighWatermark` remains the
+queue-only pending byte high-water field, and
+`RetainedPayloadBytesHighWatermark` remains the milestone 010 alias to
+`QueuedPayloadBytesHighWatermark`. When callers do not supply explicit pressure
+summary data, queue-only pressure is derived from `QueueDepthHighWatermark` and
+`QueuedPayloadBytesHighWatermark`. `RadarProcessingOwnedBatchQueue.CreateTelemetrySummary()`
+now supplies current pending count/bytes and queue-only pending/combined
+high-water marks. Active retained pressure remains zero until slice 4 wires the
+consumer resource lifecycle.
+
+Latest verification after milestone 011 slice 3:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingProviderQueueContractTests|FullyQualifiedName~RadarProcessingProviderQueueTelemetryRecorderTests|FullyQualifiedName~RadarProcessingOwnedBatchQueueTests|FullyQualifiedName~RadarProcessingRetainedResourcePressureContractTests"
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+36 passed, 0 failed, 0 skipped for focused provider queue pressure coverage.
+710 passed, 0 failed, 3 skipped for the full test project.
+```
+
 Milestone 010 remains complete. The architecture is recorded in
 `docs/milestones/010-owned-provider-overlap-cost-reduction.md`, and the
 implementation plan is recorded in
@@ -2892,6 +2938,8 @@ Done:
   complete.
 - `011` slice 2 retained-resource pressure contracts are implemented and
   tested.
+- `011` slice 3 provider queue telemetry compatibility extensions are
+  implemented and tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.
@@ -5391,7 +5439,14 @@ constant and moment data blocks.
 - `src/Domain/Processing/RadarProcessingRetainedResourcePressureSnapshot.cs`
 - `src/Domain/Processing/RadarProcessingRetainedResourcePressureSummary.cs`
 - `src/Domain/Processing/RadarProcessingRetainedResourcePressureRecorder.cs`
+- `src/Domain/Processing/RadarProcessingProviderQueueTelemetrySummary.cs`
+- `src/Infrastructure/Processing/RadarProcessingOwnedBatchQueue.cs`
+- `src/Infrastructure/Processing/RadarProcessingQueuedProcessingSession.cs`
+- `src/Infrastructure/Processing/RadarProcessingQueuedRebalanceSession.cs`
 - `tests/RadarPulse.Tests/Processing/RadarProcessingRetainedResourcePressureContractTests.cs`
+- `tests/RadarPulse.Tests/Processing/RadarProcessingProviderQueueContractTests.cs`
+- `tests/RadarPulse.Tests/Processing/RadarProcessingProviderQueueTelemetryRecorderTests.cs`
+- `tests/RadarPulse.Tests/Processing/RadarProcessingOwnedBatchQueueTests.cs`
 - `src/Domain/Processing/RadarProcessingAsyncExecutionOptions.cs`
 - `src/Domain/Processing/RadarProcessingWorkerAffinity.cs`
 - `src/Domain/Processing/RadarProcessingWorkerTimeoutPolicy.cs`

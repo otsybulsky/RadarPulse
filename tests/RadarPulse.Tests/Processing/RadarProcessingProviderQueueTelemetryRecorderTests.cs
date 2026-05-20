@@ -50,6 +50,16 @@ public sealed class RadarProcessingProviderQueueTelemetryRecorderTests
         Assert.Equal(TimeSpan.FromMilliseconds(7), summary.TotalDrainTime);
         Assert.Equal(1, summary.QueueDepthHighWatermark);
         Assert.Equal(2, summary.QueuedPayloadBytesHighWatermark);
+        Assert.Equal(0, summary.CurrentPendingRetainedBatchCount);
+        Assert.Equal(0, summary.CurrentPendingRetainedPayloadBytes);
+        Assert.Equal(1, summary.PendingRetainedBatchCountHighWatermark);
+        Assert.Equal(2, summary.PendingRetainedPayloadBytesHighWatermark);
+        Assert.Equal(0, summary.CurrentActiveRetainedBatchCount);
+        Assert.Equal(0, summary.CurrentActiveRetainedPayloadBytes);
+        Assert.Equal(0, summary.ActiveRetainedBatchCountHighWatermark);
+        Assert.Equal(0, summary.ActiveRetainedPayloadBytesHighWatermark);
+        Assert.Equal(1, summary.CombinedRetainedBatchCountHighWatermark);
+        Assert.Equal(2, summary.CombinedRetainedPayloadBytesHighWatermark);
         Assert.Equal(3, summary.RecentDetails.Count);
         Assert.All(summary.RecentDetails, static detail =>
         {

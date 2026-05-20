@@ -1085,7 +1085,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             queueTelemetry.RecentDetails,
             queueTelemetry.DroppedRecentDetailCount,
             queueTelemetry.OwnedSnapshotEventCount,
-            queueTelemetry.TotalDequeueWaitTime);
+            queueTelemetry.TotalDequeueWaitTime,
+            queueTelemetry.RetainedResourcePressure);
     }
 
     private static RadarProcessingProviderQueueTelemetrySummary AddQueueTelemetry(
@@ -1126,7 +1127,63 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             recentDetails,
             checked(current.DroppedRecentDetailCount + next.DroppedRecentDetailCount + droppedRecentDetails),
             checked(current.OwnedSnapshotEventCount + next.OwnedSnapshotEventCount),
-            current.TotalDequeueWaitTime + next.TotalDequeueWaitTime);
+            current.TotalDequeueWaitTime + next.TotalDequeueWaitTime,
+            AddRetainedResourcePressure(current.RetainedResourcePressure, next.RetainedResourcePressure));
+    }
+
+    private static RadarProcessingRetainedResourcePressureSummary AddRetainedResourcePressure(
+        RadarProcessingRetainedResourcePressureSummary current,
+        RadarProcessingRetainedResourcePressureSummary next)
+    {
+        ArgumentNullException.ThrowIfNull(current);
+        ArgumentNullException.ThrowIfNull(next);
+
+        var currentPendingBatchCount = checked(
+            current.CurrentPendingRetainedBatchCount +
+            next.CurrentPendingRetainedBatchCount);
+        var currentPendingPayloadBytes = checked(
+            current.CurrentPendingRetainedPayloadBytes +
+            next.CurrentPendingRetainedPayloadBytes);
+        var currentActiveBatchCount = checked(
+            current.CurrentActiveRetainedBatchCount +
+            next.CurrentActiveRetainedBatchCount);
+        var currentActivePayloadBytes = checked(
+            current.CurrentActiveRetainedPayloadBytes +
+            next.CurrentActiveRetainedPayloadBytes);
+        var pendingBatchHighWatermark = Math.Max(
+            Math.Max(current.PendingRetainedBatchCountHighWatermark, next.PendingRetainedBatchCountHighWatermark),
+            currentPendingBatchCount);
+        var pendingPayloadHighWatermark = Math.Max(
+            Math.Max(current.PendingRetainedPayloadBytesHighWatermark, next.PendingRetainedPayloadBytesHighWatermark),
+            currentPendingPayloadBytes);
+        var activeBatchHighWatermark = Math.Max(
+            Math.Max(current.ActiveRetainedBatchCountHighWatermark, next.ActiveRetainedBatchCountHighWatermark),
+            currentActiveBatchCount);
+        var activePayloadHighWatermark = Math.Max(
+            Math.Max(current.ActiveRetainedPayloadBytesHighWatermark, next.ActiveRetainedPayloadBytesHighWatermark),
+            currentActivePayloadBytes);
+        var currentCombinedBatchCount = checked(currentPendingBatchCount + currentActiveBatchCount);
+        var currentCombinedPayloadBytes = checked(currentPendingPayloadBytes + currentActivePayloadBytes);
+
+        return new RadarProcessingRetainedResourcePressureSummary(
+            currentPendingBatchCount,
+            currentPendingPayloadBytes,
+            pendingBatchHighWatermark,
+            pendingPayloadHighWatermark,
+            currentActiveBatchCount,
+            currentActivePayloadBytes,
+            activeBatchHighWatermark,
+            activePayloadHighWatermark,
+            Math.Max(
+                Math.Max(
+                    current.CombinedRetainedBatchCountHighWatermark,
+                    next.CombinedRetainedBatchCountHighWatermark),
+                currentCombinedBatchCount),
+            Math.Max(
+                Math.Max(
+                    current.CombinedRetainedPayloadBytesHighWatermark,
+                    next.CombinedRetainedPayloadBytesHighWatermark),
+                currentCombinedPayloadBytes));
     }
 
     private static RadarProcessingRetainedPayloadTelemetrySummary AddRetentionTelemetry(

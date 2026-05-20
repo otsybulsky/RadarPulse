@@ -279,7 +279,14 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
                 recordedSummary.RecentDetails,
                 recordedSummary.DroppedRecentDetailCount,
                 ownedSnapshotEventCount,
-                totalDequeueWaitTime);
+                totalDequeueWaitTime,
+                new RadarProcessingRetainedResourcePressureSummary(
+                    currentPendingRetainedBatchCount: pendingCount,
+                    currentPendingRetainedPayloadBytes: pendingPayloadBytes,
+                    pendingRetainedBatchCountHighWatermark: queueDepthHighWatermark,
+                    pendingRetainedPayloadBytesHighWatermark: queuedPayloadBytesHighWatermark,
+                    combinedRetainedBatchCountHighWatermark: queueDepthHighWatermark,
+                    combinedRetainedPayloadBytesHighWatermark: queuedPayloadBytesHighWatermark));
         }
     }
 

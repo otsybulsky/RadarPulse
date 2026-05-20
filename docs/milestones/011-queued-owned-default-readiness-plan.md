@@ -498,6 +498,61 @@ Do not remove or silently rename milestone 009/010 fields. Readiness telemetry
 adds explicit fields; it does not break historical comparison fields.
 ```
 
+Slice 3 implementation capture:
+
+```text
+status:
+  complete
+
+runtime active accounting:
+  not started; active retained pressure remains zero until slice 4
+
+extended contract:
+  RadarProcessingProviderQueueTelemetrySummary now carries
+  RadarProcessingRetainedResourcePressureSummary through
+  RetainedResourcePressure
+
+new queue telemetry fields:
+  CurrentPendingRetainedBatchCount
+  CurrentPendingRetainedPayloadBytes
+  PendingRetainedBatchCountHighWatermark
+  PendingRetainedPayloadBytesHighWatermark
+  CurrentActiveRetainedBatchCount
+  CurrentActiveRetainedPayloadBytes
+  ActiveRetainedBatchCountHighWatermark
+  ActiveRetainedPayloadBytesHighWatermark
+  CurrentCombinedRetainedBatchCount
+  CurrentCombinedRetainedPayloadBytes
+  CombinedRetainedBatchCountHighWatermark
+  CombinedRetainedPayloadBytesHighWatermark
+
+compatibility behavior:
+  QueuedPayloadBytesHighWatermark remains the queue-only pending byte high-water
+    field
+  RetainedPayloadBytesHighWatermark remains a milestone 010 compatibility alias
+    to QueuedPayloadBytesHighWatermark
+  when no explicit RetainedResourcePressure is supplied, queue-only pressure is
+    derived from QueueDepthHighWatermark and QueuedPayloadBytesHighWatermark
+  RadarProcessingOwnedBatchQueue.CreateTelemetrySummary() now supplies current
+    pending count/bytes plus queue-only pending and combined high-water marks
+  active count/bytes and active high-water marks remain zero in this slice
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingProviderQueueContractTests|FullyQualifiedName~RadarProcessingProviderQueueTelemetryRecorderTests|FullyQualifiedName~RadarProcessingOwnedBatchQueueTests|FullyQualifiedName~RadarProcessingRetainedResourcePressureContractTests"
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+36 passed, 0 failed, 0 skipped for focused provider queue pressure coverage.
+710 passed, 0 failed, 3 skipped for the full test project.
+```
+
 ### 4. Active Consumer Resource Lifecycle Integration
 
 Wire active retained-resource accounting around dequeue, processing, and final
@@ -1067,7 +1122,7 @@ controlled proof rows separated if captured
 [x] baseline readiness audit is captured
 [x] default-candidate contour is frozen and reproducible
 [x] retained-resource pressure contracts are implemented and tested
-[ ] provider queue telemetry exposes pending, active, and combined retained
+[x] provider queue telemetry exposes pending, active, and combined retained
     pressure without breaking milestone 010 fields
 [ ] active consumer retained-resource accounting is wired into queued drains
 [ ] pending cleanup and active release paths update pressure and release

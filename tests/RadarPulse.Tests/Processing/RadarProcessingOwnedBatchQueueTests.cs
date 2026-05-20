@@ -98,6 +98,16 @@ public sealed class RadarProcessingOwnedBatchQueueTests
         Assert.True(summary.TotalProviderToProcessingLatency >= TimeSpan.Zero);
         Assert.Equal(1, summary.QueueDepthHighWatermark);
         Assert.Equal(2, summary.QueuedPayloadBytesHighWatermark);
+        Assert.Equal(1, summary.CurrentPendingRetainedBatchCount);
+        Assert.Equal(2, summary.CurrentPendingRetainedPayloadBytes);
+        Assert.Equal(1, summary.PendingRetainedBatchCountHighWatermark);
+        Assert.Equal(2, summary.PendingRetainedPayloadBytesHighWatermark);
+        Assert.Equal(0, summary.CurrentActiveRetainedBatchCount);
+        Assert.Equal(0, summary.CurrentActiveRetainedPayloadBytes);
+        Assert.Equal(1, summary.CurrentCombinedRetainedBatchCount);
+        Assert.Equal(2, summary.CurrentCombinedRetainedPayloadBytes);
+        Assert.Equal(1, summary.CombinedRetainedBatchCountHighWatermark);
+        Assert.Equal(2, summary.CombinedRetainedPayloadBytesHighWatermark);
         Assert.Equal(4, summary.RecentDetails.Count);
         Assert.Equal(0, summary.DroppedRecentDetailCount);
         Assert.Equal(
@@ -140,6 +150,16 @@ public sealed class RadarProcessingOwnedBatchQueueTests
         Assert.Equal(1, summary.EnqueueFullCount);
         Assert.Equal(2, summary.QueuedPayloadBytesHighWatermark);
         Assert.Equal(2, summary.RetainedPayloadBytesHighWatermark);
+        Assert.Equal(1, summary.CurrentPendingRetainedBatchCount);
+        Assert.Equal(2, summary.CurrentPendingRetainedPayloadBytes);
+        Assert.Equal(1, summary.PendingRetainedBatchCountHighWatermark);
+        Assert.Equal(2, summary.PendingRetainedPayloadBytesHighWatermark);
+        Assert.Equal(0, summary.CurrentActiveRetainedBatchCount);
+        Assert.Equal(0, summary.CurrentActiveRetainedPayloadBytes);
+        Assert.Equal(1, summary.CurrentCombinedRetainedBatchCount);
+        Assert.Equal(2, summary.CurrentCombinedRetainedPayloadBytes);
+        Assert.Equal(1, summary.CombinedRetainedBatchCountHighWatermark);
+        Assert.Equal(2, summary.CombinedRetainedPayloadBytesHighWatermark);
     }
 
     [Fact]

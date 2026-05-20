@@ -302,6 +302,19 @@ public sealed class RadarProcessingProviderQueueContractTests
         Assert.Equal(2, summary.QueueDepthHighWatermark);
         Assert.Equal(128, summary.QueuedPayloadBytesHighWatermark);
         Assert.Equal(128, summary.RetainedPayloadBytesHighWatermark);
+        Assert.Equal(0, summary.CurrentPendingRetainedBatchCount);
+        Assert.Equal(0, summary.CurrentPendingRetainedPayloadBytes);
+        Assert.Equal(2, summary.PendingRetainedBatchCountHighWatermark);
+        Assert.Equal(128, summary.PendingRetainedPayloadBytesHighWatermark);
+        Assert.Equal(0, summary.CurrentActiveRetainedBatchCount);
+        Assert.Equal(0, summary.CurrentActiveRetainedPayloadBytes);
+        Assert.Equal(0, summary.ActiveRetainedBatchCountHighWatermark);
+        Assert.Equal(0, summary.ActiveRetainedPayloadBytesHighWatermark);
+        Assert.Equal(0, summary.CurrentCombinedRetainedBatchCount);
+        Assert.Equal(0, summary.CurrentCombinedRetainedPayloadBytes);
+        Assert.Equal(2, summary.CombinedRetainedBatchCountHighWatermark);
+        Assert.Equal(128, summary.CombinedRetainedPayloadBytesHighWatermark);
+        Assert.Equal(128, summary.RetainedResourcePressure.PendingRetainedPayloadBytesHighWatermark);
         Assert.Equal(TimeSpan.FromMilliseconds(11), summary.TotalProviderToProcessingLatency);
         Assert.Single(summary.RecentDetails);
         Assert.Equal(1, summary.RetainedRecentDetailCount);
@@ -333,6 +346,24 @@ public sealed class RadarProcessingProviderQueueContractTests
             new RadarProcessingProviderQueueTelemetrySummary(ownedSnapshotEventCount: -1));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new RadarProcessingProviderQueueTelemetrySummary(totalDequeueWaitTime: TimeSpan.FromTicks(-1)));
+
+        var pressure = new RadarProcessingRetainedResourcePressureSummary(
+            currentPendingRetainedBatchCount: 1,
+            currentPendingRetainedPayloadBytes: 64,
+            pendingRetainedBatchCountHighWatermark: 2,
+            pendingRetainedPayloadBytesHighWatermark: 128,
+            activeRetainedBatchCountHighWatermark: 0,
+            activeRetainedPayloadBytesHighWatermark: 0,
+            combinedRetainedBatchCountHighWatermark: 2,
+            combinedRetainedPayloadBytesHighWatermark: 128);
+        var explicitPressure = new RadarProcessingProviderQueueTelemetrySummary(
+            queueDepthHighWatermark: 2,
+            queuedPayloadBytesHighWatermark: 128,
+            retainedResourcePressure: pressure);
+
+        Assert.Same(pressure, explicitPressure.RetainedResourcePressure);
+        Assert.Equal(1, explicitPressure.CurrentPendingRetainedBatchCount);
+        Assert.Equal(64, explicitPressure.CurrentPendingRetainedPayloadBytes);
     }
 
     [Fact]

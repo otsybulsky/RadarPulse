@@ -411,7 +411,8 @@ public sealed class RadarProcessingQueuedRebalanceSession : IDisposable, IAsyncD
             queueSummary.RecentDetails,
             queueSummary.DroppedRecentDetailCount,
             queueSummary.OwnedSnapshotEventCount,
-            queueSummary.TotalDequeueWaitTime);
+            queueSummary.TotalDequeueWaitTime,
+            queueSummary.RetainedResourcePressure);
     }
 
     private static RadarProcessingAsyncRebalanceSession? CreateAsyncRebalanceSessionIfNeeded(

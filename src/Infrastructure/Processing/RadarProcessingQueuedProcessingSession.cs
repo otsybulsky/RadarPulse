@@ -381,7 +381,8 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
             queueSummary.RecentDetails,
             queueSummary.DroppedRecentDetailCount,
             queueSummary.OwnedSnapshotEventCount,
-            queueSummary.TotalDequeueWaitTime);
+            queueSummary.TotalDequeueWaitTime,
+            queueSummary.RetainedResourcePressure);
     }
 
     private static RadarProcessingAsyncCoreSession? CreateAsyncCoreSessionIfNeeded(
