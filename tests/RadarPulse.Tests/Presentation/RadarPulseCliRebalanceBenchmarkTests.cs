@@ -326,6 +326,9 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
         Assert.Equal(TimeSpan.Zero, options.OverlapConsumerDelay);
         Assert.Equal(ProcessingBenchmarkProviderQueueTelemetryOutput.Summary, options.QueueTelemetryOutput);
         Assert.Equal(ProcessingBenchmarkProviderOverlapTelemetryOutput.Summary, options.OverlapTelemetryOutput);
+        Assert.False(options.IsDefaultCandidateContour);
+        Assert.False(options.IsControlledProviderOverlapProof);
+        Assert.Equal("not-applicable", options.ProviderOverlapEvidenceContour);
         Assert.Equal(RadarProcessingValidationProfile.Essential, options.ValidationProfile);
         var quarantineLifecycle = options.QuarantineLifecycleOverrides.ApplyTo(
             RadarProcessingQuarantineLifecycleOptions.Default);
@@ -373,8 +376,55 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
         Assert.Equal(TimeSpan.FromMilliseconds(25), options.OverlapConsumerDelay);
         Assert.Equal(ProcessingBenchmarkProviderQueueTelemetryOutput.Recent, options.QueueTelemetryOutput);
         Assert.Equal(ProcessingBenchmarkProviderOverlapTelemetryOutput.Recent, options.OverlapTelemetryOutput);
+        Assert.False(options.IsDefaultCandidateContour);
+        Assert.True(options.IsControlledProviderOverlapProof);
+        Assert.Equal("controlled-proof", options.ProviderOverlapEvidenceContour);
         Assert.Equal(RadarProcessingExecutionMode.PartitionedBarrier, options.ExecutionMode);
         Assert.Null(options.AsyncExecution);
+    }
+
+    [Fact]
+    public void ArchiveRebalanceBenchmarkOptionsIdentifyDefaultCandidateContour()
+    {
+        var options = global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
+        [
+            "--cache",
+            "data/nexrad",
+            "--provider",
+            "queued-owned",
+            "--provider-overlap",
+            "producer-consumer",
+            "--retention-strategy",
+            "pooled-copy",
+            "--execution",
+            "async",
+            "--workers",
+            "4",
+            "--queue-capacity",
+            "8",
+            "--queue-retained-bytes",
+            "536870912",
+            "--queue-telemetry",
+            "summary",
+            "--overlap-telemetry",
+            "summary",
+            "--mode",
+            "rebalance"
+        ]);
+
+        Assert.True(options.IsDefaultCandidateContour);
+        Assert.False(options.IsControlledProviderOverlapProof);
+        Assert.Equal("natural-default-candidate", options.ProviderOverlapEvidenceContour);
+        Assert.Equal(RadarProcessingArchiveProviderMode.QueuedOwned, options.ProviderMode);
+        Assert.Equal(8, options.ProviderQueueCapacity);
+        Assert.Equal(RadarProcessingQueuedProviderOverlapMode.ProducerConsumer, options.ProviderOverlapMode);
+        Assert.Equal(RadarProcessingRetainedPayloadStrategy.PooledCopy, options.RetentionStrategy);
+        Assert.Equal(536_870_912, options.ProviderQueueRetainedPayloadBytes);
+        Assert.Equal(TimeSpan.Zero, options.OverlapConsumerDelay);
+        Assert.Equal(RadarProcessingExecutionMode.AsyncShardTransport, options.ExecutionMode);
+        Assert.NotNull(options.AsyncExecution);
+        Assert.Equal(4, options.AsyncExecution.WorkerCount);
+        Assert.Equal(8, options.AsyncExecution.QueueCapacity);
     }
 
     [Fact]
@@ -750,6 +800,8 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             Assert.Contains("Provider overlap mode: none", result.StandardOutput);
             Assert.Contains("Retention strategy: snapshot-copy", result.StandardOutput);
             Assert.Contains("Provider queue retained byte capacity: none", result.StandardOutput);
+            Assert.Contains("Default-candidate contour: no", result.StandardOutput);
+            Assert.Contains("Provider overlap evidence contour: not-applicable", result.StandardOutput);
             Assert.Contains(
                 "Batch lifetime: leased batches are converted to owned snapshots before provider queue enqueue",
                 result.StandardOutput);
@@ -813,10 +865,76 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             Assert.Contains("Provider overlap consumer delay ms: 1.00", result.StandardOutput);
             Assert.Contains("Retention strategy: pooled-copy", result.StandardOutput);
             Assert.Contains("Provider queue retained byte capacity: 4_096", result.StandardOutput);
+            Assert.Contains("Default-candidate contour: no", result.StandardOutput);
+            Assert.Contains("Provider overlap evidence contour: controlled-proof", result.StandardOutput);
             Assert.Contains("Retained payload strategy: pooled-copy", result.StandardOutput);
             Assert.Contains("Provider overlap telemetry: summary", result.StandardOutput);
             Assert.Contains("Provider overlap retained payload strategy: pooled-copy", result.StandardOutput);
             Assert.Contains("Provider overlap retained payload bytes high watermark: 0", result.StandardOutput);
+            Assert.Equal(string.Empty, result.StandardError);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ArchiveRebalanceBenchmarkCommandLabelsDefaultCandidateContour()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "RadarPulse.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        File.WriteAllBytes(Path.Combine(directory, "notes.txt"), [1, 2, 3]);
+
+        try
+        {
+            var result = RunCli(
+                "processing",
+                "benchmark",
+                "rebalance-archive",
+                "--cache",
+                directory,
+                "--max-files",
+                "1",
+                "--mode",
+                "static",
+                "--provider",
+                "queued-owned",
+                "--provider-overlap",
+                "producer-consumer",
+                "--retention-strategy",
+                "pooled-copy",
+                "--execution",
+                "async",
+                "--workers",
+                "4",
+                "--queue-capacity",
+                "8",
+                "--queue-retained-bytes",
+                "536870912",
+                "--queue-telemetry",
+                "summary",
+                "--overlap-telemetry",
+                "summary",
+                "--partitions",
+                "4",
+                "--shards",
+                "2",
+                "--iterations",
+                "1",
+                "--warmup-iterations",
+                "0");
+
+            Assert.Equal(0, result.ExitCode);
+            Assert.Contains("Provider mode: queued-owned", result.StandardOutput);
+            Assert.Contains("Provider queue capacity: 8", result.StandardOutput);
+            Assert.Contains("Provider overlap mode: producer-consumer", result.StandardOutput);
+            Assert.Contains("Provider overlap consumer delay ms: 0.00", result.StandardOutput);
+            Assert.Contains("Retention strategy: pooled-copy", result.StandardOutput);
+            Assert.Contains("Provider queue retained byte capacity: 536_870_912", result.StandardOutput);
+            Assert.Contains("Default-candidate contour: yes", result.StandardOutput);
+            Assert.Contains("Provider overlap evidence contour: natural-default-candidate", result.StandardOutput);
+            Assert.Contains("Execution mode: async", result.StandardOutput);
             Assert.Equal(string.Empty, result.StandardError);
         }
         finally

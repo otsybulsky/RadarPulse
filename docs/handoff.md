@@ -233,6 +233,41 @@ propagation coverage.
 713 passed, 0 failed, 3 skipped for the full test project.
 ```
 
+Milestone 011 slice 6 candidate configuration surface is implemented in the
+current working tree. The CLI keeps the conservative explicit-flags-only
+direction: no named profile was added and the blocking-borrowed/snapshot-copy
+runtime defaults remain unchanged.
+
+`ProcessingBenchmarkArchiveRebalanceOptions` now exposes
+`IsDefaultCandidateContour`, `IsControlledProviderOverlapProof`, and
+`ProviderOverlapEvidenceContour`. The exact milestone 011 candidate contour is
+`queued-owned + producer-consumer + pooled-copy + async`, provider queue
+capacity `8`, retained-byte budget `536870912`, non-`none` queue and overlap
+telemetry, and no controlled consumer delay. Archive rebalance file/cache CLI
+output now prints `Default-candidate contour: yes/no` and
+`Provider overlap evidence contour` values of `natural-default-candidate`,
+`controlled-proof`, `natural-opt-in`, or `not-applicable`.
+
+New CLI coverage validates default/not-applicable output, controlled-proof
+labeling when consumer delay is active, and exact candidate output for the
+natural default-candidate contour.
+
+Latest verification after milestone 011 slice 6:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests"
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+39 passed, 0 failed, 0 skipped for focused CLI/archive candidate surface
+coverage.
+715 passed, 0 failed, 3 skipped for the full test project.
+```
+
 Milestone 010 remains complete. The architecture is recorded in
 `docs/milestones/010-owned-provider-overlap-cost-reduction.md`, and the
 implementation plan is recorded in
@@ -3012,6 +3047,11 @@ Done:
   tested.
 - `011` slice 3 provider queue telemetry compatibility extensions are
   implemented and tested.
+- `011` slice 4 active consumer retained-resource lifecycle integration is
+  implemented and tested.
+- `011` slice 5 overlap telemetry and benchmark result propagation is
+  implemented and tested.
+- `011` slice 6 candidate configuration surface is implemented and tested.
 - `archive list` supports one radar and explicit `--all-radars`.
 - Manifest summary output and JSON write/read are implemented.
 - `archive download` supports live AWS listing and saved manifests.

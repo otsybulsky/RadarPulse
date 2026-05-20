@@ -828,6 +828,41 @@ Do not change the default provider, default overlap, or default retention
 strategy globally in this slice.
 ```
 
+Implemented in slice 6:
+
+```text
+the CLI keeps explicit candidate flags only; no named profile or runtime default
+change was introduced
+ProcessingBenchmarkArchiveRebalanceOptions exposes IsDefaultCandidateContour,
+IsControlledProviderOverlapProof, and ProviderOverlapEvidenceContour
+the exact default-candidate contour is queued-owned producer-consumer
+pooled-copy async, queue capacity 8, retained-byte budget 536870912,
+non-none queue/overlap telemetry, and no controlled consumer delay
+archive rebalance file/cache output now prints Default-candidate contour and
+Provider overlap evidence contour
+controlled delay producer-consumer runs are labeled controlled-proof, exact
+natural candidate runs are labeled natural-default-candidate, and unrelated
+contours are labeled not-applicable
+CLI tests cover option parsing, controlled-proof labeling, and exact candidate
+output without changing blocking-borrowed/snapshot-copy defaults
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests"
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+39 passed, 0 failed, 0 skipped for focused CLI/archive candidate surface
+coverage.
+715 passed, 0 failed, 3 skipped for the full test project.
+```
+
 ### 7. Readiness Validation And Gate Contracts
 
 Define how a candidate run is judged beyond raw throughput.
@@ -1203,10 +1238,10 @@ controlled proof rows separated if captured
 [x] overlap telemetry carries active and combined retained pressure
 [x] archive benchmark file/cache result shapes carry readiness pressure fields
 [ ] CLI output prints active and combined retained pressure fields
-[ ] candidate configuration output is explicit and reproducible
+[x] candidate configuration output is explicit and reproducible
 [ ] readiness validation/gate contracts are implemented or documented
 [ ] failure and cancellation cleanup paths are tested
-[ ] controlled consumer-delay proof is labeled and separated from natural gates
+[x] controlled consumer-delay proof is labeled and separated from natural gates
 [ ] repeated natural Release gate matrix is captured
 [ ] performance gate interprets correctness, allocation, memory pressure,
     cleanup, throughput, and variance

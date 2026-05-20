@@ -664,6 +664,8 @@ static void PrintProcessingArchiveRebalanceBenchmarkResult(
     Console.WriteLine($"Provider overlap consumer delay ms: {FormatDecimal(result.OverlapConsumerDelay.TotalMilliseconds)}");
     Console.WriteLine($"Retention strategy: {FormatProcessingRetentionStrategy(result.RetentionStrategy)}");
     Console.WriteLine($"Provider queue retained byte capacity: {FormatOptionalNumber(result.QueueRetainedPayloadBytes)}");
+    Console.WriteLine($"Default-candidate contour: {FormatBoolean(IsDefaultCandidateFileBenchmarkContour(result, queueTelemetryOutput, overlapTelemetryOutput))}");
+    Console.WriteLine($"Provider overlap evidence contour: {FormatProviderOverlapEvidenceContourForFileBenchmark(result, queueTelemetryOutput, overlapTelemetryOutput)}");
     Console.WriteLine($"Execution mode: {FormatProcessingMode(result.ExecutionMode)}");
     Console.WriteLine($"Benchmark mode: {FormatProcessingRebalanceMode(result.Mode)}");
     Console.WriteLine($"Validation profile: {FormatProcessingValidationProfile(result.ValidationProfile)}");
@@ -763,6 +765,8 @@ static void PrintProcessingArchiveRebalanceCacheBenchmarkResult(
     Console.WriteLine($"Provider overlap consumer delay ms: {FormatDecimal(result.OverlapConsumerDelay.TotalMilliseconds)}");
     Console.WriteLine($"Retention strategy: {FormatProcessingRetentionStrategy(result.RetentionStrategy)}");
     Console.WriteLine($"Provider queue retained byte capacity: {FormatOptionalNumber(result.QueueRetainedPayloadBytes)}");
+    Console.WriteLine($"Default-candidate contour: {FormatBoolean(IsDefaultCandidateCacheBenchmarkContour(result, queueTelemetryOutput, overlapTelemetryOutput))}");
+    Console.WriteLine($"Provider overlap evidence contour: {FormatProviderOverlapEvidenceContourForCacheBenchmark(result, queueTelemetryOutput, overlapTelemetryOutput)}");
     Console.WriteLine($"Execution mode: {FormatProcessingMode(result.ExecutionMode)}");
     Console.WriteLine($"Benchmark mode: {FormatProcessingRebalanceMode(result.Mode)}");
     Console.WriteLine($"Validation profile: {FormatProcessingValidationProfile(result.ValidationProfile)}");
@@ -972,6 +976,75 @@ static void PrintProcessingProviderOverlapTelemetrySummary(
     Console.WriteLine($"Provider overlap released batches: {FormatNumber(telemetry.ReleasedBatchCount)}");
     Console.WriteLine($"Provider overlap release-not-required batches: {FormatNumber(telemetry.ReleaseNotRequiredCount)}");
     Console.WriteLine($"Provider overlap failed releases: {FormatNumber(telemetry.ReleaseFailedCount)}");
+}
+
+static bool IsDefaultCandidateFileBenchmarkContour(
+    RadarProcessingArchiveRebalanceBenchmarkResult result,
+    ProcessingBenchmarkProviderQueueTelemetryOutput queueTelemetryOutput,
+    ProcessingBenchmarkProviderOverlapTelemetryOutput overlapTelemetryOutput) =>
+    ProcessingBenchmarkArchiveRebalanceOptions.MatchesDefaultCandidateContour(
+        result.ProviderMode,
+        result.QueueCapacity,
+        result.ProviderOverlapMode,
+        result.RetentionStrategy,
+        result.QueueRetainedPayloadBytes,
+        result.OverlapConsumerDelay,
+        queueTelemetryOutput,
+        overlapTelemetryOutput,
+        result.ExecutionMode);
+
+static bool IsDefaultCandidateCacheBenchmarkContour(
+    RadarProcessingArchiveRebalanceCacheBenchmarkResult result,
+    ProcessingBenchmarkProviderQueueTelemetryOutput queueTelemetryOutput,
+    ProcessingBenchmarkProviderOverlapTelemetryOutput overlapTelemetryOutput) =>
+    ProcessingBenchmarkArchiveRebalanceOptions.MatchesDefaultCandidateContour(
+        result.ProviderMode,
+        result.QueueCapacity,
+        result.ProviderOverlapMode,
+        result.RetentionStrategy,
+        result.QueueRetainedPayloadBytes,
+        result.OverlapConsumerDelay,
+        queueTelemetryOutput,
+        overlapTelemetryOutput,
+        result.ExecutionMode);
+
+static string FormatProviderOverlapEvidenceContourForFileBenchmark(
+    RadarProcessingArchiveRebalanceBenchmarkResult result,
+    ProcessingBenchmarkProviderQueueTelemetryOutput queueTelemetryOutput,
+    ProcessingBenchmarkProviderOverlapTelemetryOutput overlapTelemetryOutput) =>
+    FormatProviderOverlapEvidenceContourCore(
+        result.ProviderMode,
+        result.ProviderOverlapMode,
+        result.OverlapConsumerDelay,
+        IsDefaultCandidateFileBenchmarkContour(result, queueTelemetryOutput, overlapTelemetryOutput));
+
+static string FormatProviderOverlapEvidenceContourForCacheBenchmark(
+    RadarProcessingArchiveRebalanceCacheBenchmarkResult result,
+    ProcessingBenchmarkProviderQueueTelemetryOutput queueTelemetryOutput,
+    ProcessingBenchmarkProviderOverlapTelemetryOutput overlapTelemetryOutput) =>
+    FormatProviderOverlapEvidenceContourCore(
+        result.ProviderMode,
+        result.ProviderOverlapMode,
+        result.OverlapConsumerDelay,
+        IsDefaultCandidateCacheBenchmarkContour(result, queueTelemetryOutput, overlapTelemetryOutput));
+
+static string FormatProviderOverlapEvidenceContourCore(
+    RadarProcessingArchiveProviderMode providerMode,
+    RadarProcessingQueuedProviderOverlapMode providerOverlapMode,
+    TimeSpan overlapConsumerDelay,
+    bool isDefaultCandidateContour)
+{
+    if (isDefaultCandidateContour)
+    {
+        return "natural-default-candidate";
+    }
+
+    return providerMode == RadarProcessingArchiveProviderMode.QueuedOwned &&
+        providerOverlapMode == RadarProcessingQueuedProviderOverlapMode.ProducerConsumer
+        ? overlapConsumerDelay > TimeSpan.Zero
+            ? "controlled-proof"
+            : "natural-opt-in"
+        : "not-applicable";
 }
 
 static void PrintProcessingProviderQueueTelemetrySummary(
@@ -2806,6 +2879,56 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
     RadarProcessingExecutionMode ExecutionMode = RadarProcessingExecutionMode.PartitionedBarrier,
     RadarProcessingAsyncExecutionOptions? AsyncExecution = null)
 {
+    public const int DefaultCandidateProviderQueueCapacity = 8;
+    public const long DefaultCandidateRetainedPayloadBytes = 536_870_912;
+
+    public bool IsDefaultCandidateContour =>
+        MatchesDefaultCandidateContour(
+            ProviderMode,
+            ProviderQueueCapacity,
+            ProviderOverlapMode,
+            RetentionStrategy,
+            ProviderQueueRetainedPayloadBytes,
+            OverlapConsumerDelay,
+            QueueTelemetryOutput,
+            OverlapTelemetryOutput,
+            ExecutionMode);
+
+    public bool IsControlledProviderOverlapProof =>
+        ProviderMode == RadarProcessingArchiveProviderMode.QueuedOwned &&
+        ProviderOverlapMode == RadarProcessingQueuedProviderOverlapMode.ProducerConsumer &&
+        OverlapConsumerDelay > TimeSpan.Zero;
+
+    public string ProviderOverlapEvidenceContour =>
+        IsDefaultCandidateContour
+            ? "natural-default-candidate"
+            : IsControlledProviderOverlapProof
+                ? "controlled-proof"
+                : ProviderMode == RadarProcessingArchiveProviderMode.QueuedOwned &&
+                  ProviderOverlapMode == RadarProcessingQueuedProviderOverlapMode.ProducerConsumer
+                    ? "natural-opt-in"
+                    : "not-applicable";
+
+    public static bool MatchesDefaultCandidateContour(
+        RadarProcessingArchiveProviderMode providerMode,
+        int providerQueueCapacity,
+        RadarProcessingQueuedProviderOverlapMode providerOverlapMode,
+        RadarProcessingRetainedPayloadStrategy retentionStrategy,
+        long? providerQueueRetainedPayloadBytes,
+        TimeSpan overlapConsumerDelay,
+        ProcessingBenchmarkProviderQueueTelemetryOutput queueTelemetryOutput,
+        ProcessingBenchmarkProviderOverlapTelemetryOutput overlapTelemetryOutput,
+        RadarProcessingExecutionMode executionMode) =>
+        providerMode == RadarProcessingArchiveProviderMode.QueuedOwned &&
+        providerQueueCapacity == DefaultCandidateProviderQueueCapacity &&
+        providerOverlapMode == RadarProcessingQueuedProviderOverlapMode.ProducerConsumer &&
+        retentionStrategy == RadarProcessingRetainedPayloadStrategy.PooledCopy &&
+        providerQueueRetainedPayloadBytes == DefaultCandidateRetainedPayloadBytes &&
+        overlapConsumerDelay == TimeSpan.Zero &&
+        queueTelemetryOutput != ProcessingBenchmarkProviderQueueTelemetryOutput.None &&
+        overlapTelemetryOutput != ProcessingBenchmarkProviderOverlapTelemetryOutput.None &&
+        executionMode == RadarProcessingExecutionMode.AsyncShardTransport;
+
     public static ProcessingBenchmarkArchiveRebalanceOptions Parse(string[] args)
     {
         string? filePath = null;
