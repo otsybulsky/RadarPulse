@@ -797,7 +797,7 @@ implementation.
 [x] producer/consumer archive overlap runner is implemented and tested
 [x] ordered consumer topology pinning rules are implemented and tested
 [x] overlap telemetry and allocation attribution are implemented and tested
-[ ] optimized queued validation proves borrowed-reference parity
+[x] optimized queued validation proves borrowed-reference parity
 [ ] archive benchmark exposes retention strategy and overlap contours
 [ ] CLI exposes retention strategy, overlap mode, and retained-byte controls
 [ ] same-run single-file compatibility comparisons are captured

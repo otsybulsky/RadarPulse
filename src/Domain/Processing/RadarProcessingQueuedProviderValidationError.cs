@@ -15,5 +15,14 @@ public enum RadarProcessingQueuedProviderValidationError
     AcceptedMoveCountMismatch = 10,
     SkippedDecisionCountMismatch = 11,
     FailureCountMismatch = 12,
-    FinalTopologyVersionMismatch = 13
+    FinalTopologyVersionMismatch = 13,
+    ProviderSequenceGap = 14,
+    ProcessingSequenceGap = 15,
+    PayloadValueCountMismatch = 16,
+    FailedMigrationCountMismatch = 17,
+    ReferenceSemanticSurfaceMismatch = 18,
+    RetentionTelemetryIncomplete = 19,
+    RetentionTelemetryMismatch = 20,
+    RetainedResourceCleanupIncomplete = 21,
+    OverlapTelemetryIncomplete = 22
 }

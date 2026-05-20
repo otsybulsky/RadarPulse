@@ -11,16 +11,16 @@ implementation plan is recorded in
 Milestone 010 starts from the closed milestone 009 owned-provider boundary:
 `queued-owned` is correct and measurable, but still opt-in because owned
 snapshot allocation is the dominant cost and the current archive benchmark does
-not overlap replay with processing. Milestone 010 slices 1 through 8 are now
+not overlap replay with processing. Milestone 010 slices 1 through 9 are now
 complete: the milestone 009 cost anchors are confirmed, retained payload
 strategy contracts are implemented and tested, and the resource-owned queued
 batch lifecycle, one lower-allocation retained payload implementation, and
 retained-byte-aware provider queue accounting plus the first producer/consumer
 archive overlap runner with ordered rebalance topology pinning and overlap
-telemetry/allocation attribution are implemented and tested. The next
-implementation work should start slice 9 by extending optimized queued
-validation so the overlapped retained path still proves borrowed-reference
-parity.
+telemetry/allocation attribution plus optimized queued validation are
+implemented and tested. The next implementation work should start slice 10 by
+exposing retention strategy and provider overlap controls through the archive
+benchmark and CLI surfaces.
 
 `blocking-borrowed` remains the default provider mode and same-run oracle.
 `queued-owned` remains an explicit validation and measurement mode until the
@@ -1042,6 +1042,68 @@ Recorded result:
 ```text
 35 passed, 0 failed, 0 skipped for overlap telemetry plus queue telemetry coverage.
 691 passed, 0 failed, 3 skipped for the full test project.
+```
+
+Milestone 010 slice 9 optimized queued validation is implemented in the
+current working tree. The queued provider validator now covers the overlapped
+retained path, not only the original queued-owned structure:
+
+```text
+RadarProcessingQueuedProviderValidationContext
+  -> names the semantic surface being compared, the provider overlap mode, the
+     retention strategy, retained payload telemetry, and overlap elapsed time
+
+RadarProcessingQueuedProviderValidationSurface
+  -> processing-only or rebalance comparison surface
+
+RadarProcessingQueuedProviderOverlapMode
+  -> none or producer-consumer overlap
+
+RadarProcessingQueuedProviderMetrics
+  -> now includes payload value count, failed migration count, and inferred
+     semantic surface in addition to checksum, moves, skipped decisions, failed
+     batches, and worker failures
+
+RadarProcessingQueuedProviderReference
+  -> can now carry borrowed-reference payload value count, failed migration
+     count, and semantic surface
+```
+
+Validation behavior added in this slice:
+
+```text
+accepted provider sequences must be contiguous, not only monotonic
+processed provider sequences reject out-of-order commits and gaps
+queue retained snapshot telemetry must match accepted queued batches
+benchmark reference comparison includes payload value count and failed
+  migration count
+optional semantic-surface comparison prevents accidentally mixing processing
+  only and rebalance references
+optimized validation context checks retention telemetry completeness, retained
+  batch/event/payload/allocation parity, release completion, and positive
+  producer-consumer overlap telemetry for completed overlap runs
+validation results surface semantic surface, overlap mode, and retention
+  strategy for diagnostics
+```
+
+This slice is still validation-only. It does not wire archive benchmark CLI
+flags for selecting `pooled-copy`, `builder-transfer`, provider overlap mode,
+or retained-byte controls; those remain for slice 10.
+
+Latest verification after milestone 010 slice 9:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingQueuedProviderValidatorTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~Processing
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+19 passed, 0 failed, 0 skipped for optimized queued provider validation coverage.
+527 passed, 0 failed, 0 skipped for Processing-focused coverage.
+700 passed, 0 failed, 3 skipped for the full test project.
 ```
 
 Milestone 008 slice 1 is implemented in the current working tree. RadarPulse

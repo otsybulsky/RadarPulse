@@ -2,7 +2,10 @@ namespace RadarPulse.Domain.Processing;
 
 public readonly record struct RadarProcessingQueuedProviderMetrics(
     ulong? ValidationChecksum,
+    long PayloadValueCount,
     long AcceptedMoveCount,
     long SkippedDecisionCount,
     long FailedBatchCount,
-    long WorkerFailedBatchCount);
+    long FailedMigrationCount,
+    long WorkerFailedBatchCount,
+    RadarProcessingQueuedProviderValidationSurface SemanticSurface);

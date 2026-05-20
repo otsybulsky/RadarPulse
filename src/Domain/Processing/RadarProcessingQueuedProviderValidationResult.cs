@@ -10,11 +10,28 @@ public sealed class RadarProcessingQueuedProviderValidationResult
         ulong? expectedChecksum = null,
         ulong? actualChecksum = null,
         long? expectedCount = null,
-        long? actualCount = null)
+        long? actualCount = null,
+        RadarProcessingQueuedProviderValidationSurface? semanticSurface = null,
+        RadarProcessingQueuedProviderOverlapMode? overlapMode = null,
+        RadarProcessingRetainedPayloadStrategy? retentionStrategy = null)
     {
         EnsureKnownError(error);
         RadarProcessingQueuedProviderValidator.EnsureKnownProfile(profile);
         ArgumentNullException.ThrowIfNull(message);
+        if (semanticSurface.HasValue)
+        {
+            RadarProcessingQueuedProviderValidationContext.EnsureKnownSurface(semanticSurface.Value);
+        }
+
+        if (overlapMode.HasValue)
+        {
+            RadarProcessingQueuedProviderValidationContext.EnsureKnownOverlapMode(overlapMode.Value);
+        }
+
+        if (retentionStrategy.HasValue)
+        {
+            RadarProcessingRetainedPayloadOptions.EnsureKnownStrategy(retentionStrategy.Value);
+        }
 
         if (isValid && error != RadarProcessingQueuedProviderValidationError.None)
         {
@@ -44,6 +61,9 @@ public sealed class RadarProcessingQueuedProviderValidationResult
         ActualChecksum = actualChecksum;
         ExpectedCount = expectedCount;
         ActualCount = actualCount;
+        SemanticSurface = semanticSurface;
+        OverlapMode = overlapMode;
+        RetentionStrategy = retentionStrategy;
     }
 
     public bool IsValid { get; }
@@ -62,13 +82,23 @@ public sealed class RadarProcessingQueuedProviderValidationResult
 
     public long? ActualCount { get; }
 
+    public RadarProcessingQueuedProviderValidationSurface? SemanticSurface { get; }
+
+    public RadarProcessingQueuedProviderOverlapMode? OverlapMode { get; }
+
+    public RadarProcessingRetainedPayloadStrategy? RetentionStrategy { get; }
+
     public static RadarProcessingQueuedProviderValidationResult Valid(
-        RadarProcessingQueuedProviderValidationProfile profile) =>
+        RadarProcessingQueuedProviderValidationProfile profile,
+        RadarProcessingQueuedProviderValidationContext? context = null) =>
         new(
             isValid: true,
             RadarProcessingQueuedProviderValidationError.None,
             string.Empty,
-            profile);
+            profile,
+            semanticSurface: context?.SemanticSurface,
+            overlapMode: context?.OverlapMode,
+            retentionStrategy: context?.RetentionStrategy);
 
     public static RadarProcessingQueuedProviderValidationResult Invalid(
         RadarProcessingQueuedProviderValidationError error,
@@ -77,7 +107,8 @@ public sealed class RadarProcessingQueuedProviderValidationResult
         ulong? expectedChecksum = null,
         ulong? actualChecksum = null,
         long? expectedCount = null,
-        long? actualCount = null) =>
+        long? actualCount = null,
+        RadarProcessingQueuedProviderValidationContext? context = null) =>
         new(
             isValid: false,
             error,
@@ -86,7 +117,10 @@ public sealed class RadarProcessingQueuedProviderValidationResult
             expectedChecksum,
             actualChecksum,
             expectedCount,
-            actualCount);
+            actualCount,
+            context?.SemanticSurface,
+            context?.OverlapMode,
+            context?.RetentionStrategy);
 
     internal static void EnsureKnownError(
         RadarProcessingQueuedProviderValidationError error)
@@ -104,7 +138,16 @@ public sealed class RadarProcessingQueuedProviderValidationResult
             not RadarProcessingQueuedProviderValidationError.AcceptedMoveCountMismatch and
             not RadarProcessingQueuedProviderValidationError.SkippedDecisionCountMismatch and
             not RadarProcessingQueuedProviderValidationError.FailureCountMismatch and
-            not RadarProcessingQueuedProviderValidationError.FinalTopologyVersionMismatch)
+            not RadarProcessingQueuedProviderValidationError.FinalTopologyVersionMismatch and
+            not RadarProcessingQueuedProviderValidationError.ProviderSequenceGap and
+            not RadarProcessingQueuedProviderValidationError.ProcessingSequenceGap and
+            not RadarProcessingQueuedProviderValidationError.PayloadValueCountMismatch and
+            not RadarProcessingQueuedProviderValidationError.FailedMigrationCountMismatch and
+            not RadarProcessingQueuedProviderValidationError.ReferenceSemanticSurfaceMismatch and
+            not RadarProcessingQueuedProviderValidationError.RetentionTelemetryIncomplete and
+            not RadarProcessingQueuedProviderValidationError.RetentionTelemetryMismatch and
+            not RadarProcessingQueuedProviderValidationError.RetainedResourceCleanupIncomplete and
+            not RadarProcessingQueuedProviderValidationError.OverlapTelemetryIncomplete)
         {
             throw new ArgumentOutOfRangeException(nameof(error));
         }

@@ -27,24 +27,25 @@ public static class RadarProcessingQueuedProviderValidator
     public static RadarProcessingQueuedProviderValidationResult ValidateSessionResult(
         RadarProcessingQueuedSessionResult result,
         RadarProcessingQueuedProviderValidationProfile profile = RadarProcessingQueuedProviderValidationProfile.Diagnostic,
-        RadarProcessingQueuedProviderReference? reference = null)
+        RadarProcessingQueuedProviderReference? reference = null,
+        RadarProcessingQueuedProviderValidationContext? context = null)
     {
         ArgumentNullException.ThrowIfNull(result);
         EnsureKnownProfile(profile);
 
         if (profile == RadarProcessingQueuedProviderValidationProfile.Off)
         {
-            return RadarProcessingQueuedProviderValidationResult.Valid(profile);
+            return Valid(profile, context);
         }
 
-        var essential = ValidateEssential(result, profile);
+        var essential = ValidateEssential(result, profile, context);
         if (!essential.IsValid ||
             profile == RadarProcessingQueuedProviderValidationProfile.Essential)
         {
             return essential;
         }
 
-        var diagnostic = ValidateDiagnostic(result, profile);
+        var diagnostic = ValidateDiagnostic(result, profile, context);
         if (!diagnostic.IsValid ||
             profile == RadarProcessingQueuedProviderValidationProfile.Diagnostic)
         {
@@ -52,8 +53,8 @@ public static class RadarProcessingQueuedProviderValidator
         }
 
         return reference is null
-            ? RadarProcessingQueuedProviderValidationResult.Valid(profile)
-            : ValidateReference(result, reference, profile);
+            ? Valid(profile, context)
+            : ValidateReference(result, reference, profile, context);
     }
 
     public static RadarProcessingQueuedProviderMetrics CreateMetrics(
@@ -62,10 +63,13 @@ public static class RadarProcessingQueuedProviderValidator
         ArgumentNullException.ThrowIfNull(result);
 
         ulong? validationChecksum = null;
+        var payloadValueCount = 0L;
         var acceptedMoveCount = 0L;
         var skippedDecisionCount = 0L;
         var failedBatchCount = 0L;
+        var failedMigrationCount = 0L;
         var workerFailedBatchCount = 0L;
+        var semanticSurface = RadarProcessingQueuedProviderValidationSurface.ProcessingOnly;
 
         foreach (var processing in result.ProcessingResults)
         {
@@ -74,6 +78,7 @@ public static class RadarProcessingQueuedProviderValidator
             if (processing.ProcessingResult is { } processingResult)
             {
                 validationChecksum = processingResult.Metrics.ProcessingChecksum;
+                payloadValueCount = checked(payloadValueCount + processingResult.Metrics.ProcessedPayloadValueCount);
                 if (processingResult.WorkerTelemetry is { } workerTelemetry)
                 {
                     workerFailedBatchCount = Math.Max(
@@ -87,10 +92,17 @@ public static class RadarProcessingQueuedProviderValidator
                 failedBatchCount++;
             }
 
+            if (processing.Status == RadarProcessingQueuedBatchProcessingStatus.FailedMigration)
+            {
+                failedMigrationCount++;
+            }
+
             if (processing.RebalanceResult is not { } rebalanceResult)
             {
                 continue;
             }
+
+            semanticSurface = RadarProcessingQueuedProviderValidationSurface.Rebalance;
 
             if (rebalanceResult.PublishedMigration)
             {
@@ -102,10 +114,13 @@ public static class RadarProcessingQueuedProviderValidator
 
         return new RadarProcessingQueuedProviderMetrics(
             validationChecksum,
+            payloadValueCount,
             acceptedMoveCount,
             skippedDecisionCount,
             failedBatchCount,
-            workerFailedBatchCount);
+            failedMigrationCount,
+            workerFailedBatchCount,
+            semanticSurface);
     }
 
     internal static void EnsureKnownProfile(
@@ -122,10 +137,12 @@ public static class RadarProcessingQueuedProviderValidator
 
     private static RadarProcessingQueuedProviderValidationResult ValidateEssential(
         RadarProcessingQueuedSessionResult result,
-        RadarProcessingQueuedProviderValidationProfile profile)
+        RadarProcessingQueuedProviderValidationProfile profile,
+        RadarProcessingQueuedProviderValidationContext? context)
     {
         var acceptedSequences = new HashSet<long>();
         long? previousProviderSequence = null;
+        var expectedProviderSequence = 0L;
 
         foreach (var enqueue in result.EnqueueResults)
         {
@@ -137,23 +154,39 @@ public static class RadarProcessingQueuedProviderValidator
 
             var batch = enqueue.Batch ??
                         throw new InvalidOperationException("Accepted enqueue results must carry a queued batch.");
-            var ownedValidation = ValidateQueuedBatch(batch.Batch, profile);
-            if (!ownedValidation.IsValid)
+            if (batch.Batch.Lifetime != RadarEventBatchLifetime.Owned)
             {
-                return ownedValidation;
+                return Invalid(
+                    RadarProcessingQueuedProviderValidationError.NonOwnedQueuedBatch,
+                    "Queued provider batches must own their payload.",
+                    profile,
+                    context: context);
             }
 
             var sequence = batch.Sequence.Value;
+            if (sequence > expectedProviderSequence)
+            {
+                return Invalid(
+                    RadarProcessingQueuedProviderValidationError.ProviderSequenceGap,
+                    "Accepted provider sequence ids must be contiguous.",
+                    profile,
+                    context: context,
+                    expectedCount: expectedProviderSequence,
+                    actualCount: sequence);
+            }
+
             if (previousProviderSequence.HasValue && sequence <= previousProviderSequence.Value)
             {
                 return Invalid(
                     RadarProcessingQueuedProviderValidationError.ProviderSequenceRegression,
                     "Accepted provider sequence ids must increase monotonically.",
-                    profile);
+                    profile,
+                    context: context);
             }
 
             previousProviderSequence = sequence;
             acceptedSequences.Add(sequence);
+            expectedProviderSequence = checked(sequence + 1);
         }
 
         var processedSequences = new HashSet<long>();
@@ -168,7 +201,8 @@ public static class RadarProcessingQueuedProviderValidator
                 return Invalid(
                     RadarProcessingQueuedProviderValidationError.ProcessingSequenceRegression,
                     "Processed provider sequence ids must increase monotonically.",
-                    profile);
+                    profile,
+                    context: context);
             }
 
             previousProcessingSequence = sequence;
@@ -185,7 +219,8 @@ public static class RadarProcessingQueuedProviderValidator
                 return Invalid(
                     RadarProcessingQueuedProviderValidationError.TopologyVersionRegression,
                     "Queued processing topology versions must not regress.",
-                    profile);
+                    profile,
+                    context: context);
             }
 
             previousTopologyVersion = topologyVersion;
@@ -195,30 +230,62 @@ public static class RadarProcessingQueuedProviderValidator
                 return Invalid(
                     RadarProcessingQueuedProviderValidationError.TopologyVersionRegression,
                     "Final queued topology version must cover every processed topology version.",
-                    profile);
+                    profile,
+                    context: context);
             }
         }
 
         if (!result.IsCanceled)
         {
-            foreach (var sequence in acceptedSequences)
+            foreach (var sequence in acceptedSequences.OrderBy(static sequence => sequence))
             {
                 if (!processedSequences.Contains(sequence))
                 {
+                    var nextProcessedSequence = processedSequences
+                        .Where(processedSequence => processedSequence > sequence)
+                        .DefaultIfEmpty(-1)
+                        .Min();
+                    if (nextProcessedSequence >= 0)
+                    {
+                        return Invalid(
+                            RadarProcessingQueuedProviderValidationError.ProcessingSequenceGap,
+                            "Processed provider sequence ids must be contiguous.",
+                            profile,
+                            context: context,
+                            expectedCount: sequence,
+                            actualCount: nextProcessedSequence);
+                    }
+
                     return Invalid(
                         RadarProcessingQueuedProviderValidationError.MissingCompletionForAcceptedBatch,
                         "Every accepted provider sequence requires a processing result unless the session is canceled.",
-                        profile);
+                        profile,
+                        context: context);
+                }
+            }
+
+            foreach (var sequence in processedSequences.OrderBy(static sequence => sequence))
+            {
+                if (!acceptedSequences.Contains(sequence))
+                {
+                    return Invalid(
+                        RadarProcessingQueuedProviderValidationError.ProcessingSequenceGap,
+                        "Processed provider sequence ids must not include unaccepted provider sequence ids.",
+                        profile,
+                        context: context,
+                        expectedCount: expectedProviderSequence,
+                        actualCount: sequence);
                 }
             }
         }
 
-        return RadarProcessingQueuedProviderValidationResult.Valid(profile);
+        return Valid(profile, context);
     }
 
     private static RadarProcessingQueuedProviderValidationResult ValidateDiagnostic(
         RadarProcessingQueuedSessionResult result,
-        RadarProcessingQueuedProviderValidationProfile profile)
+        RadarProcessingQueuedProviderValidationProfile profile,
+        RadarProcessingQueuedProviderValidationContext? context)
     {
         var accepted = result.EnqueueResults.LongCount(static enqueue => enqueue.IsAccepted);
         var completed = result.ProcessingResults.LongCount(static processing => processing.Status == RadarProcessingQueuedBatchProcessingStatus.Succeeded);
@@ -237,7 +304,14 @@ public static class RadarProcessingQueuedProviderValidator
             return Invalid(
                 RadarProcessingQueuedProviderValidationError.TelemetryCounterMismatch,
                 "Queued provider telemetry counters must match enqueue and processing result snapshots.",
-                profile);
+                profile,
+                context: context);
+        }
+
+        var queueTelemetry = ValidateQueueTelemetrySnapshot(result, accepted, profile, context);
+        if (!queueTelemetry.IsValid)
+        {
+            return queueTelemetry;
         }
 
         if (result.IsCompleted && failed > 0)
@@ -245,7 +319,8 @@ public static class RadarProcessingQueuedProviderValidator
             return Invalid(
                 RadarProcessingQueuedProviderValidationError.QueueFaultStateMismatch,
                 "Completed queued provider sessions must not contain failed processing results.",
-                profile);
+                profile,
+                context: context);
         }
 
         var metrics = CreateMetrics(result);
@@ -254,18 +329,39 @@ public static class RadarProcessingQueuedProviderValidator
             return Invalid(
                 RadarProcessingQueuedProviderValidationError.WorkerFailureCountMismatch,
                 "Worker failure telemetry must be reflected by failed or canceled queued batch results.",
-                profile);
+                profile,
+                context: context);
         }
 
-        return RadarProcessingQueuedProviderValidationResult.Valid(profile);
+        var optimizedTelemetry = ValidateOptimizedTelemetry(result, context, profile);
+        if (!optimizedTelemetry.IsValid)
+        {
+            return optimizedTelemetry;
+        }
+
+        return Valid(profile, context);
     }
 
     private static RadarProcessingQueuedProviderValidationResult ValidateReference(
         RadarProcessingQueuedSessionResult result,
         RadarProcessingQueuedProviderReference reference,
-        RadarProcessingQueuedProviderValidationProfile profile)
+        RadarProcessingQueuedProviderValidationProfile profile,
+        RadarProcessingQueuedProviderValidationContext? context)
     {
         var metrics = CreateMetrics(result);
+        if (context is not null &&
+            reference.SemanticSurface.HasValue &&
+            context.SemanticSurface != reference.SemanticSurface.Value)
+        {
+            return Invalid(
+                RadarProcessingQueuedProviderValidationError.ReferenceSemanticSurfaceMismatch,
+                "Queued provider validation semantic surface does not match the borrowed blocking reference.",
+                profile,
+                context: context,
+                expectedCount: (int)reference.SemanticSurface.Value,
+                actualCount: (int)context.SemanticSurface);
+        }
+
         if (reference.ValidationChecksum.HasValue &&
             reference.ValidationChecksum != metrics.ValidationChecksum)
         {
@@ -274,7 +370,20 @@ public static class RadarProcessingQueuedProviderValidator
                 "Queued provider checksum does not match the borrowed blocking reference.",
                 profile,
                 expectedChecksum: reference.ValidationChecksum,
-                actualChecksum: metrics.ValidationChecksum);
+                actualChecksum: metrics.ValidationChecksum,
+                context: context);
+        }
+
+        if (reference.PayloadValueCount.HasValue &&
+            reference.PayloadValueCount != metrics.PayloadValueCount)
+        {
+            return Invalid(
+                RadarProcessingQueuedProviderValidationError.PayloadValueCountMismatch,
+                "Queued provider payload value count does not match the borrowed blocking reference.",
+                profile,
+                expectedCount: reference.PayloadValueCount,
+                actualCount: metrics.PayloadValueCount,
+                context: context);
         }
 
         if (reference.AcceptedMoveCount.HasValue &&
@@ -285,7 +394,8 @@ public static class RadarProcessingQueuedProviderValidator
                 "Queued provider accepted move count does not match the borrowed blocking reference.",
                 profile,
                 expectedCount: reference.AcceptedMoveCount,
-                actualCount: metrics.AcceptedMoveCount);
+                actualCount: metrics.AcceptedMoveCount,
+                context: context);
         }
 
         if (reference.SkippedDecisionCount.HasValue &&
@@ -296,7 +406,8 @@ public static class RadarProcessingQueuedProviderValidator
                 "Queued provider skipped decision count does not match the borrowed blocking reference.",
                 profile,
                 expectedCount: reference.SkippedDecisionCount,
-                actualCount: metrics.SkippedDecisionCount);
+                actualCount: metrics.SkippedDecisionCount,
+                context: context);
         }
 
         if (reference.FailedBatchCount.HasValue &&
@@ -307,7 +418,20 @@ public static class RadarProcessingQueuedProviderValidator
                 "Queued provider failed batch count does not match the borrowed blocking reference.",
                 profile,
                 expectedCount: reference.FailedBatchCount,
-                actualCount: metrics.FailedBatchCount);
+                actualCount: metrics.FailedBatchCount,
+                context: context);
+        }
+
+        if (reference.FailedMigrationCount.HasValue &&
+            reference.FailedMigrationCount != metrics.FailedMigrationCount)
+        {
+            return Invalid(
+                RadarProcessingQueuedProviderValidationError.FailedMigrationCountMismatch,
+                "Queued provider failed migration count does not match the borrowed blocking reference.",
+                profile,
+                expectedCount: reference.FailedMigrationCount,
+                actualCount: metrics.FailedMigrationCount,
+                context: context);
         }
 
         if (reference.WorkerFailedBatchCount.HasValue &&
@@ -318,7 +442,8 @@ public static class RadarProcessingQueuedProviderValidator
                 "Queued provider worker failure count does not match the borrowed blocking reference.",
                 profile,
                 expectedCount: reference.WorkerFailedBatchCount,
-                actualCount: metrics.WorkerFailedBatchCount);
+                actualCount: metrics.WorkerFailedBatchCount,
+                context: context);
         }
 
         if (reference.FinalTopologyVersion.HasValue &&
@@ -329,10 +454,116 @@ public static class RadarProcessingQueuedProviderValidator
                 "Queued provider final topology version does not match the borrowed blocking reference.",
                 profile,
                 expectedCount: reference.FinalTopologyVersion.Value.Value,
-                actualCount: result.FinalTopologyVersion?.Value);
+                actualCount: result.FinalTopologyVersion?.Value,
+                context: context);
         }
 
-        return RadarProcessingQueuedProviderValidationResult.Valid(profile);
+        return Valid(profile, context);
+    }
+
+    private static RadarProcessingQueuedProviderValidationResult ValidateQueueTelemetrySnapshot(
+        RadarProcessingQueuedSessionResult result,
+        long accepted,
+        RadarProcessingQueuedProviderValidationProfile profile,
+        RadarProcessingQueuedProviderValidationContext? context)
+    {
+        var acceptedEventCount = 0L;
+        var acceptedPayloadBytes = 0L;
+        var acceptedPayloadValueCount = 0L;
+        foreach (var enqueue in result.EnqueueResults)
+        {
+            if (!enqueue.IsAccepted)
+            {
+                continue;
+            }
+
+            var batch = enqueue.Batch ??
+                        throw new InvalidOperationException("Accepted enqueue results must carry a queued batch.");
+            acceptedEventCount = checked(acceptedEventCount + batch.StreamEventCount);
+            acceptedPayloadBytes = checked(acceptedPayloadBytes + batch.PayloadBytes);
+            acceptedPayloadValueCount = checked(acceptedPayloadValueCount + batch.PayloadValueCount);
+        }
+
+        if (result.Telemetry.OwnedSnapshotCount != accepted ||
+            result.Telemetry.OwnedSnapshotEventCount != acceptedEventCount ||
+            result.Telemetry.OwnedSnapshotPayloadBytes != acceptedPayloadBytes ||
+            result.Telemetry.OwnedSnapshotPayloadValueCount != acceptedPayloadValueCount)
+        {
+            return Invalid(
+                RadarProcessingQueuedProviderValidationError.TelemetryCounterMismatch,
+                "Queued provider retained payload telemetry must match accepted queued batches.",
+                profile,
+                context: context);
+        }
+
+        return Valid(profile, context);
+    }
+
+    private static RadarProcessingQueuedProviderValidationResult ValidateOptimizedTelemetry(
+        RadarProcessingQueuedSessionResult result,
+        RadarProcessingQueuedProviderValidationContext? context,
+        RadarProcessingQueuedProviderValidationProfile profile)
+    {
+        if (context is null)
+        {
+            return Valid(profile, context);
+        }
+
+        if (context.RequiresOverlapTelemetry && context.OverlapElapsed == TimeSpan.Zero && result.IsCompleted)
+        {
+            return Invalid(
+                RadarProcessingQueuedProviderValidationError.OverlapTelemetryIncomplete,
+                "Producer-consumer overlap validation requires positive overlap telemetry for completed sessions.",
+                profile,
+                context: context);
+        }
+
+        var retention = context.RetentionTelemetry;
+        if (result.Telemetry.EnqueuedBatchCount > 0 && !context.HasRetentionTelemetry)
+        {
+            return Invalid(
+                RadarProcessingQueuedProviderValidationError.RetentionTelemetryIncomplete,
+                "Queued provider validation requires retention telemetry for accepted retained batches.",
+                profile,
+                context: context);
+        }
+
+        if (context.HasRetentionTelemetry &&
+            (retention.RetainedBatchCount != result.Telemetry.OwnedSnapshotCount ||
+             retention.RetainedEventCount != result.Telemetry.OwnedSnapshotEventCount ||
+             retention.RetainedPayloadBytes != result.Telemetry.OwnedSnapshotPayloadBytes ||
+             retention.RetainedPayloadValueCount != result.Telemetry.OwnedSnapshotPayloadValueCount ||
+             retention.AllocatedBytes != result.Telemetry.OwnedSnapshotAllocatedBytes))
+        {
+            return Invalid(
+                RadarProcessingQueuedProviderValidationError.RetentionTelemetryMismatch,
+                "Retention telemetry must match queued owned snapshot counters.",
+                profile,
+                context: context);
+        }
+
+        if (!context.HasRetentionTelemetry)
+        {
+            return Valid(profile, context);
+        }
+
+        var completedReleaseCount = checked(
+            retention.ReleasedBatchCount +
+            retention.AlreadyReleasedBatchCount +
+            retention.ReleaseNotRequiredCount);
+        if (retention.ReleaseFailedCount > 0 ||
+            completedReleaseCount < retention.RetainedBatchCount)
+        {
+            return Invalid(
+                RadarProcessingQueuedProviderValidationError.RetainedResourceCleanupIncomplete,
+                "Retained resources must be released or explicitly marked as release-not-required at session completion.",
+                profile,
+                context: context,
+                expectedCount: retention.RetainedBatchCount,
+                actualCount: completedReleaseCount);
+        }
+
+        return Valid(profile, context);
     }
 
     private static bool IsFailedProcessingStatus(
@@ -365,7 +596,8 @@ public static class RadarProcessingQueuedProviderValidator
         ulong? expectedChecksum = null,
         ulong? actualChecksum = null,
         long? expectedCount = null,
-        long? actualCount = null) =>
+        long? actualCount = null,
+        RadarProcessingQueuedProviderValidationContext? context = null) =>
         RadarProcessingQueuedProviderValidationResult.Invalid(
             error,
             message,
@@ -373,5 +605,11 @@ public static class RadarProcessingQueuedProviderValidator
             expectedChecksum,
             actualChecksum,
             expectedCount,
-            actualCount);
+            actualCount,
+            context);
+
+    private static RadarProcessingQueuedProviderValidationResult Valid(
+        RadarProcessingQueuedProviderValidationProfile profile,
+        RadarProcessingQueuedProviderValidationContext? context) =>
+        RadarProcessingQueuedProviderValidationResult.Valid(profile, context);
 }

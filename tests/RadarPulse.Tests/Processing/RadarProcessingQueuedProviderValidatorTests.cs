@@ -13,6 +13,11 @@ public sealed class RadarProcessingQueuedProviderValidatorTests
         Assert.Equal(2, (int)RadarProcessingQueuedProviderValidationProfile.Diagnostic);
         Assert.Equal(3, (int)RadarProcessingQueuedProviderValidationProfile.Benchmark);
 
+        Assert.Equal(1, (int)RadarProcessingQueuedProviderValidationSurface.ProcessingOnly);
+        Assert.Equal(2, (int)RadarProcessingQueuedProviderValidationSurface.Rebalance);
+        Assert.Equal(0, (int)RadarProcessingQueuedProviderOverlapMode.None);
+        Assert.Equal(1, (int)RadarProcessingQueuedProviderOverlapMode.ProducerConsumer);
+
         Assert.Equal(0, (int)RadarProcessingQueuedProviderValidationError.None);
         Assert.Equal(1, (int)RadarProcessingQueuedProviderValidationError.NonOwnedQueuedBatch);
         Assert.Equal(2, (int)RadarProcessingQueuedProviderValidationError.ProviderSequenceRegression);
@@ -20,22 +25,43 @@ public sealed class RadarProcessingQueuedProviderValidatorTests
         Assert.Equal(4, (int)RadarProcessingQueuedProviderValidationError.MissingCompletionForAcceptedBatch);
         Assert.Equal(5, (int)RadarProcessingQueuedProviderValidationError.TopologyVersionRegression);
         Assert.Equal(9, (int)RadarProcessingQueuedProviderValidationError.DeterministicChecksumMismatch);
+        Assert.Equal(14, (int)RadarProcessingQueuedProviderValidationError.ProviderSequenceGap);
+        Assert.Equal(15, (int)RadarProcessingQueuedProviderValidationError.ProcessingSequenceGap);
+        Assert.Equal(16, (int)RadarProcessingQueuedProviderValidationError.PayloadValueCountMismatch);
+        Assert.Equal(17, (int)RadarProcessingQueuedProviderValidationError.FailedMigrationCountMismatch);
+        Assert.Equal(18, (int)RadarProcessingQueuedProviderValidationError.ReferenceSemanticSurfaceMismatch);
+        Assert.Equal(19, (int)RadarProcessingQueuedProviderValidationError.RetentionTelemetryIncomplete);
+        Assert.Equal(20, (int)RadarProcessingQueuedProviderValidationError.RetentionTelemetryMismatch);
+        Assert.Equal(21, (int)RadarProcessingQueuedProviderValidationError.RetainedResourceCleanupIncomplete);
+        Assert.Equal(22, (int)RadarProcessingQueuedProviderValidationError.OverlapTelemetryIncomplete);
+
+        var context = new RadarProcessingQueuedProviderValidationContext(
+            overlapMode: RadarProcessingQueuedProviderOverlapMode.ProducerConsumer,
+            retentionStrategy: RadarProcessingRetainedPayloadStrategy.PooledCopy,
+            retentionTelemetry: new RadarProcessingRetainedPayloadTelemetrySummary(
+                RadarProcessingRetainedPayloadStrategy.PooledCopy),
+            overlapElapsed: TimeSpan.FromMilliseconds(1));
 
         var valid = RadarProcessingQueuedProviderValidationResult.Valid(
-            RadarProcessingQueuedProviderValidationProfile.Diagnostic);
+            RadarProcessingQueuedProviderValidationProfile.Diagnostic,
+            context);
         var invalid = RadarProcessingQueuedProviderValidationResult.Invalid(
             RadarProcessingQueuedProviderValidationError.FailureCountMismatch,
             "failed batch count mismatch",
             RadarProcessingQueuedProviderValidationProfile.Benchmark,
             expectedCount: 1,
-            actualCount: 2);
+            actualCount: 2,
+            context: context);
 
         Assert.True(valid.IsValid);
         Assert.Equal(RadarProcessingQueuedProviderValidationError.None, valid.Error);
+        Assert.Equal(RadarProcessingQueuedProviderOverlapMode.ProducerConsumer, valid.OverlapMode);
+        Assert.Equal(RadarProcessingRetainedPayloadStrategy.PooledCopy, valid.RetentionStrategy);
         Assert.False(invalid.IsValid);
         Assert.Equal(RadarProcessingQueuedProviderValidationError.FailureCountMismatch, invalid.Error);
         Assert.Equal(1, invalid.ExpectedCount);
         Assert.Equal(2, invalid.ActualCount);
+        Assert.Equal(RadarProcessingQueuedProviderOverlapMode.ProducerConsumer, invalid.OverlapMode);
 
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             RadarProcessingQueuedProviderValidationResult.Valid((RadarProcessingQueuedProviderValidationProfile)255));
@@ -46,6 +72,21 @@ public sealed class RadarProcessingQueuedProviderValidatorTests
                 RadarProcessingQueuedProviderValidationProfile.Diagnostic));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new RadarProcessingQueuedProviderReference(failedBatchCount: -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RadarProcessingQueuedProviderReference(payloadValueCount: -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RadarProcessingQueuedProviderReference(failedMigrationCount: -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RadarProcessingQueuedProviderValidationContext(
+                semanticSurface: (RadarProcessingQueuedProviderValidationSurface)255));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new RadarProcessingQueuedProviderValidationContext(
+                overlapMode: (RadarProcessingQueuedProviderOverlapMode)255));
+        Assert.Throws<ArgumentException>(() =>
+            new RadarProcessingQueuedProviderValidationContext(
+                retentionStrategy: RadarProcessingRetainedPayloadStrategy.SnapshotCopy,
+                retentionTelemetry: new RadarProcessingRetainedPayloadTelemetrySummary(
+                    RadarProcessingRetainedPayloadStrategy.PooledCopy)));
     }
 
     [Fact]
@@ -98,6 +139,53 @@ public sealed class RadarProcessingQueuedProviderValidatorTests
 
         Assert.False(result.IsValid);
         Assert.Equal(RadarProcessingQueuedProviderValidationError.MissingCompletionForAcceptedBatch, result.Error);
+    }
+
+    [Fact]
+    public void EssentialProfileCatchesAcceptedProviderSequenceGap()
+    {
+        var session = CreateSessionResult(
+            [CreateAccepted(0), CreateAccepted(2)],
+            [
+                RadarProcessingQueuedBatchProcessingResult.Succeeded(
+                    RadarProcessingQueuedBatchSequence.Initial,
+                    CreateProcessingResult())
+            ],
+            completedCount: 1);
+
+        var result = RadarProcessingQueuedProviderValidator.ValidateSessionResult(
+            session,
+            RadarProcessingQueuedProviderValidationProfile.Essential);
+
+        Assert.False(result.IsValid);
+        Assert.Equal(RadarProcessingQueuedProviderValidationError.ProviderSequenceGap, result.Error);
+        Assert.Equal(1, result.ExpectedCount);
+        Assert.Equal(2, result.ActualCount);
+    }
+
+    [Fact]
+    public void EssentialProfileCatchesProcessedProviderSequenceGap()
+    {
+        var session = CreateSessionResult(
+            [CreateAccepted(0), CreateAccepted(1)],
+            [
+                RadarProcessingQueuedBatchProcessingResult.Succeeded(
+                    RadarProcessingQueuedBatchSequence.Initial,
+                    CreateProcessingResult()),
+                RadarProcessingQueuedBatchProcessingResult.Succeeded(
+                    new RadarProcessingQueuedBatchSequence(2),
+                    CreateProcessingResult())
+            ],
+            completedCount: 2);
+
+        var result = RadarProcessingQueuedProviderValidator.ValidateSessionResult(
+            session,
+            RadarProcessingQueuedProviderValidationProfile.Essential);
+
+        Assert.False(result.IsValid);
+        Assert.Equal(RadarProcessingQueuedProviderValidationError.ProcessingSequenceGap, result.Error);
+        Assert.Equal(1, result.ExpectedCount);
+        Assert.Equal(2, result.ActualCount);
     }
 
     [Fact]
@@ -195,6 +283,150 @@ public sealed class RadarProcessingQueuedProviderValidatorTests
     }
 
     [Fact]
+    public void BenchmarkReferenceComparisonCatchesPayloadValueCountMismatch()
+    {
+        var session = CreateValidCompletedSession(checksum: 10);
+        var reference = new RadarProcessingQueuedProviderReference(
+            validationChecksum: 10,
+            payloadValueCount: 3);
+
+        var result = RadarProcessingQueuedProviderValidator.ValidateSessionResult(
+            session,
+            RadarProcessingQueuedProviderValidationProfile.Benchmark,
+            reference);
+
+        Assert.False(result.IsValid);
+        Assert.Equal(RadarProcessingQueuedProviderValidationError.PayloadValueCountMismatch, result.Error);
+        Assert.Equal(3, result.ExpectedCount);
+        Assert.Equal(2, result.ActualCount);
+    }
+
+    [Fact]
+    public void BenchmarkReferenceComparisonCatchesFailedMigrationMismatch()
+    {
+        var session = CreateSessionResult(
+            [CreateAccepted(0)],
+            [
+                RadarProcessingQueuedBatchProcessingResult.FailedMigration(
+                    RadarProcessingQueuedBatchSequence.Initial,
+                    "migration failed")
+            ],
+            completedCount: 0,
+            status: RadarProcessingQueuedSessionStatus.Faulted);
+        var reference = new RadarProcessingQueuedProviderReference(
+            failedBatchCount: 1,
+            failedMigrationCount: 0);
+
+        var result = RadarProcessingQueuedProviderValidator.ValidateSessionResult(
+            session,
+            RadarProcessingQueuedProviderValidationProfile.Benchmark,
+            reference);
+
+        Assert.False(result.IsValid);
+        Assert.Equal(RadarProcessingQueuedProviderValidationError.FailedMigrationCountMismatch, result.Error);
+        Assert.Equal(0, result.ExpectedCount);
+        Assert.Equal(1, result.ActualCount);
+    }
+
+    [Fact]
+    public void BenchmarkProfileAcceptsOptimizedQueuedTelemetryAndSurfacesDiagnostics()
+    {
+        var session = CreateValidCompletedSession(checksum: 10);
+        var reference = RadarProcessingQueuedProviderReference.FromQueuedSession(session);
+        var context = CreateValidationContext(session);
+
+        var result = RadarProcessingQueuedProviderValidator.ValidateSessionResult(
+            session,
+            RadarProcessingQueuedProviderValidationProfile.Benchmark,
+            reference,
+            context);
+
+        Assert.True(result.IsValid, result.Message);
+        Assert.Equal(RadarProcessingQueuedProviderValidationSurface.ProcessingOnly, result.SemanticSurface);
+        Assert.Equal(RadarProcessingQueuedProviderOverlapMode.ProducerConsumer, result.OverlapMode);
+        Assert.Equal(RadarProcessingRetainedPayloadStrategy.PooledCopy, result.RetentionStrategy);
+    }
+
+    [Fact]
+    public void DiagnosticProfileRejectsMissingRetentionTelemetryForAcceptedRetainedBatch()
+    {
+        var session = CreateValidCompletedSession(checksum: 10);
+        var context = new RadarProcessingQueuedProviderValidationContext(
+            overlapMode: RadarProcessingQueuedProviderOverlapMode.ProducerConsumer,
+            overlapElapsed: TimeSpan.FromMilliseconds(1));
+
+        var result = RadarProcessingQueuedProviderValidator.ValidateSessionResult(
+            session,
+            context: context);
+
+        Assert.False(result.IsValid);
+        Assert.Equal(RadarProcessingQueuedProviderValidationError.RetentionTelemetryIncomplete, result.Error);
+        Assert.Equal(RadarProcessingQueuedProviderOverlapMode.ProducerConsumer, result.OverlapMode);
+    }
+
+    [Fact]
+    public void DiagnosticProfileRejectsPendingRetainedResourcesAtCompletion()
+    {
+        var session = CreateValidCompletedSession(checksum: 10);
+        var context = CreateValidationContext(
+            session,
+            releaseNotRequiredCount: 0);
+
+        var result = RadarProcessingQueuedProviderValidator.ValidateSessionResult(
+            session,
+            context: context);
+
+        Assert.False(result.IsValid);
+        Assert.Equal(RadarProcessingQueuedProviderValidationError.RetainedResourceCleanupIncomplete, result.Error);
+        Assert.Equal(1, result.ExpectedCount);
+        Assert.Equal(0, result.ActualCount);
+    }
+
+    [Fact]
+    public void DiagnosticProfileRejectsMissingProducerConsumerOverlapTelemetry()
+    {
+        var session = CreateValidCompletedSession(checksum: 10);
+        var context = CreateValidationContext(
+            session,
+            overlapElapsed: TimeSpan.Zero);
+
+        var result = RadarProcessingQueuedProviderValidator.ValidateSessionResult(
+            session,
+            context: context);
+
+        Assert.False(result.IsValid);
+        Assert.Equal(RadarProcessingQueuedProviderValidationError.OverlapTelemetryIncomplete, result.Error);
+    }
+
+    [Fact]
+    public void BenchmarkReferenceComparisonRejectsSemanticSurfaceMismatch()
+    {
+        var session = CreateValidCompletedSession(checksum: 10);
+        var reference = new RadarProcessingQueuedProviderReference(
+            validationChecksum: 10,
+            payloadValueCount: 2,
+            acceptedMoveCount: 0,
+            skippedDecisionCount: 0,
+            failedBatchCount: 0,
+            failedMigrationCount: 0,
+            workerFailedBatchCount: 0,
+            finalTopologyVersion: RadarProcessingTopologyVersion.Initial,
+            semanticSurface: RadarProcessingQueuedProviderValidationSurface.Rebalance);
+        var context = CreateValidationContext(session);
+
+        var result = RadarProcessingQueuedProviderValidator.ValidateSessionResult(
+            session,
+            RadarProcessingQueuedProviderValidationProfile.Benchmark,
+            reference,
+            context);
+
+        Assert.False(result.IsValid);
+        Assert.Equal(RadarProcessingQueuedProviderValidationError.ReferenceSemanticSurfaceMismatch, result.Error);
+        Assert.Equal((int)RadarProcessingQueuedProviderValidationSurface.Rebalance, result.ExpectedCount);
+        Assert.Equal((int)RadarProcessingQueuedProviderValidationSurface.ProcessingOnly, result.ActualCount);
+    }
+
+    [Fact]
     public void BenchmarkReferenceComparisonAcceptsMatchingStructuralSession()
     {
         var session = CreateValidCompletedSession(checksum: 10);
@@ -226,6 +458,22 @@ public sealed class RadarProcessingQueuedProviderValidatorTests
         RadarProcessingTopologyVersion? finalTopologyVersion = null)
     {
         var accepted = enqueueResults.LongCount(static result => result.IsAccepted);
+        var acceptedEventCount = 0L;
+        var acceptedPayloadBytes = 0L;
+        var acceptedPayloadValueCount = 0L;
+        foreach (var enqueue in enqueueResults)
+        {
+            if (!enqueue.IsAccepted)
+            {
+                continue;
+            }
+
+            var batch = enqueue.Batch!;
+            acceptedEventCount = checked(acceptedEventCount + batch.StreamEventCount);
+            acceptedPayloadBytes = checked(acceptedPayloadBytes + batch.PayloadBytes);
+            acceptedPayloadValueCount = checked(acceptedPayloadValueCount + batch.PayloadValueCount);
+        }
+
         var failed = processingResults.LongCount(static result =>
             result.Status is RadarProcessingQueuedBatchProcessingStatus.FailedProcessing or
                 RadarProcessingQueuedBatchProcessingStatus.FailedValidation or
@@ -235,8 +483,12 @@ public sealed class RadarProcessingQueuedProviderValidatorTests
         var skipped = processingResults.LongCount(static result =>
             result.Status == RadarProcessingQueuedBatchProcessingStatus.SkippedAfterFault);
         var telemetry = new RadarProcessingProviderQueueTelemetrySummary(
+            ownedSnapshotCount: accepted,
+            ownedSnapshotPayloadBytes: acceptedPayloadBytes,
             enqueueAttemptCount: enqueueResults.Count,
             enqueuedBatchCount: accepted,
+            ownedSnapshotEventCount: acceptedEventCount,
+            ownedSnapshotPayloadValueCount: acceptedPayloadValueCount,
             dequeuedBatchCount: processingResults.Count,
             completedBatchCount: completedCount,
             failedBatchCount: failed,
@@ -249,6 +501,28 @@ public sealed class RadarProcessingQueuedProviderValidatorTests
             enqueueResults,
             processingResults,
             finalTopologyVersion: finalTopologyVersion ?? RadarProcessingTopologyVersion.Initial);
+    }
+
+    private static RadarProcessingQueuedProviderValidationContext CreateValidationContext(
+        RadarProcessingQueuedSessionResult session,
+        long? releaseNotRequiredCount = null,
+        TimeSpan? overlapElapsed = null)
+    {
+        var releaseCount = releaseNotRequiredCount ?? session.Telemetry.OwnedSnapshotCount;
+        return new RadarProcessingQueuedProviderValidationContext(
+            overlapMode: RadarProcessingQueuedProviderOverlapMode.ProducerConsumer,
+            retentionStrategy: RadarProcessingRetainedPayloadStrategy.PooledCopy,
+            retentionTelemetry: new RadarProcessingRetainedPayloadTelemetrySummary(
+                RadarProcessingRetainedPayloadStrategy.PooledCopy,
+                retentionAttemptCount: session.Telemetry.EnqueueAttemptCount,
+                retainedBatchCount: session.Telemetry.OwnedSnapshotCount,
+                retainedEventCount: session.Telemetry.OwnedSnapshotEventCount,
+                retainedPayloadBytes: session.Telemetry.OwnedSnapshotPayloadBytes,
+                retainedPayloadValueCount: session.Telemetry.OwnedSnapshotPayloadValueCount,
+                allocatedBytes: session.Telemetry.OwnedSnapshotAllocatedBytes,
+                releaseAttemptCount: session.Telemetry.OwnedSnapshotCount,
+                releaseNotRequiredCount: releaseCount),
+            overlapElapsed: overlapElapsed ?? TimeSpan.FromMilliseconds(1));
     }
 
     private static RadarProcessingQueuedBatchEnqueueResult CreateAccepted(long sequence) =>
