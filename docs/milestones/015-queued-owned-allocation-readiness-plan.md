@@ -1523,6 +1523,104 @@ Runtime behavior changes:
 none; this slice records evidence only
 ```
 
+Implemented in slice 8:
+
+```text
+status: complete
+runtime behavior changes: none
+gate document:
+  docs/milestones/015-queued-owned-allocation-readiness-performance-gate.md
+
+Release build before capture:
+  dotnet build RadarPulse.sln -c Release --no-restore
+  succeeded, 0 warnings, 0 errors
+
+capture method:
+  temporary direct API harness, not committed as product surface
+  direct default rows called MeasureCache()/MeasureFile() with
+  provider-related arguments omitted
+  borrowed oracle rows used explicit providerMode: BlockingBorrowed
+  explicit rollout spot-check supplied the queued-owned rollout controls
+
+gate status:
+  ready with file-level allocation warning
+
+cache-level gate summary:
+  primary KTLX 2026-05-04 elapsed ratio: 0.889x borrowed
+  primary KTLX 2026-05-04 allocation ratio: 1.042x borrowed
+  primary direct-default timing spread: 1.10%
+  KTLX 2026-05-05 elapsed ratio: 0.943x borrowed average
+  KTLX 2026-05-05 allocation ratio: 1.0392x borrowed average
+  KTLX 2026-05-05 allocation rows: 1.0404x and 1.0381x borrowed
+  KINX 2026-05-04 allocation ratio: 1.042x borrowed
+  mixed-cache allocation ratio: 1.021x borrowed
+
+before/after allocation movement versus milestone 014:
+  primary KTLX 2026-05-04: 1.071x -> 1.042x borrowed
+  KTLX 2026-05-05 average: 1.0997x -> 1.0392x borrowed
+  KINX 2026-05-04: 1.069x -> 1.042x borrowed
+  mixed cache: 1.066x -> 1.021x borrowed
+
+KTLX 2026-05-05 interpretation:
+  the named risk contour moved materially away from the 1.10x allocation
+  threshold
+  both repeated rows are below threshold
+  the retained event-array pool is the dominant accepted allocation
+  improvement visible in the gate
+
+correctness and safety:
+  validation succeeded across captured rows
+  validation checksums matched by shape
+  failed migrations remained 0
+  retained payload failed releases remained 0
+  provider overlap failed releases remained 0
+  pending, active, and combined retained pressure returned to 0
+  max combined retained payload high watermark was 54413280 bytes, 10.14%
+  of the 536870912 byte budget
+  retained event-array and byte-array pool rents were returned
+
+direct/rollout/fallback posture:
+  direct omitted defaults resolved to queued-owned, producer-consumer,
+  pooled-copy, async shard transport, workers 4, worker queue capacity 8,
+  provider queue capacity 8, retained-byte budget 536870912, delay 0
+  explicit queued-owned rollout spot-check matched the direct default
+  deterministic totals and contour
+  explicit BlockingBorrowed remained a separate oracle
+  no automatic borrowed fallback was used after queued-owned rows
+
+file-level smoke warning:
+  representative KTLX Archive Two file allocation ratio was 1.512x borrowed
+  elapsed ratio was 1.072x borrowed
+  retained allocated bytes were 69206320, with one event-array pool miss and
+  one byte-array pool miss for one retained batch
+  interpretation: the single-file cold smoke is a real unamortized retained
+  snapshot allocation warning and an expected cold retained-ownership price
+  for the current queued-owned pooled-copy architecture
+  this is not a JIT warmup artifact; the first retained event-array and
+  byte-array snapshot must be allocated for safe ownership unless a future
+  contract adds explicit prewarm, a shared long-lived pool, a file-only fast
+  path, or a different file-level default posture
+  it does not invalidate the cache-level readiness evidence because the
+  cache contours amortize the cold retained snapshot cost across many batches
+  it must scope the slice 9 decision trace: cache-level allocation readiness
+  can be accepted with this warning, but file-level default latency/allocation
+  would make this warning a separate blocker or optimization target
+  prewarming or shared pools must not be used to hide allocation outside the
+  measured window unless the measurement contract is explicitly changed
+
+mixed-cache note:
+  worker failed batches/items were 221 / 881 in both borrowed and direct
+  default rows
+  validation still succeeded and the counters were not candidate-specific
+
+next slice input:
+  write the allocation-readiness decision trace
+  decide whether milestone 015 accepts cache-level allocation readiness with
+  the expected file-level cold retained-ownership warning, and explicitly
+  name file-level default latency/allocation as a separate future target if
+  that surface is chosen next
+```
+
 ### 9. Allocation Readiness Decision Trace
 
 Record the allocation readiness decision after the gate.
@@ -1725,9 +1823,9 @@ standard and experimental optimization outcomes recorded
 [x] CLI omitted-provider rollout contour remains aligned with direct defaults
 [x] failure, cancellation, release, and cleanup guardrails remain covered
 [x] focused regression pass succeeds before gate capture
-[ ] allocation readiness Release gate is captured
-[ ] KTLX 2026-05-05 allocation warning is repeated and interpreted
-[ ] performance gate interprets correctness, cleanup, pressure, allocation,
+[x] allocation readiness Release gate is captured
+[x] KTLX 2026-05-05 allocation warning is repeated and interpreted
+[x] performance gate interprets correctness, cleanup, pressure, allocation,
     timing, variance, fallback/oracle posture, attribution, and optimization
     posture
 [ ] decision trace records the allocation readiness decision

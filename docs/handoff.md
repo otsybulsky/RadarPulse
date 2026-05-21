@@ -7,6 +7,7 @@ Milestone 015 is in progress. The milestone documents created so far are:
 ```text
 docs/milestones/015-queued-owned-allocation-readiness.md
 docs/milestones/015-queued-owned-allocation-readiness-plan.md
+docs/milestones/015-queued-owned-allocation-readiness-performance-gate.md
 ```
 
 Milestone 015 is the queued-owned allocation readiness milestone. It starts
@@ -25,8 +26,8 @@ Milestone 015 current status:
 ```text
 architecture document: draft
 implementation plan: in progress
-implementation: slice 7 complete; next slice 8 allocation readiness Release
-  gate
+implementation: slice 8 allocation readiness Release gate complete; next
+  slice 9 allocation readiness decision trace
 runtime behavior changes so far: allocation-only optimization, including
   cheaper bounded recent-detail copying and explicit pooled retained payload
   release ownership and a dedicated retained event-array pool; retained
@@ -34,12 +35,21 @@ runtime behavior changes so far: allocation-only optimization, including
   byte arrays; the wait-mode provider enqueue fast path was reverted before
   the Release gate; no direct/default contour, fallback, or release lifecycle
   changes
-performance gate: not captured
-interim allocation sanity: captured on KTLX 2026-05-05 CLI same-run pairs;
-  after the retained event-array pool, both rows were below 1.10x borrowed
-  and averaged 1.0392x borrowed allocation; after reverting the wait-mode
-  enqueue fast path, a one-row same-run sanity stayed at 1.0362x borrowed;
-  final direct API gate is not yet captured
+performance gate: captured in
+  docs/milestones/015-queued-owned-allocation-readiness-performance-gate.md
+gate posture: ready with file-level allocation warning
+cache-level allocation posture:
+  primary KTLX 2026-05-04 allocation ratio 1.042x borrowed
+  KTLX 2026-05-05 allocation ratio 1.0392x borrowed average, with both rows
+  below the 1.10x threshold
+  KINX 2026-05-04 allocation ratio 1.042x borrowed
+  mixed-cache allocation ratio 1.021x borrowed
+file-level warning:
+  representative KTLX single-file cold smoke allocation ratio 1.512x
+  borrowed and elapsed ratio 1.072x borrowed because the first retained
+  event-array and byte-array snapshot is not amortized across many retained
+  batches; this is an expected cold retained-ownership price for the current
+  queued-owned pooled-copy architecture, not a JIT warmup artifact
 decision trace: not written
 closeout: not written
 ```
@@ -87,7 +97,7 @@ Milestone 015 planned slices:
 5. adopted optimization integration complete
 6. fallback, failure, cleanup, and drift guardrails complete
 7. focused regression and allocation sanity pass complete
-8. allocation readiness Release gate next
+8. allocation readiness Release gate complete
 9. allocation readiness decision trace
 10. closeout and handoff
 ```
@@ -566,6 +576,79 @@ interpretation:
   allocation improvement on the KTLX 2026-05-05 risk shape
   this is only a sanity row; slice 8 still needs the planned direct API
   Release allocation-readiness gate
+```
+
+Milestone 015 slice 8 allocation readiness Release gate:
+
+```text
+status: complete
+runtime behavior changes: none
+gate document:
+  docs/milestones/015-queued-owned-allocation-readiness-performance-gate.md
+gate status:
+  ready with file-level allocation warning
+verification before capture:
+  focused slice 7 regression passed, 112 passed, 0 failed, 0 skipped
+  dotnet build RadarPulse.sln -c Release --no-restore
+  succeeded, 0 warnings, 0 errors
+capture method:
+  temporary direct API harness called MeasureCache()/MeasureFile() directly
+  default rows omitted provider-related direct API arguments
+  borrowed rows used explicit providerMode: BlockingBorrowed
+  explicit rollout row supplied all queued-owned rollout controls
+primary KTLX 2026-05-04:
+  elapsed ratio: 0.889x borrowed
+  allocation ratio: 1.042x borrowed
+  direct-default timing spread: 1.10%
+KTLX 2026-05-05:
+  elapsed ratio: 0.943x borrowed average
+  allocation ratio: 1.0392x borrowed average
+  allocation rows: 1.0404x and 1.0381x borrowed
+  interpretation: named risk contour moved materially below the 1.10x
+  threshold and both repeated rows passed
+broader rows:
+  KINX 2026-05-04 allocation ratio: 1.042x borrowed
+  mixed-cache allocation ratio: 1.021x borrowed
+retained pressure and cleanup:
+  max combined retained payload high watermark: 54413280 bytes, 10.14% of
+  the 536870912 byte budget
+  retained payload failed releases: 0
+  provider overlap failed releases: 0
+  pending, active, and combined retained pressure returned to 0
+  event-array and byte-array pool rents were returned
+direct/rollout/fallback posture:
+  omitted direct defaults resolved to the queued-owned rollout contour
+  explicit queued-owned rollout spot-check matched deterministic totals and
+  contour fields
+  explicit BlockingBorrowed remained a separate oracle
+  no automatic borrowed fallback was used
+file-level smoke warning:
+  representative KTLX single-file cold smoke allocation ratio: 1.512x
+  borrowed
+  single-file elapsed ratio: 1.072x borrowed
+  retained allocated bytes: 69206320
+  event-array pool rents/returns/misses: 1 / 1 / 1
+  byte-array pool rents/returns/misses: 1 / 1 / 1
+  interpretation: one retained snapshot copy is not amortized on the
+  single-file shape; this is the expected cold retained-ownership price for
+  queued-owned pooled-copy in the current architecture, not a JIT warmup
+  artifact
+  cache-level readiness can be accepted with this warning because cache
+  contours amortize the cold retained snapshot cost across many batches
+  file-level default latency/allocation should be named as a separate future
+  blocker or optimization target if that surface is chosen next
+  prewarming or shared pools would need an explicit contract change and must
+  not hide allocation outside the measured window
+mixed-cache note:
+  worker failed batches/items were 221 / 881 in both borrowed and direct
+  default rows; validation succeeded and the counters were not
+  candidate-specific
+next slice:
+  write the allocation-readiness decision trace
+  decide whether cache-level allocation readiness is accepted with the
+  expected file-level cold retained-ownership warning, and explicitly name
+  file-level default latency/allocation as a separate future target if that
+  surface is chosen next
 ```
 
 Milestone 015 likely implementation targets:
