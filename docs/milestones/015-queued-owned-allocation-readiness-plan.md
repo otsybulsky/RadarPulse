@@ -678,6 +678,53 @@ Focused verification:
 dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests|FullyQualifiedName~RadarProcessingRetainedBatchResourceTests|FullyQualifiedName~RadarProcessingOwnedBatchQueueTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests"
 ```
 
+Implemented in slice 3:
+
+```text
+status: complete
+runtime behavior changes:
+  allocation profile should improve on bounded recent-detail aggregation,
+  defensive recent-detail copy, and not-required retained-resource release
+  delegate paths
+  direct/default contour, fallback behavior, telemetry semantics, release
+  lifecycle, and result contracts did not change
+
+accepted standard optimizations:
+  RadarProcessingArchiveRebalanceBenchmark.CreateBoundedRecentDetails no
+  longer uses Concat/Skip/ToArray for bounded recent-detail aggregation; it
+  now copies the retained window directly into one destination array while
+  preserving oldest-drop ordering and dropped-count semantics
+
+  RadarProcessingProviderQueueTelemetrySummary.CopyRequired no longer builds
+  a List and then a second array for defensive recent-detail copies; it now
+  validates null entries while copying directly into one array and keeps the
+  same read-only result shape
+
+  RadarProcessingRetainedBatchResource no longer creates a capturing default
+  release lambda for not-required resources; it uses static per-strategy
+  not-required release delegates and preserves resource state transitions and
+  release-result validation
+
+deferred to slice 4:
+  replacing the closure-backed pooled retained payload release callback with
+  an explicit owner/resource type remains an experimental candidate because it
+  touches pooled array ownership and release timing
+
+  pooled telemetry accumulator and struct-backed queued work item ideas remain
+  experimental because they are broader than this low-risk standard pass
+
+verification:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests|FullyQualifiedName~RadarProcessingRetainedBatchResourceTests|FullyQualifiedName~RadarProcessingOwnedBatchQueueTests|FullyQualifiedName~RadarProcessingProviderQueueTelemetryRecorderTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests"
+  passed, 76 passed, 0 failed, 0 skipped
+
+next:
+  slice 4 should investigate non-standard or experimental approaches,
+  especially an explicit pooled retained payload release owner, but should
+  adopt one only if it preserves lifetime, release, cleanup, and failure
+  guardrails more clearly than the current callback path
+```
+
 ### 4. Experimental Optimization Research And Spikes
 
 Investigate non-standard or experimental allocation-reduction ideas after the
@@ -1136,7 +1183,7 @@ standard and experimental optimization outcomes recorded
 [x] allocation baseline audit is captured
 [x] attribution sufficiency decision is recorded
 [x] allocation instrumentation and contract check is complete
-[ ] standard allocation optimization pass is complete or explicitly rejected
+[x] standard allocation optimization pass is complete or explicitly rejected
 [ ] experimental optimization research/spike pass is complete
 [ ] adopted optimizations are integrated with focused tests
 [ ] rejected standard and experimental approaches are recorded

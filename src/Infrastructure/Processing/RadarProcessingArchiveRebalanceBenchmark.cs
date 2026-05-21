@@ -1324,10 +1324,33 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             return Array.Empty<RadarProcessingProviderQueueRecentDetail>();
         }
 
-        return current
-            .Concat(next)
-            .Skip(skipCount)
-            .ToArray();
+        var retainedCount = totalCount - skipCount;
+        var result = new RadarProcessingProviderQueueRecentDetail[retainedCount];
+        var writeIndex = 0;
+        var readIndex = 0;
+
+        CopyRecentDetails(current, skipCount, result, ref readIndex, ref writeIndex);
+        CopyRecentDetails(next, skipCount, result, ref readIndex, ref writeIndex);
+
+        return result;
+    }
+
+    private static void CopyRecentDetails(
+        IReadOnlyCollection<RadarProcessingProviderQueueRecentDetail> source,
+        int skipCount,
+        RadarProcessingProviderQueueRecentDetail[] destination,
+        ref int readIndex,
+        ref int writeIndex)
+    {
+        foreach (var detail in source)
+        {
+            if (readIndex++ < skipCount)
+            {
+                continue;
+            }
+
+            destination[writeIndex++] = detail;
+        }
     }
 
     private static bool MatchesRadar(FileInfo fileInfo, string? radarId)

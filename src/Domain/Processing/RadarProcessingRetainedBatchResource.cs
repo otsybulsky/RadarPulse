@@ -2,6 +2,18 @@ namespace RadarPulse.Domain.Processing;
 
 public sealed class RadarProcessingRetainedBatchResource
 {
+    private static readonly Func<RadarProcessingRetainedPayloadReleaseResult> SnapshotCopyReleaseNotRequired =
+        static () => RadarProcessingRetainedPayloadReleaseResult.NotRequired(
+            RadarProcessingRetainedPayloadStrategy.SnapshotCopy);
+
+    private static readonly Func<RadarProcessingRetainedPayloadReleaseResult> PooledCopyReleaseNotRequired =
+        static () => RadarProcessingRetainedPayloadReleaseResult.NotRequired(
+            RadarProcessingRetainedPayloadStrategy.PooledCopy);
+
+    private static readonly Func<RadarProcessingRetainedPayloadReleaseResult> BuilderTransferReleaseNotRequired =
+        static () => RadarProcessingRetainedPayloadReleaseResult.NotRequired(
+            RadarProcessingRetainedPayloadStrategy.BuilderTransfer);
+
     private readonly object sync = new();
     private readonly Func<RadarProcessingRetainedPayloadReleaseResult> release;
     private RadarProcessingRetainedBatchResourceState state;
@@ -17,7 +29,7 @@ public sealed class RadarProcessingRetainedBatchResource
 
         Strategy = strategy;
         PayloadBytes = payloadBytes;
-        this.release = release ?? (() => RadarProcessingRetainedPayloadReleaseResult.NotRequired(strategy));
+        this.release = release ?? CreateNotRequiredRelease(strategy);
         state = RadarProcessingRetainedBatchResourceState.ProviderOwned;
     }
 
@@ -130,6 +142,16 @@ public sealed class RadarProcessingRetainedBatchResource
     public static RadarProcessingRetainedBatchResource NotRequired(
         RadarProcessingRetainedPayloadStrategy strategy = RadarProcessingRetainedPayloadStrategy.SnapshotCopy) =>
         new(strategy, payloadBytes: 0);
+
+    private static Func<RadarProcessingRetainedPayloadReleaseResult> CreateNotRequiredRelease(
+        RadarProcessingRetainedPayloadStrategy strategy) =>
+        strategy switch
+        {
+            RadarProcessingRetainedPayloadStrategy.SnapshotCopy => SnapshotCopyReleaseNotRequired,
+            RadarProcessingRetainedPayloadStrategy.PooledCopy => PooledCopyReleaseNotRequired,
+            RadarProcessingRetainedPayloadStrategy.BuilderTransfer => BuilderTransferReleaseNotRequired,
+            _ => throw new ArgumentOutOfRangeException(nameof(strategy))
+        };
 
     private static bool IsTerminalState(
         RadarProcessingRetainedBatchResourceState state) =>

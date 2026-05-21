@@ -269,7 +269,8 @@ public sealed record RadarProcessingProviderQueueTelemetrySummary
             return Array.Empty<T>();
         }
 
-        var result = new List<T>(values.Count);
+        var result = new T[values.Count];
+        var index = 0;
         foreach (var value in values)
         {
             if (value is null)
@@ -277,10 +278,10 @@ public sealed record RadarProcessingProviderQueueTelemetrySummary
                 throw new ArgumentNullException(paramName);
             }
 
-            result.Add(value);
+            result[index++] = value;
         }
 
-        return Array.AsReadOnly(result.ToArray());
+        return Array.AsReadOnly(result);
     }
 
     private static RadarProcessingRetainedResourcePressureSummary CreateQueueOnlyRetainedResourcePressure(

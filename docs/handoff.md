@@ -25,8 +25,10 @@ Milestone 015 current status:
 ```text
 architecture document: draft
 implementation plan: in progress
-implementation: slice 2 complete
-runtime behavior changes so far: none
+implementation: slice 3 complete
+runtime behavior changes so far: allocation-only optimization; no
+  direct/default contour, fallback, telemetry semantics, release lifecycle, or
+  result contract changes
 performance gate: not captured
 decision trace: not written
 closeout: not written
@@ -70,7 +72,7 @@ Milestone 015 planned slices:
 ```text
 1. baseline and attribution audit complete
 2. allocation instrumentation and contract check complete
-3. standard allocation optimization pass
+3. standard allocation optimization pass complete
 4. experimental optimization research and spikes
 5. adopted optimization integration
 6. fallback, failure, cleanup, and drift guardrails
@@ -160,6 +162,42 @@ slice 3 input:
   proceed to standard allocation optimization with stable public contracts;
   add temporary micro-harnesses or permanent attribution later only if current
   residual attribution cannot support a safe optimization decision
+```
+
+Milestone 015 slice 3 standard allocation optimization pass:
+
+```text
+status: complete
+runtime behavior changes:
+  allocation profile should improve on bounded recent-detail aggregation,
+  defensive recent-detail copy, and not-required retained-resource release
+  delegate paths
+  direct/default contour, fallback behavior, telemetry semantics, release
+  lifecycle, and result contracts did not change
+accepted standard optimizations:
+  RadarProcessingArchiveRebalanceBenchmark.CreateBoundedRecentDetails now
+  copies bounded recent details directly into one destination array instead of
+  using Concat/Skip/ToArray
+  RadarProcessingProviderQueueTelemetrySummary.CopyRequired now validates and
+  copies recent details directly into one array instead of using List plus a
+  second ToArray allocation
+  RadarProcessingRetainedBatchResource now uses static per-strategy
+  not-required release delegates instead of creating a capturing default
+  release lambda per resource
+deferred to slice 4:
+  explicit pooled retained payload release owner remains an experimental
+  candidate because it touches pooled array ownership and release timing
+  pooled telemetry accumulator and struct-backed queued work item ideas remain
+  experimental
+verification:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests|FullyQualifiedName~RadarProcessingRetainedBatchResourceTests|FullyQualifiedName~RadarProcessingOwnedBatchQueueTests|FullyQualifiedName~RadarProcessingProviderQueueTelemetryRecorderTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests"
+  76 passed, 0 failed, 0 skipped
+slice 4 input:
+  investigate non-standard or experimental approaches, especially explicit
+  pooled retained payload release ownership, and adopt only if lifetime,
+  release, cleanup, and failure guardrails remain clearer than the current
+  callback path
 ```
 
 Milestone 015 likely implementation targets:
