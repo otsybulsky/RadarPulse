@@ -60,10 +60,11 @@ status: draft
 slice 1: post-rollout surface audit complete
 slice 2: default contour drift guardrails complete
 slice 3: direct API compatibility guardrails complete
-next slice: operator help and output compatibility cleanup
+slice 4: operator help and output compatibility cleanup complete
+next slice: allocation attribution pass
 next verification target:
-  focused RadarPulseCliRebalanceBenchmarkTests after clarifying CLI help and
-  output default/fallback wording
+  focused allocation, overlap, archive benchmark, and CLI tests after exposing
+  the residual allocation attribution needed for gate reporting
 ```
 
 Planned milestone 013 slices:
@@ -109,13 +110,13 @@ data\nexrad total files: 1554
 Latest milestone 013 verification:
 
 ```powershell
-dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests
 ```
 
 Recorded result:
 
 ```text
-22 passed, 0 failed, 0 skipped.
+26 passed, 0 failed, 0 skipped.
 ```
 
 Milestone 013 slice 2 default contour drift guard:
@@ -154,6 +155,23 @@ direct file borrowed/default same-run parity is pinned for stable totals,
   reason counters
 direct cache borrowed/default same-run parity remains pinned for published
   files, batches, events, payload values, and validation checksum
+```
+
+Milestone 013 slice 4 operator help/output cleanup:
+
+```text
+benchmark behavior changes: none
+usage now states that omitted-provider rebalance-archive selects the scoped
+  queued-owned + pooled-copy + producer-consumer default with async workers 4,
+  queue capacity 8, and retained-byte budget 536870912
+usage now names --provider blocking-borrowed as the fallback/oracle path
+usage now states that the CLI default is scoped and direct
+  MeasureFile()/MeasureCache() defaults remain blocking-borrowed
+usage now states that --overlap-consumer-delay-ms is controlled mechanics
+  proof, not natural rollout evidence
+existing per-run output source labels remain the source of truth for whether a
+  run used rollout-default, explicit fallback, explicit queued-owned, or
+  controlled proof
 ```
 
 Milestone 013 closeout question:

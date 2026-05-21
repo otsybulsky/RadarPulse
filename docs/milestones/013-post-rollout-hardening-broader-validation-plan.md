@@ -951,6 +951,84 @@ Help text can clarify behavior, but it must not imply live ingestion or direct
 API defaults are queued-owned.
 ```
 
+Implemented in slice 4:
+
+```text
+status:
+  complete
+
+benchmark behavior changes:
+  none
+
+operator-surface changes:
+  processing benchmark rebalance-archive usage now names the omitted-provider
+  scoped default explicitly
+  usage now names --provider blocking-borrowed as the fallback/oracle path
+  usage now states that the CLI default is scoped and direct
+  MeasureFile()/MeasureCache() defaults remain blocking-borrowed
+  usage now states that --overlap-consumer-delay-ms is controlled mechanics
+  proof, not natural rollout evidence
+
+test changes:
+  RadarPulseCliRebalanceBenchmarkTests now captures usage output and asserts
+  the scoped default, fallback/oracle, direct compatibility boundary, and
+  controlled-delay boundary wording
+```
+
+Help text now records:
+
+```text
+rebalance-archive omitted-provider default:
+  queued-owned + pooled-copy + producer-consumer
+  async workers 4
+  queue capacity 8
+  retained-byte budget 536870912
+
+fallback/oracle:
+  --provider blocking-borrowed
+
+compatibility boundary:
+  rebalance-archive CLI default is scoped
+  direct MeasureFile()/MeasureCache() defaults remain blocking-borrowed
+
+controlled proof boundary:
+  --overlap-consumer-delay-ms is controlled mechanics proof, not natural
+  rollout evidence
+```
+
+Existing output labels remain the operator-visible per-run source of truth:
+
+```text
+Provider mode source
+Provider overlap source
+Retention strategy source
+Provider queue capacity source
+Worker queue capacity source
+Provider queue retained byte capacity source
+Queue telemetry source
+Provider overlap telemetry source
+Provider overlap consumer delay source
+Execution mode source
+Worker count source
+Provider default rollout contour
+Provider rollout default expansion
+Provider fallback contour
+Provider overlap evidence contour
+Provider overlap evidence scope
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests
+```
+
+Recorded result:
+
+```text
+26 passed, 0 failed, 0 skipped.
+```
+
 ### 5. Allocation Attribution Pass
 
 Make residual allocation overhead measurable enough to guide future work.
@@ -1370,7 +1448,7 @@ controlled proof rows separated if captured
 [x] milestone 012 rollout contour is pinned against drift
 [x] explicit blocking-borrowed fallback remains selectable and visible
 [x] direct MeasureFile()/MeasureCache() defaults remain borrowed
-[ ] operator help/output makes scoped default and fallback reproducible
+[x] operator help/output makes scoped default and fallback reproducible
 [ ] allocation attribution is visible enough to explain residual overhead
 [ ] failure, cancellation, release, and cleanup guardrails remain covered
 [ ] focused regression pass succeeds before gate capture
