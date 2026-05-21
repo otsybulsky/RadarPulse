@@ -356,6 +356,226 @@ Guardrail:
 Do not change defaults, thresholds, or benchmark behavior in this slice.
 ```
 
+Implemented in slice 1:
+
+```text
+status:
+  complete
+
+runtime changes:
+  none
+
+documentation changes:
+  this plan now records the post-rollout baseline audit before adding new
+  guardrails
+  docs/handoff.md names milestone 013 slice 1 as complete and points the next
+  implementation step at default contour drift guardrails
+```
+
+Current CLI parsed default posture:
+
+```text
+ProcessingBenchmarkArchiveRebalanceOptions constructor compatibility defaults:
+  ProviderMode = BlockingBorrowed
+  ProviderQueueCapacity = 1
+  ProviderQueueTimeout = null
+  ProviderOverlapMode = None
+  RetentionStrategy = SnapshotCopy
+  ProviderQueueRetainedPayloadBytes = null
+  OverlapConsumerDelay = TimeSpan.Zero
+  QueueTelemetryOutput = Summary
+  OverlapTelemetryOutput = Summary
+  ExecutionMode = PartitionedBarrier
+  AsyncExecution = null
+
+ProcessingBenchmarkArchiveRebalanceOptions.Parse() local defaults:
+  providerMode = BlockingBorrowed
+  providerOverlapMode = None
+  retentionStrategy = SnapshotCopy
+  queueRetainedPayloadBytes = null
+  queueTimeout = null
+  queueTelemetryOutput = Summary
+  overlapTelemetryOutput = Summary
+  overlapConsumerDelay = TimeSpan.Zero
+  executionMode = PartitionedBarrier
+  workerCount = null
+  queueCapacity = null
+
+omitted --provider rollout expansion:
+  provider mode -> queued-owned
+  provider overlap -> producer-consumer when omitted
+  retention strategy -> pooled-copy when omitted
+  execution -> async when omitted
+  worker count -> 4 when omitted and async
+  provider queue capacity -> 8 when omitted
+  retained-byte budget -> 536870912 when omitted
+  queue telemetry -> summary with rollout-default provenance when omitted
+  overlap telemetry -> summary with rollout-default provenance when omitted
+  overlap consumer delay -> 0 with rollout-default provenance when omitted
+
+provenance:
+  omitted rollout-expanded fields are RolloutDefault
+  explicit fields are Explicit
+  non-rollout inherited fields are CurrentDefault
+  inapplicable fields print not-applicable in output
+```
+
+Current option and output contracts:
+
+```text
+rollout constants:
+  DefaultRolloutWorkerCount = 4
+  DefaultRolloutProviderQueueCapacity = DefaultCandidateProviderQueueCapacity
+  DefaultRolloutRetainedPayloadBytes = DefaultCandidateRetainedPayloadBytes
+
+rollout identity:
+  IsRolloutDefaultExpandedContour requires the default-candidate contour and
+  provider-mode provenance RolloutDefault
+
+explicit fallback identity:
+  IsExplicitBlockingBorrowedFallback requires blocking-borrowed provider mode
+  and explicit provider-mode provenance
+
+evidence labels:
+  default candidate -> natural-default-candidate / natural-readiness
+  explicit producer-consumer queued-owned -> natural-opt-in / opt-in-diagnostic
+  controlled consumer delay -> controlled-proof / controlled-mechanics-proof
+  borrowed or non-overlap -> not-applicable / not-applicable
+
+CLI output currently prints:
+  provider-related source labels
+  Provider default rollout contour
+  Provider rollout default expansion
+  Provider fallback contour
+  Default-candidate contour
+  Provider overlap evidence contour
+  Provider overlap evidence scope
+```
+
+Current direct infrastructure default posture:
+
+```text
+RadarProcessingArchiveRebalanceBenchmark.MeasureFile() defaults:
+  executionMode = PartitionedBarrier
+  asyncExecution = null
+  providerMode = BlockingBorrowed
+  queueCapacity = 1
+  queueTimeout = null
+  providerOverlapMode = None
+  retentionStrategy = SnapshotCopy
+  queueRetainedPayloadBytes = null
+  overlapConsumerDelay = TimeSpan.Zero
+
+RadarProcessingArchiveRebalanceBenchmark.MeasureCache() defaults:
+  same provider, queue, retention, overlap, and execution defaults as
+  MeasureFile()
+
+direct derived defaults:
+  async execution without explicit async options uses workerCount = shardCount
+  and worker queue capacity = 1
+  blocking-borrowed result QueueCapacity is 0
+  blocking-borrowed result QueueRetainedPayloadBytes is null
+  queued-owned result QueueCapacity and QueueRetainedPayloadBytes reflect
+  explicit queued-owned arguments
+```
+
+Current allocation and telemetry attribution surface:
+
+```text
+RadarProcessingRebalanceAllocationSummary:
+  MeasuredAllocatedBytes
+  ProcessingCallbackAllocatedBytes
+  ReplayAndBatchConstructionAllocatedBytes
+  OwnedSnapshotAllocatedBytes
+  IncludesArchiveReplayAndBatchConstruction
+  IncludesCliFormatting
+
+RadarProcessingArchiveOverlapTelemetrySummary:
+  MeasuredAllocatedBytes
+  RetentionAllocatedBytes
+  UnattributedAllocatedBytes
+
+CLI output currently prints:
+  End-to-end allocated bytes
+  Processing callback allocated bytes
+  Replay and batch construction allocated bytes
+  Allocation includes CLI formatting
+  Provider queue owned snapshot allocated bytes
+  Retained payload allocated bytes
+  Provider overlap retention allocated bytes
+  Provider overlap measured allocated bytes
+  Provider overlap unattributed allocated bytes
+```
+
+Existing tests that already pin milestone 013 baseline inputs:
+
+```text
+RadarPulseCliRebalanceBenchmarkTests.
+  ArchiveRebalanceBenchmarkOptionsExpandOmittedProviderToRolloutDefaults
+  ArchiveRebalanceBenchmarkOptionsTrackExplicitBorrowedFallbackProvenance
+  ArchiveRebalanceBenchmarkOptionsExposeRolloutDefaultContourConstants
+  ArchiveRebalanceBenchmarkOptionsRequireFileAndCompatibleTopology
+  ArchiveRebalanceBenchmarkCommandUsesRolloutDefaultsWhenProviderOmitted
+  ArchiveRebalanceBenchmarkCommandLabelsExplicitBorrowedFallback
+  ArchiveRebalanceBenchmarkCommandLabelsDefaultCandidateContour
+  ArchiveRebalanceBenchmarkCommandEmitsQueuedProviderTelemetry
+  ArchiveRebalanceBenchmarkCommandEmitsOverlapTelemetry
+
+NexradArchiveRadarEventBatchPublisherTests.
+  RebalanceArchiveBenchmarkCachePreservesBorrowedDefaultAndExplicitRolloutContour
+  RebalanceArchiveBenchmarkCacheAsyncMatchesSynchronousTotals
+  RebalanceArchiveBenchmarkFileSupportsQueuedOwnedProviderMode
+  RebalanceArchiveBenchmarkFileSupportsQueuedOwnedOverlapAndRetentionStrategy
+  RebalanceArchiveBenchmarkQueuedOwnedAsyncKeepsWorkerTelemetry
+  RebalanceArchiveBenchmarkCacheQueuedOwnedAggregatesQueueTelemetry
+  RebalanceArchiveBenchmarkControlledConsumerDelayProvesQueuedAheadOverlap
+
+RadarProcessingQueuedProviderReadinessGateTests.
+  ReadinessContractsUseStableValuesAndRejectInvalidShapes
+  CorrectnessGateRequiresBorrowedReferenceForDefaultReadiness
+  AllocationGateHandlesMissingReferenceAndRegression
+  RolloutThresholdsApplyAllocationPerformanceAndRunSpreadRatios
+
+RadarProcessingRebalanceAllocationSummaryTests.
+  ArchiveSummarySeparatesCallbackAndReplayAllocation
+  ArchiveSummaryDoesNotReportNegativeReplayAllocation
+  ArchiveBenchmarkResultKeepsEndToEndAndCallbackAllocationSeparate
+```
+
+Gaps carried into later slices:
+
+```text
+default contour drift guard should assert the full effective contour and
+  provenance as a single regression contract, not only individual fields
+direct MeasureFile() default compatibility is exercised through borrowed
+  reference calls but still deserves a focused explicit guard in slice 3
+CLI help still lists provider flags as optional without naming the rollout
+  default contour or explicit borrowed fallback semantics
+allocation attribution is present but not yet interpreted as a dominant-source
+  overhead breakdown for broader gate reporting
+```
+
+Local data shapes available for the broader gate:
+
+```text
+data\nexrad\level2\2026\05\04\KINX: 462 files
+data\nexrad\level2\2026\05\04\KTLX: 244 files
+data\nexrad\level2\2026\05\05\KTLX: 848 files
+data\nexrad total files: 1554
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests"
+```
+
+Recorded result:
+
+```text
+60 passed, 0 failed, 0 skipped.
+```
+
 ### 2. Default Contour Drift Guardrails
 
 Add focused regression coverage that treats the whole rollout contour as the

@@ -57,10 +57,11 @@ Milestone 013 implementation plan status:
 
 ```text
 status: draft
-next slice: post-rollout surface audit
-first verification target:
-  focused CLI, direct benchmark compatibility, and readiness tests before any
-  behavior changes
+slice 1: post-rollout surface audit complete
+next slice: default contour drift guardrails
+next verification target:
+  focused CLI option parsing and command-output tests after strengthening the
+  full rollout contour drift contract
 ```
 
 Planned milestone 013 slices:
@@ -76,6 +77,43 @@ Planned milestone 013 slices:
 8. broader natural Release gate
 9. stability decision trace
 10. closeout and handoff
+```
+
+Milestone 013 slice 1 baseline capture:
+
+```text
+runtime changes: none
+current CLI omitted-provider path still expands to the milestone 012 rollout
+  contour
+direct MeasureFile()/MeasureCache() defaults remain blocking-borrowed
+existing allocation attribution fields cover measured, processing callback,
+  replay/build, owned snapshot, retained payload, overlap retention, and
+  overlap unattributed allocation
+CLI help still names provider flags as optional without explaining the scoped
+  rollout default and explicit fallback semantics
+direct MeasureFile() default compatibility should get a more explicit guard in
+  slice 3
+```
+
+Milestone 013 slice 1 local gate data availability:
+
+```text
+data\nexrad\level2\2026\05\04\KINX: 462 files
+data\nexrad\level2\2026\05\04\KTLX: 244 files
+data\nexrad\level2\2026\05\05\KTLX: 848 files
+data\nexrad total files: 1554
+```
+
+Latest milestone 013 verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests"
+```
+
+Recorded result:
+
+```text
+60 passed, 0 failed, 0 skipped.
 ```
 
 Milestone 013 closeout question:
