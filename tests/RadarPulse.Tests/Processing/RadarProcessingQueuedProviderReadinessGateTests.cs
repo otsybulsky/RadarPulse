@@ -22,12 +22,19 @@ public sealed class RadarProcessingQueuedProviderReadinessGateTests
         Assert.Equal(9, (int)RadarProcessingQueuedProviderReadinessGate.NaturalEvidence);
 
         Assert.Equal(0, (int)RadarProcessingQueuedProviderReadinessError.None);
+        Assert.Equal(1, (int)RadarProcessingQueuedProviderReadinessError.NotEvaluated);
         Assert.Equal(2, (int)RadarProcessingQueuedProviderReadinessError.MissingBorrowedReference);
+        Assert.Equal(3, (int)RadarProcessingQueuedProviderReadinessError.QueuedProviderValidationFailed);
         Assert.Equal(4, (int)RadarProcessingQueuedProviderReadinessError.ChecksumMismatch);
+        Assert.Equal(5, (int)RadarProcessingQueuedProviderReadinessError.TopologyOrRebalanceMismatch);
         Assert.Equal(6, (int)RadarProcessingQueuedProviderReadinessError.RetainedResourceReleaseFailed);
+        Assert.Equal(7, (int)RadarProcessingQueuedProviderReadinessError.RetainedResourceCleanupIncomplete);
+        Assert.Equal(8, (int)RadarProcessingQueuedProviderReadinessError.RetainedResourceRetentionFailed);
+        Assert.Equal(9, (int)RadarProcessingQueuedProviderReadinessError.MissingRetainedResourcePressureTelemetry);
         Assert.Equal(10, (int)RadarProcessingQueuedProviderReadinessError.MissingActiveRetainedTelemetry);
         Assert.Equal(11, (int)RadarProcessingQueuedProviderReadinessError.CombinedRetainedPayloadBudgetExceeded);
         Assert.Equal(12, (int)RadarProcessingQueuedProviderReadinessError.ControlledProofExcluded);
+        Assert.Equal(13, (int)RadarProcessingQueuedProviderReadinessError.CandidateContourMismatch);
         Assert.Equal(14, (int)RadarProcessingQueuedProviderReadinessError.PerformanceRegression);
         Assert.Equal(15, (int)RadarProcessingQueuedProviderReadinessError.RunVarianceTooHigh);
         Assert.Equal(16, (int)RadarProcessingQueuedProviderReadinessError.AllocationRegression);
@@ -165,6 +172,24 @@ public sealed class RadarProcessingQueuedProviderReadinessGateTests
     }
 
     [Fact]
+    public void CorrectnessGateReportsQueuedProviderValidationFailureWithoutBorrowedFallback()
+    {
+        var validation = RadarProcessingQueuedProviderValidationResult.Invalid(
+            RadarProcessingQueuedProviderValidationError.RetentionTelemetryIncomplete,
+            "retention telemetry incomplete",
+            RadarProcessingQueuedProviderValidationProfile.Benchmark);
+
+        var readiness = RadarProcessingQueuedProviderReadinessEvaluator.EvaluateCorrectnessParity(
+            validation,
+            hasBorrowedReference: true);
+
+        Assert.True(readiness.IsFailed);
+        Assert.Equal(RadarProcessingQueuedProviderReadinessGate.CorrectnessParity, readiness.Gate);
+        Assert.Equal(RadarProcessingQueuedProviderReadinessError.QueuedProviderValidationFailed, readiness.Error);
+        Assert.Equal("retention telemetry incomplete", readiness.Message);
+    }
+
+    [Fact]
     public void ReleaseHealthFailsReleaseFailureEvenWhenCorrectnessCanPass()
     {
         var correctness = RadarProcessingQueuedProviderReadinessEvaluator.EvaluateCorrectnessParity(
@@ -183,6 +208,25 @@ public sealed class RadarProcessingQueuedProviderReadinessGateTests
         Assert.True(correctness.IsPassed);
         Assert.True(release.IsFailed);
         Assert.Equal(RadarProcessingQueuedProviderReadinessError.RetainedResourceReleaseFailed, release.Error);
+        Assert.Equal(0, release.ExpectedCount);
+        Assert.Equal(1, release.ActualCount);
+    }
+
+    [Fact]
+    public void ReleaseHealthFailsRetentionFailureBeforeCleanupCanPass()
+    {
+        var release = RadarProcessingQueuedProviderReadinessEvaluator.EvaluateRetainedResourceReleaseHealth(
+            new RadarProcessingRetainedPayloadTelemetrySummary(
+                RadarProcessingRetainedPayloadStrategy.PooledCopy,
+                retentionAttemptCount: 2,
+                retainedBatchCount: 1,
+                retentionFailedCopyCount: 1,
+                releaseAttemptCount: 1,
+                releasedBatchCount: 1));
+
+        Assert.True(release.IsFailed);
+        Assert.Equal(RadarProcessingQueuedProviderReadinessGate.RetainedResourceReleaseHealth, release.Gate);
+        Assert.Equal(RadarProcessingQueuedProviderReadinessError.RetainedResourceRetentionFailed, release.Error);
         Assert.Equal(0, release.ExpectedCount);
         Assert.Equal(1, release.ActualCount);
     }

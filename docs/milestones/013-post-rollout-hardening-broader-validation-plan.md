@@ -1222,6 +1222,35 @@ Guardrail:
 Do not add automatic fallback-to-borrowed behavior in milestone 013.
 ```
 
+Implemented in slice 6:
+
+```text
+status: complete
+runtime behavior changes: none
+retention failure guard now also asserts retained-resource retention failure
+  is rejected by readiness
+producer failure, cancellation, and validation failure overlap guards now
+  assert current retained payload bytes return to zero
+validation failure overlap guard asserts the consumer session remains faulted
+  and queued-owned failure is not reported as borrowed success
+readiness guard now pins the full readiness error value set, generic queued
+  provider validation failure mapping, and retention-failure release-health
+  rejection
+explicit borrowed fallback selection remains covered by CLI parse/output tests
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingQueuedProcessingSessionTests|FullyQualifiedName~RadarProcessingQueuedRebalanceSessionTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+```
+
+Recorded result:
+
+```text
+74 passed, 0 failed, 0 skipped.
+```
+
 ### 7. Focused Regression Pass Before Gate
 
 Run focused verification after default, compatibility, allocation, and failure
@@ -1530,7 +1559,7 @@ controlled proof rows separated if captured
 [x] direct MeasureFile()/MeasureCache() defaults remain borrowed
 [x] operator help/output makes scoped default and fallback reproducible
 [x] allocation attribution is visible enough to explain residual overhead
-[ ] failure, cancellation, release, and cleanup guardrails remain covered
+[x] failure, cancellation, release, and cleanup guardrails remain covered
 [ ] focused regression pass succeeds before gate capture
 [ ] broader natural Release gate is captured
 [ ] performance gate interprets correctness, cleanup, pressure, allocation,

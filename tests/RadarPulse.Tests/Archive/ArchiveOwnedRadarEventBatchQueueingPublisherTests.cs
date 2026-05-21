@@ -309,6 +309,13 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisherTests
         Assert.Equal(1, rejected.RetentionTelemetry.RetentionFailedCopyCount);
         Assert.Equal(1, rejected.Telemetry.CurrentPendingRetainedBatchCount);
 
+        var readiness = RadarProcessingQueuedProviderReadinessEvaluator.EvaluateRetainedResourceReleaseHealth(
+            rejected.RetentionTelemetry);
+        Assert.True(readiness.IsFailed);
+        Assert.Equal(RadarProcessingQueuedProviderReadinessError.RetainedResourceRetentionFailed, readiness.Error);
+        Assert.Equal(0, readiness.ExpectedCount);
+        Assert.Equal(1, readiness.ActualCount);
+
         var cleanup = publisher.ReleasePendingResources();
         var cleaned = publisher.CreateResult();
 

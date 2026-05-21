@@ -62,10 +62,11 @@ slice 2: default contour drift guardrails complete
 slice 3: direct API compatibility guardrails complete
 slice 4: operator help and output compatibility cleanup complete
 slice 5: allocation attribution pass complete
-next slice: failure, cleanup, and fallback regression pass
+slice 6: failure, cleanup, and fallback regression pass complete
+next slice: focused regression pass before gate
 next verification target:
-  focused failure, cleanup, readiness, overlap, and CLI fallback tests before
-  broader Release gate preparation
+  focused CLI, direct compatibility, readiness, overlap, allocation, failure,
+  cleanup, and Release build checks before broader Release gate preparation
 ```
 
 Planned milestone 013 slices:
@@ -111,13 +112,13 @@ data\nexrad total files: 1554
 Latest milestone 013 verification:
 
 ```powershell
-dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingQueuedProcessingSessionTests|FullyQualifiedName~RadarProcessingQueuedRebalanceSessionTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
 ```
 
 Recorded result:
 
 ```text
-63 passed, 0 failed, 0 skipped.
+74 passed, 0 failed, 0 skipped.
 ```
 
 Milestone 013 slice 2 default contour drift guard:
@@ -193,6 +194,24 @@ borrowed fallback rows report owned snapshot allocation as 0 and still do not
 queued-owned rows continue to print retained payload allocation and
   producer-consumer rows continue to print overlap retention, measured, and
   unattributed allocation
+```
+
+Milestone 013 slice 6 failure/cleanup/fallback regression pass:
+
+```text
+runtime behavior changes: none
+retention failure still stops intake, leaves accepted retained resources for
+  terminal cleanup, and now asserts readiness rejects retained-resource
+  retention failure
+producer failure, cancellation, and validation failure overlap tests now also
+  assert current retained payload bytes return to zero
+validation failure overlap remains fail-closed: consumer session stays faulted,
+  queued-owned processing reports the validation error, and no borrowed success
+  contour is reported
+readiness tests now pin generic queued-provider validation failure mapping and
+  retention-failure release-health rejection
+CLI fallback tests continue to prove blocking-borrowed is selected only through
+  explicit --provider blocking-borrowed
 ```
 
 Milestone 013 closeout question:
