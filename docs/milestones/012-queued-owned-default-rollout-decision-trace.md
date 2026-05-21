@@ -42,6 +42,134 @@ out-of-scope runtime expansions:
   automatic fallback from queued-owned failure to borrowed success
 ```
 
+## Decision Explanations
+
+### Scoped CLI Default
+
+Decision: make queued-owned + pooled-copy + producer-consumer the scoped
+default only for `processing benchmark rebalance-archive` when provider-related
+flags are omitted.
+
+Why chosen: the milestone 012 gate proved the full omitted-provider contour on
+the target benchmark surface. Correctness matched same-run borrowed rows,
+retained resources were released, retained pressure stayed under budget,
+allocation stayed below the rollout threshold, and elapsed time improved.
+
+Alternatives: keep omitted provider on blocking-borrowed, require users to pass
+the full queued-owned option set, or also change direct `MeasureFile()` /
+`MeasureCache()` defaults in the same milestone.
+
+Rejected because: keeping the old omitted-provider behavior would leave the
+rollout candidate hidden behind an expert-only command; requiring the full
+option set would make routine revalidation fragile; changing direct APIs at the
+same time would expand the blast radius before the CLI default was stable.
+
+Trade-offs/debt: the decision creates a split surface. CLI omitted-provider
+runs use rollout-default provenance, while direct APIs remain
+blocking-borrowed. That split must stay visible in help, output, tests, and
+handoff.
+
+Review explanation: "I accepted the queued-owned default only where the gate
+proved it: the rebalance-archive CLI omitted-provider path."
+
+### Explicit Borrowed Fallback And Oracle
+
+Decision: keep `--provider blocking-borrowed` as the explicit fallback and
+same-run oracle.
+
+Why chosen: default migration needs a stable comparison path. Borrowed rows
+make correctness, allocation, elapsed time, provenance, and retained-resource
+behavior comparable inside the same run shape.
+
+Alternatives: remove the borrowed path from the CLI, keep it only in direct
+APIs, or allow the CLI to silently fall back to borrowed after queued-owned
+failure.
+
+Rejected because: removing the fallback would make rollback and benchmark
+diagnosis harder; keeping it only in direct APIs would make operator validation
+less reproducible; silent fallback would hide queued-owned failures.
+
+Trade-offs/debt: future gates must keep running explicit borrowed rows. The
+fallback path remains part of the supported benchmark surface even though the
+omitted-provider path moved forward.
+
+Review explanation: "The old path stays reachable, but only as an explicit
+fallback and measurement oracle."
+
+### Controlled Proof Separation
+
+Decision: keep controlled consumer-delay proof rows separate from natural
+rollout evidence.
+
+Why chosen: controlled delay proves queue mechanics under forced overlap, while
+the rollout default must be judged by the natural omitted-provider contour with
+consumer delay `0`.
+
+Alternatives: combine controlled proof rows with the performance gate, remove
+controlled proof after default rollout, or treat forced delay as part of the
+default contour.
+
+Rejected because: mixing forced-delay rows with natural rows would overstate the
+natural rollout signal; removing the proof would weaken mechanics coverage; and
+making delay part of the default would change the actual runtime contour being
+rolled out.
+
+Trade-offs/debt: natural runs may show low queue depth. Queue-ahead mechanics
+remain covered by controlled tests rather than by the natural gate.
+
+Review explanation: "The gate measures the real default; controlled delay only
+proves the mechanics that may appear under different workload timing."
+
+### Allocation Overhead Is Accepted But Not Hidden
+
+Decision: accept the measured allocation overhead because it stayed inside the
+`<= 1.10x` borrowed threshold.
+
+Why chosen: allocation was higher than borrowed but within the predeclared
+rollout budget, while correctness, cleanup, release health, retained pressure,
+and elapsed time passed.
+
+Alternatives: block the rollout until allocation matches borrowed, raise the
+threshold after seeing the data, or treat allocation as irrelevant because
+elapsed time improved.
+
+Rejected because: exact allocation parity was not the gate contract; changing
+the threshold after measurement would weaken the decision; ignoring allocation
+would hide a real owned-retention cost.
+
+Trade-offs/debt: queued-owned remains more allocation-heavy than borrowed. The
+cost is accepted for the scoped CLI default, but it remains a follow-up signal
+for later expansion.
+
+Review explanation: "The rollout passed the allocation gate, but the extra
+allocation remains part of the decision, not something to erase from the
+record."
+
+### Direct API Defaults Remain Out Of Scope
+
+Decision: leave direct `MeasureFile()` and `MeasureCache()` defaults on
+blocking-borrowed.
+
+Why chosen: the milestone changed the CLI parse/default surface only. Direct
+API callers have compatibility expectations that should be migrated through a
+separate milestone with their own guardrails.
+
+Alternatives: migrate direct API defaults together with the CLI, make direct
+APIs infer the CLI rollout default, or require every direct caller to pass an
+explicit provider immediately.
+
+Rejected because: the gate did not prove direct default migration as a behavior
+change; coupling direct APIs to CLI parsing would blur ownership; forcing all
+direct callers to pass provider options would be a disruptive compatibility
+change.
+
+Trade-offs/debt: the codebase carries two default postures for one more phase.
+Tests and documentation must keep that boundary explicit until a direct API
+migration milestone changes it.
+
+Review explanation: "The CLI default can move first because it has a bounded
+operator surface; direct API compatibility gets its own migration decision."
+
 ## Included Surface
 
 Included:

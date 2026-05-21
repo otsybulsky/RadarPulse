@@ -307,6 +307,20 @@ Decision: accept async archive performance because full-cache callback latency
 matched synchronous performance and correctness was identical, with a small
 allocation cost.
 
+Why chosen: the retained async path matched synchronous correctness and
+callback latency on the full local KTLX cache contour, reported no worker
+failures, and made the remaining allocation cost small and explicit.
+
+Alternatives: reject async until it was faster than synchronous processing,
+accept async only on synthetic contours, make async the hidden default, or
+delay the milestone for broader statistical runs.
+
+Rejected because: this milestone's purpose was to prove a correct retained
+worker substrate, not a guaranteed speedup; synthetic-only evidence would miss
+archive callback behavior; making async default would hide risk before later
+ownership work; and broader statistics can improve confidence later without
+blocking substrate acceptance.
+
 Evidence: full local KTLX cache contour for `2026-05-04`,
 `--max-files 220`, `--parallelism 24`, `--iterations 1`,
 `--warmup-iterations 0`.

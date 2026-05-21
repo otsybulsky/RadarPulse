@@ -55,6 +55,42 @@ controlled consumer delay remains mechanics-only proof
 builder-transfer remains unsupported
 ```
 
+Decision trace base format:
+
+```text
+status:
+  007-011 decision trace documents have been checked against the base format.
+  008 Performance Guardrail Interpretation was normalized with the missing
+  Why chosen, Alternatives, and Rejected because fields.
+  012 and 013 decision trace documents now include 001-006 style decision
+  explanations in addition to gate evidence.
+
+canonical sections:
+  # Milestone 0XX Decision Trace
+  Date, status, or closeout pointer
+  Top-level Decision when the milestone is a gate or rollout decision
+  ## 1. What Was Implemented or ## Included Surface
+  ## 2. Decision Matrix
+  ## Decision Explanations
+  ## Evidence and ## Threshold Decisions when a gate exists
+  ## Operational Posture when operator behavior changes or must be preserved
+  ## Residual Risks And Limits or ## Remaining Risks And Debt
+  ## Decision or ## Portfolio Review Summary
+
+per-decision explanation fields:
+  Decision
+  Why chosen
+  Alternatives
+  Rejected because
+  Trade-offs/debt
+  Review explanation
+
+rule:
+  gate-style milestones may keep evidence-first sections, but every durable
+  decision should also include the 001-006 explanation fields so reviewers can
+  see why the path was chosen, what was rejected, and what debt remains.
+```
+
 Milestone 013 implementation plan status:
 
 ```text

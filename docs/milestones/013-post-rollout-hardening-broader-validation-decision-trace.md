@@ -52,6 +52,155 @@ recommended next milestone input:
   live/runtime default migration remains out of scope
 ```
 
+## Decision Explanations
+
+### Keep The Scoped CLI Default
+
+Decision: keep the milestone 012 queued-owned scoped CLI default in place for
+the `processing benchmark rebalance-archive` omitted-provider path.
+
+Why chosen: the broader milestone 013 gate preserved correctness, release
+health, retained cleanup, retained pressure, elapsed performance, fallback
+separation, and operator provenance across the captured local contours.
+
+Alternatives: roll back the omitted-provider path to blocking-borrowed, require
+explicit queued-owned flags again, or freeze the default until direct API
+migration is complete.
+
+Rejected because: rollback is not supported by the evidence; returning to
+explicit-only usage would undo the milestone 012 rollout without a correctness
+or cleanup failure; and tying CLI stability to direct API migration would block
+a scoped default that already passed its own gate.
+
+Trade-offs/debt: the scoped CLI default remains benchmark-only. It does not
+become a live ingestion default, a durable queue design, or a cross-process
+worker contract.
+
+Review explanation: "The broader gate did not find a reason to undo the scoped
+CLI default, so the default stays where it was already approved."
+
+### Accept KTLX 2026-05-05 Allocation Cost
+
+Decision: accept the KTLX 2026-05-05 allocation warning, including the
+`1.1005x` two-run average, as the cost of proceeding to direct archive
+rebalance API default migration.
+
+Why chosen: KTLX 2026-05-05 was borderline only on allocation. Correctness,
+release health, cleanup, retained pressure, elapsed timing, and fallback
+separation still passed, and the allocation overhead is attributable enough to
+carry forward as a visible migration cost.
+
+Alternatives: block the next migration until allocation drops below threshold
+on every broader row, roll back the scoped CLI default, raise the threshold, or
+ignore the warning because the average was close.
+
+Rejected because: blocking would treat a narrow allocation warning as stronger
+than the rest of the passing gate; rollback would punish an already-stable
+scoped CLI surface; raising the threshold after measurement would weaken the
+gate; ignoring the warning would hide the main cost signal.
+
+Trade-offs/debt: the next migration milestone must carry the KTLX 2026-05-05
+row as a tracked risk. Allocation optimization remains debt, not a prerequisite
+for starting the direct API default migration.
+
+Review explanation: "I am not hiding the threshold tension; I am accepting it
+as the explicit cost of the next migration."
+
+### Direct API Migration Is Next, Not Done Here
+
+Decision: use milestone 013 as approval input for a separate direct archive
+rebalance API default migration milestone.
+
+Why chosen: direct `MeasureFile()` and `MeasureCache()` defaults still need a
+focused compatibility change. Milestone 013 proved enough stability to plan
+that change, but it did not change direct API default behavior.
+
+Alternatives: change direct defaults inside milestone 013, postpone all direct
+API work until allocation is optimized, or broaden immediately into live
+runtime defaults.
+
+Rejected because: changing direct defaults in the decision trace would skip the
+implementation and test slice; postponing all migration would waste a passing
+stability gate; live runtime defaults need different durability, failure, and
+operator contracts.
+
+Trade-offs/debt: the handoff must be explicit that direct API defaults remain
+blocking-borrowed until the next milestone changes code and tests.
+
+Review explanation: "Milestone 013 authorizes the next migration target; it
+does not silently perform that migration."
+
+### Preserve Fallback And Borrowed Oracle
+
+Decision: preserve explicit `--provider blocking-borrowed` fallback and
+same-run borrowed oracle coverage.
+
+Why chosen: the broader gate depends on borrowed rows to interpret correctness,
+allocation, elapsed time, and provenance. Keeping that oracle is also the
+practical rollback and diagnosis path for the next migration.
+
+Alternatives: remove borrowed coverage after rollout, keep borrowed only for
+manual commands, or replace same-run comparison with historical thresholds.
+
+Rejected because: removing borrowed coverage would make regressions harder to
+classify; manual-only coverage would be easier to skip; historical thresholds
+are weaker than same-run comparisons on the same cache shape.
+
+Trade-offs/debt: future migration gates remain heavier because they must carry
+borrowed/default pairs. That cost is intentional because it protects the
+default decision.
+
+Review explanation: "Borrowed remains the comparison baseline for the
+migration, even when it is no longer the omitted-provider default."
+
+### Preserve Fail-Closed Behavior
+
+Decision: keep queued-owned failures fail-closed with no automatic fallback to
+borrowed success.
+
+Why chosen: a default migration should surface queued-owned failures directly.
+Automatic fallback would make a run look successful while silently switching to
+a different provider contract.
+
+Alternatives: retry failed queued-owned runs with blocking-borrowed, treat
+borrowed success as final success after queued-owned failure, or downgrade
+queued-owned failures to warnings.
+
+Rejected because: each alternative hides provider-specific failure behavior and
+would corrupt rollout evidence, operator provenance, and future gate results.
+
+Trade-offs/debt: operators must choose fallback explicitly when they need it.
+The default path remains stricter, which is the right posture for migration
+evidence.
+
+Review explanation: "A queued-owned failure has to stay visible; borrowed
+success can be requested, but it cannot overwrite the failed default path."
+
+### Allocation Attribution Is Sufficient For Follow-Up
+
+Decision: treat the retained owned snapshot allocation and shifted callback-side
+work attribution as sufficient to guide follow-up work.
+
+Why chosen: the milestone identified the clearest residual allocation category
+without needing to solve allocation optimization before the next migration
+starts.
+
+Alternatives: require full attribution of every byte before migration, remove
+the attribution block from the decision, or optimize allocation immediately in
+the stability milestone.
+
+Rejected because: full attribution would overfit the milestone to one warning;
+removing attribution would make the decision less reviewable; immediate
+optimization would mix a stability decision with a new performance-change
+slice.
+
+Trade-offs/debt: attribution is directional rather than exhaustive. The next
+milestone should keep the attribution rows visible while it changes direct API
+defaults.
+
+Review explanation: "The allocation data is sufficient to proceed deliberately,
+while leaving optimization as tracked work."
+
 ## Included Surface
 
 The decision applies to the already-rolled-out CLI surface only:
