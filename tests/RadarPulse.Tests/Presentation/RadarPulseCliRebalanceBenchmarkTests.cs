@@ -1234,6 +1234,12 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             Assert.Contains("Retained payload telemetry: summary", result.StandardOutput);
             Assert.Contains("Retained payload allocation counter scope: current-thread", result.StandardOutput);
             Assert.Contains("Retained payload allocated bytes: 0", result.StandardOutput);
+            Assert.Contains("Retained event array pool rents: 0", result.StandardOutput);
+            Assert.Contains("Retained event array pool returns: 0", result.StandardOutput);
+            Assert.Contains("Retained event array pool misses: 0", result.StandardOutput);
+            Assert.Contains("Retained byte array pool rents: 0", result.StandardOutput);
+            Assert.Contains("Retained byte array pool returns: 0", result.StandardOutput);
+            Assert.Contains("Retained byte array pool misses: 0", result.StandardOutput);
             Assert.Contains("Provider overlap telemetry: summary", result.StandardOutput);
             Assert.Contains("Provider overlap retained payload strategy: pooled-copy", result.StandardOutput);
             Assert.Contains("Provider overlap retention allocated bytes: 0", result.StandardOutput);

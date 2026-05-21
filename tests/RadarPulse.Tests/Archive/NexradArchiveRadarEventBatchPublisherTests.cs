@@ -1957,6 +1957,7 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
         Assert.Equal(0, result.OverlapTelemetry.ReleaseFailedCount);
         Assert.Equal(RadarProcessingRetainedPayloadStrategy.PooledCopy, result.RetentionTelemetry.Strategy);
         Assert.Equal(RadarProcessingRetainedPayloadStrategy.PooledCopy, result.OverlapTelemetry.RetentionStrategy);
+        AssertRetainedPoolTelemetryReleased(result.RetentionTelemetry);
         Assert.Equal(result.QueueTelemetry.RetainedResourcePressure, result.OverlapTelemetry.RetainedResourcePressure);
         Assert.Equal(0, result.CurrentPendingRetainedBatchCount);
         Assert.Equal(0, result.CurrentActiveRetainedBatchCount);
@@ -2005,12 +2006,31 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
         Assert.Equal(0, result.OverlapTelemetry.ReleaseFailedCount);
         Assert.Equal(RadarProcessingRetainedPayloadStrategy.PooledCopy, result.RetentionTelemetry.Strategy);
         Assert.Equal(RadarProcessingRetainedPayloadStrategy.PooledCopy, result.OverlapTelemetry.RetentionStrategy);
+        AssertRetainedPoolTelemetryReleased(result.RetentionTelemetry);
         Assert.Equal(result.QueueTelemetry.RetainedResourcePressure, result.OverlapTelemetry.RetainedResourcePressure);
         Assert.Equal(0, result.CurrentPendingRetainedBatchCount);
         Assert.Equal(0, result.CurrentActiveRetainedBatchCount);
         Assert.Equal(0, result.CurrentCombinedRetainedBatchCount);
         Assert.Equal(0, result.CurrentCombinedRetainedPayloadBytes);
         Assert.False(result.AllocationSummary.IncludesCliFormatting);
+    }
+
+    private static void AssertRetainedPoolTelemetryReleased(
+        RadarProcessingRetainedPayloadTelemetrySummary telemetry)
+    {
+        Assert.Equal(
+            telemetry.PoolRentCount,
+            telemetry.EventPoolRentCount + telemetry.PayloadPoolRentCount);
+        Assert.Equal(
+            telemetry.PoolReturnCount,
+            telemetry.EventPoolReturnCount + telemetry.PayloadPoolReturnCount);
+        Assert.Equal(
+            telemetry.PoolMissCount,
+            telemetry.EventPoolMissCount + telemetry.PayloadPoolMissCount);
+        Assert.True(telemetry.EventPoolRentCount > 0);
+        Assert.True(telemetry.PayloadPoolRentCount > 0);
+        Assert.Equal(telemetry.EventPoolRentCount, telemetry.EventPoolReturnCount);
+        Assert.Equal(telemetry.PayloadPoolRentCount, telemetry.PayloadPoolReturnCount);
     }
 
     private sealed class CapturingRadarEventBatchPublisher : IArchiveRadarEventBatchPublisher

@@ -25,18 +25,21 @@ Milestone 015 current status:
 ```text
 architecture document: draft
 implementation plan: in progress
-implementation: slice 5 complete; next slice 6 fallback/failure/cleanup and
-  drift guardrails
+implementation: slice 7 complete; next slice 8 allocation readiness Release
+  gate
 runtime behavior changes so far: allocation-only optimization, including
   cheaper bounded recent-detail copying and explicit pooled retained payload
-  release ownership, wait-mode provider enqueue fast path, and a dedicated
-  retained event-array pool; retained payload pool rent/miss/return telemetry
-  is now split for event arrays and byte arrays; no direct/default contour,
-  fallback, or release lifecycle changes
+  release ownership and a dedicated retained event-array pool; retained
+  payload pool rent/miss/return telemetry is now split for event arrays and
+  byte arrays; the wait-mode provider enqueue fast path was reverted before
+  the Release gate; no direct/default contour, fallback, or release lifecycle
+  changes
 performance gate: not captured
 interim allocation sanity: captured on KTLX 2026-05-05 CLI same-run pairs;
-  improved versus milestone 014 average but not clean because one row still
-  exceeded 1.10x borrowed
+  after the retained event-array pool, both rows were below 1.10x borrowed
+  and averaged 1.0392x borrowed allocation; after reverting the wait-mode
+  enqueue fast path, a one-row same-run sanity stayed at 1.0362x borrowed;
+  final direct API gate is not yet captured
 decision trace: not written
 closeout: not written
 ```
@@ -82,9 +85,9 @@ Milestone 015 planned slices:
 3. standard allocation optimization pass complete
 4. experimental optimization research and spikes complete
 5. adopted optimization integration complete
-6. fallback, failure, cleanup, and drift guardrails next
-7. focused regression and allocation sanity pass
-8. allocation readiness Release gate
+6. fallback, failure, cleanup, and drift guardrails complete
+7. focused regression and allocation sanity pass complete
+8. allocation readiness Release gate next
 9. allocation readiness decision trace
 10. closeout and handoff
 ```
@@ -261,20 +264,24 @@ Milestone 015 slice 5 adopted optimization integration, completed status:
 ```text
 status: complete
 runtime behavior changes:
-  allocation profile should improve for wait-mode provider enqueue when the
-  queue and retained-byte budget can accept immediately
   direct/default contour, fallback behavior, and release lifecycle did not
   change
   retained payload retention/release result contracts now carry pool
   rent/miss/return counts, and the existing retained telemetry summary/CLI
   pool fields are populated for pooled-copy rows
-adopted standard optimization:
-  RadarProcessingOwnedBatchQueue.EnqueueAsync now returns a completed
-  ValueTask through a synchronous fast path when wait-mode enqueue can write
-  immediately
-  the existing async wait loop remains the fallback for full queue,
-  retained-byte budget pressure, state changes, timeout, cancellation, or
-  failed immediate write
+reverted standard optimization:
+  RadarProcessingOwnedBatchQueue.EnqueueAsync wait-mode synchronous fast path
+  was reverted before the Release gate
+  reason:
+    the measured benefit was noisy and not the dominant allocation source
+    after retained event-array pooling
+    carrying a special wait-mode pre-write path made queue semantics harder to
+    reason about before the allocation readiness decision
+  current posture:
+    ReturnFull mode still uses the immediate non-waiting enqueue path because
+    that is its explicit behavior
+    Wait mode uses the async wait loop for capacity, retained-byte budget,
+    state changes, timeout, and cancellation behavior
 attribution refinement:
   RadarProcessingBenchmarkAllocationSnapshot now records global versus
   current-thread counter scope and rejects mixed-scope deltas
@@ -300,14 +307,15 @@ interim allocation sanity, not final gate:
     allocation ratios: 1.0943x, 1.0960x borrowed
     average allocation ratio: 1.0951x borrowed
     average elapsed ratio: 0.9370x borrowed
-  after enqueue fast path:
+  after enqueue fast path, before it was reverted:
     allocation ratios: 1.0947x, 1.1014x borrowed
     average allocation ratio: 1.0980x borrowed
     average elapsed ratio: 0.9251x borrowed
 interpretation:
-  interim allocation average is better than the milestone 014 KTLX 2026-05-05
-  average of 1.0997x borrowed, but not clean because one post-fast-path row
-  still exceeded the 1.10x threshold
+  interim allocation around the enqueue fast path was better than the
+  milestone 014 KTLX 2026-05-05 average of 1.0997x borrowed, but not clean
+  because one post-fast-path row still exceeded the 1.10x threshold; the
+  wait-mode fast path is not accepted milestone output
   the next optimization blocker is not provider enqueue overhead; it is
   retained pooled-copy cold/churn allocation plus overlap attribution
   ambiguity from the global allocation counter
@@ -382,8 +390,8 @@ retained event-array allocation hypothesis:
     retained event-array cold allocation/reuse behavior, not payload byte-pool
     churn
 retained event-array pool spike:
-  status: accepted into the current slice pending broader focused regression
-  and final Release gate confirmation
+  status: accepted into the milestone implementation; broader focused
+  regression passed and final Release gate confirmation is pending
   implementation:
     RadarProcessingRetainedEventArrayPool was added as a dedicated
     RadarStreamEvent[] pool for retained pooled-copy event metadata
@@ -463,10 +471,101 @@ verification:
   dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
   768 passed, 0 failed, 3 skipped
 next:
-  move to slice 6 fallback/failure/cleanup/drift guardrails and the focused
-  regression pass before the final Release gate
+  capture slice 8 allocation readiness Release gate with direct API default
+  rows and same-run explicit BlockingBorrowed oracle rows
   do not tune retained byte-pool shape retention from current evidence; pool
   misses are too low to explain the remaining KTLX allocation warning
+```
+
+Milestone 015 slice 6 fallback/failure/cleanup/drift guardrails:
+
+```text
+status: complete
+runtime behavior changes: none
+guardrails confirmed:
+  direct MeasureFile()/MeasureCache() omitted defaults remain queued-owned
+  explicit BlockingBorrowed remains selectable as fallback/oracle
+  queued-owned direct default failure fails closed and does not fall back to
+  borrowed
+  builder-transfer remains unsupported
+  controlled consumer delay remains mechanics-only proof
+  retained payload and provider-overlap release failures remain visible
+  cancellation and validation failure release retained resources and clear
+  retained pressure
+  CLI omitted-provider rollout remains aligned with shared defaults
+new drift coverage:
+  direct queued-owned rollout contour tests require split retained event/byte
+  pool telemetry to sum to total pool telemetry and require rents to be
+  returned at completion
+  CLI omitted-provider output asserts retained event-array and byte-array
+  pool telemetry labels
+verification:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+  77 passed, 0 failed, 0 skipped
+```
+
+Milestone 015 slice 7 focused regression pass before gate:
+
+```text
+status: complete
+runtime behavior changes: none
+gate precondition:
+  focused regression passed and Release build succeeded, so slice 8 Release
+  allocation-readiness gate capture is unblocked
+verification:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests|FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests|FullyQualifiedName~RadarProcessingRetainedBatchResourceTests"
+  112 passed, 0 failed, 0 skipped
+  dotnet build RadarPulse.sln -c Release --no-restore
+  succeeded, 0 warnings, 0 errors
+```
+
+Milestone 015 post-slice 7 follow-up: wait-mode enqueue fast-path revert:
+
+```text
+status: complete
+runtime behavior changes:
+  RadarProcessingOwnedBatchQueue.EnqueueAsync no longer uses the special
+  wait-mode synchronous pre-write fast path
+  ReturnFull mode still uses the immediate non-waiting enqueue path because
+  that is the explicit ReturnFull behavior
+  direct/default contour, fallback behavior, retained ownership, and release
+  lifecycle did not change
+reason:
+  the fast-path measurement was noisy and did not become the dominant
+  allocation win after retained event-array pooling
+  removing it keeps the Release gate focused on retained representation
+  optimization and avoids carrying an extra queue-semantics risk into the
+  allocation readiness decision
+verification:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~RadarProcessingOwnedBatchQueueTests|FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests"
+  105 passed, 0 failed, 0 skipped
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests|FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests|FullyQualifiedName~RadarProcessingRetainedBatchResourceTests"
+  112 passed, 0 failed, 0 skipped
+  dotnet build RadarPulse.sln -c Release --no-restore
+  succeeded, 0 warnings, 0 errors
+KTLX 2026-05-05 one-row Release CLI same-run sanity after revert, not final
+gate:
+  borrowed/default elapsed ms: 10121.18 / 8947.04
+  elapsed ratio: 0.8840x borrowed
+  borrowed/default allocated bytes: 2347585456 / 2432466384
+  allocation ratio: 1.0362x borrowed
+  retained payload allocated bytes: 73424544
+  retained event array pool rents/returns/misses: 104 / 104 / 2
+  retained byte array pool rents/returns/misses: 104 / 104 / 1
+  validation succeeded and checksum matched borrowed:
+    11084221590146245827
+  retained payload failed releases: 0
+  provider overlap failed releases: 0
+  current retained pressure returned to 0
+interpretation:
+  reverting the wait-mode fast path did not remove the event-array pool
+  allocation improvement on the KTLX 2026-05-05 risk shape
+  this is only a sanity row; slice 8 still needs the planned direct API
+  Release allocation-readiness gate
 ```
 
 Milestone 015 likely implementation targets:

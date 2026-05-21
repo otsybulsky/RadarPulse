@@ -162,14 +162,7 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
         return Options.FullMode == RadarProcessingProviderQueueFullMode.ReturnFull
             ? new ValueTask<RadarProcessingQueuedBatchEnqueueResult>(
                 TryEnqueueWithoutWaiting(batch, ownedSnapshotTime, ownedSnapshotAllocatedBytes, started, onAccepted))
-            : TryEnqueueWithWaitFastPath(
-                  batch,
-                  ownedSnapshotTime,
-                  ownedSnapshotAllocatedBytes,
-                  started,
-                  cancellationToken,
-                  onAccepted) ??
-              EnqueueWithWaitAsync(
+            : EnqueueWithWaitAsync(
                   batch,
                   ownedSnapshotTime,
                   ownedSnapshotAllocatedBytes,
@@ -375,61 +368,6 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
             onAccepted?.Invoke(queuedBatch);
             return accepted;
         }
-    }
-
-    private ValueTask<RadarProcessingQueuedBatchEnqueueResult>? TryEnqueueWithWaitFastPath(
-        RadarEventBatch batch,
-        TimeSpan ownedSnapshotTime,
-        long allocatedBytes,
-        long started,
-        CancellationToken cancellationToken,
-        Action<RadarProcessingQueuedBatch>? onAccepted)
-    {
-        if (cancellationToken.IsCancellationRequested)
-        {
-            return new ValueTask<RadarProcessingQueuedBatchEnqueueResult>(
-                RecordRejected(
-                    RadarProcessingQueuedBatchEnqueueStatus.Canceled,
-                    Stopwatch.GetElapsedTime(started)));
-        }
-
-        lock (sync)
-        {
-            var stateRejection = TryGetStateRejectionUnsafe();
-            if (stateRejection.HasValue)
-            {
-                return new ValueTask<RadarProcessingQueuedBatchEnqueueResult>(
-                    RecordRejectedUnsafe(
-                        stateRejection.Value.Status,
-                        Stopwatch.GetElapsedTime(started),
-                        stateRejection.Value.Message));
-            }
-
-            var queuedBatch = CreateQueuedBatchUnsafe(batch, ownedSnapshotTime, allocatedBytes);
-            if (!HasRetainedByteCapacityUnsafe(queuedBatch.PayloadBytes))
-            {
-                return null;
-            }
-
-            if (channel.Writer.TryWrite(queuedBatch))
-            {
-                var accepted = RecordAcceptedUnsafe(queuedBatch, Stopwatch.GetElapsedTime(started));
-                onAccepted?.Invoke(queuedBatch);
-                return new ValueTask<RadarProcessingQueuedBatchEnqueueResult>(accepted);
-            }
-
-            stateRejection = TryGetStateRejectionUnsafe();
-            if (stateRejection.HasValue)
-            {
-                return new ValueTask<RadarProcessingQueuedBatchEnqueueResult>(
-                    RecordRejectedUnsafe(
-                        stateRejection.Value.Status,
-                        Stopwatch.GetElapsedTime(started),
-                        stateRejection.Value.Message));
-            }
-        }
-
-        return null;
     }
 
     private async ValueTask<RadarProcessingQueuedBatchEnqueueResult> EnqueueWithWaitAsync(
