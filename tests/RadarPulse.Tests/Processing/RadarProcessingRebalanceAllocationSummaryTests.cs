@@ -25,7 +25,8 @@ public sealed class RadarProcessingRebalanceAllocationSummaryTests
     {
         var summary = RadarProcessingRebalanceAllocationSummary.ForArchiveReplay(
             measuredAllocatedBytes: 2_000,
-            processingCallbackAllocatedBytes: 750);
+            processingCallbackAllocatedBytes: 750,
+            ownedSnapshotAllocatedBytes: 250);
 
         Assert.True(summary.IsMeasured);
         Assert.True(summary.IncludesArchiveReplayAndBatchConstruction);
@@ -33,7 +34,11 @@ public sealed class RadarProcessingRebalanceAllocationSummaryTests
         Assert.False(summary.IncludesCliFormatting);
         Assert.Equal(2_000, summary.MeasuredAllocatedBytes);
         Assert.Equal(750, summary.ProcessingCallbackAllocatedBytes);
+        Assert.Equal(250, summary.OwnedSnapshotAllocatedBytes);
+        Assert.Equal(500, summary.ProcessingCallbackNonOwnedSnapshotAllocatedBytes);
         Assert.Equal(1_250, summary.ReplayAndBatchConstructionAllocatedBytes);
+        Assert.Equal(2.5, summary.OwnedSnapshotAllocatedBytesPerPayloadValue(100));
+        Assert.Equal(5.0, summary.ProcessingCallbackNonOwnedSnapshotAllocatedBytesPerPayloadValue(100));
         Assert.Equal(7.5, summary.ProcessingCallbackAllocatedBytesPerPayloadValue(100));
         Assert.Equal(12.5, summary.ReplayAndBatchConstructionAllocatedBytesPerPayloadValue(100));
     }
@@ -46,6 +51,18 @@ public sealed class RadarProcessingRebalanceAllocationSummaryTests
             processingCallbackAllocatedBytes: 750);
 
         Assert.Equal(0, summary.ReplayAndBatchConstructionAllocatedBytes);
+    }
+
+    [Fact]
+    public void ArchiveSummaryDoesNotReportNegativeNonOwnedSnapshotAllocation()
+    {
+        var summary = RadarProcessingRebalanceAllocationSummary.ForArchiveReplay(
+            measuredAllocatedBytes: 500,
+            processingCallbackAllocatedBytes: 200,
+            ownedSnapshotAllocatedBytes: 300);
+
+        Assert.Equal(0, summary.ProcessingCallbackNonOwnedSnapshotAllocatedBytes);
+        Assert.Equal(0.0, summary.ProcessingCallbackNonOwnedSnapshotAllocatedBytesPerPayloadValue(100));
     }
 
     [Fact]
@@ -109,11 +126,18 @@ public sealed class RadarProcessingRebalanceAllocationSummaryTests
             MaxRetainedLifecycleTransitions: 3,
             MaxRetainedAcceptedMoves: 2,
             MaxRetainedValidationFailures: 1,
-            AllocationSummary: RadarProcessingRebalanceAllocationSummary.ForArchiveReplay(1_000, 400));
+            AllocationSummary: RadarProcessingRebalanceAllocationSummary.ForArchiveReplay(
+                1_000,
+                400,
+                ownedSnapshotAllocatedBytes: 128));
 
         Assert.Equal(1_000, result.AllocatedBytes);
         Assert.Equal(400, result.ProcessingCallbackAllocatedBytes);
         Assert.Equal(600, result.ReplayAndBatchConstructionAllocatedBytes);
+        Assert.Equal(128, result.OwnedSnapshotAllocatedBytes);
+        Assert.Equal(272, result.ProcessingCallbackNonOwnedSnapshotAllocatedBytes);
+        Assert.Equal(12.8, result.OwnedSnapshotAllocatedBytesPerPayloadValue);
+        Assert.Equal(27.2, result.ProcessingCallbackNonOwnedSnapshotAllocatedBytesPerPayloadValue);
         Assert.Equal(RadarProcessingValidationProfile.Benchmark, result.ValidationProfile);
         Assert.Equal(RadarProcessingDiagnosticRetentionMode.Counters, result.RetentionMode);
         Assert.Equal(4, result.MaxRetainedDecisions);

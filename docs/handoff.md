@@ -61,10 +61,11 @@ slice 1: post-rollout surface audit complete
 slice 2: default contour drift guardrails complete
 slice 3: direct API compatibility guardrails complete
 slice 4: operator help and output compatibility cleanup complete
-next slice: allocation attribution pass
+slice 5: allocation attribution pass complete
+next slice: failure, cleanup, and fallback regression pass
 next verification target:
-  focused allocation, overlap, archive benchmark, and CLI tests after exposing
-  the residual allocation attribution needed for gate reporting
+  focused failure, cleanup, readiness, overlap, and CLI fallback tests before
+  broader Release gate preparation
 ```
 
 Planned milestone 013 slices:
@@ -110,13 +111,13 @@ data\nexrad total files: 1554
 Latest milestone 013 verification:
 
 ```powershell
-dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
 ```
 
 Recorded result:
 
 ```text
-26 passed, 0 failed, 0 skipped.
+63 passed, 0 failed, 0 skipped.
 ```
 
 Milestone 013 slice 2 default contour drift guard:
@@ -172,6 +173,26 @@ usage now states that --overlap-consumer-delay-ms is controlled mechanics
 existing per-run output source labels remain the source of truth for whether a
   run used rollout-default, explicit fallback, explicit queued-owned, or
   controlled proof
+```
+
+Milestone 013 slice 5 allocation attribution pass:
+
+```text
+runtime behavior changes: none
+RadarProcessingRebalanceAllocationSummary now exposes
+  ProcessingCallbackNonOwnedSnapshotAllocatedBytes
+file and cache archive rebalance result contracts expose the new non-owned
+  callback allocation values
+archive rebalance file/cache CLI output now prints an explicit
+  Allocation attribution: summary block
+the attribution block includes measured, processing callback, replay/build,
+  owned snapshot, non-owned callback, archive replay inclusion, CLI formatting,
+  and per-payload owned/non-owned callback allocation rows
+borrowed fallback rows report owned snapshot allocation as 0 and still do not
+  print retained payload or overlap telemetry
+queued-owned rows continue to print retained payload allocation and
+  producer-consumer rows continue to print overlap retention, measured, and
+  unattributed allocation
 ```
 
 Milestone 013 closeout question:

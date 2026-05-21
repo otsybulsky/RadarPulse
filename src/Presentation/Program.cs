@@ -737,7 +737,9 @@ static void PrintProcessingArchiveRebalanceBenchmarkResult(
     Console.WriteLine($"End-to-end allocated bytes: {FormatNumber(result.AllocatedBytes)}");
     Console.WriteLine($"Processing callback allocated bytes: {FormatNumber(result.ProcessingCallbackAllocatedBytes)}");
     Console.WriteLine($"Replay and batch construction allocated bytes: {FormatNumber(result.ReplayAndBatchConstructionAllocatedBytes)}");
-    Console.WriteLine($"Allocation includes CLI formatting: {FormatBoolean(result.AllocationSummary.IncludesCliFormatting)}");
+    PrintProcessingArchiveRebalanceAllocationAttribution(
+        result.AllocationSummary,
+        result.TotalPayloadValues);
     Console.WriteLine($"End-to-end allocated bytes / stream event: {FormatDecimal(result.AllocatedBytesPerStreamEvent)}");
     Console.WriteLine($"End-to-end allocated bytes / payload value: {FormatDecimal(result.AllocatedBytesPerPayloadValue)}");
     Console.WriteLine($"Processing callback allocated bytes / payload value: {FormatDecimal(result.ProcessingCallbackAllocatedBytesPerPayloadValue)}");
@@ -780,6 +782,22 @@ static void PrintProcessingArchiveRebalanceProviderSelection(
     Console.WriteLine($"Provider default rollout contour: {FormatBoolean(isDefaultCandidateContour)}");
     Console.WriteLine($"Provider rollout default expansion: {FormatBoolean(isRolloutDefaultExpandedContour)}");
     Console.WriteLine($"Provider fallback contour: {FormatBoolean(isExplicitBlockingBorrowedFallback)}");
+}
+
+static void PrintProcessingArchiveRebalanceAllocationAttribution(
+    RadarProcessingRebalanceAllocationSummary allocation,
+    long payloadValueCount)
+{
+    Console.WriteLine("Allocation attribution: summary");
+    Console.WriteLine($"Allocation measured bytes: {FormatNumber(allocation.MeasuredAllocatedBytes)}");
+    Console.WriteLine($"Allocation processing callback bytes: {FormatNumber(allocation.ProcessingCallbackAllocatedBytes)}");
+    Console.WriteLine($"Allocation replay and batch construction bytes: {FormatNumber(allocation.ReplayAndBatchConstructionAllocatedBytes)}");
+    Console.WriteLine($"Allocation owned snapshot bytes: {FormatNumber(allocation.OwnedSnapshotAllocatedBytes)}");
+    Console.WriteLine($"Allocation processing callback non-owned snapshot bytes: {FormatNumber(allocation.ProcessingCallbackNonOwnedSnapshotAllocatedBytes)}");
+    Console.WriteLine($"Allocation includes archive replay and batch construction: {FormatBoolean(allocation.IncludesArchiveReplayAndBatchConstruction)}");
+    Console.WriteLine($"Allocation includes CLI formatting: {FormatBoolean(allocation.IncludesCliFormatting)}");
+    Console.WriteLine($"Allocation owned snapshot bytes / payload value: {FormatDecimal(allocation.OwnedSnapshotAllocatedBytesPerPayloadValue(payloadValueCount))}");
+    Console.WriteLine($"Allocation processing callback non-owned snapshot bytes / payload value: {FormatDecimal(allocation.ProcessingCallbackNonOwnedSnapshotAllocatedBytesPerPayloadValue(payloadValueCount))}");
 }
 
 static void PrintProcessingArchiveRebalanceCacheBenchmarkResult(
@@ -887,7 +905,9 @@ static void PrintProcessingArchiveRebalanceCacheBenchmarkResult(
     Console.WriteLine($"End-to-end allocated bytes: {FormatNumber(result.AllocatedBytes)}");
     Console.WriteLine($"Processing callback allocated bytes: {FormatNumber(result.ProcessingCallbackAllocatedBytes)}");
     Console.WriteLine($"Replay and batch construction allocated bytes: {FormatNumber(result.ReplayAndBatchConstructionAllocatedBytes)}");
-    Console.WriteLine($"Allocation includes CLI formatting: {FormatBoolean(result.AllocationSummary.IncludesCliFormatting)}");
+    PrintProcessingArchiveRebalanceAllocationAttribution(
+        result.AllocationSummary,
+        result.TotalPayloadValues);
     Console.WriteLine($"End-to-end allocated bytes / stream event: {FormatDecimal(result.AllocatedBytesPerStreamEvent)}");
     Console.WriteLine($"End-to-end allocated bytes / payload value: {FormatDecimal(result.AllocatedBytesPerPayloadValue)}");
     Console.WriteLine($"Processing callback allocated bytes / payload value: {FormatDecimal(result.ProcessingCallbackAllocatedBytesPerPayloadValue)}");

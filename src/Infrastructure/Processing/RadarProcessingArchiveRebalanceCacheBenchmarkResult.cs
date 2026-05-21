@@ -166,6 +166,12 @@ public sealed record RadarProcessingArchiveRebalanceCacheBenchmarkResult(
     public double OwnedSnapshotAllocatedBytesPerPayloadValue =>
         AllocationSummary.OwnedSnapshotAllocatedBytesPerPayloadValue(TotalPayloadValues);
 
+    public long ProcessingCallbackNonOwnedSnapshotAllocatedBytes =>
+        AllocationSummary.ProcessingCallbackNonOwnedSnapshotAllocatedBytes;
+
+    public double ProcessingCallbackNonOwnedSnapshotAllocatedBytesPerPayloadValue =>
+        AllocationSummary.ProcessingCallbackNonOwnedSnapshotAllocatedBytesPerPayloadValue(TotalPayloadValues);
+
     public TimeSpan OwnedSnapshotElapsed => QueueTelemetry.TotalOwnedSnapshotTime;
 
     public TimeSpan EnqueueWaitElapsed => QueueTelemetry.TotalEnqueueWaitTime;

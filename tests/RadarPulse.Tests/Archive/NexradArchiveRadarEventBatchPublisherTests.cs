@@ -1584,6 +1584,9 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
         Assert.False(result.HasRetentionTelemetry);
         Assert.False(result.HasOverlapTelemetry);
         Assert.Equal(0, result.OwnedSnapshotAllocatedBytes);
+        Assert.Equal(
+            result.ProcessingCallbackAllocatedBytes,
+            result.ProcessingCallbackNonOwnedSnapshotAllocatedBytes);
         Assert.Equal(0, result.QueueTelemetry.EnqueueAttemptCount);
         Assert.Equal(0, result.RetentionTelemetry.RetentionAttemptCount);
         Assert.Equal(0, result.OverlapTelemetry.MeasuredAllocatedBytes);
@@ -1611,6 +1614,9 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
         Assert.False(result.HasRetentionTelemetry);
         Assert.False(result.HasOverlapTelemetry);
         Assert.Equal(0, result.OwnedSnapshotAllocatedBytes);
+        Assert.Equal(
+            result.ProcessingCallbackAllocatedBytes,
+            result.ProcessingCallbackNonOwnedSnapshotAllocatedBytes);
         Assert.Equal(0, result.QueueTelemetry.EnqueueAttemptCount);
         Assert.Equal(0, result.RetentionTelemetry.RetentionAttemptCount);
         Assert.Equal(0, result.OverlapTelemetry.MeasuredAllocatedBytes);
@@ -1639,6 +1645,8 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
         Assert.True(result.HasQueueTelemetry);
         Assert.True(result.HasRetentionTelemetry);
         Assert.True(result.HasOverlapTelemetry);
+        Assert.Equal(result.QueueTelemetry.OwnedSnapshotAllocatedBytes, result.OwnedSnapshotAllocatedBytes);
+        Assert.True(result.ProcessingCallbackNonOwnedSnapshotAllocatedBytes >= 0);
         Assert.True(result.QueueTelemetry.EnqueueAttemptCount > 0);
         Assert.True(result.RetentionTelemetry.RetentionAttemptCount > 0);
         Assert.Equal(0, result.RetentionTelemetry.ReleaseFailedCount);
@@ -1670,6 +1678,8 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
         Assert.True(result.HasQueueTelemetry);
         Assert.True(result.HasRetentionTelemetry);
         Assert.True(result.HasOverlapTelemetry);
+        Assert.Equal(result.QueueTelemetry.OwnedSnapshotAllocatedBytes, result.OwnedSnapshotAllocatedBytes);
+        Assert.True(result.ProcessingCallbackNonOwnedSnapshotAllocatedBytes >= 0);
         Assert.True(result.QueueTelemetry.EnqueueAttemptCount > 0);
         Assert.True(result.RetentionTelemetry.RetentionAttemptCount > 0);
         Assert.Equal(0, result.RetentionTelemetry.ReleaseFailedCount);

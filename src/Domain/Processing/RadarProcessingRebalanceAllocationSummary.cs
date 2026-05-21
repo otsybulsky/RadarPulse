@@ -41,6 +41,11 @@ public readonly record struct RadarProcessingRebalanceAllocationSummary
             ? MeasuredAllocatedBytes - ProcessingCallbackAllocatedBytes
             : 0;
 
+    public long ProcessingCallbackNonOwnedSnapshotAllocatedBytes =>
+        ProcessingCallbackAllocatedBytes > OwnedSnapshotAllocatedBytes
+            ? ProcessingCallbackAllocatedBytes - OwnedSnapshotAllocatedBytes
+            : 0;
+
     public static RadarProcessingRebalanceAllocationSummary ForProcessingOnly(
         long measuredAllocatedBytes) =>
         new(
@@ -79,6 +84,10 @@ public readonly record struct RadarProcessingRebalanceAllocationSummary
     public double OwnedSnapshotAllocatedBytesPerPayloadValue(
         long payloadValueCount) =>
         Ratio(OwnedSnapshotAllocatedBytes, payloadValueCount);
+
+    public double ProcessingCallbackNonOwnedSnapshotAllocatedBytesPerPayloadValue(
+        long payloadValueCount) =>
+        Ratio(ProcessingCallbackNonOwnedSnapshotAllocatedBytes, payloadValueCount);
 
     private static double Ratio(
         long numerator,

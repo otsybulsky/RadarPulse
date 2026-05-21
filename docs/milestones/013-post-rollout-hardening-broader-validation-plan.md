@@ -1093,6 +1093,86 @@ Do not optimize allocation before attribution is clear unless a small fix is
 obviously required to make attribution correct.
 ```
 
+Implemented in slice 5:
+
+```text
+status:
+  complete
+
+runtime behavior changes:
+  none
+
+new attribution contract:
+  RadarProcessingRebalanceAllocationSummary now exposes
+  ProcessingCallbackNonOwnedSnapshotAllocatedBytes and
+  ProcessingCallbackNonOwnedSnapshotAllocatedBytesPerPayloadValue()
+
+result propagation:
+  RadarProcessingArchiveRebalanceBenchmarkResult exposes the new non-owned
+  callback allocation values
+  RadarProcessingArchiveRebalanceCacheBenchmarkResult exposes the new
+  non-owned callback allocation values
+
+operator output:
+  archive rebalance file and cache output now print an explicit
+  Allocation attribution: summary block
+```
+
+Allocation attribution output now includes:
+
+```text
+Allocation measured bytes
+Allocation processing callback bytes
+Allocation replay and batch construction bytes
+Allocation owned snapshot bytes
+Allocation processing callback non-owned snapshot bytes
+Allocation includes archive replay and batch construction
+Allocation includes CLI formatting
+Allocation owned snapshot bytes / payload value
+Allocation processing callback non-owned snapshot bytes / payload value
+```
+
+Existing retained and overlap attribution rows remain active:
+
+```text
+Retained payload allocated bytes
+Provider queue owned snapshot allocated bytes
+Provider overlap retention allocated bytes
+Provider overlap measured allocated bytes
+Provider overlap unattributed allocated bytes
+```
+
+Borrowed-row posture:
+
+```text
+borrowed fallback rows print allocation attribution with owned snapshot bytes 0
+borrowed fallback rows still do not print retained payload telemetry
+borrowed fallback rows still do not print provider overlap telemetry
+```
+
+Queued-owned attribution posture:
+
+```text
+queued-owned rows print retained payload allocated bytes when retention
+  telemetry is present
+queued-owned producer-consumer rows print overlap retention, measured, and
+  unattributed allocation rows when overlap telemetry is present
+file and cache direct result assertions now verify owned snapshot allocation
+  propagation and non-owned callback allocation availability
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+```
+
+Recorded result:
+
+```text
+63 passed, 0 failed, 0 skipped.
+```
+
 ### 6. Failure, Cleanup, And Fallback Regression Pass
 
 Keep milestone 012 fail-closed behavior active under the hardened default.
@@ -1449,7 +1529,7 @@ controlled proof rows separated if captured
 [x] explicit blocking-borrowed fallback remains selectable and visible
 [x] direct MeasureFile()/MeasureCache() defaults remain borrowed
 [x] operator help/output makes scoped default and fallback reproducible
-[ ] allocation attribution is visible enough to explain residual overhead
+[x] allocation attribution is visible enough to explain residual overhead
 [ ] failure, cancellation, release, and cleanup guardrails remain covered
 [ ] focused regression pass succeeds before gate capture
 [ ] broader natural Release gate is captured
