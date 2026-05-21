@@ -1412,6 +1412,63 @@ the milestone successful. Either revert the default change before closeout or
 record an explicit defer outcome where blocking-borrowed remains default.
 ```
 
+Implemented in slice 10:
+
+```text
+status:
+  complete
+
+document:
+  docs/milestones/012-queued-owned-default-rollout-decision-trace.md
+
+decision:
+  queued-owned + pooled-copy + producer-consumer is accepted as the scoped
+  default for processing benchmark rebalance-archive omitted provider flags
+
+included surface:
+  processing benchmark rebalance-archive CLI omitted provider path
+
+excluded surfaces:
+  direct RadarProcessingArchiveRebalanceBenchmark.MeasureFile()/MeasureCache()
+  defaults
+  synthetic benchmark defaults
+  non-benchmark archive publishing APIs
+  live ingestion/runtime provider defaults
+  builder-transfer retained payload execution
+  automatic fallback from queued-owned to blocking-borrowed
+
+fallback posture:
+  blocking-borrowed remains available through explicit
+  --provider blocking-borrowed
+
+borrowed oracle posture:
+  same-run blocking-borrowed comparison remains required for future benchmark
+  gates and rollout regressions
+
+threshold evidence:
+  validation parity: accepted
+  release health: accepted, failed releases 0
+  retained cleanup: accepted, current retained pressure returns to 0
+  retained pressure budget: accepted, max combined retained payload high
+    watermark 54413280 bytes of 536870912 byte budget
+  allocation threshold: accepted, primary 1.072x borrowed and mixed-cache
+    1.064x borrowed against <= 1.10x threshold
+  elapsed threshold: accepted, primary 0.855x borrowed and mixed-cache
+    0.777x borrowed against <= 1.00x threshold
+  run spread threshold: accepted, primary candidate spread 2.39% against
+    <= 7.50% threshold
+  default expansion evidence: accepted
+  fallback separation: accepted
+
+residual risks:
+  local gate only
+  benchmark surface only
+  direct API defaults remain borrowed
+  allocation overhead remains below threshold but non-zero
+  natural queue depth stayed at 1
+  no live ingestion claim
+```
+
 ### 11. Closeout And Handoff
 
 Finalize the milestone documentation and project handoff.
@@ -1526,7 +1583,7 @@ controlled proof rows separated if captured
 [x] natural rollout performance gate is captured
 [x] performance gate interprets correctness, cleanup, pressure, allocation,
     timing, and variance thresholds
-[ ] decision trace records whether the provider default changed
+[x] decision trace records whether the provider default changed
 [ ] closeout is written
 [ ] handoff is updated with the current default provider posture
 ```

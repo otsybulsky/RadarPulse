@@ -351,10 +351,70 @@ default expansion evidence: pass
 fallback separation: pass
 ```
 
-The next implementation step is slice 10 from the plan: rollout decision
-trace. That slice should decide whether the scoped CLI default remains the new
-omitted-provider queued-owned rollout behavior, name the fallback/oracle
-posture, and point to the threshold evidence in the performance gate.
+Milestone 012 slice 10 rollout decision trace is implemented in the current
+working tree. There were no runtime changes.
+
+New decision trace:
+
+```text
+docs/milestones/012-queued-owned-default-rollout-decision-trace.md
+```
+
+Decision:
+
+```text
+queued-owned + pooled-copy + producer-consumer is accepted as the scoped
+default for processing benchmark rebalance-archive omitted provider flags
+```
+
+Included surface:
+
+```text
+processing benchmark rebalance-archive CLI omitted provider path
+```
+
+Excluded surfaces:
+
+```text
+direct RadarProcessingArchiveRebalanceBenchmark.MeasureFile()/MeasureCache()
+  defaults
+synthetic benchmark defaults
+non-benchmark archive publishing APIs
+live ingestion/runtime provider defaults
+builder-transfer retained payload execution
+automatic fallback from queued-owned to blocking-borrowed
+```
+
+Fallback/oracle posture:
+
+```text
+blocking-borrowed remains explicit fallback through
+  --provider blocking-borrowed
+same-run blocking-borrowed comparison remains required for future benchmark
+  gates and rollout regressions
+```
+
+Threshold evidence recorded:
+
+```text
+validation parity: accepted
+release health: accepted, failed releases 0
+retained cleanup: accepted, current retained pressure returns to 0
+retained pressure budget: accepted, max combined retained payload high
+  watermark 54413280 bytes of 536870912 byte budget
+allocation threshold: accepted, primary 1.072x borrowed and mixed-cache
+  1.064x borrowed
+elapsed threshold: accepted, primary 0.855x borrowed and mixed-cache
+  0.777x borrowed
+run spread threshold: accepted, primary candidate spread 2.39%
+default expansion evidence: accepted
+fallback separation: accepted
+```
+
+The next implementation step is slice 11 from the plan: closeout and handoff.
+That slice should create the milestone closeout, run the expected closeout
+verification, and update handoff so the current scoped default provider posture
+is unambiguous.
 
 Latest verification after milestone 012 slice 1:
 
