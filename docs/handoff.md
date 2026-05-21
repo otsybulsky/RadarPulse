@@ -25,11 +25,16 @@ Milestone 015 current status:
 ```text
 architecture document: draft
 implementation plan: in progress
-implementation: slice 3 complete
-runtime behavior changes so far: allocation-only optimization; no
+implementation: slice 5 in progress
+runtime behavior changes so far: allocation-only optimization, including
+  cheaper bounded recent-detail copying and explicit pooled retained payload
+  release ownership plus wait-mode provider enqueue fast path; no
   direct/default contour, fallback, telemetry semantics, release lifecycle, or
   result contract changes
 performance gate: not captured
+interim allocation sanity: captured on KTLX 2026-05-05 CLI same-run pairs;
+  improved versus milestone 014 average but not clean because one row still
+  exceeded 1.10x borrowed
 decision trace: not written
 closeout: not written
 ```
@@ -73,8 +78,8 @@ Milestone 015 planned slices:
 1. baseline and attribution audit complete
 2. allocation instrumentation and contract check complete
 3. standard allocation optimization pass complete
-4. experimental optimization research and spikes
-5. adopted optimization integration
+4. experimental optimization research and spikes complete
+5. adopted optimization integration in progress
 6. fallback, failure, cleanup, and drift guardrails
 7. focused regression and allocation sanity pass
 8. allocation readiness Release gate
@@ -200,6 +205,106 @@ slice 4 input:
   callback path
 ```
 
+Milestone 015 slice 4 experimental optimization research and spikes:
+
+```text
+status: complete
+runtime behavior changes:
+  allocation profile should improve on pooled retained payload release owner
+  creation because the pooled-copy path no longer creates a closure-backed
+  release callback and delegate per retained batch
+  retained payload release semantics, resource state transitions, cleanup,
+  result contracts, and direct/default contour did not change
+adopted experiment:
+  explicit pooled retained payload release owner
+implementation:
+  Domain adds an internal IRadarProcessingRetainedPayloadReleaseOwner
+  contract, visible to RadarPulse.Infrastructure through the existing
+  InternalsVisibleTo boundary
+  RadarProcessingRetainedBatchResource keeps the public Func-based
+  constructor for existing callers/tests and adds an internal owner-based
+  constructor for infrastructure-owned release implementations
+  RadarProcessingRetainedPayloadFactory.RetainPooledCopy now uses a private
+  PooledRetainedPayloadReleaseOwner to own rented event/payload arrays, pools,
+  and retained payload byte count
+release posture:
+  pooled release still returns rented arrays exactly once through the existing
+  RadarProcessingRetainedBatchResource.Release() state machine
+  second release attempts still return AlreadyReleased without invoking the
+  owner again
+deferred experiments:
+  pooled telemetry accumulator remains deferred because immutable summary
+  boundaries and recorder reset ownership need a broader design
+  struct-backed queued work item remains deferred because queue/channel
+  semantics and sequence ownership would make the change wider than current
+  evidence justifies
+  allocation probe split remains deferred until Release gate evidence shows
+  current residual attribution is insufficient
+rejected for slice 4:
+  no public result or CLI attribution fields were added
+  no unsafe memory, stack-lifetime, or measured-window-shifting approach was
+  used
+verification:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests|FullyQualifiedName~RadarProcessingRetainedBatchResourceTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests"
+  56 passed, 0 failed, 0 skipped
+slice 5 input:
+  integrate the accepted standard and experimental allocation optimizations
+  through broader focused contour, fallback/oracle, retained cleanup, and
+  allocation summary guardrails
+```
+
+Milestone 015 slice 5 adopted optimization integration, interim status:
+
+```text
+status: in progress
+runtime behavior changes:
+  allocation profile should improve for wait-mode provider enqueue when the
+  queue and retained-byte budget can accept immediately
+  direct/default contour, fallback behavior, telemetry semantics, release
+  lifecycle, and result contracts did not change
+adopted standard optimization:
+  RadarProcessingOwnedBatchQueue.EnqueueAsync now returns a completed
+  ValueTask through a synchronous fast path when wait-mode enqueue can write
+  immediately
+  the existing async wait loop remains the fallback for full queue,
+  retained-byte budget pressure, state changes, timeout, cancellation, or
+  failed immediate write
+interim allocation sanity, not final gate:
+  Release CLI omitted-provider KTLX 2026-05-05 --max-files 220 same-run
+  borrowed/default pairs were captured to decide whether more optimization is
+  needed before the direct API Release gate
+  after slice 4 before enqueue fast path:
+    allocation ratios: 1.0943x, 1.0960x borrowed
+    average allocation ratio: 1.0951x borrowed
+    average elapsed ratio: 0.9370x borrowed
+  after enqueue fast path:
+    allocation ratios: 1.0947x, 1.1014x borrowed
+    average allocation ratio: 1.0980x borrowed
+    average elapsed ratio: 0.9251x borrowed
+interpretation:
+  interim allocation average is better than the milestone 014 KTLX 2026-05-05
+  average of 1.0997x borrowed, but not clean because one post-fast-path row
+  still exceeded the 1.10x threshold
+  the next optimization blocker is not provider enqueue overhead; it is
+  retained pooled-copy cold/churn allocation plus overlap attribution
+  ambiguity from the global allocation counter
+rejected spike:
+  increasing RadarProcessingRetainedPayloadByteArrayPool default retained
+  bytes from 128 MiB to 256 MiB was tested and reverted because it retained
+  more memory without reducing the KTLX 2026-05-05 retained snapshot
+  allocation enough to clear the warning
+verification:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests|FullyQualifiedName~RadarProcessingRetainedBatchResourceTests|FullyQualifiedName~RadarProcessingOwnedBatchQueueTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests"
+  83 passed, 0 failed, 0 skipped
+  dotnet build RadarPulse.sln -c Release --no-restore
+  succeeded, 0 warnings, 0 errors
+next:
+  split or profile retained pooled-copy allocation and overlap attribution
+  before adding another production optimization
+```
+
 Milestone 015 likely implementation targets:
 
 ```text
@@ -212,6 +317,7 @@ src/Infrastructure/Processing/RadarProcessingQueuedRebalanceSession.cs
 src/Infrastructure/Archive/ArchiveOwnedRadarEventBatchQueueingPublisher.cs
 src/Domain/Processing/RadarProcessingRebalanceAllocationSummary.cs
 src/Domain/Processing/RadarProcessingOwnedSnapshotAllocationSummary.cs
+src/Domain/Processing/IRadarProcessingRetainedPayloadReleaseOwner.cs
 src/Domain/Processing/RadarProcessingRetainedBatchResource.cs
 src/Domain/Processing/RadarProcessingRetainedPayloadTelemetrySummary.cs
 src/Domain/Processing/RadarProcessingProviderQueueTelemetrySummary.cs

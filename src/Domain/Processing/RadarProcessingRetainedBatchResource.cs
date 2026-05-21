@@ -15,7 +15,8 @@ public sealed class RadarProcessingRetainedBatchResource
             RadarProcessingRetainedPayloadStrategy.BuilderTransfer);
 
     private readonly object sync = new();
-    private readonly Func<RadarProcessingRetainedPayloadReleaseResult> release;
+    private readonly Func<RadarProcessingRetainedPayloadReleaseResult>? release;
+    private readonly IRadarProcessingRetainedPayloadReleaseOwner? releaseOwner;
     private RadarProcessingRetainedBatchResourceState state;
     private RadarProcessingRetainedPayloadReleaseResult? lastReleaseResult;
 
@@ -30,6 +31,20 @@ public sealed class RadarProcessingRetainedBatchResource
         Strategy = strategy;
         PayloadBytes = payloadBytes;
         this.release = release ?? CreateNotRequiredRelease(strategy);
+        state = RadarProcessingRetainedBatchResourceState.ProviderOwned;
+    }
+
+    internal RadarProcessingRetainedBatchResource(
+        RadarProcessingRetainedPayloadStrategy strategy,
+        long payloadBytes,
+        IRadarProcessingRetainedPayloadReleaseOwner releaseOwner)
+    {
+        RadarProcessingRetainedPayloadOptions.EnsureKnownStrategy(strategy);
+        ArgumentOutOfRangeException.ThrowIfNegative(payloadBytes);
+
+        Strategy = strategy;
+        PayloadBytes = payloadBytes;
+        this.releaseOwner = releaseOwner ?? throw new ArgumentNullException(nameof(releaseOwner));
         state = RadarProcessingRetainedBatchResourceState.ProviderOwned;
     }
 
@@ -114,7 +129,7 @@ public sealed class RadarProcessingRetainedBatchResource
 
             try
             {
-                var result = release() ??
+                var result = ReleaseCore() ??
                              throw new InvalidOperationException("Retained resource release callback returned null.");
                 if (result.Strategy != Strategy)
                 {
@@ -142,6 +157,9 @@ public sealed class RadarProcessingRetainedBatchResource
     public static RadarProcessingRetainedBatchResource NotRequired(
         RadarProcessingRetainedPayloadStrategy strategy = RadarProcessingRetainedPayloadStrategy.SnapshotCopy) =>
         new(strategy, payloadBytes: 0);
+
+    private RadarProcessingRetainedPayloadReleaseResult ReleaseCore() =>
+        releaseOwner?.Release() ?? release!();
 
     private static Func<RadarProcessingRetainedPayloadReleaseResult> CreateNotRequiredRelease(
         RadarProcessingRetainedPayloadStrategy strategy) =>

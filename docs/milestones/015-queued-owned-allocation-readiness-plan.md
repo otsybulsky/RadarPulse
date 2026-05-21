@@ -788,6 +788,67 @@ Focused verification:
 dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests"
 ```
 
+Implemented in slice 4:
+
+```text
+status: complete
+runtime behavior changes:
+  allocation profile should improve on pooled retained payload release owner
+  creation because the pooled-copy path no longer creates a closure-backed
+  release callback and delegate per retained batch
+  retained payload release semantics, resource state transitions, cleanup,
+  result contracts, and direct/default contour did not change
+
+adopted experiment:
+  explicit pooled retained payload release owner
+
+implementation:
+  Domain now exposes an internal IRadarProcessingRetainedPayloadReleaseOwner
+  contract to RadarPulse.Infrastructure through the existing
+  InternalsVisibleTo boundary
+
+  RadarProcessingRetainedBatchResource keeps the public Func-based
+  constructor for existing callers/tests and adds an internal constructor that
+  stores an owner object directly, avoiding per-resource release delegate
+  allocation for infrastructure-owned release implementations
+
+  RadarProcessingRetainedPayloadFactory.RetainPooledCopy now creates a private
+  PooledRetainedPayloadReleaseOwner that owns the rented event and payload
+  arrays, the pools they return to, and the retained payload byte count
+
+  pooled release still returns rented arrays exactly once through the existing
+  RadarProcessingRetainedBatchResource.Release() state machine; second release
+  attempts still return AlreadyReleased without invoking the owner again
+
+deferred experiments:
+  pooled telemetry accumulator remains deferred because immutable summary
+  boundaries and recorder reset ownership need a broader design than this
+  slice
+
+  struct-backed queued work item remains deferred because queue/channel
+  semantics and sequence ownership would make the change wider than the
+  current allocation evidence justifies
+
+  allocation probe split remains deferred until Release gate evidence shows
+  current residual attribution is insufficient
+
+rejected for slice 4:
+  no public result or CLI attribution fields were added
+  no unsafe memory, stack-lifetime, or measured-window-shifting approach was
+  used
+
+verification:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests|FullyQualifiedName~RadarProcessingRetainedBatchResourceTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests"
+  passed, 56 passed, 0 failed, 0 skipped
+
+next:
+  slice 5 should integrate the adopted standard and experimental
+  optimizations into broader focused coverage, especially direct/default
+  contour, fallback/oracle, retained cleanup, and allocation summary
+  guardrails
+```
+
 ### 5. Adopted Optimization Integration
 
 Integrate only the standard or experimental changes that survive the previous
@@ -829,6 +890,76 @@ Focused verification:
 
 ```powershell
 dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests"
+```
+
+Implemented so far in slice 5:
+
+```text
+status: in progress
+runtime behavior changes:
+  allocation profile should improve for wait-mode provider enqueue when the
+  queue and retained-byte budget can accept immediately
+  direct/default contour, fallback behavior, telemetry semantics, release
+  lifecycle, and result contracts did not change
+
+adopted standard optimization:
+  RadarProcessingOwnedBatchQueue.EnqueueAsync now has a synchronous fast path
+  for wait-mode enqueue when the channel accepts immediately and retained
+  byte capacity is available
+
+  the old async wait loop remains the fallback when the channel is full,
+  retained-byte budget is exhausted, state changes, timeout/cancellation must
+  be observed, or the queue cannot write immediately
+
+interim allocation sanity, not final gate:
+  Release CLI omitted-provider KTLX 2026-05-05 --max-files 220 same-run
+  borrowed/default pairs were captured to decide whether more optimization is
+  needed before the milestone Release gate
+
+  after slice 4 explicit release-owner optimization, before enqueue fast path:
+    row 1 allocation ratio: 1.0943x borrowed
+    row 2 allocation ratio: 1.0960x borrowed
+    average allocation ratio: 1.0951x borrowed
+    average elapsed ratio: 0.9370x borrowed
+
+  after enqueue fast path:
+    row 1 allocation ratio: 1.0947x borrowed
+    row 2 allocation ratio: 1.1014x borrowed
+    average allocation ratio: 1.0980x borrowed
+    average elapsed ratio: 0.9251x borrowed
+
+interpretation:
+  interim data is better than the milestone 014 KTLX 2026-05-05 average of
+  1.0997x borrowed, but it is not clean readiness evidence because one
+  post-fast-path row still exceeded the 1.10x threshold
+
+  no threshold was changed and this measurement does not replace the planned
+  direct API Release gate
+
+  the remaining actionable allocation source is retained pooled-copy
+  cold/churn allocation plus overlap attribution ambiguity; provider enqueue
+  fast-path overhead is not the dominant remaining allocation source
+
+rejected spike:
+  increasing RadarProcessingRetainedPayloadByteArrayPool default retained
+  bytes from 128 MiB to 256 MiB was tested as a bounded pool-tuning spike and
+  reverted because the measured KTLX 2026-05-05 row still allocated about
+  220 MB in retained payload snapshots and produced about 1.1003x borrowed
+  allocation while increasing memory retention without proof of benefit
+
+verification:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests|FullyQualifiedName~RadarProcessingRetainedBatchResourceTests|FullyQualifiedName~RadarProcessingOwnedBatchQueueTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests"
+  passed, 83 passed, 0 failed, 0 skipped
+
+  dotnet build RadarPulse.sln -c Release --no-restore
+  succeeded, 0 warnings, 0 errors
+
+next:
+  before more production optimization, split or profile retained pooled-copy
+  allocation and overlap attribution enough to distinguish real retained-copy
+  churn from attribution noise caused by producer/consumer overlap sharing the
+  global allocation counter
 ```
 
 ### 6. Fallback, Failure, Cleanup, And Drift Guardrails
@@ -1184,9 +1315,9 @@ standard and experimental optimization outcomes recorded
 [x] attribution sufficiency decision is recorded
 [x] allocation instrumentation and contract check is complete
 [x] standard allocation optimization pass is complete or explicitly rejected
-[ ] experimental optimization research/spike pass is complete
+[x] experimental optimization research/spike pass is complete
 [ ] adopted optimizations are integrated with focused tests
-[ ] rejected standard and experimental approaches are recorded
+[x] rejected standard and experimental approaches are recorded
 [ ] direct MeasureFile()/MeasureCache() defaults remain queued-owned rollout
 [ ] explicit direct BlockingBorrowed fallback remains selectable and covered
 [ ] direct explicit queued-owned rollout calls match omitted direct defaults

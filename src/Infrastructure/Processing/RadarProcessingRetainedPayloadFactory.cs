@@ -147,22 +147,12 @@ public sealed class RadarProcessingRetainedPayloadFactory
                 : new RadarProcessingRetainedBatchResource(
                     RadarProcessingRetainedPayloadStrategy.PooledCopy,
                     batch.PayloadLength,
-                    () =>
-                    {
-                        if (capturedEventArray is not null)
-                        {
-                            eventPool.Return(capturedEventArray);
-                        }
-
-                        if (capturedPayloadArray is not null)
-                        {
-                            payloadPool.Return(capturedPayloadArray);
-                        }
-
-                        return RadarProcessingRetainedPayloadReleaseResult.Released(
-                            RadarProcessingRetainedPayloadStrategy.PooledCopy,
-                            payloadBytes: batch.PayloadLength);
-                    });
+                    new PooledRetainedPayloadReleaseOwner(
+                        eventPool,
+                        payloadPool,
+                        capturedEventArray,
+                        capturedPayloadArray,
+                        batch.PayloadLength));
 
             var elapsed = TimeProvider.System.GetElapsedTime(started);
             var allocatedBytes = RadarProcessingBenchmarkAllocationSnapshot.Capture().DeltaSince(before);
@@ -191,6 +181,48 @@ public sealed class RadarProcessingRetainedPayloadFactory
             return RadarProcessingRetainedPayloadRetentionResult.FailedCopy(
                 RadarProcessingRetainedPayloadStrategy.PooledCopy,
                 exception.Message);
+        }
+    }
+
+    private sealed class PooledRetainedPayloadReleaseOwner : IRadarProcessingRetainedPayloadReleaseOwner
+    {
+        private readonly ArrayPool<RadarStreamEvent> eventPool;
+        private readonly ArrayPool<byte> payloadPool;
+        private readonly RadarStreamEvent[]? eventArray;
+        private readonly byte[]? payloadArray;
+        private readonly int payloadBytes;
+
+        public PooledRetainedPayloadReleaseOwner(
+            ArrayPool<RadarStreamEvent> eventPool,
+            ArrayPool<byte> payloadPool,
+            RadarStreamEvent[]? eventArray,
+            byte[]? payloadArray,
+            int payloadBytes)
+        {
+            this.eventPool = eventPool ?? throw new ArgumentNullException(nameof(eventPool));
+            this.payloadPool = payloadPool ?? throw new ArgumentNullException(nameof(payloadPool));
+            ArgumentOutOfRangeException.ThrowIfNegative(payloadBytes);
+
+            this.eventArray = eventArray;
+            this.payloadArray = payloadArray;
+            this.payloadBytes = payloadBytes;
+        }
+
+        public RadarProcessingRetainedPayloadReleaseResult Release()
+        {
+            if (eventArray is not null)
+            {
+                eventPool.Return(eventArray);
+            }
+
+            if (payloadArray is not null)
+            {
+                payloadPool.Return(payloadArray);
+            }
+
+            return RadarProcessingRetainedPayloadReleaseResult.Released(
+                RadarProcessingRetainedPayloadStrategy.PooledCopy,
+                payloadBytes: payloadBytes);
         }
     }
 }
