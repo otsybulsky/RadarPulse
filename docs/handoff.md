@@ -246,10 +246,45 @@ explicit queued-owned + producer-consumer + pooled-copy + async + workers 4
   same-run borrowed oracle
 ```
 
-The next implementation step is slice 7 from the plan: failure, cleanup, and
-fallback guardrails under default queued-owned. The main question for that
-slice is whether default queued-owned failures fail closed without any
-automatic fallback to borrowed success.
+Milestone 012 slice 7 failure, cleanup, and fallback guardrails under default
+queued-owned is implemented in the current working tree. There were no runtime
+changes.
+
+New active release failure coverage:
+
+```text
+ArchiveOwnedRadarEventBatchQueueingPublisher consumer-side retained payload
+release failure increments release-failure telemetry, clears active and
+combined current pressure, and fails
+RadarProcessingQueuedProviderReadinessEvaluator release-health evaluation.
+```
+
+New overlap validation failure coverage:
+
+```text
+RadarProcessingArchiveQueuedOverlapRunner invalid queued-owned
+producer-consumer rebalance input faults the consumer result, reports
+FailedValidation, keeps the producer completed, releases the active retained
+resource, leaves current pending/active/combined retained pressure at zero,
+and does not convert the failure into borrowed success.
+```
+
+Existing guardrails remain covered:
+
+```text
+retention failure stops the current publish and leaves only already accepted
+  resources for terminal cleanup
+producer failure releases accepted pending retained resources
+cancellation after accepted enqueue releases pending resources and leaves
+  current retained pressure at zero
+queued processing validation failure releases active retained resources
+explicit borrowed fallback remains selected only through explicit
+  --provider blocking-borrowed
+```
+
+The next implementation step is slice 8 from the plan: focused regression pass
+before gate. That slice should run the planned CLI, readiness/overlap,
+failure/cleanup, and Release build checks before any performance gate capture.
 
 Latest verification after milestone 012 slice 1:
 
@@ -336,6 +371,21 @@ Recorded result:
 ```text
 46 passed, 0 failed, 0 skipped.
 67 passed, 0 failed, 0 skipped.
+```
+
+Latest verification after milestone 012 slice 7:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingQueuedProcessingSessionTests|FullyQualifiedName~RadarProcessingQueuedRebalanceSessionTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests"
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests"
+```
+
+Recorded result:
+
+```text
+71 passed, 0 failed, 0 skipped.
+78 passed, 0 failed, 0 skipped.
 ```
 
 Milestone 011 remains complete. The closed documents are:

@@ -1125,6 +1125,57 @@ Guardrail:
 Do not add automatic fallback-to-borrowed behavior in milestone 012.
 ```
 
+Implemented in slice 7:
+
+```text
+status:
+  complete
+
+runtime changes:
+  none
+
+new active release failure guardrail:
+  ArchiveOwnedRadarEventBatchQueueingPublisher now has focused coverage proving
+  that a consumer-side retained payload release failure increments release
+  failure telemetry, clears active and combined current pressure, and fails
+  RadarProcessingQueuedProviderReadinessEvaluator release-health evaluation
+
+new overlap validation failure guardrail:
+  RadarProcessingArchiveQueuedOverlapRunner now has focused coverage proving
+  that an invalid queued-owned producer-consumer rebalance batch faults the
+  consumer result, reports FailedValidation, keeps the producer completed,
+  releases the active retained resource, leaves current pending/active/combined
+  retained pressure at zero, and does not turn the failure into borrowed
+  success
+
+existing guardrails kept active:
+  retention failure stops the current publish and leaves only already accepted
+  resources for terminal cleanup
+  producer failure releases accepted pending retained resources
+  cancellation after accepted enqueue releases pending resources and leaves
+  current retained pressure at zero
+  queued processing validation failure releases active retained resources
+  explicit borrowed fallback remains selected only through explicit
+  --provider blocking-borrowed
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingQueuedProcessingSessionTests|FullyQualifiedName~RadarProcessingQueuedRebalanceSessionTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests"
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests"
+```
+
+Recorded result:
+
+```text
+71 passed, 0 failed, 0 skipped for focused failure, cleanup, CLI, and readiness
+coverage.
+78 passed, 0 failed, 0 skipped for focused CLI, archive benchmark, failure,
+cleanup, readiness, and overlap coverage.
+```
+
 ### 8. Focused Regression Pass Before Gate
 
 Run focused verification after default behavior changes and before performance
@@ -1371,8 +1422,8 @@ controlled proof rows separated if captured
 [x] same-run borrowed benchmark oracle remains available
 [x] operator output distinguishes default expansion, fallback, rollout
     contour, opt-in diagnostic, and controlled proof
-[ ] invalid mixed provider options fail closed
-[ ] failure, cancellation, and cleanup guardrails remain covered
+[x] invalid mixed provider options fail closed
+[x] failure, cancellation, and cleanup guardrails remain covered
 [ ] focused regression pass succeeds before gate capture
 [ ] natural rollout performance gate is captured
 [ ] performance gate interprets correctness, cleanup, pressure, allocation,

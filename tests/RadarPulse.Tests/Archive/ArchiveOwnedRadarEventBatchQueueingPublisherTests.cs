@@ -246,6 +246,45 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisherTests
     }
 
     [Fact]
+    public async Task ConsumerReleaseFailureRecordsReadinessFailureAndClearsActivePressure()
+    {
+        using var queue = new RadarProcessingOwnedBatchQueue(
+            new RadarProcessingProviderQueueOptions(capacity: 1));
+        using var publisher = new ArchiveOwnedRadarEventBatchQueueingPublisher(
+            queue,
+            retainedPayloadOptions: new RadarProcessingRetainedPayloadOptions(
+                RadarProcessingRetainedPayloadStrategy.PooledCopy),
+            retainedPayloadFactory: new RadarProcessingRetainedPayloadFactory(
+                ArrayPool<RadarStreamEvent>.Shared,
+                new ThrowingReturnArrayPool<byte>()));
+
+        PublishLeased(publisher, [1, 2, 3]);
+        var dequeue = await queue.DequeueAsync();
+
+        using var lease = publisher.AcquireConsumerResourceLease(dequeue.Batch!.Sequence);
+        var active = publisher.CreateResult();
+
+        Assert.Equal(0, active.Telemetry.CurrentPendingRetainedBatchCount);
+        Assert.Equal(1, active.Telemetry.CurrentActiveRetainedBatchCount);
+        Assert.Equal(3, active.Telemetry.CurrentActiveRetainedPayloadBytes);
+
+        var release = lease.Release();
+        var result = publisher.CreateResult();
+        var readiness = RadarProcessingQueuedProviderReadinessEvaluator.EvaluateRetainedResourceReleaseHealth(
+            result.RetentionTelemetry);
+
+        Assert.True(release.IsFailure);
+        Assert.Equal(0, result.Telemetry.CurrentPendingRetainedBatchCount);
+        Assert.Equal(0, result.Telemetry.CurrentActiveRetainedBatchCount);
+        Assert.Equal(0, result.Telemetry.CurrentCombinedRetainedBatchCount);
+        Assert.Equal(1, result.RetentionTelemetry.ReleaseAttemptCount);
+        Assert.Equal(0, result.RetentionTelemetry.ReleasedBatchCount);
+        Assert.Equal(1, result.RetentionTelemetry.ReleaseFailedCount);
+        Assert.True(readiness.IsFailed);
+        Assert.Equal(RadarProcessingQueuedProviderReadinessError.RetainedResourceReleaseFailed, readiness.Error);
+    }
+
+    [Fact]
     public void RetentionFailureStopsCurrentPublishAndLeavesAcceptedResourcesForTerminalCleanup()
     {
         using var queue = new RadarProcessingOwnedBatchQueue(
