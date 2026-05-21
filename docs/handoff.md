@@ -282,9 +282,24 @@ explicit borrowed fallback remains selected only through explicit
   --provider blocking-borrowed
 ```
 
-The next implementation step is slice 8 from the plan: focused regression pass
-before gate. That slice should run the planned CLI, readiness/overlap,
-failure/cleanup, and Release build checks before any performance gate capture.
+Milestone 012 slice 8 focused regression pass before gate is implemented in
+the current working tree. There were no runtime changes.
+
+Slice 8 verification passed:
+
+```text
+focused CLI default/output/fallback tests
+focused readiness and overlap tests
+focused failure and cleanup tests
+Release build with 0 warnings and 0 errors
+```
+
+The next implementation step is slice 9 from the plan: natural rollout
+performance gate. That slice should capture Release benchmark rows for
+same-run borrowed references and omitted-provider default queued-owned rows,
+then interpret validation parity, release failures, retained pressure,
+allocation ratio, elapsed ratio, and candidate run spread against the milestone
+012 thresholds.
 
 Latest verification after milestone 012 slice 1:
 
@@ -386,6 +401,27 @@ Recorded result:
 ```text
 71 passed, 0 failed, 0 skipped.
 78 passed, 0 failed, 0 skipped.
+```
+
+Latest verification after milestone 012 slice 8:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests"
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests|FullyQualifiedName~RadarProcessingQueuedProcessingSessionTests|FullyQualifiedName~RadarProcessingQueuedRebalanceSessionTests"
+
+dotnet build RadarPulse.sln -c Release --no-restore
+```
+
+Recorded result:
+
+```text
+25 passed, 0 failed, 0 skipped.
+22 passed, 0 failed, 0 skipped.
+24 passed, 0 failed, 0 skipped.
+Release build succeeded with 0 warnings and 0 errors.
 ```
 
 Milestone 011 remains complete. The closed documents are:

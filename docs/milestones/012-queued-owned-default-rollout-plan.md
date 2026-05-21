@@ -1209,6 +1209,49 @@ Do not capture the rollout performance gate until focused defaults, readiness,
 fallback, and cleanup coverage pass.
 ```
 
+Implemented in slice 8:
+
+```text
+status:
+  complete
+
+runtime changes:
+  none
+
+verification result:
+  focused CLI default/output/fallback tests passed
+  focused readiness and overlap tests passed
+  focused failure and cleanup tests passed
+  Release build succeeded with 0 warnings and 0 errors
+
+gate posture:
+  focused regression requirements are green before performance gate capture
+  the next slice can capture natural rollout performance measurements from a
+  fresh Release build
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests"
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests|FullyQualifiedName~RadarProcessingQueuedProcessingSessionTests|FullyQualifiedName~RadarProcessingQueuedRebalanceSessionTests"
+
+dotnet build RadarPulse.sln -c Release --no-restore
+```
+
+Recorded result:
+
+```text
+25 passed, 0 failed, 0 skipped for focused CLI rebalance benchmark coverage.
+22 passed, 0 failed, 0 skipped for focused readiness gate and overlap runner
+coverage.
+24 passed, 0 failed, 0 skipped for focused failure and cleanup coverage.
+Release build succeeded with 0 warnings and 0 errors.
+```
+
 ### 9. Natural Rollout Performance Gate
 
 Capture the Release gate that decides the default rollout.
@@ -1424,7 +1467,7 @@ controlled proof rows separated if captured
     contour, opt-in diagnostic, and controlled proof
 [x] invalid mixed provider options fail closed
 [x] failure, cancellation, and cleanup guardrails remain covered
-[ ] focused regression pass succeeds before gate capture
+[x] focused regression pass succeeds before gate capture
 [ ] natural rollout performance gate is captured
 [ ] performance gate interprets correctness, cleanup, pressure, allocation,
     timing, and variance thresholds
