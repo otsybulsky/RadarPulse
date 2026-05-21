@@ -2,10 +2,12 @@
 
 ## Current Goal
 
-Milestone 012 has started. The architecture/concepts draft is:
+Milestone 012 has started. The architecture/concepts draft and implementation
+plan are:
 
 ```text
 docs/milestones/012-queued-owned-default-rollout.md
+docs/milestones/012-queued-owned-default-rollout-plan.md
 ```
 
 Milestone 012 is the explicit queued-owned default rollout decision. It should
@@ -16,11 +18,13 @@ comparison available for benchmark gates, and define rollout guardrails for
 allocation ratio, retained pressure, release failures, validation parity, and
 run variance.
 
-The next documentation step is the milestone 012 implementation plan:
-
-```text
-docs/milestones/012-queued-owned-default-rollout-plan.md
-```
+The next implementation step is slice 1 from the plan: baseline default surface
+audit. It should freeze current provider-related defaults in
+`ProcessingBenchmarkArchiveRebalanceOptions.Parse()`,
+`ProcessingBenchmarkArchiveRebalanceOptions` constructor defaults,
+`RadarProcessingArchiveRebalanceBenchmark.MeasureFile()`,
+`RadarProcessingArchiveRebalanceBenchmark.MeasureCache()`, CLI help text, and
+tests before any runtime default changes.
 
 Milestone 011 remains complete. The closed documents are:
 
