@@ -58,10 +58,11 @@ Milestone 013 implementation plan status:
 ```text
 status: draft
 slice 1: post-rollout surface audit complete
-next slice: default contour drift guardrails
+slice 2: default contour drift guardrails complete
+next slice: direct API compatibility guardrails
 next verification target:
-  focused CLI option parsing and command-output tests after strengthening the
-  full rollout contour drift contract
+  focused NexradArchiveRadarEventBatchPublisherTests after adding explicit
+  direct MeasureFile()/MeasureCache() compatibility coverage
 ```
 
 Planned milestone 013 slices:
@@ -107,13 +108,31 @@ data\nexrad total files: 1554
 Latest milestone 013 verification:
 
 ```powershell
-dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests"
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests
 ```
 
 Recorded result:
 
 ```text
-60 passed, 0 failed, 0 skipped.
+25 passed, 0 failed, 0 skipped.
+```
+
+Milestone 013 slice 2 default contour drift guard:
+
+```text
+runtime changes: none
+rollout parse-level tests now assert the full effective contour as one
+  regression contract:
+  queued-owned, producer-consumer, pooled-copy, async, workers 4, queue
+  capacity 8, retained-byte budget 536870912, queue telemetry summary,
+  overlap telemetry summary, consumer delay 0, natural-readiness evidence
+omitted-provider rows are rollout-default expansion
+explicit queued-owned rows with the same effective shape are not
+  rollout-default expansion
+explicit borrowed fallback now has a full borrowed compatibility contour
+  assertion
+existing fail-closed coverage remains active for explicit borrowed mixed with
+  queued-owned-only controls, builder-transfer, and invalid controlled delay
 ```
 
 Milestone 013 closeout question:

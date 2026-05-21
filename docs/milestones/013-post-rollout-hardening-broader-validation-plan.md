@@ -633,6 +633,122 @@ Do not make the tests depend only on ProviderMode. The drift guard must cover
 the full effective contour and provenance.
 ```
 
+Implemented in slice 2:
+
+```text
+status:
+  complete
+
+production runtime changes:
+  none
+
+test changes:
+  RadarPulseCliRebalanceBenchmarkTests now has a full rollout contour helper
+  that asserts the complete milestone 012 default shape as one regression
+  contract
+  explicit default-candidate queued-owned tests now prove the same contour is
+  explicit and not rollout-default expansion
+  omitted-provider rollout tests now prove the same contour is rollout-default
+  expansion
+  explicit borrowed fallback tests now assert the full borrowed compatibility
+  contour, not only provider mode
+```
+
+Rollout drift guard now covers:
+
+```text
+provider mode: queued-owned
+provider overlap: producer-consumer
+retention strategy: pooled-copy
+provider queue capacity: 8
+retained-byte budget: 536870912
+queue telemetry: summary
+overlap telemetry: summary
+overlap consumer delay: 0
+execution: async
+async worker count: 4
+async worker queue capacity: 8
+default-candidate contour: yes
+controlled proof contour: no
+evidence contour: natural-default-candidate
+evidence scope: natural-readiness
+MatchesDefaultCandidateContour(): true
+IsExplicitBlockingBorrowedFallback: false
+IsRolloutDefaultExpandedContour:
+  true only for omitted-provider rollout expansion
+  false for explicit queued-owned rows with the same effective shape
+```
+
+Rollout provenance guard now covers:
+
+```text
+omitted-provider rollout path:
+  provider mode source: RolloutDefault
+  provider overlap source: RolloutDefault
+  retention strategy source: RolloutDefault
+  queue capacity source: RolloutDefault
+  retained-byte budget source: RolloutDefault
+  queue telemetry source: RolloutDefault
+  overlap telemetry source: RolloutDefault
+  overlap consumer delay source: RolloutDefault
+  execution source: RolloutDefault
+  worker count source: RolloutDefault
+
+explicit queued-owned rollout-shaped path:
+  provider mode source: Explicit
+  provider overlap source: Explicit
+  retention strategy source: Explicit
+  queue capacity source: Explicit
+  retained-byte budget source: Explicit
+  queue telemetry source: Explicit
+  overlap telemetry source: Explicit
+  overlap consumer delay source: CurrentDefault
+  execution source: Explicit
+  worker count source: Explicit
+```
+
+Borrowed fallback guard now covers:
+
+```text
+provider mode: blocking-borrowed
+provider overlap: none
+retention strategy: snapshot-copy
+provider queue capacity: 1 in parsed options
+retained-byte budget: none
+queue telemetry: summary current default
+overlap telemetry: summary current default
+overlap consumer delay: 0
+execution: partitioned barrier
+async execution: none
+default-candidate contour: no
+controlled proof contour: no
+evidence contour/scope: not-applicable
+provider mode source: Explicit
+other provider-related source values: CurrentDefault
+IsExplicitBlockingBorrowedFallback: true
+IsRolloutDefaultExpandedContour: false
+```
+
+Existing fail-closed coverage remains active for:
+
+```text
+queued-owned-only controls with explicit blocking-borrowed
+builder-transfer retained payload strategy
+controlled consumer delay outside queued-owned producer-consumer contours
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests
+```
+
+Recorded result:
+
+```text
+25 passed, 0 failed, 0 skipped.
+```
+
 ### 3. Direct API Compatibility Guardrails
 
 Pin the deliberate split between CLI defaults and direct benchmark method
@@ -1144,9 +1260,9 @@ controlled proof rows separated if captured
 ## Completion Checklist
 
 ```text
-[ ] post-rollout surface audit is captured
-[ ] milestone 012 rollout contour is pinned against drift
-[ ] explicit blocking-borrowed fallback remains selectable and visible
+[x] post-rollout surface audit is captured
+[x] milestone 012 rollout contour is pinned against drift
+[x] explicit blocking-borrowed fallback remains selectable and visible
 [ ] direct MeasureFile()/MeasureCache() defaults remain borrowed
 [ ] operator help/output makes scoped default and fallback reproducible
 [ ] allocation attribution is visible enough to explain residual overhead
