@@ -59,10 +59,11 @@ Milestone 013 implementation plan status:
 status: draft
 slice 1: post-rollout surface audit complete
 slice 2: default contour drift guardrails complete
-next slice: direct API compatibility guardrails
+slice 3: direct API compatibility guardrails complete
+next slice: operator help and output compatibility cleanup
 next verification target:
-  focused NexradArchiveRadarEventBatchPublisherTests after adding explicit
-  direct MeasureFile()/MeasureCache() compatibility coverage
+  focused RadarPulseCliRebalanceBenchmarkTests after clarifying CLI help and
+  output default/fallback wording
 ```
 
 Planned milestone 013 slices:
@@ -108,13 +109,13 @@ data\nexrad total files: 1554
 Latest milestone 013 verification:
 
 ```powershell
-dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests
 ```
 
 Recorded result:
 
 ```text
-25 passed, 0 failed, 0 skipped.
+22 passed, 0 failed, 0 skipped.
 ```
 
 Milestone 013 slice 2 default contour drift guard:
@@ -133,6 +134,26 @@ explicit borrowed fallback now has a full borrowed compatibility contour
   assertion
 existing fail-closed coverage remains active for explicit borrowed mixed with
   queued-owned-only controls, builder-transfer, and invalid controlled delay
+```
+
+Milestone 013 slice 3 direct API compatibility guard:
+
+```text
+runtime changes: none
+direct MeasureFile() without provider arguments remains blocking-borrowed,
+  partitioned, and without queue/retention/overlap/worker telemetry
+direct MeasureCache() without provider arguments remains blocking-borrowed,
+  partitioned, and without queue/retention/overlap/worker telemetry
+direct explicit queued-owned rollout contour remains available for both file
+  and cache measurement
+direct explicit rollout contour uses async execution, workers 4, queue
+  capacity 8, producer-consumer overlap, pooled-copy retention, retained-byte
+  budget 536870912, and zero consumer delay
+direct file borrowed/default same-run parity is pinned for stable totals,
+  rebalance counters, validation status, validation checksum, and skipped
+  reason counters
+direct cache borrowed/default same-run parity remains pinned for published
+  files, batches, events, payload values, and validation checksum
 ```
 
 Milestone 013 closeout question:

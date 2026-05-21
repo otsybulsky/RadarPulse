@@ -796,6 +796,112 @@ Guardrail:
 Do not migrate direct infrastructure defaults in milestone 013.
 ```
 
+Implemented in slice 3:
+
+```text
+status:
+  complete
+
+production runtime changes:
+  none
+
+test changes:
+  NexradArchiveRadarEventBatchPublisherTests now has explicit direct
+  MeasureFile() compatibility coverage for borrowed defaults versus the
+  explicit queued-owned rollout contour
+  existing direct MeasureCache() borrowed/default rollout coverage now uses
+  shared contour assertions
+  shared direct borrowed assertions pin both file and cache direct defaults
+  shared direct queued-owned rollout assertions pin both file and cache
+  explicit rollout behavior
+```
+
+Direct borrowed default guard now covers:
+
+```text
+provider mode: blocking-borrowed
+execution: partitioned barrier
+provider result queue capacity: 0
+provider overlap: none
+retention strategy: snapshot-copy
+retained-byte budget: none
+overlap consumer delay: 0
+worker telemetry: absent
+queue telemetry: absent
+retention telemetry: absent
+overlap telemetry: absent
+owned snapshot allocated bytes: 0
+current pending retained pressure: 0
+current active retained pressure: 0
+current combined retained pressure: 0
+CLI formatting allocation flag: false
+```
+
+Direct explicit rollout guard now covers:
+
+```text
+provider mode: queued-owned
+execution: async
+worker count: 4
+worker queue capacity: 8
+provider queue capacity: 8
+provider overlap: producer-consumer
+retention strategy: pooled-copy
+retained-byte budget: 536870912
+overlap consumer delay: 0
+worker telemetry: present
+queue telemetry: present
+retention telemetry: present
+overlap telemetry: present
+release failures: 0
+current pending retained pressure: 0
+current active retained pressure: 0
+current combined retained pressure: 0
+overlap retained pressure matches queue retained pressure
+CLI formatting allocation flag: false
+```
+
+Direct file same-run parity guard now covers:
+
+```text
+borrowed default MeasureFile() and explicit rollout MeasureFile() match:
+  batches
+  events
+  payload values
+  raw value checksum
+  topology versions
+  rebalance evaluations
+  accepted moves
+  skipped decisions
+  failed migrations
+  validation status
+  validation checksum
+  skipped reason counters
+```
+
+Direct cache same-run parity remains covered:
+
+```text
+borrowed default MeasureCache() and explicit rollout MeasureCache() match:
+  published files
+  batches
+  events
+  payload values
+  validation checksum
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests
+```
+
+Recorded result:
+
+```text
+22 passed, 0 failed, 0 skipped.
+```
+
 ### 4. Operator Help And Output Compatibility Cleanup
 
 Make the scoped default and fallback posture obvious to operators.
@@ -1263,7 +1369,7 @@ controlled proof rows separated if captured
 [x] post-rollout surface audit is captured
 [x] milestone 012 rollout contour is pinned against drift
 [x] explicit blocking-borrowed fallback remains selectable and visible
-[ ] direct MeasureFile()/MeasureCache() defaults remain borrowed
+[x] direct MeasureFile()/MeasureCache() defaults remain borrowed
 [ ] operator help/output makes scoped default and fallback reproducible
 [ ] allocation attribution is visible enough to explain residual overhead
 [ ] failure, cancellation, release, and cleanup guardrails remain covered

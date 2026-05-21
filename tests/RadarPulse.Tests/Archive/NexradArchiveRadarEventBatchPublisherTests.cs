@@ -610,6 +610,71 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
     }
 
     [Fact]
+    public void RebalanceArchiveBenchmarkFilePreservesBorrowedDefaultAndExplicitRolloutContour()
+    {
+        var record = BuildMessage(31, BuildEightBitType31Payload("REF", [1, 2, 3], scale: 2f, offset: 66f));
+        var compressedPayload = BuildFakeBZip2Payload(1);
+        var path = WriteTempFile(
+            "KTLX20260504_000245_V06",
+            BuildArchiveTwoHeader()
+                .Concat(BuildCompressedRecord(compressedPayload.Length, compressedPayload))
+                .ToArray());
+        var benchmark = new RadarProcessingArchiveRebalanceBenchmark(
+            new FakeArchiveBZip2Decompressor(new Dictionary<byte, byte[]>
+            {
+                [1] = record
+            }));
+
+        try
+        {
+            var borrowed = benchmark.MeasureFile(
+                path,
+                RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession,
+                iterations: 1,
+                warmupIterations: 0,
+                partitionCount: 4,
+                shardCount: 2,
+                degreeOfParallelism: 1,
+                CancellationToken.None);
+            var rollout = benchmark.MeasureFile(
+                path,
+                RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession,
+                iterations: 1,
+                warmupIterations: 0,
+                partitionCount: 4,
+                shardCount: 2,
+                degreeOfParallelism: 1,
+                CancellationToken.None,
+                executionMode: RadarProcessingExecutionMode.AsyncShardTransport,
+                asyncExecution: new RadarProcessingAsyncExecutionOptions(workerCount: 4, queueCapacity: 8),
+                providerMode: RadarProcessingArchiveProviderMode.QueuedOwned,
+                queueCapacity: 8,
+                providerOverlapMode: RadarProcessingQueuedProviderOverlapMode.ProducerConsumer,
+                retentionStrategy: RadarProcessingRetainedPayloadStrategy.PooledCopy,
+                queueRetainedPayloadBytes: 536_870_912);
+
+            AssertDirectBorrowedDefaultContour(borrowed);
+            AssertDirectQueuedOwnedRolloutContour(rollout);
+            Assert.Equal(borrowed.BatchesPerIteration, rollout.BatchesPerIteration);
+            Assert.Equal(borrowed.EventsPerIteration, rollout.EventsPerIteration);
+            Assert.Equal(borrowed.PayloadValuesPerIteration, rollout.PayloadValuesPerIteration);
+            Assert.Equal(borrowed.RawValueChecksumPerIteration, rollout.RawValueChecksumPerIteration);
+            Assert.Equal(borrowed.TopologyVersionCount, rollout.TopologyVersionCount);
+            Assert.Equal(borrowed.RebalanceEvaluationCount, rollout.RebalanceEvaluationCount);
+            Assert.Equal(borrowed.AcceptedMoveCount, rollout.AcceptedMoveCount);
+            Assert.Equal(borrowed.SkippedDecisionCount, rollout.SkippedDecisionCount);
+            Assert.Equal(borrowed.FailedMigrationCount, rollout.FailedMigrationCount);
+            Assert.Equal(borrowed.ValidationSucceeded, rollout.ValidationSucceeded);
+            Assert.Equal(borrowed.ValidationChecksum, rollout.ValidationChecksum);
+            Assert.Equal(borrowed.SkippedReasonCounters, rollout.SkippedReasonCounters);
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(path)!, recursive: true);
+        }
+    }
+
+    [Fact]
     public void RebalanceArchiveBenchmarkFileSupportsQueuedOwnedProviderMode()
     {
         var record = BuildMessage(31, BuildEightBitType31Payload("REF", [1, 2, 3], scale: 2f, offset: 66f));
@@ -1158,29 +1223,8 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
                 retentionStrategy: RadarProcessingRetainedPayloadStrategy.PooledCopy,
                 queueRetainedPayloadBytes: 536_870_912);
 
-            Assert.Equal(RadarProcessingArchiveProviderMode.BlockingBorrowed, borrowed.ProviderMode);
-            Assert.Equal(RadarProcessingExecutionMode.PartitionedBarrier, borrowed.ExecutionMode);
-            Assert.Equal(0, borrowed.QueueCapacity);
-            Assert.Equal(RadarProcessingQueuedProviderOverlapMode.None, borrowed.ProviderOverlapMode);
-            Assert.Equal(RadarProcessingRetainedPayloadStrategy.SnapshotCopy, borrowed.RetentionStrategy);
-            Assert.Null(borrowed.QueueRetainedPayloadBytes);
-            Assert.False(borrowed.HasQueueTelemetry);
-            Assert.False(borrowed.HasRetentionTelemetry);
-            Assert.False(borrowed.HasOverlapTelemetry);
-            Assert.Null(borrowed.WorkerTelemetry);
-
-            Assert.Equal(RadarProcessingArchiveProviderMode.QueuedOwned, rollout.ProviderMode);
-            Assert.Equal(RadarProcessingExecutionMode.AsyncShardTransport, rollout.ExecutionMode);
-            Assert.Equal(8, rollout.QueueCapacity);
-            Assert.Equal(RadarProcessingQueuedProviderOverlapMode.ProducerConsumer, rollout.ProviderOverlapMode);
-            Assert.Equal(RadarProcessingRetainedPayloadStrategy.PooledCopy, rollout.RetentionStrategy);
-            Assert.Equal(536_870_912, rollout.QueueRetainedPayloadBytes);
-            Assert.True(rollout.HasQueueTelemetry);
-            Assert.True(rollout.HasRetentionTelemetry);
-            Assert.True(rollout.HasOverlapTelemetry);
-            Assert.NotNull(rollout.WorkerTelemetry);
-            Assert.Equal(4, rollout.WorkerTelemetry.WorkerCount);
-            Assert.Equal(8, rollout.WorkerTelemetry.QueueCapacity);
+            AssertDirectBorrowedDefaultContour(borrowed);
+            AssertDirectQueuedOwnedRolloutContour(rollout);
             Assert.Equal(2, rollout.QueueTelemetry.EnqueuedBatchCount);
             Assert.Equal(2, rollout.QueueTelemetry.DequeuedBatchCount);
             Assert.Equal(2, rollout.QueueTelemetry.CompletedBatchCount);
@@ -1522,6 +1566,122 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
         var path = Path.Combine(directory, fileName);
         File.WriteAllBytes(path, contents);
         return path;
+    }
+
+    private static void AssertDirectBorrowedDefaultContour(
+        RadarProcessingArchiveRebalanceBenchmarkResult result)
+    {
+        Assert.Equal(RadarProcessingArchiveProviderMode.BlockingBorrowed, result.ProviderMode);
+        Assert.Equal(RadarProcessingExecutionMode.PartitionedBarrier, result.ExecutionMode);
+        Assert.Equal(0, result.QueueCapacity);
+        Assert.Equal(RadarProcessingQueuedProviderOverlapMode.None, result.ProviderOverlapMode);
+        Assert.Equal(RadarProcessingRetainedPayloadStrategy.SnapshotCopy, result.RetentionStrategy);
+        Assert.Null(result.QueueRetainedPayloadBytes);
+        Assert.Equal(TimeSpan.Zero, result.OverlapConsumerDelay);
+        Assert.False(result.HasWorkerTelemetry);
+        Assert.Null(result.WorkerTelemetry);
+        Assert.False(result.HasQueueTelemetry);
+        Assert.False(result.HasRetentionTelemetry);
+        Assert.False(result.HasOverlapTelemetry);
+        Assert.Equal(0, result.OwnedSnapshotAllocatedBytes);
+        Assert.Equal(0, result.QueueTelemetry.EnqueueAttemptCount);
+        Assert.Equal(0, result.RetentionTelemetry.RetentionAttemptCount);
+        Assert.Equal(0, result.OverlapTelemetry.MeasuredAllocatedBytes);
+        Assert.Equal(RadarProcessingRetainedResourcePressureSummary.Empty, result.RetainedResourcePressure);
+        Assert.Equal(0, result.CurrentPendingRetainedBatchCount);
+        Assert.Equal(0, result.CurrentActiveRetainedBatchCount);
+        Assert.Equal(0, result.CurrentCombinedRetainedBatchCount);
+        Assert.Equal(0, result.CurrentCombinedRetainedPayloadBytes);
+        Assert.False(result.AllocationSummary.IncludesCliFormatting);
+    }
+
+    private static void AssertDirectBorrowedDefaultContour(
+        RadarProcessingArchiveRebalanceCacheBenchmarkResult result)
+    {
+        Assert.Equal(RadarProcessingArchiveProviderMode.BlockingBorrowed, result.ProviderMode);
+        Assert.Equal(RadarProcessingExecutionMode.PartitionedBarrier, result.ExecutionMode);
+        Assert.Equal(0, result.QueueCapacity);
+        Assert.Equal(RadarProcessingQueuedProviderOverlapMode.None, result.ProviderOverlapMode);
+        Assert.Equal(RadarProcessingRetainedPayloadStrategy.SnapshotCopy, result.RetentionStrategy);
+        Assert.Null(result.QueueRetainedPayloadBytes);
+        Assert.Equal(TimeSpan.Zero, result.OverlapConsumerDelay);
+        Assert.False(result.HasWorkerTelemetry);
+        Assert.Null(result.WorkerTelemetry);
+        Assert.False(result.HasQueueTelemetry);
+        Assert.False(result.HasRetentionTelemetry);
+        Assert.False(result.HasOverlapTelemetry);
+        Assert.Equal(0, result.OwnedSnapshotAllocatedBytes);
+        Assert.Equal(0, result.QueueTelemetry.EnqueueAttemptCount);
+        Assert.Equal(0, result.RetentionTelemetry.RetentionAttemptCount);
+        Assert.Equal(0, result.OverlapTelemetry.MeasuredAllocatedBytes);
+        Assert.Equal(RadarProcessingRetainedResourcePressureSummary.Empty, result.RetainedResourcePressure);
+        Assert.Equal(0, result.CurrentPendingRetainedBatchCount);
+        Assert.Equal(0, result.CurrentActiveRetainedBatchCount);
+        Assert.Equal(0, result.CurrentCombinedRetainedBatchCount);
+        Assert.Equal(0, result.CurrentCombinedRetainedPayloadBytes);
+        Assert.False(result.AllocationSummary.IncludesCliFormatting);
+    }
+
+    private static void AssertDirectQueuedOwnedRolloutContour(
+        RadarProcessingArchiveRebalanceBenchmarkResult result)
+    {
+        Assert.Equal(RadarProcessingArchiveProviderMode.QueuedOwned, result.ProviderMode);
+        Assert.Equal(RadarProcessingExecutionMode.AsyncShardTransport, result.ExecutionMode);
+        Assert.Equal(8, result.QueueCapacity);
+        Assert.Equal(RadarProcessingQueuedProviderOverlapMode.ProducerConsumer, result.ProviderOverlapMode);
+        Assert.Equal(RadarProcessingRetainedPayloadStrategy.PooledCopy, result.RetentionStrategy);
+        Assert.Equal(536_870_912, result.QueueRetainedPayloadBytes);
+        Assert.Equal(TimeSpan.Zero, result.OverlapConsumerDelay);
+        Assert.True(result.HasWorkerTelemetry);
+        Assert.NotNull(result.WorkerTelemetry);
+        Assert.Equal(4, result.WorkerTelemetry.WorkerCount);
+        Assert.Equal(8, result.WorkerTelemetry.QueueCapacity);
+        Assert.True(result.HasQueueTelemetry);
+        Assert.True(result.HasRetentionTelemetry);
+        Assert.True(result.HasOverlapTelemetry);
+        Assert.True(result.QueueTelemetry.EnqueueAttemptCount > 0);
+        Assert.True(result.RetentionTelemetry.RetentionAttemptCount > 0);
+        Assert.Equal(0, result.RetentionTelemetry.ReleaseFailedCount);
+        Assert.Equal(0, result.OverlapTelemetry.ReleaseFailedCount);
+        Assert.Equal(RadarProcessingRetainedPayloadStrategy.PooledCopy, result.RetentionTelemetry.Strategy);
+        Assert.Equal(RadarProcessingRetainedPayloadStrategy.PooledCopy, result.OverlapTelemetry.RetentionStrategy);
+        Assert.Equal(result.QueueTelemetry.RetainedResourcePressure, result.OverlapTelemetry.RetainedResourcePressure);
+        Assert.Equal(0, result.CurrentPendingRetainedBatchCount);
+        Assert.Equal(0, result.CurrentActiveRetainedBatchCount);
+        Assert.Equal(0, result.CurrentCombinedRetainedBatchCount);
+        Assert.Equal(0, result.CurrentCombinedRetainedPayloadBytes);
+        Assert.False(result.AllocationSummary.IncludesCliFormatting);
+    }
+
+    private static void AssertDirectQueuedOwnedRolloutContour(
+        RadarProcessingArchiveRebalanceCacheBenchmarkResult result)
+    {
+        Assert.Equal(RadarProcessingArchiveProviderMode.QueuedOwned, result.ProviderMode);
+        Assert.Equal(RadarProcessingExecutionMode.AsyncShardTransport, result.ExecutionMode);
+        Assert.Equal(8, result.QueueCapacity);
+        Assert.Equal(RadarProcessingQueuedProviderOverlapMode.ProducerConsumer, result.ProviderOverlapMode);
+        Assert.Equal(RadarProcessingRetainedPayloadStrategy.PooledCopy, result.RetentionStrategy);
+        Assert.Equal(536_870_912, result.QueueRetainedPayloadBytes);
+        Assert.Equal(TimeSpan.Zero, result.OverlapConsumerDelay);
+        Assert.True(result.HasWorkerTelemetry);
+        Assert.NotNull(result.WorkerTelemetry);
+        Assert.Equal(4, result.WorkerTelemetry.WorkerCount);
+        Assert.Equal(8, result.WorkerTelemetry.QueueCapacity);
+        Assert.True(result.HasQueueTelemetry);
+        Assert.True(result.HasRetentionTelemetry);
+        Assert.True(result.HasOverlapTelemetry);
+        Assert.True(result.QueueTelemetry.EnqueueAttemptCount > 0);
+        Assert.True(result.RetentionTelemetry.RetentionAttemptCount > 0);
+        Assert.Equal(0, result.RetentionTelemetry.ReleaseFailedCount);
+        Assert.Equal(0, result.OverlapTelemetry.ReleaseFailedCount);
+        Assert.Equal(RadarProcessingRetainedPayloadStrategy.PooledCopy, result.RetentionTelemetry.Strategy);
+        Assert.Equal(RadarProcessingRetainedPayloadStrategy.PooledCopy, result.OverlapTelemetry.RetentionStrategy);
+        Assert.Equal(result.QueueTelemetry.RetainedResourcePressure, result.OverlapTelemetry.RetainedResourcePressure);
+        Assert.Equal(0, result.CurrentPendingRetainedBatchCount);
+        Assert.Equal(0, result.CurrentActiveRetainedBatchCount);
+        Assert.Equal(0, result.CurrentCombinedRetainedBatchCount);
+        Assert.Equal(0, result.CurrentCombinedRetainedPayloadBytes);
+        Assert.False(result.AllocationSummary.IncludesCliFormatting);
     }
 
     private sealed class CapturingRadarEventBatchPublisher : IArchiveRadarEventBatchPublisher
