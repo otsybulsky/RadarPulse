@@ -39,7 +39,7 @@ overlap telemetry: summary where available in result contracts
 overlap consumer delay: 0
 ```
 
-Current code posture after milestone 014 slice 3:
+Current code posture after milestone 014 slice 4:
 
 ```text
 direct MeasureFile() omitted defaults:
@@ -53,11 +53,14 @@ direct MeasureFile() omitted defaults:
   retained-byte budget: 536870912
 
 direct MeasureCache() omitted defaults:
-  provider mode: blocking-borrowed
-  provider overlap: none
-  retention strategy: snapshot-copy
-  execution: partitioned barrier
-  retained-byte budget: none
+  provider mode: queued-owned
+  provider overlap: producer-consumer
+  retention strategy: pooled-copy
+  execution: async
+  worker count: 4
+  async worker queue capacity: 8
+  provider queue capacity: 8
+  retained-byte budget: 536870912
 
 CLI omitted-provider rebalance-archive path:
   already uses the queued-owned rollout contour accepted in milestone 012 and
@@ -103,11 +106,13 @@ status: in progress
 slice 1: direct API baseline audit complete
 slice 2: shared rollout contour contract complete
 slice 3: direct file default migration complete
-slice 4: direct cache default migration next
+slice 4: direct cache default migration complete
+slice 5: fallback, failure, and cleanup guardrails next
 runtime behavior changes so far:
   direct MeasureFile() omitted defaults now use the queued-owned rollout
   contour
-  direct MeasureCache() omitted defaults remain blocking-borrowed until slice 4
+  direct MeasureCache() omitted defaults now use the queued-owned rollout
+  contour
 latest focused verification:
   dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
     --filter FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests
@@ -166,7 +171,8 @@ Milestone 014 slice 3 direct file default migration:
 runtime behavior changes:
   direct MeasureFile() omitted provider/execution/queue/retention arguments now
   resolve to the shared queued-owned rollout contour
-  direct MeasureCache() omitted defaults remain blocking-borrowed
+  direct MeasureCache() omitted defaults remained blocking-borrowed before
+  slice 4
 implementation:
   MeasureFile() now resolves nullable direct control arguments into effective
   values so omitted provider uses rollout defaults while explicit
@@ -177,8 +183,40 @@ tests:
   borrowed, explicit queued-owned rollout matches omitted default, and stable
   totals/checksums match the borrowed oracle
 next:
-  migrate direct MeasureCache() omitted defaults using the same effective
-  default pattern
+  slice 4 migrated direct MeasureCache() omitted defaults using the same
+  effective default pattern
+```
+
+Milestone 014 slice 4 direct cache default migration:
+
+```text
+runtime behavior changes:
+  direct MeasureCache() omitted provider/execution/queue/retention arguments
+  now resolve to the shared queued-owned rollout contour
+  direct MeasureFile() and MeasureCache() omitted defaults are now symmetric
+implementation:
+  MeasureCache() now resolves nullable direct control arguments into effective
+  values so omitted provider uses rollout defaults while explicit
+  providerMode: BlockingBorrowed remains a borrowed fallback contour
+tests:
+  RebalanceArchiveBenchmarkCacheUsesRolloutDefaultAndPreservesBorrowedFallback
+  proves omitted MeasureCache() is rollout, explicit BlockingBorrowed is
+  borrowed, explicit queued-owned rollout matches omitted default, and stable
+  cache totals/checksums match the borrowed oracle
+  borrowed cache comparison rows now request providerMode: BlockingBorrowed
+  explicitly
+verification:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests
+  23 passed, 0 failed, 0 skipped
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests
+  27 passed, 0 failed, 0 skipped
+  dotnet build RadarPulse.sln -c Release --no-restore
+  succeeded, 0 warnings, 0 errors
+next:
+  implement slice 5 fallback, failure, cancellation, release, and cleanup
+  guardrails around the now-migrated direct defaults
 ```
 
 Milestone 014 gate posture:

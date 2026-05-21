@@ -368,12 +368,10 @@ audited direct defaults:
   MeasureCache() still defaults to the same borrowed partitioned-barrier
   contour
 audited direct tests:
-  RebalanceArchiveBenchmarkFilePreservesBorrowedDefaultAndExplicitRolloutContour
-  covers borrowed omitted direct file defaults and explicit queued-owned
-  rollout file contour
-  RebalanceArchiveBenchmarkCachePreservesBorrowedDefaultAndExplicitRolloutContour
-  covers borrowed omitted direct cache defaults and explicit queued-owned
-  rollout cache contour
+  then-current file/cache direct default contour tests covered borrowed
+  omitted defaults and explicit queued-owned rollout contours; later slices
+  renamed those tests while preserving explicit BlockingBorrowed
+  fallback/oracle coverage
   queued-owned provider, overlap/retention, async worker telemetry, cache
   aggregation, invalid option, and cleanup-related direct coverage already
   exists in NexradArchiveRadarEventBatchPublisherTests
@@ -557,7 +555,8 @@ status: complete
 runtime behavior changes:
   direct MeasureFile() omitted provider/execution/queue/retention arguments now
   resolve to the shared queued-owned rollout contour
-  direct MeasureCache() omitted defaults remain blocking-borrowed until slice 4
+  direct MeasureCache() omitted defaults remained blocking-borrowed before
+  slice 4
 implementation:
   MeasureFile() now resolves nullable direct control arguments into effective
   values so omitted provider uses rollout defaults while explicit
@@ -585,7 +584,7 @@ verification:
   dotnet build RadarPulse.sln -c Release --no-restore
   succeeded, 0 warnings, 0 errors
 next:
-  slice 4 should migrate direct MeasureCache() omitted defaults using the same
+  slice 4 migrated direct MeasureCache() omitted defaults using the same
   effective-default pattern
 ```
 
@@ -640,6 +639,42 @@ Focused verification:
 
 ```powershell
 dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests
+```
+
+Implemented in slice 4:
+
+```text
+status: complete
+runtime behavior changes:
+  direct MeasureCache() omitted provider/execution/queue/retention arguments
+  now resolve to the shared queued-owned rollout contour
+  direct MeasureFile() and MeasureCache() omitted defaults are now symmetric
+implementation:
+  MeasureCache() now uses the same nullable effective-default resolution
+  pattern as MeasureFile()
+  omitted provider uses RadarProcessingArchiveRebalanceRolloutDefaults for
+  provider mode, overlap, retention, execution, async worker settings,
+  provider queue capacity, retained-byte budget, and overlap consumer delay
+  explicit providerMode: BlockingBorrowed remains a borrowed fallback/oracle
+tests:
+  RebalanceArchiveBenchmarkCacheUsesRolloutDefaultAndPreservesBorrowedFallback
+  proves omitted MeasureCache() is rollout, explicit BlockingBorrowed remains
+  borrowed, explicit queued-owned rollout matches omitted default, and stable
+  cache totals/checksums match the borrowed oracle
+  borrowed cache comparison rows now request providerMode: BlockingBorrowed
+  explicitly
+verification:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests
+  passed, 23 passed, 0 failed, 0 skipped
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests
+  passed, 27 passed, 0 failed, 0 skipped
+  dotnet build RadarPulse.sln -c Release --no-restore
+  succeeded, 0 warnings, 0 errors
+next:
+  slice 5 should tighten fallback, failure, cancellation, release, and cleanup
+  guardrails around the now-migrated direct defaults
 ```
 
 ### 5. Fallback, Failure, And Cleanup Guardrails
@@ -1006,7 +1041,7 @@ controlled proof rows separated if captured
 [x] direct API baseline audit is captured
 [x] shared rollout contour contract is pinned against drift
 [x] direct MeasureFile() omitted defaults migrate to queued-owned rollout
-[ ] direct MeasureCache() omitted defaults migrate to queued-owned rollout
+[x] direct MeasureCache() omitted defaults migrate to queued-owned rollout
 [ ] explicit direct blocking-borrowed fallback remains selectable and covered
 [ ] direct explicit queued-owned rollout calls match omitted direct defaults
 [ ] CLI omitted-provider rollout contour remains aligned with direct defaults
