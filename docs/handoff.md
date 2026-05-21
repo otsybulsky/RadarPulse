@@ -7,6 +7,7 @@ Milestone 014 is in progress. The milestone documents created so far are:
 ```text
 docs/milestones/014-direct-archive-rebalance-api-default-migration.md
 docs/milestones/014-direct-archive-rebalance-api-default-migration-plan.md
+docs/milestones/014-direct-archive-rebalance-api-default-migration-performance-gate.md
 ```
 
 Milestone 014 is the direct archive rebalance API default migration milestone.
@@ -39,7 +40,7 @@ overlap telemetry: summary where available in result contracts
 overlap consumer delay: 0
 ```
 
-Current code posture after milestone 014 slice 7:
+Current code and gate posture after milestone 014 slice 8:
 
 ```text
 direct MeasureFile() omitted defaults:
@@ -115,7 +116,8 @@ slice 4: direct cache default migration complete
 slice 5: fallback, failure, and cleanup guardrails complete
 slice 6: operator help and documentation cleanup complete
 slice 7: focused regression pass before gate complete
-slice 8: direct API Release gate next
+slice 8: direct API Release gate complete
+slice 9: direct API migration decision trace next
 runtime behavior changes so far:
   direct MeasureFile() omitted defaults now use the queued-owned rollout
   contour
@@ -124,12 +126,24 @@ runtime behavior changes so far:
   slice 5 adds guardrail coverage only; no runtime behavior changed
   slice 6 updates operator help/docs only; no runtime behavior changed
   slice 7 is verification-only; no runtime behavior changed
+  slice 8 is gate documentation only; no runtime behavior changed
 latest focused verification:
   dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
     --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests"
   84 passed, 0 failed, 0 skipped
   dotnet build RadarPulse.sln -c Release --no-restore
   succeeded, 0 warnings, 0 errors
+latest Release gate:
+  docs/milestones/014-direct-archive-rebalance-api-default-migration-performance-gate.md
+  gate status: captured with allocation warning
+  primary elapsed ratio: 0.911x borrowed
+  primary allocation ratio: 1.071x borrowed
+  KTLX 2026-05-05 allocation ratio: 1.0997x borrowed average, with one row
+    above and one row below the 1.10x threshold
+  max combined retained payload high watermark: 54413280 bytes of the
+    536870912 byte budget
+  release failures: 0 across direct default rows
+  retained pressure at completion: 0 across direct default rows
 ```
 
 Milestone 014 slice 1 baseline capture:
@@ -320,24 +334,63 @@ next:
   capture the direct API Release gate
 ```
 
-Milestone 014 gate posture:
+Milestone 014 slice 8 direct API Release gate:
 
 ```text
-use direct API default rows, not only CLI rows
-use same-run explicit blocking-borrowed oracle rows
-repeat KTLX 2026-05-05 and keep the 1.1005x borrowed allocation warning
-  visible
-retain milestone 012/013 thresholds unless changed before interpretation
-do not call the gate clean green if KTLX 2026-05-05 remains at or above the
-  allocation threshold
+runtime behavior changes:
+  none
+gate document:
+  docs/milestones/014-direct-archive-rebalance-api-default-migration-performance-gate.md
+gate status:
+  captured with allocation warning
+capture posture:
+  Release build succeeded with 0 warnings and 0 errors before measurements
+  temporary local harness called MeasureCache() directly so the gate measured
+  direct omitted defaults instead of CLI-expanded effective options
+  same-run explicit BlockingBorrowed rows remained the borrowed oracle
+  explicit queued-owned rollout spot-check matched direct default deterministic
+  output and contour fields
+key results:
+  correctness parity passed across captured rows
+  retained payload and provider overlap failed releases were 0 across direct
+  default rows
+  current pending, active, and combined retained pressure returned to 0 across
+  direct default rows
+  max combined retained payload high watermark was 54413280 bytes of the
+  536870912 byte budget
+  primary KTLX 2026-05-04 elapsed ratio was 0.911x borrowed over four pairs
+  primary KTLX 2026-05-04 allocation ratio was 1.071x borrowed
+  KINX 2026-05-04 allocation ratio was 1.069x borrowed
+  mixed-cache allocation ratio was 1.066x borrowed
+  KTLX 2026-05-05 allocation ratio averaged 1.0997x borrowed, with row 1 at
+  1.1018x and row 2 at 1.0976x
+  primary direct-default timing had a favorable outlier: all four rows spread
+  10.41%, while stabilized rows 2-4 spread 0.39%; every direct default row was
+  faster than same-run borrowed, so this is a variance note rather than a
+  slowdown blocker
+next:
+  write the direct API migration decision trace and decide how to carry the
+  KTLX 2026-05-05 allocation warning into the final posture
 ```
 
-Milestone 014 expected focused verification before Release gate:
+Milestone 014 gate posture after slice 8:
+
+```text
+direct API default rows were captured through direct MeasureCache() calls
+same-run explicit blocking-borrowed oracle rows were captured
+KTLX 2026-05-05 allocation warning repeated and remains visible
+primary favorable timing outlier should be named but is not a slowdown blocker
+slice 9 should record the direct API migration decision, not recapture the gate
+```
+
+Milestone 014 expected verification before closeout:
 
 ```powershell
 dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests"
 
 dotnet build RadarPulse.sln -c Release --no-restore
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
 ```
 
 Milestone 014 closeout question:

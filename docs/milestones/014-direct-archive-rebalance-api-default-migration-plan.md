@@ -970,6 +970,61 @@ Do not call the gate clean green if KTLX 2026-05-05 remains at or above the
 1.10x allocation threshold. Name the warning and decide what it means.
 ```
 
+Implemented in slice 8:
+
+```text
+status: complete
+runtime behavior changes: none
+gate document:
+  docs/milestones/014-direct-archive-rebalance-api-default-migration-performance-gate.md
+gate status:
+  captured with allocation warning
+capture posture:
+  Release build was run before measurements and succeeded with 0 warnings and
+  0 errors
+  temporary local harness called MeasureCache() directly so omitted direct API
+  defaults, not CLI-expanded effective options, were measured
+  same-run explicit BlockingBorrowed rows used async shard transport, workers
+  4, and worker queue capacity 1 as the borrowed oracle
+  direct default rows omitted provider, execution, async execution, queue,
+  overlap, retention, and retained-byte arguments
+  explicit queued-owned rollout spot-check supplied the shared rollout contour
+  controls directly and matched the direct default deterministic output
+captured contours:
+  primary KTLX 2026-05-04 repeated contour:
+    four borrowed/default pairs over data\nexrad --date 2026-05-04
+    --radar KTLX --max-files 220
+  borderline KTLX 2026-05-05 repeated contour:
+    two borrowed/default pairs over data\nexrad --date 2026-05-05
+    --radar KTLX --max-files 220
+  broader KINX 2026-05-04 contour:
+    one borrowed/default pair over data\nexrad --date 2026-05-04
+    --radar KINX --max-files 220
+  mixed-cache contour:
+    one borrowed/default pair over data\nexrad --max-files 1000000
+gate result:
+  correctness parity passed across captured rows
+  retained payload and provider overlap failed releases were 0 across direct
+  default rows
+  current pending, active, and combined retained pressure returned to 0 across
+  direct default rows
+  max combined retained payload high watermark was 54413280 bytes of the
+  536870912 byte budget
+  primary elapsed ratio was 0.911x borrowed across four pairs
+  primary allocation ratio was 1.071x borrowed
+  KINX 2026-05-04 allocation ratio was 1.069x borrowed
+  mixed-cache allocation ratio was 1.066x borrowed
+  KTLX 2026-05-05 allocation ratio averaged 1.0997x borrowed, with row 1 at
+  1.1018x and row 2 at 1.0976x
+  primary direct-default timing had a favorable outlier: all four rows spread
+  10.41%, while stabilized rows 2-4 spread 0.39%; this is not a slowdown
+  blocker because every direct default row was faster than borrowed, but it
+  should be named in the decision trace
+next:
+  slice 9 should write the direct API migration decision trace and decide how
+  to carry the KTLX 2026-05-05 allocation warning into the final posture
+```
+
 ### 9. Direct API Migration Decision Trace
 
 Record the direct default migration decision after the gate.
@@ -1141,9 +1196,9 @@ controlled proof rows separated if captured
 [x] operator help/docs no longer claim direct defaults remain borrowed
 [x] failure, cancellation, release, and cleanup guardrails remain covered
 [x] focused regression pass succeeds before gate capture
-[ ] direct API Release gate is captured
-[ ] KTLX 2026-05-05 allocation warning is repeated and interpreted
-[ ] performance gate interprets correctness, cleanup, pressure, allocation,
+[x] direct API Release gate is captured
+[x] KTLX 2026-05-05 allocation warning is repeated and interpreted
+[x] performance gate interprets correctness, cleanup, pressure, allocation,
     timing, variance, fallback/oracle posture, and attribution
 [ ] decision trace records the direct API default decision
 [ ] closeout is written
