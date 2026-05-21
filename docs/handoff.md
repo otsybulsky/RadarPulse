@@ -1,6 +1,144 @@
-# Handoff: Milestone 013 Complete
+# Handoff: Milestone 014 Ready For Implementation
 
 ## Current State
+
+Milestone 014 is planned and ready for implementation. The milestone documents
+created so far are:
+
+```text
+docs/milestones/014-direct-archive-rebalance-api-default-migration.md
+docs/milestones/014-direct-archive-rebalance-api-default-migration-plan.md
+```
+
+Milestone 014 is the direct archive rebalance API default migration milestone.
+It starts from the closed milestone 013 post-rollout hardening result and
+targets only direct
+`RadarProcessingArchiveRebalanceBenchmark.MeasureFile()` and `MeasureCache()`
+defaults.
+
+Milestone 014 target:
+
+```text
+direct MeasureFile()/MeasureCache() omitted provider/execution/queue/retention
+arguments should migrate from blocking-borrowed partitioned-barrier behavior
+to the accepted queued-owned rollout contour
+```
+
+Target direct default contour:
+
+```text
+provider mode: queued-owned
+provider overlap: producer-consumer
+retention strategy: pooled-copy
+execution: async
+worker count: 4
+async worker queue capacity: 8
+provider queue capacity: 8
+retained-byte budget: 536870912
+queue telemetry: summary where available in result contracts
+overlap telemetry: summary where available in result contracts
+overlap consumer delay: 0
+```
+
+Current code posture before milestone 014 implementation:
+
+```text
+direct MeasureFile() defaults:
+  provider mode: blocking-borrowed
+  provider overlap: none
+  retention strategy: snapshot-copy
+  execution: partitioned barrier
+  retained-byte budget: none
+
+direct MeasureCache() defaults:
+  provider mode: blocking-borrowed
+  provider overlap: none
+  retention strategy: snapshot-copy
+  execution: partitioned barrier
+  retained-byte budget: none
+
+CLI omitted-provider rebalance-archive path:
+  already uses the queued-owned rollout contour accepted in milestone 012 and
+  hardened in milestone 013
+```
+
+Milestone 014 must preserve these guardrails:
+
+```text
+explicit direct blocking-borrowed remains fallback/oracle
+same-run borrowed rows remain required for migration gates
+direct file and cache defaults should migrate symmetrically unless a decision
+  trace names a blocker
+CLI omitted-provider rollout contour remains aligned with direct defaults
+queued-owned failures fail closed
+no automatic borrowed fallback follows queued-owned failure
+controlled consumer delay remains mechanics-only proof
+builder-transfer remains unsupported
+live ingestion/runtime defaults remain out of scope
+durable queues, cross-process workers, and ordered concurrent rebalance remain
+  out of scope
+```
+
+Milestone 014 planned slices:
+
+```text
+1. direct API baseline audit
+2. shared rollout contour contract
+3. direct file default migration
+4. direct cache default migration
+5. fallback, failure, and cleanup guardrails
+6. operator help and documentation cleanup
+7. focused regression pass before gate
+8. direct API Release gate
+9. direct API migration decision trace
+10. closeout and handoff
+```
+
+Milestone 014 gate posture:
+
+```text
+use direct API default rows, not only CLI rows
+use same-run explicit blocking-borrowed oracle rows
+repeat KTLX 2026-05-05 and keep the 1.1005x borrowed allocation warning
+  visible
+retain milestone 012/013 thresholds unless changed before interpretation
+do not call the gate clean green if KTLX 2026-05-05 remains at or above the
+  allocation threshold
+```
+
+Milestone 014 expected focused verification before Release gate:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests"
+
+dotnet build RadarPulse.sln -c Release --no-restore
+```
+
+Milestone 014 closeout question:
+
+```text
+Should direct RadarProcessingArchiveRebalanceBenchmark.MeasureFile() and
+MeasureCache() omitted defaults migrate to the accepted queued-owned rollout
+contour?
+```
+
+Acceptable closeout answers:
+
+```text
+yes:
+  direct file/cache defaults migrate symmetrically, fallback/oracle posture is
+  preserved, allocation warning is accepted or bounded, and the next milestone
+  can consider a named broader expansion or targeted allocation work
+
+not yet:
+  direct defaults remain borrowed, and the decision trace names a blocker
+
+partial:
+  one direct surface is not ready, and the decision trace records why the
+  migration is asymmetric and what must happen next
+```
+
+## Milestone 013 Complete
 
 Milestone 013 is complete. The milestone documents are:
 
