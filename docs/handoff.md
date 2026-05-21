@@ -1,9 +1,8 @@
-# Handoff: Milestone 014 Ready For Implementation
+# Handoff: Milestone 014 In Progress
 
 ## Current State
 
-Milestone 014 is planned and ready for implementation. The milestone documents
-created so far are:
+Milestone 014 is in progress. The milestone documents created so far are:
 
 ```text
 docs/milestones/014-direct-archive-rebalance-api-default-migration.md
@@ -99,12 +98,15 @@ Milestone 014 implementation plan status:
 ```text
 status: in progress
 slice 1: direct API baseline audit complete
-slice 2: shared rollout contour contract next
+slice 2: shared rollout contour contract complete
+slice 3: direct file default migration next
 runtime behavior changes so far: none
 latest focused verification:
   dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
-    --filter FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests
-  22 passed, 0 failed, 0 skipped
+    --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+  50 passed, 0 failed, 0 skipped
+  dotnet build RadarPulse.sln -c Release --no-restore
+  succeeded, 0 warnings, 0 errors
 ```
 
 Milestone 014 slice 1 baseline capture:
@@ -121,6 +123,31 @@ result fields are sufficient to prove direct contours without adding direct
 Program usage and RadarPulseCliRebalanceBenchmarkTests still say direct
   MeasureFile()/MeasureCache() defaults remain blocking-borrowed; slice 6
   updates this after migration
+```
+
+Milestone 014 slice 2 shared rollout contour contract:
+
+```text
+runtime behavior changes: none
+new shared contract:
+  src/Infrastructure/Processing/RadarProcessingArchiveRebalanceRolloutDefaults.cs
+contract values:
+  queued-owned, producer-consumer, pooled-copy, async shard transport,
+  worker count 4, worker queue capacity 8, provider queue capacity 8,
+  retained-byte budget 536870912, overlap consumer delay 0
+CLI alignment:
+  ProcessingBenchmarkArchiveRebalanceOptions rollout constants and omitted
+  provider expansion now read the shared contract
+direct test alignment:
+  explicit queued-owned file/cache rollout tests now use the shared contract
+  direct queued-owned contour assertion helpers verify result fields against
+  the shared contract
+new drift guards:
+  RebalanceArchiveBenchmarkRolloutDefaultContractPinsAcceptedContour
+  ArchiveRebalanceBenchmarkOptionsRolloutContourMatchesSharedContract
+next:
+  migrate direct MeasureFile() omitted defaults using the shared rollout
+  contract
 ```
 
 Milestone 014 gate posture:

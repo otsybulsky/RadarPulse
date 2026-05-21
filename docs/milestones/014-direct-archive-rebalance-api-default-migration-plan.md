@@ -1,6 +1,6 @@
 # Milestone 014: Direct Archive Rebalance API Default Migration Implementation Plan
 
-Status: draft.
+Status: in progress.
 
 This plan implements the milestone 014 architecture defined in
 `014-direct-archive-rebalance-api-default-migration.md`.
@@ -456,6 +456,45 @@ Expected tests:
 direct target rollout contour constants match CLI rollout contour constants
 direct file target contour equals direct cache target contour
 explicit queued-owned rollout helper produces the accepted contour
+```
+
+Implemented in slice 2:
+
+```text
+status: complete
+runtime behavior changes: none
+new shared contract:
+  src/Infrastructure/Processing/RadarProcessingArchiveRebalanceRolloutDefaults.cs
+  defines ProviderMode queued-owned, ProviderOverlapMode producer-consumer,
+  RetentionStrategy pooled-copy, ExecutionMode async shard transport,
+  WorkerCount 4, WorkerQueueCapacity 8, ProviderQueueCapacity 8,
+  RetainedPayloadBytes 536870912, and OverlapConsumerDelay 0
+  exposes CreateAsyncExecution() and Matches() so direct and CLI contours can
+  be checked without duplicating literals
+CLI alignment:
+  ProcessingBenchmarkArchiveRebalanceOptions rollout constants and omitted
+  provider expansion now read the shared infrastructure contract
+  CLI option provenance remains presentation-owned; infrastructure does not
+  depend on CLI provenance
+direct test alignment:
+  direct explicit queued-owned rollout file/cache tests now use the shared
+  contract for explicit options
+  direct queued-owned contour assertion helpers now verify result fields
+  against the shared contract
+new drift guards:
+  RebalanceArchiveBenchmarkRolloutDefaultContractPinsAcceptedContour pins the
+  accepted exact contour values and CreateAsyncExecution()/Matches() behavior
+  ArchiveRebalanceBenchmarkOptionsRolloutContourMatchesSharedContract proves
+  CLI omitted-provider rollout options match the shared contract
+verification:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+  passed, 50 passed, 0 failed, 0 skipped
+  dotnet build RadarPulse.sln -c Release --no-restore
+  succeeded, 0 warnings, 0 errors
+next:
+  slice 3 can migrate direct MeasureFile() omitted defaults using the shared
+  rollout contract
 ```
 
 ### 3. Direct File Default Migration
@@ -926,7 +965,7 @@ controlled proof rows separated if captured
 
 ```text
 [x] direct API baseline audit is captured
-[ ] shared rollout contour contract is pinned against drift
+[x] shared rollout contour contract is pinned against drift
 [ ] direct MeasureFile() omitted defaults migrate to queued-owned rollout
 [ ] direct MeasureCache() omitted defaults migrate to queued-owned rollout
 [ ] explicit direct blocking-borrowed fallback remains selectable and covered

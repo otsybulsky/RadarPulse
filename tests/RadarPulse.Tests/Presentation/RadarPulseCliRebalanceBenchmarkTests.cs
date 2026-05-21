@@ -523,13 +523,44 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
     [Fact]
     public void ArchiveRebalanceBenchmarkOptionsExposeRolloutDefaultContourConstants()
     {
-        Assert.Equal(4, global::ProcessingBenchmarkArchiveRebalanceOptions.DefaultRolloutWorkerCount);
+        Assert.Equal(
+            RadarProcessingArchiveRebalanceRolloutDefaults.WorkerCount,
+            global::ProcessingBenchmarkArchiveRebalanceOptions.DefaultRolloutWorkerCount);
+        Assert.Equal(
+            RadarProcessingArchiveRebalanceRolloutDefaults.ProviderQueueCapacity,
+            global::ProcessingBenchmarkArchiveRebalanceOptions.DefaultCandidateProviderQueueCapacity);
+        Assert.Equal(
+            RadarProcessingArchiveRebalanceRolloutDefaults.RetainedPayloadBytes,
+            global::ProcessingBenchmarkArchiveRebalanceOptions.DefaultCandidateRetainedPayloadBytes);
         Assert.Equal(
             global::ProcessingBenchmarkArchiveRebalanceOptions.DefaultCandidateProviderQueueCapacity,
             global::ProcessingBenchmarkArchiveRebalanceOptions.DefaultRolloutProviderQueueCapacity);
         Assert.Equal(
             global::ProcessingBenchmarkArchiveRebalanceOptions.DefaultCandidateRetainedPayloadBytes,
             global::ProcessingBenchmarkArchiveRebalanceOptions.DefaultRolloutRetainedPayloadBytes);
+    }
+
+    [Fact]
+    public void ArchiveRebalanceBenchmarkOptionsRolloutContourMatchesSharedContract()
+    {
+        var options = global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
+        [
+            "--cache",
+            "data/nexrad",
+            "--mode",
+            "rebalance"
+        ]);
+
+        Assert.True(
+            RadarProcessingArchiveRebalanceRolloutDefaults.Matches(
+                options.ProviderMode,
+                options.ProviderOverlapMode,
+                options.RetentionStrategy,
+                options.ExecutionMode,
+                options.AsyncExecution,
+                options.ProviderQueueCapacity,
+                options.ProviderQueueRetainedPayloadBytes,
+                options.OverlapConsumerDelay));
     }
 
     [Fact]

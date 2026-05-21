@@ -2992,9 +2992,11 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
     RadarProcessingAsyncExecutionOptions? AsyncExecution = null,
     ProcessingBenchmarkArchiveRebalanceOptionProvenance? OptionProvenance = null)
 {
-    public const int DefaultCandidateProviderQueueCapacity = 8;
-    public const long DefaultCandidateRetainedPayloadBytes = 536_870_912;
-    public const int DefaultRolloutWorkerCount = 4;
+    public const int DefaultCandidateProviderQueueCapacity =
+        RadarProcessingArchiveRebalanceRolloutDefaults.ProviderQueueCapacity;
+    public const long DefaultCandidateRetainedPayloadBytes =
+        RadarProcessingArchiveRebalanceRolloutDefaults.RetainedPayloadBytes;
+    public const int DefaultRolloutWorkerCount = RadarProcessingArchiveRebalanceRolloutDefaults.WorkerCount;
     public const int DefaultRolloutProviderQueueCapacity = DefaultCandidateProviderQueueCapacity;
     public const long DefaultRolloutRetainedPayloadBytes = DefaultCandidateRetainedPayloadBytes;
     public const string NaturalDefaultCandidateEvidenceContour = "natural-default-candidate";
@@ -3054,15 +3056,15 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
         ProcessingBenchmarkProviderQueueTelemetryOutput queueTelemetryOutput,
         ProcessingBenchmarkProviderOverlapTelemetryOutput overlapTelemetryOutput,
         RadarProcessingExecutionMode executionMode) =>
-        providerMode == RadarProcessingArchiveProviderMode.QueuedOwned &&
+        providerMode == RadarProcessingArchiveRebalanceRolloutDefaults.ProviderMode &&
         providerQueueCapacity == DefaultCandidateProviderQueueCapacity &&
-        providerOverlapMode == RadarProcessingQueuedProviderOverlapMode.ProducerConsumer &&
-        retentionStrategy == RadarProcessingRetainedPayloadStrategy.PooledCopy &&
+        providerOverlapMode == RadarProcessingArchiveRebalanceRolloutDefaults.ProviderOverlapMode &&
+        retentionStrategy == RadarProcessingArchiveRebalanceRolloutDefaults.RetentionStrategy &&
         providerQueueRetainedPayloadBytes == DefaultCandidateRetainedPayloadBytes &&
-        overlapConsumerDelay == TimeSpan.Zero &&
+        overlapConsumerDelay == RadarProcessingArchiveRebalanceRolloutDefaults.OverlapConsumerDelay &&
         queueTelemetryOutput != ProcessingBenchmarkProviderQueueTelemetryOutput.None &&
         overlapTelemetryOutput != ProcessingBenchmarkProviderOverlapTelemetryOutput.None &&
-        executionMode == RadarProcessingExecutionMode.AsyncShardTransport;
+        executionMode == RadarProcessingArchiveRebalanceRolloutDefaults.ExecutionMode;
 
     public static string FormatProviderOverlapEvidenceContour(
         RadarProcessingArchiveProviderMode providerMode,
@@ -3314,18 +3316,18 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
 
         if (!providerModeWasProvided)
         {
-            providerMode = RadarProcessingArchiveProviderMode.QueuedOwned;
+            providerMode = RadarProcessingArchiveRebalanceRolloutDefaults.ProviderMode;
             providerModeSource = ProcessingBenchmarkOptionValueSource.RolloutDefault;
 
             if (!providerOverlapModeWasProvided)
             {
-                providerOverlapMode = RadarProcessingQueuedProviderOverlapMode.ProducerConsumer;
+                providerOverlapMode = RadarProcessingArchiveRebalanceRolloutDefaults.ProviderOverlapMode;
                 providerOverlapModeSource = ProcessingBenchmarkOptionValueSource.RolloutDefault;
             }
 
             if (!retentionStrategyWasProvided)
             {
-                retentionStrategy = RadarProcessingRetainedPayloadStrategy.PooledCopy;
+                retentionStrategy = RadarProcessingArchiveRebalanceRolloutDefaults.RetentionStrategy;
                 retentionStrategySource = ProcessingBenchmarkOptionValueSource.RolloutDefault;
             }
 
@@ -3358,7 +3360,7 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
 
             if (!executionModeWasProvided)
             {
-                executionMode = RadarProcessingExecutionMode.AsyncShardTransport;
+                executionMode = RadarProcessingArchiveRebalanceRolloutDefaults.ExecutionMode;
                 executionModeSource = ProcessingBenchmarkOptionValueSource.RolloutDefault;
             }
 
