@@ -568,6 +568,62 @@ Focused verification:
 dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
 ```
 
+Implemented in slice 2:
+
+```text
+status: complete
+runtime behavior changes: none
+contract decision:
+  do not add new public result contract fields or CLI output fields before
+  the first standard optimization pass
+
+why:
+  RadarProcessingArchiveRebalanceBenchmarkResult and
+  RadarProcessingArchiveRebalanceCacheBenchmarkResult already expose the
+  allocation buckets needed for first-pass before/after interpretation:
+  measured allocated bytes, processing callback allocated bytes, replay/build
+  allocated bytes, owned snapshot allocated bytes, and processing callback
+  non-owned snapshot allocated bytes
+
+  RadarProcessingRebalanceAllocationSummary already keeps these derived
+  buckets non-negative and has focused contract coverage
+
+  Program already prints the same allocation attribution fields for archive
+  rebalance output, and RadarPulseCliRebalanceBenchmarkTests already assert
+  the operator-visible allocation attribution lines
+
+  NexradArchiveRadarEventBatchPublisherTests already connect queued-owned
+  result owned snapshot allocation to QueueTelemetry.OwnedSnapshotAllocatedBytes
+  for direct file/cache result contracts
+
+residual bucket decision:
+  retained resource wrapper/release callback allocation, queued batch object
+  allocation, recent-detail allocation, bounded recent-detail snapshot
+  allocation, defensive telemetry-summary copy allocation, and
+  AddQueueTelemetry Concat/Skip/ToArray allocation will remain inside
+  processing callback residual for slice 3
+
+  slice 3 should use code inspection and focused tests for these targets
+  before adding permanent attribution fields
+
+  slice 4 may add temporary micro-harnesses or permanent attribution only if
+  standard optimization leaves a residual allocation question that cannot be
+  reviewed honestly with current contracts
+
+rejected for slice 2:
+  adding retained payload resource wrapper allocated bytes
+  adding provider queue item allocated bytes
+  adding telemetry recorder allocated bytes
+  changing CLI allocation output labels
+  changing archive rebalance result constructor shape
+
+slice 3 input:
+  proceed to the standard allocation optimization pass with stable public
+  contracts and focus first on callback residual candidates that are visible
+  by code inspection: release callback/resource allocation, queue recent
+  details, defensive recent-detail copies, and bounded aggregation allocation
+```
+
 ### 3. Standard Allocation Optimization Pass
 
 Apply low-risk standard .NET allocation optimizations to the highest-confidence
@@ -1079,6 +1135,7 @@ standard and experimental optimization outcomes recorded
 ```text
 [x] allocation baseline audit is captured
 [x] attribution sufficiency decision is recorded
+[x] allocation instrumentation and contract check is complete
 [ ] standard allocation optimization pass is complete or explicitly rejected
 [ ] experimental optimization research/spike pass is complete
 [ ] adopted optimizations are integrated with focused tests

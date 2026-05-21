@@ -25,7 +25,7 @@ Milestone 015 current status:
 ```text
 architecture document: draft
 implementation plan: in progress
-implementation: slice 1 complete
+implementation: slice 2 complete
 runtime behavior changes so far: none
 performance gate: not captured
 decision trace: not written
@@ -69,7 +69,7 @@ Milestone 015 planned slices:
 
 ```text
 1. baseline and attribution audit complete
-2. allocation instrumentation and contract check
+2. allocation instrumentation and contract check complete
 3. standard allocation optimization pass
 4. experimental optimization research and spikes
 5. adopted optimization integration
@@ -126,6 +126,40 @@ primary hot-path targets:
 slice 2 input:
   keep current result contracts for the first pass unless callback residual
   needs finer attribution before a safe optimization decision can be made
+```
+
+Milestone 015 slice 2 allocation instrumentation and contract check:
+
+```text
+status: complete
+runtime behavior changes: none
+contract decision:
+  no new public result contract fields or CLI output fields before the first
+  standard optimization pass
+why:
+  direct file/cache rebalance result contracts already expose measured,
+  processing callback, replay/build, owned snapshot, and callback non-owned
+  snapshot allocation
+  allocation summary contract tests already cover non-negative derived buckets
+  CLI output already prints the operator-visible allocation attribution fields
+  direct tests already tie queued-owned owned snapshot allocation to provider
+  queue telemetry
+residual posture:
+  retained resource wrapper/release callback allocation, queued batch object
+  allocation, recent-detail records, bounded recent-detail snapshots,
+  defensive telemetry-summary copies, and AddQueueTelemetry
+  Concat/Skip/ToArray allocation remain inside processing callback residual
+  for slice 3
+rejected for slice 2:
+  adding retained payload resource wrapper allocated bytes
+  adding provider queue item allocated bytes
+  adding telemetry recorder allocated bytes
+  changing CLI allocation output labels
+  changing archive rebalance result constructor shape
+slice 3 input:
+  proceed to standard allocation optimization with stable public contracts;
+  add temporary micro-harnesses or permanent attribution later only if current
+  residual attribution cannot support a safe optimization decision
 ```
 
 Milestone 015 likely implementation targets:
