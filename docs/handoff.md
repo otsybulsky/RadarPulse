@@ -200,11 +200,56 @@ rollout-shape runs are not treated as omitted-default expansion, explicit
 runs remain `opt-in-diagnostic`, and controlled proof rows remain
 `controlled-mechanics-proof`.
 
-The next implementation step is slice 6 from the plan: benchmark invocation
-defaults and same-run oracle preservation. The output now makes fallback
-selection auditable; slice 6 should verify that CLI default and explicit
-borrowed paths reach the intended benchmark/provider code paths and that the
-borrowed oracle remains available.
+Milestone 012 slice 6 benchmark invocation defaults and same-run oracle
+preservation is implemented in the current working tree. There were no runtime
+changes.
+
+CLI smoke coverage now proves omitted-provider `rebalance-archive` cache output
+reaches the queued-owned rollout invocation shape:
+
+```text
+queued-owned batch lifetime
+queue telemetry: summary
+retained payload telemetry: summary
+overlap telemetry: summary
+pooled-copy overlap retention strategy
+async execution
+rollout-default provenance
+default rollout contour: yes
+```
+
+Explicit `--provider blocking-borrowed` cache output now proves the fallback
+path remains borrowed:
+
+```text
+blocking-borrowed provider result
+borrowed batch lifetime
+provider queue capacity 0 in the benchmark result
+no queue telemetry
+no retained payload telemetry
+no overlap telemetry
+no worker telemetry
+partitioned execution
+Provider fallback contour: yes
+```
+
+Direct `RadarProcessingArchiveRebalanceBenchmark.MeasureCache()` coverage now
+pins the same-run oracle posture:
+
+```text
+MeasureCache() without provider arguments remains blocking-borrowed
+direct infrastructure defaults remain partitioned and borrowed
+explicit queued-owned + producer-consumer + pooled-copy + async + workers 4
+  + queue capacity 8 + retained bytes 536870912 returns queued-owned result
+  state, worker telemetry, queue telemetry, retained telemetry, overlap
+  telemetry, zero release failures, and the same stable totals/checksum as the
+  same-run borrowed oracle
+```
+
+The next implementation step is slice 7 from the plan: failure, cleanup, and
+fallback guardrails under default queued-owned. The main question for that
+slice is whether default queued-owned failures fail closed without any
+automatic fallback to borrowed success.
 
 Latest verification after milestone 012 slice 1:
 
@@ -276,6 +321,21 @@ Recorded result:
 ```text
 25 passed, 0 failed, 0 skipped.
 46 passed, 0 failed, 0 skipped.
+```
+
+Latest verification after milestone 012 slice 6:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests"
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests"
+```
+
+Recorded result:
+
+```text
+46 passed, 0 failed, 0 skipped.
+67 passed, 0 failed, 0 skipped.
 ```
 
 Milestone 011 remains complete. The closed documents are:

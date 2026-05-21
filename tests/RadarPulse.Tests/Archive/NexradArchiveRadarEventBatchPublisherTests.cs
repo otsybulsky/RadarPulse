@@ -1096,6 +1096,113 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
     }
 
     [Fact]
+    public void RebalanceArchiveBenchmarkCachePreservesBorrowedDefaultAndExplicitRolloutContour()
+    {
+        var firstRecord = BuildMessage(31, BuildEightBitType31Payload("REF", [1, 2, 3], scale: 2f, offset: 66f));
+        var secondRecord = BuildMessage(31, BuildEightBitType31Payload("VEL", [4, 5], scale: 1f, offset: 8f));
+        var compressedPayload1 = BuildFakeBZip2Payload(1);
+        var compressedPayload2 = BuildFakeBZip2Payload(2);
+        var directory = Path.Combine(Path.GetTempPath(), "RadarPulse.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        WriteTempFileInDirectory(
+            directory,
+            "KTLX20260504_000245_V06",
+            BuildArchiveTwoHeader()
+                .Concat(BuildCompressedRecord(compressedPayload1.Length, compressedPayload1))
+                .ToArray());
+        WriteTempFileInDirectory(
+            directory,
+            "KTLX20260504_000846_V06",
+            BuildArchiveTwoHeader()
+                .Concat(BuildCompressedRecord(compressedPayload2.Length, compressedPayload2))
+                .ToArray());
+        WriteTempFileInDirectory(directory, "notes.txt", [1, 2, 3]);
+        var benchmark = new RadarProcessingArchiveRebalanceBenchmark(
+            new FakeArchiveBZip2Decompressor(new Dictionary<byte, byte[]>
+            {
+                [1] = firstRecord,
+                [2] = secondRecord
+            }));
+
+        try
+        {
+            var borrowed = benchmark.MeasureCache(
+                directory,
+                date: null,
+                radarId: null,
+                maxFiles: 10,
+                mode: RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession,
+                iterations: 1,
+                warmupIterations: 0,
+                partitionCount: 4,
+                shardCount: 2,
+                degreeOfParallelism: 2,
+                CancellationToken.None);
+            var rollout = benchmark.MeasureCache(
+                directory,
+                date: null,
+                radarId: null,
+                maxFiles: 10,
+                mode: RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession,
+                iterations: 1,
+                warmupIterations: 0,
+                partitionCount: 4,
+                shardCount: 2,
+                degreeOfParallelism: 2,
+                CancellationToken.None,
+                executionMode: RadarProcessingExecutionMode.AsyncShardTransport,
+                asyncExecution: new RadarProcessingAsyncExecutionOptions(workerCount: 4, queueCapacity: 8),
+                providerMode: RadarProcessingArchiveProviderMode.QueuedOwned,
+                queueCapacity: 8,
+                providerOverlapMode: RadarProcessingQueuedProviderOverlapMode.ProducerConsumer,
+                retentionStrategy: RadarProcessingRetainedPayloadStrategy.PooledCopy,
+                queueRetainedPayloadBytes: 536_870_912);
+
+            Assert.Equal(RadarProcessingArchiveProviderMode.BlockingBorrowed, borrowed.ProviderMode);
+            Assert.Equal(RadarProcessingExecutionMode.PartitionedBarrier, borrowed.ExecutionMode);
+            Assert.Equal(0, borrowed.QueueCapacity);
+            Assert.Equal(RadarProcessingQueuedProviderOverlapMode.None, borrowed.ProviderOverlapMode);
+            Assert.Equal(RadarProcessingRetainedPayloadStrategy.SnapshotCopy, borrowed.RetentionStrategy);
+            Assert.Null(borrowed.QueueRetainedPayloadBytes);
+            Assert.False(borrowed.HasQueueTelemetry);
+            Assert.False(borrowed.HasRetentionTelemetry);
+            Assert.False(borrowed.HasOverlapTelemetry);
+            Assert.Null(borrowed.WorkerTelemetry);
+
+            Assert.Equal(RadarProcessingArchiveProviderMode.QueuedOwned, rollout.ProviderMode);
+            Assert.Equal(RadarProcessingExecutionMode.AsyncShardTransport, rollout.ExecutionMode);
+            Assert.Equal(8, rollout.QueueCapacity);
+            Assert.Equal(RadarProcessingQueuedProviderOverlapMode.ProducerConsumer, rollout.ProviderOverlapMode);
+            Assert.Equal(RadarProcessingRetainedPayloadStrategy.PooledCopy, rollout.RetentionStrategy);
+            Assert.Equal(536_870_912, rollout.QueueRetainedPayloadBytes);
+            Assert.True(rollout.HasQueueTelemetry);
+            Assert.True(rollout.HasRetentionTelemetry);
+            Assert.True(rollout.HasOverlapTelemetry);
+            Assert.NotNull(rollout.WorkerTelemetry);
+            Assert.Equal(4, rollout.WorkerTelemetry.WorkerCount);
+            Assert.Equal(8, rollout.WorkerTelemetry.QueueCapacity);
+            Assert.Equal(2, rollout.QueueTelemetry.EnqueuedBatchCount);
+            Assert.Equal(2, rollout.QueueTelemetry.DequeuedBatchCount);
+            Assert.Equal(2, rollout.QueueTelemetry.CompletedBatchCount);
+            Assert.Equal(2, rollout.RetentionTelemetry.RetentionAttemptCount);
+            Assert.Equal(2, rollout.RetentionTelemetry.RetainedBatchCount);
+            Assert.Equal(2, rollout.RetentionTelemetry.ReleaseAttemptCount);
+            Assert.Equal(2, rollout.RetentionTelemetry.ReleasedBatchCount);
+            Assert.Equal(0, rollout.RetentionTelemetry.ReleaseFailedCount);
+            Assert.Equal(rollout.QueueTelemetry.RetainedResourcePressure, rollout.OverlapTelemetry.RetainedResourcePressure);
+            Assert.Equal(borrowed.PublishedFilesPerIteration, rollout.PublishedFilesPerIteration);
+            Assert.Equal(borrowed.BatchesPerIteration, rollout.BatchesPerIteration);
+            Assert.Equal(borrowed.EventsPerIteration, rollout.EventsPerIteration);
+            Assert.Equal(borrowed.PayloadValuesPerIteration, rollout.PayloadValuesPerIteration);
+            Assert.Equal(borrowed.ValidationChecksum, rollout.ValidationChecksum);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
     public void RebalanceArchiveBenchmarkCacheOverlapUsesSharedQueueAcrossFiles()
     {
         var firstRecord = BuildMessage(31, BuildEightBitType31Payload("REF", [1, 2, 3], scale: 2f, offset: 66f));

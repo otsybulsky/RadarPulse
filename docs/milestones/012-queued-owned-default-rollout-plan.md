@@ -1025,6 +1025,63 @@ Do not remove the borrowed benchmark path. It remains the oracle even if it is
 no longer the scoped CLI default.
 ```
 
+Implemented in slice 6:
+
+```text
+status:
+  complete
+
+runtime changes:
+  none
+
+CLI invocation proof:
+  omitted-provider rebalance-archive cache smoke output now asserts the
+  queued-owned batch lifetime, queue telemetry, retained payload telemetry,
+  overlap telemetry, pooled-copy overlap retention strategy, async execution,
+  rollout-default provenance, and default rollout contour
+
+fallback invocation proof:
+  explicit --provider blocking-borrowed cache smoke output now asserts the
+  borrowed batch lifetime, blocking-borrowed provider result, provider queue
+  capacity 0 in the benchmark result, no queue/retained/overlap telemetry, no
+  worker telemetry, partitioned execution, explicit provider source, and
+  Provider fallback contour: yes
+
+direct benchmark oracle proof:
+  RadarProcessingArchiveRebalanceBenchmark.MeasureCache() without provider
+  arguments remains blocking-borrowed with partitioned execution, no queue
+  telemetry, no retained telemetry, no overlap telemetry, and no worker
+  telemetry
+
+direct explicit rollout proof:
+  MeasureCache() with explicit queued-owned + producer-consumer + pooled-copy
+  + async + worker count 4 + queue capacity 8 + retained byte capacity
+  536870912 returns queued-owned result state, worker telemetry, queue
+  telemetry, retained telemetry, overlap telemetry, zero release failures, and
+  the same stable totals/checksum as the same-run borrowed oracle
+
+guardrail status:
+  the direct infrastructure defaults were not changed
+  blocking-borrowed remains the same-run benchmark oracle
+  queued-owned default rollout remains scoped to CLI omitted-provider expansion
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests"
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests"
+```
+
+Recorded result:
+
+```text
+46 passed, 0 failed, 0 skipped for focused CLI and archive benchmark coverage.
+67 passed, 0 failed, 0 skipped for focused CLI, archive benchmark, readiness
+gate, and overlap runner coverage.
+```
+
 ### 7. Failure, Cleanup, And Fallback Guardrails Under Default Queued-Owned
 
 Prove that default queued-owned failure paths fail closed.
@@ -1311,7 +1368,7 @@ controlled proof rows separated if captured
 [x] default contour constants/provenance are implemented or documented
 [x] CLI default expansion resolves to queued-owned rollout contour
 [x] explicit blocking-borrowed fallback remains selectable
-[ ] same-run borrowed benchmark oracle remains available
+[x] same-run borrowed benchmark oracle remains available
 [x] operator output distinguishes default expansion, fallback, rollout
     contour, opt-in diagnostic, and controlled proof
 [ ] invalid mixed provider options fail closed

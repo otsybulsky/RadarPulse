@@ -1174,6 +1174,9 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             Assert.Contains("Provider overlap consumer delay ms: 0.00", result.StandardOutput);
             Assert.Contains("Retention strategy: pooled-copy", result.StandardOutput);
             Assert.Contains("Provider queue retained byte capacity: 536_870_912", result.StandardOutput);
+            Assert.Contains(
+                "Batch lifetime: leased batches are converted to owned snapshots before provider queue enqueue",
+                result.StandardOutput);
             Assert.Contains("Provider mode source: rollout-default", result.StandardOutput);
             Assert.Contains("Provider overlap source: rollout-default", result.StandardOutput);
             Assert.Contains("Retention strategy source: rollout-default", result.StandardOutput);
@@ -1192,6 +1195,10 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             Assert.Contains("Provider overlap evidence contour: natural-default-candidate", result.StandardOutput);
             Assert.Contains("Provider overlap evidence scope: natural-readiness", result.StandardOutput);
             Assert.Contains("Execution mode: async", result.StandardOutput);
+            Assert.Contains("Provider queue telemetry: summary", result.StandardOutput);
+            Assert.Contains("Retained payload telemetry: summary", result.StandardOutput);
+            Assert.Contains("Provider overlap telemetry: summary", result.StandardOutput);
+            Assert.Contains("Provider overlap retained payload strategy: pooled-copy", result.StandardOutput);
             Assert.Equal(string.Empty, result.StandardError);
         }
         finally
@@ -1232,6 +1239,13 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
 
             Assert.Equal(0, result.ExitCode);
             Assert.Contains("Provider mode: blocking-borrowed", result.StandardOutput);
+            Assert.Contains("Provider queue capacity: 0", result.StandardOutput);
+            Assert.Contains("Provider overlap mode: none", result.StandardOutput);
+            Assert.Contains("Retention strategy: snapshot-copy", result.StandardOutput);
+            Assert.Contains("Provider queue retained byte capacity: none", result.StandardOutput);
+            Assert.Contains(
+                "Batch lifetime: leased batches are processed during the callback and are not retained",
+                result.StandardOutput);
             Assert.Contains("Provider mode source: explicit", result.StandardOutput);
             Assert.Contains("Provider overlap source: not-applicable", result.StandardOutput);
             Assert.Contains("Retention strategy source: not-applicable", result.StandardOutput);
@@ -1249,6 +1263,11 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             Assert.Contains("Provider fallback contour: yes", result.StandardOutput);
             Assert.Contains("Provider overlap evidence contour: not-applicable", result.StandardOutput);
             Assert.Contains("Provider overlap evidence scope: not-applicable", result.StandardOutput);
+            Assert.Contains("Execution mode: partitioned", result.StandardOutput);
+            Assert.DoesNotContain("Worker count:", result.StandardOutput);
+            Assert.DoesNotContain("Provider queue telemetry:", result.StandardOutput);
+            Assert.DoesNotContain("Retained payload telemetry:", result.StandardOutput);
+            Assert.DoesNotContain("Provider overlap telemetry:", result.StandardOutput);
             Assert.Equal(string.Empty, result.StandardError);
         }
         finally
