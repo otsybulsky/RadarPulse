@@ -3210,6 +3210,75 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
             }
         }
 
+        var providerModeSource = CurrentDefaultOrExplicit(providerModeWasProvided);
+        var providerOverlapModeSource = CurrentDefaultOrExplicit(providerOverlapModeWasProvided);
+        var retentionStrategySource = CurrentDefaultOrExplicit(retentionStrategyWasProvided);
+        var queueCapacitySource = CurrentDefaultOrExplicit(queueCapacityWasProvided);
+        var queueRetainedPayloadBytesSource = CurrentDefaultOrExplicit(queueRetainedPayloadBytesWasProvided);
+        var queueTelemetrySource = CurrentDefaultOrExplicit(queueTelemetryWasProvided);
+        var overlapTelemetrySource = CurrentDefaultOrExplicit(overlapTelemetryWasProvided);
+        var overlapConsumerDelaySource = CurrentDefaultOrExplicit(overlapConsumerDelayWasProvided);
+        var executionModeSource = CurrentDefaultOrExplicit(executionModeWasProvided);
+        var workerCountSource = CurrentDefaultOrExplicit(workerCountWasProvided);
+
+        if (!providerModeWasProvided)
+        {
+            providerMode = RadarProcessingArchiveProviderMode.QueuedOwned;
+            providerModeSource = ProcessingBenchmarkOptionValueSource.RolloutDefault;
+
+            if (!providerOverlapModeWasProvided)
+            {
+                providerOverlapMode = RadarProcessingQueuedProviderOverlapMode.ProducerConsumer;
+                providerOverlapModeSource = ProcessingBenchmarkOptionValueSource.RolloutDefault;
+            }
+
+            if (!retentionStrategyWasProvided)
+            {
+                retentionStrategy = RadarProcessingRetainedPayloadStrategy.PooledCopy;
+                retentionStrategySource = ProcessingBenchmarkOptionValueSource.RolloutDefault;
+            }
+
+            if (!queueCapacityWasProvided)
+            {
+                queueCapacity = DefaultRolloutProviderQueueCapacity;
+                queueCapacitySource = ProcessingBenchmarkOptionValueSource.RolloutDefault;
+            }
+
+            if (!queueRetainedPayloadBytesWasProvided)
+            {
+                queueRetainedPayloadBytes = DefaultRolloutRetainedPayloadBytes;
+                queueRetainedPayloadBytesSource = ProcessingBenchmarkOptionValueSource.RolloutDefault;
+            }
+
+            if (!queueTelemetryWasProvided)
+            {
+                queueTelemetrySource = ProcessingBenchmarkOptionValueSource.RolloutDefault;
+            }
+
+            if (!overlapTelemetryWasProvided)
+            {
+                overlapTelemetrySource = ProcessingBenchmarkOptionValueSource.RolloutDefault;
+            }
+
+            if (!overlapConsumerDelayWasProvided)
+            {
+                overlapConsumerDelaySource = ProcessingBenchmarkOptionValueSource.RolloutDefault;
+            }
+
+            if (!executionModeWasProvided)
+            {
+                executionMode = RadarProcessingExecutionMode.AsyncShardTransport;
+                executionModeSource = ProcessingBenchmarkOptionValueSource.RolloutDefault;
+            }
+
+            if (!workerCountWasProvided &&
+                executionMode == RadarProcessingExecutionMode.AsyncShardTransport)
+            {
+                workerCount = DefaultRolloutWorkerCount;
+                workerCountSource = ProcessingBenchmarkOptionValueSource.RolloutDefault;
+            }
+        }
+
         if (string.IsNullOrWhiteSpace(filePath) == string.IsNullOrWhiteSpace(cachePath))
         {
             throw new InvalidOperationException("Provide exactly one of --file or --cache.");
@@ -3396,16 +3465,16 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
             executionMode,
             asyncExecution,
             new ProcessingBenchmarkArchiveRebalanceOptionProvenance(
-                CurrentDefaultOrExplicit(providerModeWasProvided),
-                CurrentDefaultOrExplicit(providerOverlapModeWasProvided),
-                CurrentDefaultOrExplicit(retentionStrategyWasProvided),
-                CurrentDefaultOrExplicit(queueCapacityWasProvided),
-                CurrentDefaultOrExplicit(queueRetainedPayloadBytesWasProvided),
-                CurrentDefaultOrExplicit(queueTelemetryWasProvided),
-                CurrentDefaultOrExplicit(overlapTelemetryWasProvided),
-                CurrentDefaultOrExplicit(overlapConsumerDelayWasProvided),
-                CurrentDefaultOrExplicit(executionModeWasProvided),
-                CurrentDefaultOrExplicit(workerCountWasProvided)));
+                providerModeSource,
+                providerOverlapModeSource,
+                retentionStrategySource,
+                queueCapacitySource,
+                queueRetainedPayloadBytesSource,
+                queueTelemetrySource,
+                overlapTelemetrySource,
+                overlapConsumerDelaySource,
+                executionModeSource,
+                workerCountSource));
     }
 
     private static ProcessingBenchmarkOptionValueSource CurrentDefaultOrExplicit(bool wasProvided) =>

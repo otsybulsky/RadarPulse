@@ -770,6 +770,82 @@ Do not silently reinterpret invalid mixed options as fallback. Reject impossible
 or ambiguous option combinations.
 ```
 
+Implemented in slice 4:
+
+```text
+status:
+  complete
+
+default behavior change:
+  ProcessingBenchmarkArchiveRebalanceOptions.Parse() now expands omitted
+  provider flags to the milestone 012 queued-owned rollout contour for the
+  scoped processing benchmark rebalance-archive CLI surface
+
+omitted provider expansion:
+  ProviderMode = queued-owned
+  ProviderOverlapMode = producer-consumer
+  RetentionStrategy = pooled-copy
+  ExecutionMode = async
+  AsyncExecution.WorkerCount = 4
+  AsyncExecution.QueueCapacity = 8
+  ProviderQueueCapacity = 8
+  ProviderQueueRetainedPayloadBytes = 536870912
+  QueueTelemetryOutput = summary
+  OverlapTelemetryOutput = summary
+  OverlapConsumerDelay = 0
+
+provenance:
+  omitted rollout-expanded provider fields are marked RolloutDefault
+  explicitly supplied provider fields remain Explicit
+  explicit --provider blocking-borrowed remains Explicit and
+    IsExplicitBlockingBorrowedFallback true
+  explicit milestone 011 queued-owned contour remains natural-readiness but
+    IsRolloutDefaultExpandedContour false because the contour was not selected
+    by omitted provider defaults
+
+fallback behavior:
+  explicit --provider blocking-borrowed preserves borrowed provider,
+  provider-overlap none, snapshot-copy retention, no retained-byte budget,
+  provider queue capacity 1 in parsed options, and partitioned execution unless
+  execution is explicitly supplied
+
+validation changes:
+  queued-owned-only controls without --provider are now valid because omitted
+  provider means rollout-default queued-owned
+  the same queued-owned-only controls remain rejected when --provider
+  blocking-borrowed is explicit
+  builder-transfer remains rejected
+  controlled consumer delay remains rejected outside queued-owned
+  producer-consumer contours
+
+command output:
+  a rebalance-archive command with omitted provider flags now prints
+    Provider mode: queued-owned
+    Provider queue capacity: 8
+    Provider overlap mode: producer-consumer
+    Retention strategy: pooled-copy
+    Provider queue retained byte capacity: 536_870_912
+    Default-candidate contour: yes
+    Provider overlap evidence scope: natural-readiness
+    Execution mode: async
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests"
+```
+
+Recorded result:
+
+```text
+24 passed, 0 failed, 0 skipped for focused CLI rebalance benchmark coverage.
+45 passed, 0 failed, 0 skipped for focused CLI, readiness gate, and overlap
+runner coverage.
+```
+
 ### 5. Operator Output For Default Versus Explicit Selection
 
 Make the new default auditable in CLI output.
@@ -1156,8 +1232,8 @@ controlled proof rows separated if captured
 [x] baseline default surface audit is captured
 [x] rollout thresholds are recorded before final gate interpretation
 [x] default contour constants/provenance are implemented or documented
-[ ] CLI default expansion resolves to queued-owned rollout contour
-[ ] explicit blocking-borrowed fallback remains selectable
+[x] CLI default expansion resolves to queued-owned rollout contour
+[x] explicit blocking-borrowed fallback remains selectable
 [ ] same-run borrowed benchmark oracle remains available
 [ ] operator output distinguishes default expansion, fallback, rollout
     contour, opt-in diagnostic, and controlled proof

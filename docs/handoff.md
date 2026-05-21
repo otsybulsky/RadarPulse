@@ -79,7 +79,7 @@ evidence separation.
 
 Milestone 012 slice 3 default contour constants and option provenance are
 implemented in the current working tree. There were no provider default
-changes.
+changes in slice 3.
 
 New presentation contracts:
 
@@ -99,7 +99,7 @@ IsExplicitBlockingBorrowedFallback
 IsRolloutDefaultExpandedContour
 ```
 
-Current parsing behavior is preserved:
+Slice 3 preserved the then-current parsing behavior:
 
 ```text
 omitted --provider still resolves to blocking-borrowed
@@ -112,13 +112,50 @@ omitted --execution still resolves to partitioned barrier
 
 Provenance now marks omitted provider-related values as `CurrentDefault`,
 explicitly supplied values as `Explicit`, and keeps the `RolloutDefault` source
-available for slice 4. Explicit `--provider blocking-borrowed` is now visible
-as an explicit fallback through `IsExplicitBlockingBorrowedFallback`.
+available for later rollout expansion. Explicit `--provider blocking-borrowed`
+is now visible as an explicit fallback through
+`IsExplicitBlockingBorrowedFallback`.
 
-The next implementation step is slice 4 from the plan: CLI default expansion
-and validation rules. That slice is the first one expected to change omitted
-provider flags so the scoped command resolves to the queued-owned rollout
-contour.
+Milestone 012 slice 4 CLI default expansion and validation rules are
+implemented in the current working tree. This is the first milestone 012 slice
+that changes provider default behavior for the scoped
+`processing benchmark rebalance-archive` CLI parse surface.
+
+Omitted provider flags now expand to:
+
+```text
+provider mode: queued-owned
+provider overlap: producer-consumer
+retention strategy: pooled-copy
+execution: async
+worker count: 4
+provider queue capacity: 8
+retained-byte budget: 536870912
+queue telemetry: summary
+overlap telemetry: summary
+overlap consumer delay: 0
+```
+
+Omitted rollout-expanded fields are marked `RolloutDefault` in
+`EffectiveOptionProvenance`, and `IsRolloutDefaultExpandedContour` is true for
+the omitted-provider rollout contour. Explicit `--provider blocking-borrowed`
+continues to select the fallback path and sets
+`IsExplicitBlockingBorrowedFallback` true.
+
+Validation remains fail-closed:
+
+```text
+queued-owned-only controls without --provider are now valid because omitted
+  provider means rollout-default queued-owned
+the same controls remain rejected with explicit --provider blocking-borrowed
+builder-transfer remains rejected
+controlled consumer delay remains rejected outside queued-owned
+  producer-consumer contours
+```
+
+The next implementation step is slice 5 from the plan: operator output for
+default versus explicit selection. The runtime now has provenance internally,
+but CLI output still needs to print source/rollout/fallback fields explicitly.
 
 Latest verification after milestone 012 slice 1:
 
@@ -160,6 +197,21 @@ Recorded result:
 ```text
 23 passed, 0 failed, 0 skipped.
 44 passed, 0 failed, 0 skipped.
+```
+
+Latest verification after milestone 012 slice 4:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests"
+```
+
+Recorded result:
+
+```text
+24 passed, 0 failed, 0 skipped.
+45 passed, 0 failed, 0 skipped.
 ```
 
 Milestone 011 remains complete. The closed documents are:

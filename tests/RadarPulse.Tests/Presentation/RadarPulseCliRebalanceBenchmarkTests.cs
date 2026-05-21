@@ -296,6 +296,8 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             "1",
             "--parallelism",
             "2",
+            "--provider",
+            "blocking-borrowed",
             "--execution",
             "async",
             "--workers",
@@ -330,7 +332,7 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
         Assert.False(options.IsControlledProviderOverlapProof);
         Assert.Equal("not-applicable", options.ProviderOverlapEvidenceContour);
         Assert.Equal("not-applicable", options.ProviderOverlapEvidenceScope);
-        Assert.Equal(ProcessingBenchmarkOptionValueSource.CurrentDefault, options.EffectiveOptionProvenance.ProviderMode);
+        Assert.Equal(ProcessingBenchmarkOptionValueSource.Explicit, options.EffectiveOptionProvenance.ProviderMode);
         Assert.Equal(ProcessingBenchmarkOptionValueSource.CurrentDefault, options.EffectiveOptionProvenance.ProviderOverlapMode);
         Assert.Equal(ProcessingBenchmarkOptionValueSource.CurrentDefault, options.EffectiveOptionProvenance.RetentionStrategy);
         Assert.Equal(ProcessingBenchmarkOptionValueSource.Explicit, options.EffectiveOptionProvenance.QueueCapacity);
@@ -340,7 +342,7 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
         Assert.Equal(ProcessingBenchmarkOptionValueSource.CurrentDefault, options.EffectiveOptionProvenance.OverlapConsumerDelay);
         Assert.Equal(ProcessingBenchmarkOptionValueSource.Explicit, options.EffectiveOptionProvenance.ExecutionMode);
         Assert.Equal(ProcessingBenchmarkOptionValueSource.Explicit, options.EffectiveOptionProvenance.WorkerCount);
-        Assert.False(options.IsExplicitBlockingBorrowedFallback);
+        Assert.True(options.IsExplicitBlockingBorrowedFallback);
         Assert.False(options.IsRolloutDefaultExpandedContour);
         Assert.Equal(RadarProcessingValidationProfile.Essential, options.ValidationProfile);
         var quarantineLifecycle = options.QuarantineLifecycleOverrides.ApplyTo(
@@ -467,7 +469,7 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
     }
 
     [Fact]
-    public void ArchiveRebalanceBenchmarkOptionsTrackCurrentDefaultProvenance()
+    public void ArchiveRebalanceBenchmarkOptionsExpandOmittedProviderToRolloutDefaults()
     {
         var options = global::ProcessingBenchmarkArchiveRebalanceOptions.Parse(
         [
@@ -477,24 +479,31 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             "rebalance"
         ]);
 
-        Assert.Equal(RadarProcessingArchiveProviderMode.BlockingBorrowed, options.ProviderMode);
-        Assert.Equal(RadarProcessingQueuedProviderOverlapMode.None, options.ProviderOverlapMode);
-        Assert.Equal(RadarProcessingRetainedPayloadStrategy.SnapshotCopy, options.RetentionStrategy);
-        Assert.Equal(1, options.ProviderQueueCapacity);
-        Assert.Null(options.ProviderQueueRetainedPayloadBytes);
-        Assert.Equal(RadarProcessingExecutionMode.PartitionedBarrier, options.ExecutionMode);
-        Assert.Equal(ProcessingBenchmarkOptionValueSource.CurrentDefault, options.EffectiveOptionProvenance.ProviderMode);
-        Assert.Equal(ProcessingBenchmarkOptionValueSource.CurrentDefault, options.EffectiveOptionProvenance.ProviderOverlapMode);
-        Assert.Equal(ProcessingBenchmarkOptionValueSource.CurrentDefault, options.EffectiveOptionProvenance.RetentionStrategy);
-        Assert.Equal(ProcessingBenchmarkOptionValueSource.CurrentDefault, options.EffectiveOptionProvenance.QueueCapacity);
-        Assert.Equal(ProcessingBenchmarkOptionValueSource.CurrentDefault, options.EffectiveOptionProvenance.QueueRetainedPayloadBytes);
-        Assert.Equal(ProcessingBenchmarkOptionValueSource.CurrentDefault, options.EffectiveOptionProvenance.QueueTelemetry);
-        Assert.Equal(ProcessingBenchmarkOptionValueSource.CurrentDefault, options.EffectiveOptionProvenance.OverlapTelemetry);
-        Assert.Equal(ProcessingBenchmarkOptionValueSource.CurrentDefault, options.EffectiveOptionProvenance.OverlapConsumerDelay);
-        Assert.Equal(ProcessingBenchmarkOptionValueSource.CurrentDefault, options.EffectiveOptionProvenance.ExecutionMode);
-        Assert.Equal(ProcessingBenchmarkOptionValueSource.CurrentDefault, options.EffectiveOptionProvenance.WorkerCount);
+        Assert.Equal(RadarProcessingArchiveProviderMode.QueuedOwned, options.ProviderMode);
+        Assert.Equal(RadarProcessingQueuedProviderOverlapMode.ProducerConsumer, options.ProviderOverlapMode);
+        Assert.Equal(RadarProcessingRetainedPayloadStrategy.PooledCopy, options.RetentionStrategy);
+        Assert.Equal(8, options.ProviderQueueCapacity);
+        Assert.Equal(536_870_912, options.ProviderQueueRetainedPayloadBytes);
+        Assert.Equal(TimeSpan.Zero, options.OverlapConsumerDelay);
+        Assert.Equal(RadarProcessingExecutionMode.AsyncShardTransport, options.ExecutionMode);
+        Assert.NotNull(options.AsyncExecution);
+        Assert.Equal(4, options.AsyncExecution.WorkerCount);
+        Assert.Equal(8, options.AsyncExecution.QueueCapacity);
+        Assert.True(options.IsDefaultCandidateContour);
+        Assert.Equal("natural-default-candidate", options.ProviderOverlapEvidenceContour);
+        Assert.Equal("natural-readiness", options.ProviderOverlapEvidenceScope);
+        Assert.Equal(ProcessingBenchmarkOptionValueSource.RolloutDefault, options.EffectiveOptionProvenance.ProviderMode);
+        Assert.Equal(ProcessingBenchmarkOptionValueSource.RolloutDefault, options.EffectiveOptionProvenance.ProviderOverlapMode);
+        Assert.Equal(ProcessingBenchmarkOptionValueSource.RolloutDefault, options.EffectiveOptionProvenance.RetentionStrategy);
+        Assert.Equal(ProcessingBenchmarkOptionValueSource.RolloutDefault, options.EffectiveOptionProvenance.QueueCapacity);
+        Assert.Equal(ProcessingBenchmarkOptionValueSource.RolloutDefault, options.EffectiveOptionProvenance.QueueRetainedPayloadBytes);
+        Assert.Equal(ProcessingBenchmarkOptionValueSource.RolloutDefault, options.EffectiveOptionProvenance.QueueTelemetry);
+        Assert.Equal(ProcessingBenchmarkOptionValueSource.RolloutDefault, options.EffectiveOptionProvenance.OverlapTelemetry);
+        Assert.Equal(ProcessingBenchmarkOptionValueSource.RolloutDefault, options.EffectiveOptionProvenance.OverlapConsumerDelay);
+        Assert.Equal(ProcessingBenchmarkOptionValueSource.RolloutDefault, options.EffectiveOptionProvenance.ExecutionMode);
+        Assert.Equal(ProcessingBenchmarkOptionValueSource.RolloutDefault, options.EffectiveOptionProvenance.WorkerCount);
         Assert.False(options.IsExplicitBlockingBorrowedFallback);
-        Assert.False(options.IsRolloutDefaultExpandedContour);
+        Assert.True(options.IsRolloutDefaultExpandedContour);
     }
 
     [Fact]
@@ -511,6 +520,11 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
         ]);
 
         Assert.Equal(RadarProcessingArchiveProviderMode.BlockingBorrowed, options.ProviderMode);
+        Assert.Equal(RadarProcessingQueuedProviderOverlapMode.None, options.ProviderOverlapMode);
+        Assert.Equal(RadarProcessingRetainedPayloadStrategy.SnapshotCopy, options.RetentionStrategy);
+        Assert.Equal(1, options.ProviderQueueCapacity);
+        Assert.Null(options.ProviderQueueRetainedPayloadBytes);
+        Assert.Equal(RadarProcessingExecutionMode.PartitionedBarrier, options.ExecutionMode);
         Assert.Equal(ProcessingBenchmarkOptionValueSource.Explicit, options.EffectiveOptionProvenance.ProviderMode);
         Assert.Equal(ProcessingBenchmarkOptionValueSource.CurrentDefault, options.EffectiveOptionProvenance.ProviderOverlapMode);
         Assert.Equal(ProcessingBenchmarkOptionValueSource.CurrentDefault, options.EffectiveOptionProvenance.RetentionStrategy);
@@ -725,6 +739,8 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             [
                 "--cache",
                 "data/nexrad",
+                "--provider",
+                "blocking-borrowed",
                 "--queue-capacity",
                 "2"
             ]));
@@ -743,6 +759,8 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             [
                 "--cache",
                 "data/nexrad",
+                "--provider",
+                "blocking-borrowed",
                 "--queue-timeout-ms",
                 "10"
             ]));
@@ -751,6 +769,8 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             [
                 "--cache",
                 "data/nexrad",
+                "--provider",
+                "blocking-borrowed",
                 "--provider-overlap",
                 "producer-consumer"
             ]));
@@ -759,6 +779,8 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             [
                 "--cache",
                 "data/nexrad",
+                "--provider",
+                "blocking-borrowed",
                 "--retention-strategy",
                 "snapshot-copy"
             ]));
@@ -767,6 +789,8 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             [
                 "--cache",
                 "data/nexrad",
+                "--provider",
+                "blocking-borrowed",
                 "--queue-retained-bytes",
                 "4096"
             ]));
@@ -827,6 +851,8 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             [
                 "--cache",
                 "data/nexrad",
+                "--provider",
+                "blocking-borrowed",
                 "--overlap-consumer-delay-ms",
                 "10"
             ]));
@@ -1062,6 +1088,53 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             Assert.Contains("Provider overlap evidence scope: natural-readiness", result.StandardOutput);
             Assert.Contains("Provider queue combined retained payload bytes high watermark: 0", result.StandardOutput);
             Assert.Contains("Provider overlap combined retained payload bytes high watermark: 0", result.StandardOutput);
+            Assert.Contains("Execution mode: async", result.StandardOutput);
+            Assert.Equal(string.Empty, result.StandardError);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ArchiveRebalanceBenchmarkCommandUsesRolloutDefaultsWhenProviderOmitted()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "RadarPulse.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        File.WriteAllBytes(Path.Combine(directory, "notes.txt"), [1, 2, 3]);
+
+        try
+        {
+            var result = RunCli(
+                "processing",
+                "benchmark",
+                "rebalance-archive",
+                "--cache",
+                directory,
+                "--max-files",
+                "1",
+                "--mode",
+                "static",
+                "--partitions",
+                "4",
+                "--shards",
+                "2",
+                "--iterations",
+                "1",
+                "--warmup-iterations",
+                "0");
+
+            Assert.Equal(0, result.ExitCode);
+            Assert.Contains("Provider mode: queued-owned", result.StandardOutput);
+            Assert.Contains("Provider queue capacity: 8", result.StandardOutput);
+            Assert.Contains("Provider overlap mode: producer-consumer", result.StandardOutput);
+            Assert.Contains("Provider overlap consumer delay ms: 0.00", result.StandardOutput);
+            Assert.Contains("Retention strategy: pooled-copy", result.StandardOutput);
+            Assert.Contains("Provider queue retained byte capacity: 536_870_912", result.StandardOutput);
+            Assert.Contains("Default-candidate contour: yes", result.StandardOutput);
+            Assert.Contains("Provider overlap evidence contour: natural-default-candidate", result.StandardOutput);
+            Assert.Contains("Provider overlap evidence scope: natural-readiness", result.StandardOutput);
             Assert.Contains("Execution mode: async", result.StandardOutput);
             Assert.Equal(string.Empty, result.StandardError);
         }
