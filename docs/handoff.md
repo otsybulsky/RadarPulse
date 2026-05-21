@@ -94,6 +94,35 @@ Milestone 014 planned slices:
 10. closeout and handoff
 ```
 
+Milestone 014 implementation plan status:
+
+```text
+status: in progress
+slice 1: direct API baseline audit complete
+slice 2: shared rollout contour contract next
+runtime behavior changes so far: none
+latest focused verification:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests
+  22 passed, 0 failed, 0 skipped
+```
+
+Milestone 014 slice 1 baseline capture:
+
+```text
+MeasureFile() still defaults to BlockingBorrowed, PartitionedBarrier, queue
+  capacity parameter 1, provider overlap None, retention SnapshotCopy,
+  retained-byte budget null, and overlap consumer delay 0
+MeasureCache() still defaults to the same borrowed partitioned-barrier contour
+direct file/cache tests already cover borrowed omitted defaults and explicit
+  queued-owned rollout contours
+result fields are sufficient to prove direct contours without adding direct
+  API provenance fields
+Program usage and RadarPulseCliRebalanceBenchmarkTests still say direct
+  MeasureFile()/MeasureCache() defaults remain blocking-borrowed; slice 6
+  updates this after migration
+```
+
 Milestone 014 gate posture:
 
 ```text

@@ -356,10 +356,46 @@ Verification:
 dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests
 ```
 
-Documentation update:
+Implemented in slice 1:
 
 ```text
-append slice 1 findings to this plan when implementation starts
+status: complete
+runtime behavior changes: none
+audited direct defaults:
+  MeasureFile() still defaults to BlockingBorrowed, PartitionedBarrier,
+  queue capacity parameter 1, overlap None, retention SnapshotCopy,
+  retained-byte budget null, and overlap consumer delay 0
+  MeasureCache() still defaults to the same borrowed partitioned-barrier
+  contour
+audited direct tests:
+  RebalanceArchiveBenchmarkFilePreservesBorrowedDefaultAndExplicitRolloutContour
+  covers borrowed omitted direct file defaults and explicit queued-owned
+  rollout file contour
+  RebalanceArchiveBenchmarkCachePreservesBorrowedDefaultAndExplicitRolloutContour
+  covers borrowed omitted direct cache defaults and explicit queued-owned
+  rollout cache contour
+  queued-owned provider, overlap/retention, async worker telemetry, cache
+  aggregation, invalid option, and cleanup-related direct coverage already
+  exists in NexradArchiveRadarEventBatchPublisherTests
+audited result fields:
+  ProviderMode, ExecutionMode, QueueCapacity, ProviderOverlapMode,
+  RetentionStrategy, QueueRetainedPayloadBytes, OverlapConsumerDelay,
+  WorkerTelemetry, QueueTelemetry, RetentionTelemetry, OverlapTelemetry,
+  RetainedResourcePressure, current retained pressure counters,
+  OwnedSnapshotAllocatedBytes, ProcessingCallbackNonOwnedSnapshotAllocatedBytes,
+  and AllocationSummary are sufficient to prove borrowed and queued-owned
+  direct contours
+audited operator text:
+  Program usage and RadarPulseCliRebalanceBenchmarkTests still state that
+  direct MeasureFile()/MeasureCache() defaults remain blocking-borrowed
+implementation implication:
+  slice 2 should centralize or otherwise pin the accepted rollout contour
+  before changing direct defaults, because tests already have enough result
+  fields to verify the migration without adding direct API provenance fields
+verification:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests
+  passed, 22 passed, 0 failed, 0 skipped
 ```
 
 ### 2. Shared Rollout Contour Contract
@@ -889,7 +925,7 @@ controlled proof rows separated if captured
 ## Completion Checklist
 
 ```text
-[ ] direct API baseline audit is captured
+[x] direct API baseline audit is captured
 [ ] shared rollout contour contract is pinned against drift
 [ ] direct MeasureFile() omitted defaults migrate to queued-owned rollout
 [ ] direct MeasureCache() omitted defaults migrate to queued-owned rollout
