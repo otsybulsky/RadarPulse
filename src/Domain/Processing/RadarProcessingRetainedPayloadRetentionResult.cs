@@ -13,6 +13,10 @@ public sealed record RadarProcessingRetainedPayloadRetentionResult
         long allocatedBytes,
         long poolRentCount,
         long poolMissCount,
+        long eventPoolRentCount,
+        long payloadPoolRentCount,
+        long eventPoolMissCount,
+        long payloadPoolMissCount,
         string message)
     {
         EnsureKnownStatus(status);
@@ -25,6 +29,10 @@ public sealed record RadarProcessingRetainedPayloadRetentionResult
         ArgumentOutOfRangeException.ThrowIfNegative(allocatedBytes);
         ArgumentOutOfRangeException.ThrowIfNegative(poolRentCount);
         ArgumentOutOfRangeException.ThrowIfNegative(poolMissCount);
+        ArgumentOutOfRangeException.ThrowIfNegative(eventPoolRentCount);
+        ArgumentOutOfRangeException.ThrowIfNegative(payloadPoolRentCount);
+        ArgumentOutOfRangeException.ThrowIfNegative(eventPoolMissCount);
+        ArgumentOutOfRangeException.ThrowIfNegative(payloadPoolMissCount);
         ArgumentNullException.ThrowIfNull(message);
 
         if (status == RadarProcessingRetainedPayloadRetentionStatus.Succeeded)
@@ -50,6 +58,10 @@ public sealed record RadarProcessingRetainedPayloadRetentionResult
         AllocatedBytes = allocatedBytes;
         PoolRentCount = poolRentCount;
         PoolMissCount = poolMissCount;
+        EventPoolRentCount = eventPoolRentCount;
+        PayloadPoolRentCount = payloadPoolRentCount;
+        EventPoolMissCount = eventPoolMissCount;
+        PayloadPoolMissCount = payloadPoolMissCount;
         Message = message;
 
         if (batch is not null)
@@ -80,6 +92,14 @@ public sealed record RadarProcessingRetainedPayloadRetentionResult
 
     public long PoolMissCount { get; }
 
+    public long EventPoolRentCount { get; }
+
+    public long PayloadPoolRentCount { get; }
+
+    public long EventPoolMissCount { get; }
+
+    public long PayloadPoolMissCount { get; }
+
     public string Message { get; }
 
     public bool IsSuccessful => Status == RadarProcessingRetainedPayloadRetentionStatus.Succeeded;
@@ -99,7 +119,11 @@ public sealed record RadarProcessingRetainedPayloadRetentionResult
         TimeSpan elapsed = default,
         long allocatedBytes = 0,
         long poolRentCount = 0,
-        long poolMissCount = 0) =>
+        long poolMissCount = 0,
+        long eventPoolRentCount = 0,
+        long payloadPoolRentCount = 0,
+        long eventPoolMissCount = 0,
+        long payloadPoolMissCount = 0) =>
         new(
             RadarProcessingRetainedPayloadRetentionStatus.Succeeded,
             strategy,
@@ -109,6 +133,10 @@ public sealed record RadarProcessingRetainedPayloadRetentionResult
             allocatedBytes,
             poolRentCount,
             poolMissCount,
+            eventPoolRentCount,
+            payloadPoolRentCount,
+            eventPoolMissCount,
+            payloadPoolMissCount,
             string.Empty);
 
     public static RadarProcessingRetainedPayloadRetentionResult Succeeded(
@@ -176,5 +204,9 @@ public sealed record RadarProcessingRetainedPayloadRetentionResult
             allocatedBytes: 0,
             poolRentCount: 0,
             poolMissCount: 0,
+            eventPoolRentCount: 0,
+            payloadPoolRentCount: 0,
+            eventPoolMissCount: 0,
+            payloadPoolMissCount: 0,
             message);
 }

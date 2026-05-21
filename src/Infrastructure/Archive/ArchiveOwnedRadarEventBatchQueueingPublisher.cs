@@ -29,6 +29,12 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisher : IArchiveRadar
     private long retainedPoolRentCount;
     private long retainedPoolReturnCount;
     private long retainedPoolMissCount;
+    private long retainedEventPoolRentCount;
+    private long retainedEventPoolReturnCount;
+    private long retainedEventPoolMissCount;
+    private long retainedPayloadPoolRentCount;
+    private long retainedPayloadPoolReturnCount;
+    private long retainedPayloadPoolMissCount;
     private TimeSpan totalRetentionTime;
     private long releaseAttemptCount;
     private long releasedBatchCount;
@@ -274,6 +280,10 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisher : IArchiveRadar
                     retainedAllocatedBytes = checked(retainedAllocatedBytes + result.AllocatedBytes);
                     retainedPoolRentCount = checked(retainedPoolRentCount + result.PoolRentCount);
                     retainedPoolMissCount = checked(retainedPoolMissCount + result.PoolMissCount);
+                    retainedEventPoolRentCount = checked(retainedEventPoolRentCount + result.EventPoolRentCount);
+                    retainedEventPoolMissCount = checked(retainedEventPoolMissCount + result.EventPoolMissCount);
+                    retainedPayloadPoolRentCount = checked(retainedPayloadPoolRentCount + result.PayloadPoolRentCount);
+                    retainedPayloadPoolMissCount = checked(retainedPayloadPoolMissCount + result.PayloadPoolMissCount);
                     totalRetentionTime += result.Elapsed;
                     break;
 
@@ -307,6 +317,8 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisher : IArchiveRadar
             releaseAttemptCount++;
             totalReleaseTime += result.Elapsed;
             retainedPoolReturnCount = checked(retainedPoolReturnCount + result.PoolReturnCount);
+            retainedEventPoolReturnCount = checked(retainedEventPoolReturnCount + result.EventPoolReturnCount);
+            retainedPayloadPoolReturnCount = checked(retainedPayloadPoolReturnCount + result.PayloadPoolReturnCount);
             switch (result.Status)
             {
                 case RadarProcessingRetainedPayloadReleaseStatus.Released:
@@ -395,7 +407,13 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisher : IArchiveRadar
                 alreadyReleasedBatchCount: alreadyReleasedBatchCount,
                 releaseFailedCount: releaseFailedCount,
                 releaseNotRequiredCount: releaseNotRequiredCount,
-                totalReleaseTime: totalReleaseTime);
+                totalReleaseTime: totalReleaseTime,
+                eventPoolRentCount: retainedEventPoolRentCount,
+                eventPoolReturnCount: retainedEventPoolReturnCount,
+                eventPoolMissCount: retainedEventPoolMissCount,
+                payloadPoolRentCount: retainedPayloadPoolRentCount,
+                payloadPoolReturnCount: retainedPayloadPoolReturnCount,
+                payloadPoolMissCount: retainedPayloadPoolMissCount);
         }
     }
 

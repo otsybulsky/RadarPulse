@@ -10,7 +10,7 @@ public sealed class RadarProcessingRetainedPayloadFactory
     private readonly ArrayPool<byte> payloadPool;
 
     public RadarProcessingRetainedPayloadFactory()
-        : this(ArrayPool<RadarStreamEvent>.Shared, new RadarProcessingRetainedPayloadByteArrayPool())
+        : this(new RadarProcessingRetainedEventArrayPool(), new RadarProcessingRetainedPayloadByteArrayPool())
     {
     }
 
@@ -99,6 +99,10 @@ public sealed class RadarProcessingRetainedPayloadFactory
         byte[]? payloadArray = null;
         long poolRentCount = 0;
         long poolMissCount = 0;
+        long eventPoolRentCount = 0;
+        long payloadPoolRentCount = 0;
+        long eventPoolMissCount = 0;
+        long payloadPoolMissCount = 0;
         try
         {
             var before = RadarProcessingBenchmarkAllocationSnapshot.CaptureCurrentThread();
@@ -107,8 +111,24 @@ public sealed class RadarProcessingRetainedPayloadFactory
             ReadOnlyMemory<RadarStreamEvent> events = ReadOnlyMemory<RadarStreamEvent>.Empty;
             if (batch.EventCount > 0)
             {
-                eventArray = eventPool.Rent(batch.EventCount);
+                if (eventPool is RadarProcessingRetainedEventArrayPool telemetryEventPool)
+                {
+                    eventArray = telemetryEventPool.RentWithMissTelemetry(
+                        batch.EventCount,
+                        out var eventPoolMissed);
+                    if (eventPoolMissed)
+                    {
+                        poolMissCount++;
+                        eventPoolMissCount++;
+                    }
+                }
+                else
+                {
+                    eventArray = eventPool.Rent(batch.EventCount);
+                }
+
                 poolRentCount++;
+                eventPoolRentCount++;
                 batch.Events.Span.CopyTo(eventArray.AsSpan(0, batch.EventCount));
                 events = eventArray.AsMemory(0, batch.EventCount);
             }
@@ -124,6 +144,7 @@ public sealed class RadarProcessingRetainedPayloadFactory
                     if (payloadPoolMissed)
                     {
                         poolMissCount++;
+                        payloadPoolMissCount++;
                     }
                 }
                 else
@@ -132,6 +153,7 @@ public sealed class RadarProcessingRetainedPayloadFactory
                 }
 
                 poolRentCount++;
+                payloadPoolRentCount++;
                 batch.Payload.Span.CopyTo(payloadArray.AsSpan(0, batch.PayloadLength));
                 payload = payloadArray.AsMemory(0, batch.PayloadLength);
             }
@@ -184,7 +206,11 @@ public sealed class RadarProcessingRetainedPayloadFactory
                 elapsed,
                 allocatedBytes,
                 poolRentCount,
-                poolMissCount);
+                poolMissCount,
+                eventPoolRentCount,
+                payloadPoolRentCount,
+                eventPoolMissCount,
+                payloadPoolMissCount);
         }
         catch (Exception exception)
         {
@@ -231,22 +257,28 @@ public sealed class RadarProcessingRetainedPayloadFactory
         public RadarProcessingRetainedPayloadReleaseResult Release()
         {
             long poolReturnCount = 0;
+            long eventPoolReturnCount = 0;
+            long payloadPoolReturnCount = 0;
             if (eventArray is not null)
             {
                 eventPool.Return(eventArray);
                 poolReturnCount++;
+                eventPoolReturnCount++;
             }
 
             if (payloadArray is not null)
             {
                 payloadPool.Return(payloadArray);
                 poolReturnCount++;
+                payloadPoolReturnCount++;
             }
 
             return RadarProcessingRetainedPayloadReleaseResult.Released(
                 RadarProcessingRetainedPayloadStrategy.PooledCopy,
                 payloadBytes: payloadBytes,
-                poolReturnCount: poolReturnCount);
+                poolReturnCount: poolReturnCount,
+                eventPoolReturnCount: eventPoolReturnCount,
+                payloadPoolReturnCount: payloadPoolReturnCount);
         }
     }
 }

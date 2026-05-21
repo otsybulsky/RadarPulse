@@ -8,6 +8,8 @@ public sealed record RadarProcessingRetainedPayloadReleaseResult
         TimeSpan elapsed,
         long payloadBytes,
         long poolReturnCount,
+        long eventPoolReturnCount,
+        long payloadPoolReturnCount,
         string message)
     {
         EnsureKnownStatus(status);
@@ -19,6 +21,8 @@ public sealed record RadarProcessingRetainedPayloadReleaseResult
 
         ArgumentOutOfRangeException.ThrowIfNegative(payloadBytes);
         ArgumentOutOfRangeException.ThrowIfNegative(poolReturnCount);
+        ArgumentOutOfRangeException.ThrowIfNegative(eventPoolReturnCount);
+        ArgumentOutOfRangeException.ThrowIfNegative(payloadPoolReturnCount);
         ArgumentNullException.ThrowIfNull(message);
 
         Status = status;
@@ -26,6 +30,8 @@ public sealed record RadarProcessingRetainedPayloadReleaseResult
         Elapsed = elapsed;
         PayloadBytes = payloadBytes;
         PoolReturnCount = poolReturnCount;
+        EventPoolReturnCount = eventPoolReturnCount;
+        PayloadPoolReturnCount = payloadPoolReturnCount;
         Message = message;
     }
 
@@ -39,6 +45,10 @@ public sealed record RadarProcessingRetainedPayloadReleaseResult
 
     public long PoolReturnCount { get; }
 
+    public long EventPoolReturnCount { get; }
+
+    public long PayloadPoolReturnCount { get; }
+
     public string Message { get; }
 
     public bool IsReleased => Status == RadarProcessingRetainedPayloadReleaseStatus.Released;
@@ -49,13 +59,17 @@ public sealed record RadarProcessingRetainedPayloadReleaseResult
         RadarProcessingRetainedPayloadStrategy strategy,
         TimeSpan elapsed = default,
         long payloadBytes = 0,
-        long poolReturnCount = 0) =>
+        long poolReturnCount = 0,
+        long eventPoolReturnCount = 0,
+        long payloadPoolReturnCount = 0) =>
         new(
             RadarProcessingRetainedPayloadReleaseStatus.Released,
             strategy,
             elapsed,
             payloadBytes,
             poolReturnCount,
+            eventPoolReturnCount,
+            payloadPoolReturnCount,
             string.Empty);
 
     public static RadarProcessingRetainedPayloadReleaseResult AlreadyReleased(
@@ -67,6 +81,8 @@ public sealed record RadarProcessingRetainedPayloadReleaseResult
             TimeSpan.Zero,
             payloadBytes: 0,
             poolReturnCount: 0,
+            eventPoolReturnCount: 0,
+            payloadPoolReturnCount: 0,
             message);
 
     public static RadarProcessingRetainedPayloadReleaseResult Failed(
@@ -78,6 +94,8 @@ public sealed record RadarProcessingRetainedPayloadReleaseResult
             TimeSpan.Zero,
             payloadBytes: 0,
             poolReturnCount: 0,
+            eventPoolReturnCount: 0,
+            payloadPoolReturnCount: 0,
             message);
 
     public static RadarProcessingRetainedPayloadReleaseResult NotRequired(
@@ -89,6 +107,8 @@ public sealed record RadarProcessingRetainedPayloadReleaseResult
             TimeSpan.Zero,
             payloadBytes: 0,
             poolReturnCount: 0,
+            eventPoolReturnCount: 0,
+            payloadPoolReturnCount: 0,
             message);
 
     internal static void EnsureKnownStatus(

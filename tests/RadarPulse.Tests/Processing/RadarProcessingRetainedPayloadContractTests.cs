@@ -81,6 +81,10 @@ public sealed class RadarProcessingRetainedPayloadContractTests
         Assert.Equal(128, succeeded.AllocatedBytes);
         Assert.Equal(0, succeeded.PoolRentCount);
         Assert.Equal(0, succeeded.PoolMissCount);
+        Assert.Equal(0, succeeded.EventPoolRentCount);
+        Assert.Equal(0, succeeded.PayloadPoolRentCount);
+        Assert.Equal(0, succeeded.EventPoolMissCount);
+        Assert.Equal(0, succeeded.PayloadPoolMissCount);
         Assert.Equal(1, succeeded.EventCount);
         Assert.Equal(2, succeeded.PayloadBytes);
         Assert.Equal(2, succeeded.PayloadValueCount);
@@ -90,9 +94,16 @@ public sealed class RadarProcessingRetainedPayloadContractTests
             RadarProcessingRetainedPayloadStrategy.PooledCopy,
             ownedBatch,
             poolRentCount: 2,
-            poolMissCount: 1);
+            poolMissCount: 1,
+            eventPoolRentCount: 1,
+            payloadPoolRentCount: 1,
+            eventPoolMissCount: 1);
         Assert.Equal(2, pooledSucceeded.PoolRentCount);
         Assert.Equal(1, pooledSucceeded.PoolMissCount);
+        Assert.Equal(1, pooledSucceeded.EventPoolRentCount);
+        Assert.Equal(1, pooledSucceeded.PayloadPoolRentCount);
+        Assert.Equal(1, pooledSucceeded.EventPoolMissCount);
+        Assert.Equal(0, pooledSucceeded.PayloadPoolMissCount);
 
         Assert.False(unsupported.IsSuccessful);
         Assert.Equal(RadarProcessingRetainedPayloadRetentionStatus.UnsupportedStrategy, unsupported.Status);
@@ -132,6 +143,16 @@ public sealed class RadarProcessingRetainedPayloadContractTests
                 RadarProcessingRetainedPayloadStrategy.SnapshotCopy,
                 ownedBatch,
                 poolMissCount: -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            RadarProcessingRetainedPayloadRetentionResult.Succeeded(
+                RadarProcessingRetainedPayloadStrategy.SnapshotCopy,
+                ownedBatch,
+                eventPoolRentCount: -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            RadarProcessingRetainedPayloadRetentionResult.Succeeded(
+                RadarProcessingRetainedPayloadStrategy.SnapshotCopy,
+                ownedBatch,
+                payloadPoolMissCount: -1));
         Assert.Throws<ArgumentNullException>(() =>
             RadarProcessingRetainedPayloadRetentionResult.FailedCopy(
                 RadarProcessingRetainedPayloadStrategy.SnapshotCopy,
@@ -155,7 +176,9 @@ public sealed class RadarProcessingRetainedPayloadContractTests
             RadarProcessingRetainedPayloadStrategy.PooledCopy,
             TimeSpan.FromMilliseconds(2),
             payloadBytes: 64,
-            poolReturnCount: 2);
+            poolReturnCount: 2,
+            eventPoolReturnCount: 1,
+            payloadPoolReturnCount: 1);
         var alreadyReleased = RadarProcessingRetainedPayloadReleaseResult.AlreadyReleased(
             RadarProcessingRetainedPayloadStrategy.PooledCopy,
             "already returned");
@@ -172,6 +195,8 @@ public sealed class RadarProcessingRetainedPayloadContractTests
         Assert.Equal(TimeSpan.FromMilliseconds(2), released.Elapsed);
         Assert.Equal(64, released.PayloadBytes);
         Assert.Equal(2, released.PoolReturnCount);
+        Assert.Equal(1, released.EventPoolReturnCount);
+        Assert.Equal(1, released.PayloadPoolReturnCount);
 
         Assert.False(alreadyReleased.IsReleased);
         Assert.Equal(RadarProcessingRetainedPayloadReleaseStatus.AlreadyReleased, alreadyReleased.Status);
@@ -196,6 +221,10 @@ public sealed class RadarProcessingRetainedPayloadContractTests
             RadarProcessingRetainedPayloadReleaseResult.Released(
                 RadarProcessingRetainedPayloadStrategy.PooledCopy,
                 poolReturnCount: -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            RadarProcessingRetainedPayloadReleaseResult.Released(
+                RadarProcessingRetainedPayloadStrategy.PooledCopy,
+                eventPoolReturnCount: -1));
         Assert.Throws<ArgumentNullException>(() =>
             RadarProcessingRetainedPayloadReleaseResult.Failed(
                 RadarProcessingRetainedPayloadStrategy.PooledCopy,
@@ -224,7 +253,13 @@ public sealed class RadarProcessingRetainedPayloadContractTests
             releasedBatchCount: 1,
             alreadyReleasedBatchCount: 1,
             releaseFailedCount: 1,
-            totalReleaseTime: TimeSpan.FromMilliseconds(2));
+            totalReleaseTime: TimeSpan.FromMilliseconds(2),
+            eventPoolRentCount: 1,
+            eventPoolReturnCount: 1,
+            eventPoolMissCount: 1,
+            payloadPoolRentCount: 1,
+            payloadPoolReturnCount: 0,
+            payloadPoolMissCount: 0);
 
         Assert.Equal(RadarProcessingRetainedPayloadStrategy.PooledCopy, summary.Strategy);
         Assert.Equal(4, summary.RetentionAttemptCount);
@@ -239,6 +274,12 @@ public sealed class RadarProcessingRetainedPayloadContractTests
         Assert.Equal(2, summary.PoolRentCount);
         Assert.Equal(1, summary.PoolReturnCount);
         Assert.Equal(1, summary.PoolMissCount);
+        Assert.Equal(1, summary.EventPoolRentCount);
+        Assert.Equal(1, summary.EventPoolReturnCount);
+        Assert.Equal(1, summary.EventPoolMissCount);
+        Assert.Equal(1, summary.PayloadPoolRentCount);
+        Assert.Equal(0, summary.PayloadPoolReturnCount);
+        Assert.Equal(0, summary.PayloadPoolMissCount);
         Assert.Equal(3, summary.ReleaseAttemptCount);
         Assert.Equal(1, summary.ReleasedBatchCount);
         Assert.Equal(1, summary.AlreadyReleasedBatchCount);

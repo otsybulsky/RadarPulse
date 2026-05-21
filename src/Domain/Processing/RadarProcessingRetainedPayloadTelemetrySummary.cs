@@ -26,7 +26,13 @@ public sealed record RadarProcessingRetainedPayloadTelemetrySummary
         long alreadyReleasedBatchCount = 0,
         long releaseFailedCount = 0,
         long releaseNotRequiredCount = 0,
-        TimeSpan totalReleaseTime = default)
+        TimeSpan totalReleaseTime = default,
+        long eventPoolRentCount = 0,
+        long eventPoolReturnCount = 0,
+        long eventPoolMissCount = 0,
+        long payloadPoolRentCount = 0,
+        long payloadPoolReturnCount = 0,
+        long payloadPoolMissCount = 0)
     {
         RadarProcessingRetainedPayloadOptions.EnsureKnownStrategy(strategy);
         ArgumentOutOfRangeException.ThrowIfNegative(retentionAttemptCount);
@@ -50,6 +56,12 @@ public sealed record RadarProcessingRetainedPayloadTelemetrySummary
         ArgumentOutOfRangeException.ThrowIfNegative(releaseFailedCount);
         ArgumentOutOfRangeException.ThrowIfNegative(releaseNotRequiredCount);
         EnsureNonNegative(totalReleaseTime, nameof(totalReleaseTime));
+        ArgumentOutOfRangeException.ThrowIfNegative(eventPoolRentCount);
+        ArgumentOutOfRangeException.ThrowIfNegative(eventPoolReturnCount);
+        ArgumentOutOfRangeException.ThrowIfNegative(eventPoolMissCount);
+        ArgumentOutOfRangeException.ThrowIfNegative(payloadPoolRentCount);
+        ArgumentOutOfRangeException.ThrowIfNegative(payloadPoolReturnCount);
+        ArgumentOutOfRangeException.ThrowIfNegative(payloadPoolMissCount);
 
         var retentionOutcomeCount = checked(
             retainedBatchCount +
@@ -100,6 +112,12 @@ public sealed record RadarProcessingRetainedPayloadTelemetrySummary
         ReleaseFailedCount = releaseFailedCount;
         ReleaseNotRequiredCount = releaseNotRequiredCount;
         TotalReleaseTime = totalReleaseTime;
+        EventPoolRentCount = eventPoolRentCount;
+        EventPoolReturnCount = eventPoolReturnCount;
+        EventPoolMissCount = eventPoolMissCount;
+        PayloadPoolRentCount = payloadPoolRentCount;
+        PayloadPoolReturnCount = payloadPoolReturnCount;
+        PayloadPoolMissCount = payloadPoolMissCount;
     }
 
     public RadarProcessingRetainedPayloadStrategy Strategy { get; }
@@ -145,6 +163,18 @@ public sealed record RadarProcessingRetainedPayloadTelemetrySummary
     public long ReleaseNotRequiredCount { get; }
 
     public TimeSpan TotalReleaseTime { get; }
+
+    public long EventPoolRentCount { get; }
+
+    public long EventPoolReturnCount { get; }
+
+    public long EventPoolMissCount { get; }
+
+    public long PayloadPoolRentCount { get; }
+
+    public long PayloadPoolReturnCount { get; }
+
+    public long PayloadPoolMissCount { get; }
 
     public long FailedRetentionCount =>
         RetentionUnsupportedStrategyCount +

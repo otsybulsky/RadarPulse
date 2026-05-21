@@ -994,6 +994,12 @@ static void PrintProcessingProviderRetentionTelemetrySummary(
     Console.WriteLine($"Retained payload pool rents: {FormatNumber(telemetry.PoolRentCount)}");
     Console.WriteLine($"Retained payload pool returns: {FormatNumber(telemetry.PoolReturnCount)}");
     Console.WriteLine($"Retained payload pool misses: {FormatNumber(telemetry.PoolMissCount)}");
+    Console.WriteLine($"Retained event array pool rents: {FormatNumber(telemetry.EventPoolRentCount)}");
+    Console.WriteLine($"Retained event array pool returns: {FormatNumber(telemetry.EventPoolReturnCount)}");
+    Console.WriteLine($"Retained event array pool misses: {FormatNumber(telemetry.EventPoolMissCount)}");
+    Console.WriteLine($"Retained byte array pool rents: {FormatNumber(telemetry.PayloadPoolRentCount)}");
+    Console.WriteLine($"Retained byte array pool returns: {FormatNumber(telemetry.PayloadPoolReturnCount)}");
+    Console.WriteLine($"Retained byte array pool misses: {FormatNumber(telemetry.PayloadPoolMissCount)}");
     Console.WriteLine($"Retained payload unsupported strategy attempts: {FormatNumber(telemetry.RetentionUnsupportedStrategyCount)}");
     Console.WriteLine($"Retained payload failed copies: {FormatNumber(telemetry.RetentionFailedCopyCount)}");
     Console.WriteLine($"Retained payload canceled retentions: {FormatNumber(telemetry.RetentionCanceledCount)}");

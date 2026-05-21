@@ -1268,7 +1268,13 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             checked(current.AlreadyReleasedBatchCount + next.AlreadyReleasedBatchCount),
             checked(current.ReleaseFailedCount + next.ReleaseFailedCount),
             checked(current.ReleaseNotRequiredCount + next.ReleaseNotRequiredCount),
-            current.TotalReleaseTime + next.TotalReleaseTime);
+            current.TotalReleaseTime + next.TotalReleaseTime,
+            eventPoolRentCount: checked(current.EventPoolRentCount + next.EventPoolRentCount),
+            eventPoolReturnCount: checked(current.EventPoolReturnCount + next.EventPoolReturnCount),
+            eventPoolMissCount: checked(current.EventPoolMissCount + next.EventPoolMissCount),
+            payloadPoolRentCount: checked(current.PayloadPoolRentCount + next.PayloadPoolRentCount),
+            payloadPoolReturnCount: checked(current.PayloadPoolReturnCount + next.PayloadPoolReturnCount),
+            payloadPoolMissCount: checked(current.PayloadPoolMissCount + next.PayloadPoolMissCount));
     }
 
     private static RadarProcessingArchiveOverlapTelemetrySummary AddOverlapTelemetry(

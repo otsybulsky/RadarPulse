@@ -208,6 +208,10 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisherTests
         Assert.Equal(2, published.RetentionTelemetry.PoolRentCount);
         Assert.Equal(1, published.RetentionTelemetry.PoolMissCount);
         Assert.Equal(0, published.RetentionTelemetry.PoolReturnCount);
+        Assert.Equal(1, published.RetentionTelemetry.EventPoolRentCount);
+        Assert.Equal(0, published.RetentionTelemetry.EventPoolMissCount);
+        Assert.Equal(1, published.RetentionTelemetry.PayloadPoolRentCount);
+        Assert.Equal(1, published.RetentionTelemetry.PayloadPoolMissCount);
 
         var dequeue = await queue.DequeueAsync();
         using var lease = publisher.AcquireConsumerResourceLease(dequeue.Batch!.Sequence);
@@ -216,7 +220,11 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisherTests
 
         Assert.Equal(RadarProcessingRetainedPayloadReleaseStatus.Released, release.Status);
         Assert.Equal(2, release.PoolReturnCount);
+        Assert.Equal(1, release.EventPoolReturnCount);
+        Assert.Equal(1, release.PayloadPoolReturnCount);
         Assert.Equal(2, released.RetentionTelemetry.PoolReturnCount);
+        Assert.Equal(1, released.RetentionTelemetry.EventPoolReturnCount);
+        Assert.Equal(1, released.RetentionTelemetry.PayloadPoolReturnCount);
         Assert.Equal(1, payloadPool.RetainedArrayCount);
         Assert.Equal(8, payloadPool.RetainedBytes);
     }
