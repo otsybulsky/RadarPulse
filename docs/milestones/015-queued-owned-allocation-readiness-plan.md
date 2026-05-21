@@ -896,10 +896,10 @@ Focused verification:
 dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests"
 ```
 
-Implemented so far in slice 5:
+Implemented in slice 5:
 
 ```text
-status: in progress
+status: complete
 runtime behavior changes:
   allocation profile should improve for wait-mode provider enqueue when the
   queue and retained-byte budget can accept immediately
@@ -1021,6 +1021,108 @@ retained pooled-copy micro-harness:
     whether the remaining 222 MB retained-copy cost is cold shape diversity,
     pool churn, or a non-pool retained-copy cost
 
+retained event-array allocation hypothesis:
+  KTLX 2026-05-05 default rows retained 3581280 RadarStreamEvent values
+
+  RadarStreamEvent is a 64-byte readonly struct, so the retained event
+  metadata copy shape is about 229201920 bytes before array/object overhead
+
+  the measured retained payload allocation after pool-miss telemetry was
+  211837640 to 220226320 bytes, while retained byte-pool misses were only 1
+  per row
+
+  interpretation:
+    the remaining retained-copy allocation is most likely dominated by
+    retained event-array cold allocation/reuse behavior, not retained payload
+    byte-array churn
+
+  next optimization proposals:
+    1. Add retained event-array pool telemetry first:
+       count event-array rents, returns, misses, retained array count, and
+       retained event-array bytes separately from byte payload pool telemetry
+
+    2. Prototype a dedicated RadarProcessingRetainedEventArrayPool analogous
+       to RadarProcessingRetainedPayloadByteArrayPool:
+       best-fit reuse, explicit retained-byte/event budget, release-owned
+       returns, and focused micro-harness coverage for cold/warm same-shape
+       retained event arrays
+
+    3. Accept the event-array pool only if KTLX retained allocation moves
+       materially down and release/cleanup/failure guardrails remain clean;
+       otherwise reject it as not addressing the actual allocation warning
+
+    4. If event-array pooling is insufficient, defer to a wider retained
+       representation design:
+       builder-transfer ownership or alternate retained representation that
+       avoids copying event metadata at enqueue time
+
+    5. Treat RadarStreamEvent packing/redesign as a separate structural
+       option only if the retained representation path is still too costly,
+       because it changes a broader domain contract than this milestone slice
+
+KTLX 2026-05-05 pool-miss sanity, not final gate:
+  Release CLI same-run borrowed/default pairs were rerun after retained
+  payload pool telemetry was populated
+
+  commands:
+    dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --cache data\nexrad --date 2026-05-05 --radar KTLX --max-files 220 --mode rebalance --provider blocking-borrowed --execution async --workers 4 --iterations 1 --warmup-iterations 0 --parallelism 24 --partitions 24 --shards 4
+    dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --cache data\nexrad --date 2026-05-05 --radar KTLX --max-files 220 --mode rebalance --iterations 1 --warmup-iterations 0 --parallelism 24 --partitions 24 --shards 4
+
+  row 1:
+    borrowed elapsed ms: 10804.30
+    default elapsed ms: 10211.49
+    elapsed ratio: 0.9451x borrowed
+    borrowed allocated bytes: 2340781368
+    default allocated bytes: 2577312360
+    allocation ratio: 1.1010x borrowed
+    retained payload allocated bytes: 220226320
+    retained payload pool rents: 208
+    retained payload pool returns: 208
+    retained payload pool misses: 1
+
+  row 2:
+    borrowed elapsed ms: 10448.97
+    default elapsed ms: 10123.30
+    elapsed ratio: 0.9688x borrowed
+    borrowed allocated bytes: 2344037920
+    default allocated bytes: 2565238576
+    allocation ratio: 1.0944x borrowed
+    retained payload allocated bytes: 211837640
+    retained payload pool rents: 208
+    retained payload pool returns: 208
+    retained payload pool misses: 1
+
+  average:
+    elapsed ratio: 0.9568x borrowed
+    allocation ratio: 1.0977x borrowed
+    borrowed allocated bytes average: 2342409644
+    default allocated bytes average: 2571275468
+    retained payload allocated bytes average: 216031980
+    retained payload pool miss rate: 2 misses / 416 rents, 0.4808%
+
+  safety:
+    correctness validation succeeded in both rows
+    validation checksum matched borrowed:
+      11084221590146245827
+    retained payload failed copies: 0
+    retained payload failed releases: 0
+    provider overlap failed releases: 0
+    current pending, active, and combined retained pressure returned to 0
+
+  interpretation:
+    the warning is still not clean green because row 1 remained slightly above
+    the 1.10x allocation threshold, although the two-row average stayed below
+    it and elapsed remained faster than borrowed
+
+    retained byte-pool churn is not the blocker: each default row had only one
+    retained byte-pool miss for 104 retained batches and 208 total rents, and
+    all rents were returned
+
+    raising retained byte-pool capacity or changing eviction policy is not
+    justified by this evidence; the remaining warning should be treated as
+    cold retained representation cost plus global overlap/non-pool allocation
+    attribution unless a later gate proves otherwise
+
 rejected spike:
   increasing RadarProcessingRetainedPayloadByteArrayPool default retained
   bytes from 128 MiB to 256 MiB was tested as a bounded pool-tuning spike and
@@ -1051,10 +1153,12 @@ verification:
   succeeded, 0 warnings, 0 errors
 
 next:
-  rerun the KTLX 2026-05-05 Release same-run borrowed/default comparison with
-  retained payload pool rent/return/miss telemetry visible; use miss rate to
-  decide whether to tune retained byte-pool shape retention, investigate an
-  alternate retained representation, or move to the focused regression pass
+  decide whether to insert a narrow retained event-array telemetry/pool spike
+  before slice 6; if not, move to slice 6 fallback/failure/cleanup/drift
+  guardrails and the focused regression pass before the final Release gate
+
+  do not tune retained byte-pool shape retention from this evidence; pool
+  misses are too low to explain the remaining KTLX allocation warning
 
   do not treat processing callback non-owned snapshot bytes as an actionable
   retained-copy target without a more precise per-source profile
