@@ -621,10 +621,14 @@ do not make source provenance leak into domain or infrastructure result types
 Expected tests or checks:
 
 ```text
-parsing with omitted provider options expands to the queued-owned rollout
-  contour for the scoped command
+parsing with omitted provider options still preserves current blocking-borrowed
+  defaults in this slice while marking provider-related fields as
+  current-default sourced
 parsing with --provider blocking-borrowed preserves borrowed provider,
-  overlap none, no retained-byte budget, and fallback evidence labels
+  overlap none, no retained-byte budget, explicit fallback provenance, and
+  fallback evidence labels
+parsing the milestone 011 contour keeps all supplied provider fields marked
+  explicit and does not mark them as rollout-default expanded yet
 parsing with explicit queued-owned non-contour values remains opt-in diagnostic
   or is rejected according to existing validation rules
 invalid builder-transfer remains rejected
@@ -638,6 +642,79 @@ Guardrail:
 Do not change the candidate contour while making it default. The rollout
 default should match milestone 011 unless a decision trace entry changes it
 before gate capture.
+```
+
+Implemented in slice 3:
+
+```text
+status:
+  complete
+
+runtime provider default changes:
+  none
+
+new presentation contracts:
+  ProcessingBenchmarkOptionValueSource
+    -> CurrentDefault
+    -> Explicit
+    -> RolloutDefault
+
+  ProcessingBenchmarkArchiveRebalanceOptionProvenance
+    -> ProviderMode
+    -> ProviderOverlapMode
+    -> RetentionStrategy
+    -> QueueCapacity
+    -> QueueRetainedPayloadBytes
+    -> QueueTelemetry
+    -> OverlapTelemetry
+    -> OverlapConsumerDelay
+    -> ExecutionMode
+    -> WorkerCount
+
+new option helpers:
+  EffectiveOptionProvenance
+  IsExplicitBlockingBorrowedFallback
+  IsRolloutDefaultExpandedContour
+
+rollout contour constants now exposed next to existing default-candidate
+constants:
+  DefaultRolloutWorkerCount = 4
+  DefaultRolloutProviderQueueCapacity = DefaultCandidateProviderQueueCapacity
+  DefaultRolloutRetainedPayloadBytes = DefaultCandidateRetainedPayloadBytes
+
+parse behavior preserved:
+  omitted --provider still resolves to blocking-borrowed
+  omitted --provider-overlap still resolves to none
+  omitted --retention-strategy still resolves to snapshot-copy
+  omitted --queue-capacity still resolves to provider queue capacity 1
+  omitted --queue-retained-bytes still resolves to none
+  omitted --execution still resolves to partitioned barrier
+  omitted --workers still resolves to no async execution worker override
+
+provenance behavior:
+  omitted provider-related options are marked CurrentDefault
+  explicitly supplied provider-related options are marked Explicit
+  explicit --provider blocking-borrowed marks provider mode Explicit and
+    IsExplicitBlockingBorrowedFallback true
+  explicit milestone 011 candidate contour remains natural-readiness evidence
+    but IsRolloutDefaultExpandedContour false until slice 4 changes expansion
+  RolloutDefault source is available for slice 4 but not emitted by parsing yet
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests"
+```
+
+Recorded result:
+
+```text
+23 passed, 0 failed, 0 skipped for focused CLI rebalance benchmark coverage.
+44 passed, 0 failed, 0 skipped for focused CLI, readiness gate, and overlap
+runner coverage.
 ```
 
 ### 4. CLI Default Expansion And Validation Rules
@@ -1078,7 +1155,7 @@ controlled proof rows separated if captured
 ```text
 [x] baseline default surface audit is captured
 [x] rollout thresholds are recorded before final gate interpretation
-[ ] default contour constants/provenance are implemented or documented
+[x] default contour constants/provenance are implemented or documented
 [ ] CLI default expansion resolves to queued-owned rollout contour
 [ ] explicit blocking-borrowed fallback remains selectable
 [ ] same-run borrowed benchmark oracle remains available

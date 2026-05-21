@@ -77,10 +77,48 @@ spread now evaluates repeated natural candidate spread against the milestone
 retained pressure budget, allocation movement, performance delta, and natural
 evidence separation.
 
-The next implementation step is slice 3 from the plan: default contour
-constants and option provenance. It should introduce the rollout contour as the
-default source of truth for CLI option expansion while still avoiding provider
-default behavior changes until the provenance surface is ready.
+Milestone 012 slice 3 default contour constants and option provenance are
+implemented in the current working tree. There were no provider default
+changes.
+
+New presentation contracts:
+
+```text
+ProcessingBenchmarkOptionValueSource
+ProcessingBenchmarkArchiveRebalanceOptionProvenance
+```
+
+`ProcessingBenchmarkArchiveRebalanceOptions` now exposes:
+
+```text
+DefaultRolloutWorkerCount = 4
+DefaultRolloutProviderQueueCapacity = DefaultCandidateProviderQueueCapacity
+DefaultRolloutRetainedPayloadBytes = DefaultCandidateRetainedPayloadBytes
+EffectiveOptionProvenance
+IsExplicitBlockingBorrowedFallback
+IsRolloutDefaultExpandedContour
+```
+
+Current parsing behavior is preserved:
+
+```text
+omitted --provider still resolves to blocking-borrowed
+omitted --provider-overlap still resolves to none
+omitted --retention-strategy still resolves to snapshot-copy
+omitted --queue-capacity still resolves to provider queue capacity 1
+omitted --queue-retained-bytes still resolves to none
+omitted --execution still resolves to partitioned barrier
+```
+
+Provenance now marks omitted provider-related values as `CurrentDefault`,
+explicitly supplied values as `Explicit`, and keeps the `RolloutDefault` source
+available for slice 4. Explicit `--provider blocking-borrowed` is now visible
+as an explicit fallback through `IsExplicitBlockingBorrowedFallback`.
+
+The next implementation step is slice 4 from the plan: CLI default expansion
+and validation rules. That slice is the first one expected to change omitted
+provider flags so the scoped command resolves to the queued-owned rollout
+contour.
 
 Latest verification after milestone 012 slice 1:
 
@@ -107,6 +145,21 @@ Recorded result:
 ```text
 14 passed, 0 failed, 0 skipped.
 41 passed, 0 failed, 0 skipped.
+```
+
+Latest verification after milestone 012 slice 3:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests"
+```
+
+Recorded result:
+
+```text
+23 passed, 0 failed, 0 skipped.
+44 passed, 0 failed, 0 skipped.
 ```
 
 Milestone 011 remains complete. The closed documents are:

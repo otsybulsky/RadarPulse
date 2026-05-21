@@ -2898,10 +2898,14 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
     ProcessingBenchmarkProviderOverlapTelemetryOutput OverlapTelemetryOutput =
         ProcessingBenchmarkProviderOverlapTelemetryOutput.Summary,
     RadarProcessingExecutionMode ExecutionMode = RadarProcessingExecutionMode.PartitionedBarrier,
-    RadarProcessingAsyncExecutionOptions? AsyncExecution = null)
+    RadarProcessingAsyncExecutionOptions? AsyncExecution = null,
+    ProcessingBenchmarkArchiveRebalanceOptionProvenance? OptionProvenance = null)
 {
     public const int DefaultCandidateProviderQueueCapacity = 8;
     public const long DefaultCandidateRetainedPayloadBytes = 536_870_912;
+    public const int DefaultRolloutWorkerCount = 4;
+    public const int DefaultRolloutProviderQueueCapacity = DefaultCandidateProviderQueueCapacity;
+    public const long DefaultRolloutRetainedPayloadBytes = DefaultCandidateRetainedPayloadBytes;
     public const string NaturalDefaultCandidateEvidenceContour = "natural-default-candidate";
     public const string ControlledProofEvidenceContour = "controlled-proof";
     public const string NaturalOptInEvidenceContour = "natural-opt-in";
@@ -2937,6 +2941,17 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
 
     public string ProviderOverlapEvidenceScope =>
         FormatProviderOverlapEvidenceScope(ProviderOverlapEvidenceContour);
+
+    public ProcessingBenchmarkArchiveRebalanceOptionProvenance EffectiveOptionProvenance =>
+        OptionProvenance ?? ProcessingBenchmarkArchiveRebalanceOptionProvenance.CurrentDefaults;
+
+    public bool IsExplicitBlockingBorrowedFallback =>
+        ProviderMode == RadarProcessingArchiveProviderMode.BlockingBorrowed &&
+        EffectiveOptionProvenance.ProviderMode == ProcessingBenchmarkOptionValueSource.Explicit;
+
+    public bool IsRolloutDefaultExpandedContour =>
+        IsDefaultCandidateContour &&
+        EffectiveOptionProvenance.ProviderMode == ProcessingBenchmarkOptionValueSource.RolloutDefault;
 
     public static bool MatchesDefaultCandidateContour(
         RadarProcessingArchiveProviderMode providerMode,
@@ -3032,19 +3047,26 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
         var skewFactor = RadarProcessingPressureSkewOptions.None.Factor;
         var skewPeriod = RadarProcessingPressureSkewOptions.None.Period;
         var providerMode = RadarProcessingArchiveProviderMode.BlockingBorrowed;
+        var providerModeWasProvided = false;
         var providerOverlapMode = RadarProcessingQueuedProviderOverlapMode.None;
+        var providerOverlapModeWasProvided = false;
         var retentionStrategy = RadarProcessingRetainedPayloadStrategy.SnapshotCopy;
         var retentionStrategyWasProvided = false;
         long? queueRetainedPayloadBytes = null;
+        var queueRetainedPayloadBytesWasProvided = false;
         TimeSpan? queueTimeout = null;
         var queueTelemetryOutput = ProcessingBenchmarkProviderQueueTelemetryOutput.Summary;
+        var queueTelemetryWasProvided = false;
         var overlapTelemetryOutput = ProcessingBenchmarkProviderOverlapTelemetryOutput.Summary;
         var overlapTelemetryWasProvided = false;
         var overlapConsumerDelay = TimeSpan.Zero;
         var overlapConsumerDelayWasProvided = false;
         var executionMode = RadarProcessingExecutionMode.PartitionedBarrier;
+        var executionModeWasProvided = false;
         int? workerCount = null;
+        var workerCountWasProvided = false;
         int? queueCapacity = null;
+        var queueCapacityWasProvided = false;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -3071,9 +3093,11 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
                     break;
                 case "--provider":
                     providerMode = ParseProviderMode(RequireValue(args, ref i, "--provider"));
+                    providerModeWasProvided = true;
                     break;
                 case "--provider-overlap":
                     providerOverlapMode = ParseProviderOverlapMode(RequireValue(args, ref i, "--provider-overlap"));
+                    providerOverlapModeWasProvided = true;
                     break;
                 case "--retention-strategy":
                     retentionStrategy = ParseRetentionStrategy(RequireValue(args, ref i, "--retention-strategy"));
@@ -3081,12 +3105,15 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
                     break;
                 case "--execution":
                     executionMode = ParseExecutionMode(RequireValue(args, ref i, "--execution"));
+                    executionModeWasProvided = true;
                     break;
                 case "--workers":
                     workerCount = int.Parse(RequireValue(args, ref i, "--workers"));
+                    workerCountWasProvided = true;
                     break;
                 case "--queue-capacity":
                     queueCapacity = int.Parse(RequireValue(args, ref i, "--queue-capacity"));
+                    queueCapacityWasProvided = true;
                     break;
                 case "--queue-timeout-ms":
                     queueTimeout = TimeSpan.FromMilliseconds(
@@ -3094,9 +3121,11 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
                     break;
                 case "--queue-retained-bytes":
                     queueRetainedPayloadBytes = long.Parse(RequireValue(args, ref i, "--queue-retained-bytes"));
+                    queueRetainedPayloadBytesWasProvided = true;
                     break;
                 case "--queue-telemetry":
                     queueTelemetryOutput = ParseQueueTelemetryOutput(RequireValue(args, ref i, "--queue-telemetry"));
+                    queueTelemetryWasProvided = true;
                     break;
                 case "--overlap-telemetry":
                     overlapTelemetryOutput = ParseOverlapTelemetryOutput(
@@ -3365,8 +3394,24 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
             queueTelemetryOutput,
             overlapTelemetryOutput,
             executionMode,
-            asyncExecution);
+            asyncExecution,
+            new ProcessingBenchmarkArchiveRebalanceOptionProvenance(
+                CurrentDefaultOrExplicit(providerModeWasProvided),
+                CurrentDefaultOrExplicit(providerOverlapModeWasProvided),
+                CurrentDefaultOrExplicit(retentionStrategyWasProvided),
+                CurrentDefaultOrExplicit(queueCapacityWasProvided),
+                CurrentDefaultOrExplicit(queueRetainedPayloadBytesWasProvided),
+                CurrentDefaultOrExplicit(queueTelemetryWasProvided),
+                CurrentDefaultOrExplicit(overlapTelemetryWasProvided),
+                CurrentDefaultOrExplicit(overlapConsumerDelayWasProvided),
+                CurrentDefaultOrExplicit(executionModeWasProvided),
+                CurrentDefaultOrExplicit(workerCountWasProvided)));
     }
+
+    private static ProcessingBenchmarkOptionValueSource CurrentDefaultOrExplicit(bool wasProvided) =>
+        wasProvided
+            ? ProcessingBenchmarkOptionValueSource.Explicit
+            : ProcessingBenchmarkOptionValueSource.CurrentDefault;
 
     private static IReadOnlyList<RadarProcessingSyntheticRebalanceBenchmarkMode> ParseMode(string value) =>
         value.ToLowerInvariant() switch
@@ -4292,5 +4337,27 @@ public enum ProcessingBenchmarkProviderOverlapTelemetryOutput
     None = 1,
     Summary = 2,
     Recent = 3
+}
+
+public enum ProcessingBenchmarkOptionValueSource
+{
+    CurrentDefault = 0,
+    Explicit = 1,
+    RolloutDefault = 2
+}
+
+public sealed record ProcessingBenchmarkArchiveRebalanceOptionProvenance(
+    ProcessingBenchmarkOptionValueSource ProviderMode = ProcessingBenchmarkOptionValueSource.CurrentDefault,
+    ProcessingBenchmarkOptionValueSource ProviderOverlapMode = ProcessingBenchmarkOptionValueSource.CurrentDefault,
+    ProcessingBenchmarkOptionValueSource RetentionStrategy = ProcessingBenchmarkOptionValueSource.CurrentDefault,
+    ProcessingBenchmarkOptionValueSource QueueCapacity = ProcessingBenchmarkOptionValueSource.CurrentDefault,
+    ProcessingBenchmarkOptionValueSource QueueRetainedPayloadBytes = ProcessingBenchmarkOptionValueSource.CurrentDefault,
+    ProcessingBenchmarkOptionValueSource QueueTelemetry = ProcessingBenchmarkOptionValueSource.CurrentDefault,
+    ProcessingBenchmarkOptionValueSource OverlapTelemetry = ProcessingBenchmarkOptionValueSource.CurrentDefault,
+    ProcessingBenchmarkOptionValueSource OverlapConsumerDelay = ProcessingBenchmarkOptionValueSource.CurrentDefault,
+    ProcessingBenchmarkOptionValueSource ExecutionMode = ProcessingBenchmarkOptionValueSource.CurrentDefault,
+    ProcessingBenchmarkOptionValueSource WorkerCount = ProcessingBenchmarkOptionValueSource.CurrentDefault)
+{
+    public static ProcessingBenchmarkArchiveRebalanceOptionProvenance CurrentDefaults { get; } = new();
 }
 
