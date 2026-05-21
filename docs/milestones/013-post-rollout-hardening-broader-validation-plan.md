@@ -1288,6 +1288,28 @@ fallback, direct compatibility, allocation, readiness, and cleanup coverage is
 green.
 ```
 
+Implemented in slice 7:
+
+```text
+status: complete
+runtime behavior changes: none
+focused CLI/default/fallback tests pass
+direct benchmark compatibility tests pass
+readiness, overlap, and allocation tests pass
+failure and cleanup tests pass
+Release build succeeds
+```
+
+Recorded verification:
+
+```text
+RadarPulseCliRebalanceBenchmarkTests: 26 passed, 0 failed, 0 skipped
+NexradArchiveRadarEventBatchPublisherTests: 22 passed, 0 failed, 0 skipped
+Readiness/overlap/allocation filter: 31 passed, 0 failed, 0 skipped
+Failure/cleanup filter: 24 passed, 0 failed, 0 skipped
+dotnet build RadarPulse.sln -c Release --no-restore: succeeded, 0 warnings, 0 errors
+```
+
 ### 8. Broader Natural Release Gate
 
 Capture the post-rollout stability gate across broader local workload shapes.
@@ -1560,7 +1582,7 @@ controlled proof rows separated if captured
 [x] operator help/output makes scoped default and fallback reproducible
 [x] allocation attribution is visible enough to explain residual overhead
 [x] failure, cancellation, release, and cleanup guardrails remain covered
-[ ] focused regression pass succeeds before gate capture
+[x] focused regression pass succeeds before gate capture
 [ ] broader natural Release gate is captured
 [ ] performance gate interprets correctness, cleanup, pressure, allocation,
     timing, variance, provenance, and attribution

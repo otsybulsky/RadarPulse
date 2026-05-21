@@ -63,10 +63,11 @@ slice 3: direct API compatibility guardrails complete
 slice 4: operator help and output compatibility cleanup complete
 slice 5: allocation attribution pass complete
 slice 6: failure, cleanup, and fallback regression pass complete
-next slice: focused regression pass before gate
+slice 7: focused regression pass before gate complete
+next slice: broader natural Release gate
 next verification target:
-  focused CLI, direct compatibility, readiness, overlap, allocation, failure,
-  cleanup, and Release build checks before broader Release gate preparation
+  capture broader natural Release gate rows and write the performance-gate
+  document
 ```
 
 Planned milestone 013 slices:
@@ -112,13 +113,21 @@ data\nexrad total files: 1554
 Latest milestone 013 verification:
 
 ```powershell
-dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingQueuedProcessingSessionTests|FullyQualifiedName~RadarProcessingQueuedRebalanceSessionTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests"
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests|FullyQualifiedName~RadarProcessingQueuedProcessingSessionTests|FullyQualifiedName~RadarProcessingQueuedRebalanceSessionTests"
+dotnet build RadarPulse.sln -c Release --no-restore
 ```
 
 Recorded result:
 
 ```text
-74 passed, 0 failed, 0 skipped.
+RadarPulseCliRebalanceBenchmarkTests: 26 passed, 0 failed, 0 skipped
+NexradArchiveRadarEventBatchPublisherTests: 22 passed, 0 failed, 0 skipped
+Readiness/overlap/allocation filter: 31 passed, 0 failed, 0 skipped
+Failure/cleanup filter: 24 passed, 0 failed, 0 skipped
+Release build: succeeded, 0 warnings, 0 errors
 ```
 
 Milestone 013 slice 2 default contour drift guard:
@@ -212,6 +221,17 @@ readiness tests now pin generic queued-provider validation failure mapping and
   retention-failure release-health rejection
 CLI fallback tests continue to prove blocking-borrowed is selected only through
   explicit --provider blocking-borrowed
+```
+
+Milestone 013 slice 7 focused regression pass before gate:
+
+```text
+runtime behavior changes: none
+focused CLI default/fallback/output tests passed
+direct MeasureFile()/MeasureCache() compatibility tests passed
+readiness, overlap, and allocation guardrail tests passed
+failure and cleanup guardrail tests passed
+Release build succeeded with 0 warnings and 0 errors
 ```
 
 Milestone 013 closeout question:
