@@ -97,6 +97,8 @@ public sealed class RadarProcessingRetainedPayloadFactory
 
         RadarStreamEvent[]? eventArray = null;
         byte[]? payloadArray = null;
+        long poolRentCount = 0;
+        long poolMissCount = 0;
         try
         {
             var before = RadarProcessingBenchmarkAllocationSnapshot.CaptureCurrentThread();
@@ -106,6 +108,7 @@ public sealed class RadarProcessingRetainedPayloadFactory
             if (batch.EventCount > 0)
             {
                 eventArray = eventPool.Rent(batch.EventCount);
+                poolRentCount++;
                 batch.Events.Span.CopyTo(eventArray.AsSpan(0, batch.EventCount));
                 events = eventArray.AsMemory(0, batch.EventCount);
             }
@@ -113,7 +116,22 @@ public sealed class RadarProcessingRetainedPayloadFactory
             ReadOnlyMemory<byte> payload = ReadOnlyMemory<byte>.Empty;
             if (batch.PayloadLength > 0)
             {
-                payloadArray = payloadPool.Rent(batch.PayloadLength);
+                if (payloadPool is RadarProcessingRetainedPayloadByteArrayPool telemetryPayloadPool)
+                {
+                    payloadArray = telemetryPayloadPool.RentWithMissTelemetry(
+                        batch.PayloadLength,
+                        out var payloadPoolMissed);
+                    if (payloadPoolMissed)
+                    {
+                        poolMissCount++;
+                    }
+                }
+                else
+                {
+                    payloadArray = payloadPool.Rent(batch.PayloadLength);
+                }
+
+                poolRentCount++;
                 batch.Payload.Span.CopyTo(payloadArray.AsSpan(0, batch.PayloadLength));
                 payload = payloadArray.AsMemory(0, batch.PayloadLength);
             }
@@ -164,7 +182,9 @@ public sealed class RadarProcessingRetainedPayloadFactory
                 retained,
                 resource,
                 elapsed,
-                allocatedBytes);
+                allocatedBytes,
+                poolRentCount,
+                poolMissCount);
         }
         catch (Exception exception)
         {
@@ -210,19 +230,23 @@ public sealed class RadarProcessingRetainedPayloadFactory
 
         public RadarProcessingRetainedPayloadReleaseResult Release()
         {
+            long poolReturnCount = 0;
             if (eventArray is not null)
             {
                 eventPool.Return(eventArray);
+                poolReturnCount++;
             }
 
             if (payloadArray is not null)
             {
                 payloadPool.Return(payloadArray);
+                poolReturnCount++;
             }
 
             return RadarProcessingRetainedPayloadReleaseResult.Released(
                 RadarProcessingRetainedPayloadStrategy.PooledCopy,
-                payloadBytes: payloadBytes);
+                payloadBytes: payloadBytes,
+                poolReturnCount: poolReturnCount);
         }
     }
 }

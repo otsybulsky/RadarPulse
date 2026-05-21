@@ -186,6 +186,42 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisherTests
     }
 
     [Fact]
+    public async Task PooledCopyRetentionTelemetryAggregatesPoolCounters()
+    {
+        var payloadPool = new RadarProcessingRetainedPayloadByteArrayPool(
+            largeArrayThreshold: 4,
+            maxRetainedArrayCount: 2,
+            maxRetainedBytes: 16);
+        using var queue = new RadarProcessingOwnedBatchQueue(
+            new RadarProcessingProviderQueueOptions(capacity: 1));
+        using var publisher = new ArchiveOwnedRadarEventBatchQueueingPublisher(
+            queue,
+            retainedPayloadOptions: new RadarProcessingRetainedPayloadOptions(
+                RadarProcessingRetainedPayloadStrategy.PooledCopy),
+            retainedPayloadFactory: new RadarProcessingRetainedPayloadFactory(
+                ArrayPool<RadarStreamEvent>.Shared,
+                payloadPool));
+
+        PublishLeased(publisher, [1, 2, 3, 4, 5]);
+        var published = publisher.CreateResult();
+
+        Assert.Equal(2, published.RetentionTelemetry.PoolRentCount);
+        Assert.Equal(1, published.RetentionTelemetry.PoolMissCount);
+        Assert.Equal(0, published.RetentionTelemetry.PoolReturnCount);
+
+        var dequeue = await queue.DequeueAsync();
+        using var lease = publisher.AcquireConsumerResourceLease(dequeue.Batch!.Sequence);
+        var release = lease.Release();
+        var released = publisher.CreateResult();
+
+        Assert.Equal(RadarProcessingRetainedPayloadReleaseStatus.Released, release.Status);
+        Assert.Equal(2, release.PoolReturnCount);
+        Assert.Equal(2, released.RetentionTelemetry.PoolReturnCount);
+        Assert.Equal(1, payloadPool.RetainedArrayCount);
+        Assert.Equal(8, payloadPool.RetainedBytes);
+    }
+
+    [Fact]
     public async Task ConsumerResourcePressureUsesBatchPayloadBytesWhenReleaseIsNotRequired()
     {
         using var queue = new RadarProcessingOwnedBatchQueue(

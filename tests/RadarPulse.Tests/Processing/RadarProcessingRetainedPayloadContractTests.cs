@@ -79,10 +79,20 @@ public sealed class RadarProcessingRetainedPayloadContractTests
         Assert.Equal(RadarProcessingRetainedPayloadReleaseStatus.NotRequired, succeeded.Resource.Release().Status);
         Assert.Equal(TimeSpan.FromMilliseconds(3), succeeded.Elapsed);
         Assert.Equal(128, succeeded.AllocatedBytes);
+        Assert.Equal(0, succeeded.PoolRentCount);
+        Assert.Equal(0, succeeded.PoolMissCount);
         Assert.Equal(1, succeeded.EventCount);
         Assert.Equal(2, succeeded.PayloadBytes);
         Assert.Equal(2, succeeded.PayloadValueCount);
         Assert.Equal(15, succeeded.RawValueChecksum);
+
+        var pooledSucceeded = RadarProcessingRetainedPayloadRetentionResult.Succeeded(
+            RadarProcessingRetainedPayloadStrategy.PooledCopy,
+            ownedBatch,
+            poolRentCount: 2,
+            poolMissCount: 1);
+        Assert.Equal(2, pooledSucceeded.PoolRentCount);
+        Assert.Equal(1, pooledSucceeded.PoolMissCount);
 
         Assert.False(unsupported.IsSuccessful);
         Assert.Equal(RadarProcessingRetainedPayloadRetentionStatus.UnsupportedStrategy, unsupported.Status);
@@ -112,6 +122,16 @@ public sealed class RadarProcessingRetainedPayloadContractTests
                 RadarProcessingRetainedPayloadStrategy.SnapshotCopy,
                 ownedBatch,
                 allocatedBytes: -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            RadarProcessingRetainedPayloadRetentionResult.Succeeded(
+                RadarProcessingRetainedPayloadStrategy.SnapshotCopy,
+                ownedBatch,
+                poolRentCount: -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            RadarProcessingRetainedPayloadRetentionResult.Succeeded(
+                RadarProcessingRetainedPayloadStrategy.SnapshotCopy,
+                ownedBatch,
+                poolMissCount: -1));
         Assert.Throws<ArgumentNullException>(() =>
             RadarProcessingRetainedPayloadRetentionResult.FailedCopy(
                 RadarProcessingRetainedPayloadStrategy.SnapshotCopy,
@@ -134,7 +154,8 @@ public sealed class RadarProcessingRetainedPayloadContractTests
         var released = RadarProcessingRetainedPayloadReleaseResult.Released(
             RadarProcessingRetainedPayloadStrategy.PooledCopy,
             TimeSpan.FromMilliseconds(2),
-            payloadBytes: 64);
+            payloadBytes: 64,
+            poolReturnCount: 2);
         var alreadyReleased = RadarProcessingRetainedPayloadReleaseResult.AlreadyReleased(
             RadarProcessingRetainedPayloadStrategy.PooledCopy,
             "already returned");
@@ -150,6 +171,7 @@ public sealed class RadarProcessingRetainedPayloadContractTests
         Assert.Equal(RadarProcessingRetainedPayloadStrategy.PooledCopy, released.Strategy);
         Assert.Equal(TimeSpan.FromMilliseconds(2), released.Elapsed);
         Assert.Equal(64, released.PayloadBytes);
+        Assert.Equal(2, released.PoolReturnCount);
 
         Assert.False(alreadyReleased.IsReleased);
         Assert.Equal(RadarProcessingRetainedPayloadReleaseStatus.AlreadyReleased, alreadyReleased.Status);
@@ -170,6 +192,10 @@ public sealed class RadarProcessingRetainedPayloadContractTests
             RadarProcessingRetainedPayloadReleaseResult.Released(
                 RadarProcessingRetainedPayloadStrategy.PooledCopy,
                 payloadBytes: -1));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            RadarProcessingRetainedPayloadReleaseResult.Released(
+                RadarProcessingRetainedPayloadStrategy.PooledCopy,
+                poolReturnCount: -1));
         Assert.Throws<ArgumentNullException>(() =>
             RadarProcessingRetainedPayloadReleaseResult.Failed(
                 RadarProcessingRetainedPayloadStrategy.PooledCopy,

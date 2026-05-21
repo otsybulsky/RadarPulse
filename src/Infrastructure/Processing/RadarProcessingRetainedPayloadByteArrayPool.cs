@@ -12,6 +12,9 @@ public sealed class RadarProcessingRetainedPayloadByteArrayPool : ArrayPool<byte
     private readonly ArrayPool<byte> fallback;
     private readonly List<byte[]> retainedArrays = [];
     private long retainedBytes;
+    private long rentCount;
+    private long returnCount;
+    private long missCount;
 
     public RadarProcessingRetainedPayloadByteArrayPool(
         ArrayPool<byte>? fallback = null,
@@ -57,16 +60,71 @@ public sealed class RadarProcessingRetainedPayloadByteArrayPool : ArrayPool<byte
         }
     }
 
+    public long RentCount
+    {
+        get
+        {
+            lock (sync)
+            {
+                return rentCount;
+            }
+        }
+    }
+
+    public long ReturnCount
+    {
+        get
+        {
+            lock (sync)
+            {
+                return returnCount;
+            }
+        }
+    }
+
+    public long MissCount
+    {
+        get
+        {
+            lock (sync)
+            {
+                return missCount;
+            }
+        }
+    }
+
     public override byte[] Rent(int minimumLength)
     {
+        return RentCore(minimumLength, out _);
+    }
+
+    internal byte[] RentWithMissTelemetry(
+        int minimumLength,
+        out bool missed)
+    {
+        return RentCore(minimumLength, out missed);
+    }
+
+    private byte[] RentCore(
+        int minimumLength,
+        out bool missed)
+    {
         ArgumentOutOfRangeException.ThrowIfNegative(minimumLength);
+        missed = false;
+
         if (minimumLength < LargeArrayThreshold)
         {
+            lock (sync)
+            {
+                rentCount++;
+            }
+
             return fallback.Rent(minimumLength);
         }
 
         lock (sync)
         {
+            rentCount++;
             var bestIndex = -1;
             var bestLength = int.MaxValue;
             for (var i = 0; i < retainedArrays.Count; i++)
@@ -89,6 +147,9 @@ public sealed class RadarProcessingRetainedPayloadByteArrayPool : ArrayPool<byte
                 retainedBytes -= rented.Length;
                 return rented;
             }
+
+            missCount++;
+            missed = true;
         }
 
         return new byte[RoundLargeArrayLength(minimumLength)];
@@ -99,6 +160,11 @@ public sealed class RadarProcessingRetainedPayloadByteArrayPool : ArrayPool<byte
         ArgumentNullException.ThrowIfNull(array);
         if (array.Length < LargeArrayThreshold)
         {
+            lock (sync)
+            {
+                returnCount++;
+            }
+
             fallback.Return(array, clearArray);
             return;
         }
@@ -110,6 +176,7 @@ public sealed class RadarProcessingRetainedPayloadByteArrayPool : ArrayPool<byte
 
         lock (sync)
         {
+            returnCount++;
             if (MaxRetainedArrayCount == 0 ||
                 array.Length > MaxRetainedBytes)
             {

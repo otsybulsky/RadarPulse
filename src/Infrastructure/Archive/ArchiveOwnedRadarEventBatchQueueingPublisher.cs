@@ -26,6 +26,9 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisher : IArchiveRadar
     private long retainedPayloadBytes;
     private long retainedPayloadValueCount;
     private long retainedAllocatedBytes;
+    private long retainedPoolRentCount;
+    private long retainedPoolReturnCount;
+    private long retainedPoolMissCount;
     private TimeSpan totalRetentionTime;
     private long releaseAttemptCount;
     private long releasedBatchCount;
@@ -269,6 +272,8 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisher : IArchiveRadar
                     retainedPayloadBytes = checked(retainedPayloadBytes + result.PayloadBytes);
                     retainedPayloadValueCount = checked(retainedPayloadValueCount + result.PayloadValueCount);
                     retainedAllocatedBytes = checked(retainedAllocatedBytes + result.AllocatedBytes);
+                    retainedPoolRentCount = checked(retainedPoolRentCount + result.PoolRentCount);
+                    retainedPoolMissCount = checked(retainedPoolMissCount + result.PoolMissCount);
                     totalRetentionTime += result.Elapsed;
                     break;
 
@@ -301,6 +306,7 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisher : IArchiveRadar
         {
             releaseAttemptCount++;
             totalReleaseTime += result.Elapsed;
+            retainedPoolReturnCount = checked(retainedPoolReturnCount + result.PoolReturnCount);
             switch (result.Status)
             {
                 case RadarProcessingRetainedPayloadReleaseStatus.Released:
@@ -381,6 +387,9 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisher : IArchiveRadar
                 retainedAllocatedBytes,
                 totalRetentionTime,
                 transferCount: retainedBatchCount,
+                poolRentCount: retainedPoolRentCount,
+                poolReturnCount: retainedPoolReturnCount,
+                poolMissCount: retainedPoolMissCount,
                 releaseAttemptCount: releaseAttemptCount,
                 releasedBatchCount: releasedBatchCount,
                 alreadyReleasedBatchCount: alreadyReleasedBatchCount,

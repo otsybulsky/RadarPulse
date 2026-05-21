@@ -74,6 +74,8 @@ public sealed class RadarProcessingRetainedPayloadFactoryTests
             Assert.Equal(RadarProcessingRetainedBatchResourceState.ProviderOwned, result.Resource.State);
             Assert.Equal(1, eventPool.RentCount);
             Assert.Equal(1, payloadPool.RentCount);
+            Assert.Equal(2, result.PoolRentCount);
+            Assert.Equal(0, result.PoolMissCount);
         });
 
         AddEvent(builder, [9]);
@@ -95,6 +97,7 @@ public sealed class RadarProcessingRetainedPayloadFactoryTests
         Assert.Equal(1, eventPool.ReturnCount);
         Assert.Equal(1, payloadPool.ReturnCount);
         Assert.Equal(3, release.PayloadBytes);
+        Assert.Equal(2, release.PoolReturnCount);
         Assert.Equal(RadarProcessingRetainedBatchResourceState.Released, result.Resource.State);
     }
 
@@ -114,6 +117,8 @@ public sealed class RadarProcessingRetainedPayloadFactoryTests
         Assert.Same(owned, result.Batch);
         Assert.Equal(0, eventPool.RentCount);
         Assert.Equal(0, payloadPool.RentCount);
+        Assert.Equal(0, result.PoolRentCount);
+        Assert.Equal(0, result.PoolMissCount);
         Assert.Equal(RadarProcessingRetainedPayloadReleaseStatus.NotRequired, result.Resource!.Release().Status);
     }
 
@@ -139,7 +144,40 @@ public sealed class RadarProcessingRetainedPayloadFactoryTests
         Assert.Equal(0, result.Batch.PayloadLength);
         Assert.Equal(0, eventPool.RentCount);
         Assert.Equal(0, payloadPool.RentCount);
+        Assert.Equal(0, result.PoolRentCount);
+        Assert.Equal(0, result.PoolMissCount);
         Assert.Equal(RadarProcessingRetainedPayloadReleaseStatus.NotRequired, result.Resource!.Release().Status);
+    }
+
+    [Fact]
+    public void PooledCopyMicroHarnessSeparatesColdAndWarmLargePayloadRents()
+    {
+        const int payloadLength = 256 * 1024;
+        var eventPool = new TrackingArrayPool<RadarStreamEvent>();
+        var payloadPool = new RadarProcessingRetainedPayloadByteArrayPool(
+            largeArrayThreshold: 128 * 1024,
+            maxRetainedArrayCount: 2,
+            maxRetainedBytes: 512 * 1024);
+        var factory = new RadarProcessingRetainedPayloadFactory(eventPool, payloadPool);
+
+        var warmup = RetainLeasedPooledCopy(factory, payloadLength: 1);
+        warmup.Resource!.Release();
+
+        var cold = RetainLeasedPooledCopy(factory, payloadLength);
+        var coldRelease = cold.Resource!.Release();
+        var warm = RetainLeasedPooledCopy(factory, payloadLength);
+        var warmRelease = warm.Resource!.Release();
+
+        Assert.Equal(2, cold.PoolRentCount);
+        Assert.Equal(1, cold.PoolMissCount);
+        Assert.Equal(2, coldRelease.PoolReturnCount);
+        Assert.Equal(2, warm.PoolRentCount);
+        Assert.Equal(0, warm.PoolMissCount);
+        Assert.Equal(2, warmRelease.PoolReturnCount);
+        Assert.True(cold.AllocatedBytes > warm.AllocatedBytes);
+        Assert.Equal(1, payloadPool.MissCount);
+        Assert.Equal(1, payloadPool.RetainedArrayCount);
+        Assert.Equal(payloadLength, payloadPool.RetainedBytes);
     }
 
     [Fact]
@@ -157,6 +195,9 @@ public sealed class RadarProcessingRetainedPayloadFactoryTests
         var second = pool.Rent(7);
 
         Assert.Same(first, second);
+        Assert.Equal(2, pool.RentCount);
+        Assert.Equal(1, pool.ReturnCount);
+        Assert.Equal(1, pool.MissCount);
         Assert.Equal(0, fallback.RentCount);
         Assert.Equal(0, fallback.ReturnCount);
         Assert.Equal(0, pool.RetainedArrayCount);
@@ -176,6 +217,9 @@ public sealed class RadarProcessingRetainedPayloadFactoryTests
         var small = pool.Rent(3);
         pool.Return(small);
 
+        Assert.Equal(1, pool.RentCount);
+        Assert.Equal(1, pool.ReturnCount);
+        Assert.Equal(0, pool.MissCount);
         Assert.Equal(1, fallback.RentCount);
         Assert.Equal(1, fallback.ReturnCount);
         Assert.Equal(0, pool.RetainedArrayCount);
@@ -298,6 +342,50 @@ public sealed class RadarProcessingRetainedPayloadFactoryTests
     {
         var builder = new RadarEventBatchBuilder(initialEventCapacity: 1, initialPayloadCapacity: payload.Length);
         AddEvent(builder, payload);
+        return builder;
+    }
+
+    private static RadarProcessingRetainedPayloadRetentionResult RetainLeasedPooledCopy(
+        RadarProcessingRetainedPayloadFactory factory,
+        int payloadLength)
+    {
+        var builder = CreateBuilderWithPayloadLength(payloadLength);
+        RadarProcessingRetainedPayloadRetentionResult? result = null;
+
+        builder.ConsumeLeased(batch =>
+        {
+            result = factory.Retain(
+                batch,
+                new RadarProcessingRetainedPayloadOptions(RadarProcessingRetainedPayloadStrategy.PooledCopy));
+        });
+
+        Assert.NotNull(result);
+        Assert.True(result.IsSuccessful);
+        return result;
+    }
+
+    private static RadarEventBatchBuilder CreateBuilderWithPayloadLength(
+        int payloadLength)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(payloadLength);
+
+        var eventCount = payloadLength == 0
+            ? 0
+            : ((payloadLength - 1) / ushort.MaxValue) + 1;
+        var builder = new RadarEventBatchBuilder(eventCount, payloadLength);
+        var remaining = payloadLength;
+        var eventIndex = 0;
+        while (remaining > 0)
+        {
+            var chunkLength = Math.Min(remaining, ushort.MaxValue);
+            var payload = new byte[chunkLength];
+            payload[0] = (byte)((eventIndex % 251) + 1);
+
+            AddEvent(builder, payload);
+            remaining -= chunkLength;
+            eventIndex++;
+        }
+
         return builder;
     }
 

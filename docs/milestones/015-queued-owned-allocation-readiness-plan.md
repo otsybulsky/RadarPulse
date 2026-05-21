@@ -360,8 +360,11 @@ src/Infrastructure/Archive/ArchiveOwnedRadarEventBatchQueueingPublisher.cs
 src/Domain/Processing/RadarProcessingRebalanceAllocationSummary.cs
 src/Domain/Processing/RadarProcessingOwnedSnapshotAllocationSummary.cs
 src/Domain/Processing/RadarProcessingRetainedBatchResource.cs
+src/Domain/Processing/RadarProcessingRetainedPayloadRetentionResult.cs
+src/Domain/Processing/RadarProcessingRetainedPayloadReleaseResult.cs
 src/Domain/Processing/RadarProcessingRetainedPayloadTelemetrySummary.cs
 src/Domain/Processing/RadarProcessingProviderQueueTelemetrySummary.cs
+src/Infrastructure/Processing/RadarProcessingRetainedPayloadByteArrayPool.cs
 src/Presentation/Program.cs
 ```
 
@@ -372,6 +375,7 @@ tests/RadarPulse.Tests/Archive/NexradArchiveRadarEventBatchPublisherTests.cs
 tests/RadarPulse.Tests/Archive/ArchiveOwnedRadarEventBatchQueueingPublisherTests.cs
 tests/RadarPulse.Tests/Processing/RadarProcessingRebalanceAllocationSummaryTests.cs
 tests/RadarPulse.Tests/Processing/RadarProcessingRetainedPayloadFactoryTests.cs
+tests/RadarPulse.Tests/Processing/RadarProcessingRetainedPayloadContractTests.cs
 tests/RadarPulse.Tests/Processing/RadarProcessingRetainedBatchResourceTests.cs
 tests/RadarPulse.Tests/Processing/RadarProcessingOwnedBatchQueueTests.cs
 tests/RadarPulse.Tests/Processing/RadarProcessingArchiveQueuedOverlapRunnerTests.cs
@@ -899,8 +903,11 @@ status: in progress
 runtime behavior changes:
   allocation profile should improve for wait-mode provider enqueue when the
   queue and retained-byte budget can accept immediately
-  direct/default contour, fallback behavior, telemetry semantics, release
-  lifecycle, and result contracts did not change
+  direct/default contour, fallback behavior, and release lifecycle did not
+  change
+  retained payload retention/release result contracts now carry pool
+  rent/miss/return counts so the existing retained telemetry summary and CLI
+  pool lines are populated for pooled-copy rows
 
 adopted standard optimization:
   RadarProcessingOwnedBatchQueue.EnqueueAsync now has a synchronous fast path
@@ -931,6 +938,18 @@ attribution refinement:
     allocation processing callback counter scope: global
     retained payload allocation counter scope: current-thread
     provider overlap measured allocation counter scope: global
+
+  RadarProcessingRetainedPayloadByteArrayPool now counts rent attempts,
+  return attempts, and large-array cold misses
+
+  RadarProcessingRetainedPayloadFactory.RetainPooledCopy records per-retain
+  pool rent count and exact retained byte-pool miss count; pooled resource release
+  records returned event/payload arrays; ArchiveOwnedRadarEventBatchQueueingPublisher
+  aggregates those counts into RadarProcessingRetainedPayloadTelemetrySummary
+
+  CLI retained payload pool rents/returns/misses were already part of the
+  operator output; after this slice they are actionable for pooled-copy rows
+  instead of staying at zero
 
 interim allocation sanity, not final gate:
   Release CLI omitted-provider KTLX 2026-05-05 --max-files 220 same-run
@@ -979,6 +998,29 @@ retained allocation profile after current-thread attribution:
     unattributed buckets are global-counter overlap attribution buckets, not
     precise retained-copy optimization targets
 
+retained pooled-copy micro-harness:
+  a deterministic retained-copy harness was added around
+  RadarProcessingRetainedPayloadFactory.RetainPooledCopy using a synthetic
+  leased payload above the retained byte-pool large-array threshold
+
+  the cold same-shape retain records two pool rents, one retained byte-pool
+  miss, and two pool returns after release
+
+  the warm same-shape retain records two pool rents, zero retained byte-pool
+  misses, and two pool returns after release
+
+  the cold retain allocates more current-thread bytes than the warm retain,
+  and the retained byte pool keeps one reusable large array after release
+
+  interpretation:
+    the first large retained byte-array rent is a real cold allocation
+    source; same-shape warm reuse works
+
+    pool policy should not be changed again until KTLX rows report real
+    retained payload pool miss counts, because allocation alone cannot tell
+    whether the remaining 222 MB retained-copy cost is cold shape diversity,
+    pool churn, or a non-pool retained-copy cost
+
 rejected spike:
   increasing RadarProcessingRetainedPayloadByteArrayPool default retained
   bytes from 128 MiB to 256 MiB was tested as a bounded pool-tuning spike and
@@ -1001,11 +1043,21 @@ verification:
   dotnet build RadarPulse.sln -c Release --no-restore
   succeeded, 0 warnings, 0 errors
 
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests|FullyQualifiedName~RadarProcessingRetainedPayloadContractTests|FullyQualifiedName~RadarProcessingRetainedBatchResourceTests|FullyQualifiedName~RadarProcessingOwnedBatchQueueTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+  passed, 125 passed, 0 failed, 0 skipped
+
+  dotnet build RadarPulse.sln -c Release --no-restore
+  succeeded, 0 warnings, 0 errors
+
 next:
-  optimize retained pooled-copy cold allocation directly or run a narrow
-  retained-copy micro-harness before changing pool policy; do not treat
-  processing callback non-owned snapshot bytes as an actionable retained-copy
-  target without a more precise per-source profile
+  rerun the KTLX 2026-05-05 Release same-run borrowed/default comparison with
+  retained payload pool rent/return/miss telemetry visible; use miss rate to
+  decide whether to tune retained byte-pool shape retention, investigate an
+  alternate retained representation, or move to the focused regression pass
+
+  do not treat processing callback non-owned snapshot bytes as an actionable
+  retained-copy target without a more precise per-source profile
 ```
 
 ### 6. Fallback, Failure, Cleanup, And Drift Guardrails
@@ -1362,7 +1414,7 @@ standard and experimental optimization outcomes recorded
 [x] allocation instrumentation and contract check is complete
 [x] standard allocation optimization pass is complete or explicitly rejected
 [x] experimental optimization research/spike pass is complete
-[ ] adopted optimizations are integrated with focused tests
+[x] adopted optimizations are integrated with focused tests
 [x] rejected standard and experimental approaches are recorded
 [ ] direct MeasureFile()/MeasureCache() defaults remain queued-owned rollout
 [ ] explicit direct BlockingBorrowed fallback remains selectable and covered

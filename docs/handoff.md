@@ -28,9 +28,9 @@ implementation plan: in progress
 implementation: slice 5 in progress
 runtime behavior changes so far: allocation-only optimization, including
   cheaper bounded recent-detail copying and explicit pooled retained payload
-  release ownership plus wait-mode provider enqueue fast path; no
-  direct/default contour, fallback, telemetry semantics, release lifecycle, or
-  result contract changes
+  release ownership plus wait-mode provider enqueue fast path; retained
+  payload pool rent/miss/return telemetry is now populated for pooled-copy
+  rows; no direct/default contour, fallback, or release lifecycle changes
 performance gate: not captured
 interim allocation sanity: captured on KTLX 2026-05-05 CLI same-run pairs;
   improved versus milestone 014 average but not clean because one row still
@@ -261,8 +261,11 @@ status: in progress
 runtime behavior changes:
   allocation profile should improve for wait-mode provider enqueue when the
   queue and retained-byte budget can accept immediately
-  direct/default contour, fallback behavior, telemetry semantics, release
-  lifecycle, and result contracts did not change
+  direct/default contour, fallback behavior, and release lifecycle did not
+  change
+  retained payload retention/release result contracts now carry pool
+  rent/miss/return counts, and the existing retained telemetry summary/CLI
+  pool fields are populated for pooled-copy rows
 adopted standard optimization:
   RadarProcessingOwnedBatchQueue.EnqueueAsync now returns a completed
   ValueTask through a synchronous fast path when wait-mode enqueue can write
@@ -281,6 +284,12 @@ attribution refinement:
   not hidden or moved out of the measured contract
   CLI output labels the counter scopes for allocation attribution, retained
   payload telemetry, and provider overlap telemetry
+  RadarProcessingRetainedPayloadByteArrayPool now counts rent attempts,
+  return attempts, and large-array cold misses
+  RadarProcessingRetainedPayloadFactory.RetainPooledCopy records per-retain
+  pool rents and exact retained byte-pool misses; pooled resource release
+  records returned arrays; ArchiveOwnedRadarEventBatchQueueingPublisher
+  aggregates those counts into RadarProcessingRetainedPayloadTelemetrySummary
 interim allocation sanity, not final gate:
   Release CLI omitted-provider KTLX 2026-05-05 --max-files 220 same-run
   borrowed/default pairs were captured to decide whether more optimization is
@@ -309,6 +318,16 @@ retained allocation profile after current-thread attribution:
   interpretation: retained pooled-copy cold/churn allocation is real, while
   the much larger processing callback non-owned snapshot and overlap
   unattributed buckets are global-counter overlap attribution buckets
+retained pooled-copy micro-harness:
+  deterministic synthetic retained-copy coverage now separates cold and warm
+  large retained byte-array behavior
+  cold same-shape retain records two pool rents, one retained byte-pool miss,
+  and two pool returns after release
+  warm same-shape retain records two pool rents, zero retained byte-pool
+  misses, and two pool returns after release
+  cold allocation is higher than warm allocation, confirming that same-shape
+  pool reuse works and the first large retained byte-array rent is a real
+  cold allocation source
 rejected spike:
   increasing RadarProcessingRetainedPayloadByteArrayPool default retained
   bytes from 128 MiB to 256 MiB was tested and reverted because it retained
@@ -325,9 +344,20 @@ verification:
   82 passed, 0 failed, 0 skipped
   dotnet build RadarPulse.sln -c Release --no-restore
   succeeded, 0 warnings, 0 errors
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests|FullyQualifiedName~RadarProcessingRetainedPayloadContractTests|FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests"
+  30 passed, 0 failed, 0 skipped
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests|FullyQualifiedName~RadarProcessingRetainedPayloadContractTests|FullyQualifiedName~RadarProcessingRetainedBatchResourceTests|FullyQualifiedName~RadarProcessingOwnedBatchQueueTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+  125 passed, 0 failed, 0 skipped
+  dotnet build RadarPulse.sln -c Release --no-restore
+  succeeded, 0 warnings, 0 errors
 next:
-  optimize retained pooled-copy cold allocation directly or run a narrow
-  retained-copy micro-harness before changing pool policy
+  rerun KTLX 2026-05-05 Release same-run borrowed/default comparison with
+  retained payload pool rent/return/miss telemetry visible
+  use retained payload pool miss rate to decide whether to tune retained
+  byte-pool shape retention, investigate an alternate retained
+  representation, or move to the focused regression pass
 ```
 
 Milestone 015 likely implementation targets:
@@ -344,12 +374,16 @@ src/Domain/Processing/RadarProcessingRebalanceAllocationSummary.cs
 src/Domain/Processing/RadarProcessingOwnedSnapshotAllocationSummary.cs
 src/Domain/Processing/IRadarProcessingRetainedPayloadReleaseOwner.cs
 src/Domain/Processing/RadarProcessingRetainedBatchResource.cs
+src/Domain/Processing/RadarProcessingRetainedPayloadRetentionResult.cs
+src/Domain/Processing/RadarProcessingRetainedPayloadReleaseResult.cs
 src/Domain/Processing/RadarProcessingRetainedPayloadTelemetrySummary.cs
 src/Domain/Processing/RadarProcessingProviderQueueTelemetrySummary.cs
+src/Infrastructure/Processing/RadarProcessingRetainedPayloadByteArrayPool.cs
 tests/RadarPulse.Tests/Archive/NexradArchiveRadarEventBatchPublisherTests.cs
 tests/RadarPulse.Tests/Archive/ArchiveOwnedRadarEventBatchQueueingPublisherTests.cs
 tests/RadarPulse.Tests/Processing/RadarProcessingRebalanceAllocationSummaryTests.cs
 tests/RadarPulse.Tests/Processing/RadarProcessingRetainedPayloadFactoryTests.cs
+tests/RadarPulse.Tests/Processing/RadarProcessingRetainedPayloadContractTests.cs
 tests/RadarPulse.Tests/Processing/RadarProcessingRetainedBatchResourceTests.cs
 tests/RadarPulse.Tests/Processing/RadarProcessingArchiveQueuedOverlapRunnerTests.cs
 tests/RadarPulse.Tests/Processing/RadarProcessingQueuedProviderReadinessGateTests.cs
