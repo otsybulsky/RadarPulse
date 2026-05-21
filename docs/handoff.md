@@ -8,6 +8,7 @@ Milestone 013 planning is active. The milestone documents started so far are:
 docs/milestones/013-post-rollout-hardening-broader-validation.md
 docs/milestones/013-post-rollout-hardening-broader-validation-plan.md
 docs/milestones/013-post-rollout-hardening-broader-validation-performance-gate.md
+docs/milestones/013-post-rollout-hardening-broader-validation-decision-trace.md
 ```
 
 Milestone 013 is the post-rollout hardening and broader validation milestone
@@ -66,11 +67,11 @@ slice 5: allocation attribution pass complete
 slice 6: failure, cleanup, and fallback regression pass complete
 slice 7: focused regression pass before gate complete
 slice 8: broader natural Release gate captured with allocation warning
-next slice: stability decision trace
+slice 9: stability decision trace complete
+next slice: closeout and handoff
 next verification target:
-  decide whether the borderline KTLX 2026-05-05 allocation signal blocks the
-  next expansion, requires follow-up attribution, or remains acceptable for the
-  scoped default
+  write milestone closeout, run final verification, and record final handoff
+  posture
 ```
 
 Planned milestone 013 slices:
@@ -263,6 +264,29 @@ retained pressure stayed below 10.14% of the 536870912 byte budget across
 decision trace must decide whether the KTLX 2026-05-05 allocation signal blocks
   the next expansion, requires follow-up, or remains acceptable for the scoped
   CLI default
+```
+
+Milestone 013 slice 9 stability decision trace:
+
+```text
+runtime behavior changes: none
+document:
+  docs/milestones/013-post-rollout-hardening-broader-validation-decision-trace.md
+decision: yes for the existing scoped CLI default; it remains in place and no
+  rollback is recommended
+decision: KTLX 2026-05-05 allocation warning is accepted as direct API
+  migration cost
+decision: direct archive rebalance API default migration is approved as the
+  next milestone input; direct MeasureFile()/MeasureCache() defaults remain
+  blocking-borrowed until that migration milestone changes them
+fallback/oracle posture remains accepted through explicit
+  --provider blocking-borrowed
+allocation warning remains a tracked cost/risk for the next migration:
+  KTLX 2026-05-05 averaged 1.1005x borrowed allocation with one row over the
+  1.10x threshold
+recommended next milestone input: direct archive rebalance API default
+  migration for MeasureFile()/MeasureCache() with same-run borrowed oracle and
+  repeated KTLX 2026-05-05 allocation tracking
 ```
 
 Milestone 013 closeout question:

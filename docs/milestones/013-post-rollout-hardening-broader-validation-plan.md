@@ -1473,6 +1473,25 @@ Record whether the miss requires more hardening, more attribution, a contour
 change proposal, or rollback consideration.
 ```
 
+Implemented in slice 9:
+
+```text
+status: complete
+runtime behavior changes: none
+document:
+  docs/milestones/013-post-rollout-hardening-broader-validation-decision-trace.md
+decision: yes for keeping the existing scoped CLI default
+decision: KTLX 2026-05-05 allocation warning is accepted as direct API
+  migration cost
+decision: direct API default migration is approved as next milestone input;
+  live/runtime expansion remains out of scope
+reason: correctness, cleanup, pressure, timing, provenance, and fallback
+  posture passed, and the allocation warning is explicitly accepted
+recommended next milestone input: direct archive rebalance API default
+  migration for MeasureFile()/MeasureCache() with same-run borrowed oracle and
+  repeated KTLX 2026-05-05 allocation tracking
+```
+
 ### 10. Closeout And Handoff
 
 Finalize the milestone documentation and project handoff.
@@ -1604,7 +1623,7 @@ controlled proof rows separated if captured
 [x] broader natural Release gate is captured
 [x] performance gate interprets correctness, cleanup, pressure, allocation,
     timing, variance, provenance, and attribution
-[ ] decision trace records the post-rollout stability decision
+[x] decision trace records the post-rollout stability decision
 [ ] closeout is written
 [ ] handoff is updated with current default, fallback/oracle, compatibility,
     and next-milestone posture
