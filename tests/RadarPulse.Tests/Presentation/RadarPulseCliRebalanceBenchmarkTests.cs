@@ -937,7 +937,21 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             Assert.Contains("Provider overlap mode: none", result.StandardOutput);
             Assert.Contains("Retention strategy: snapshot-copy", result.StandardOutput);
             Assert.Contains("Provider queue retained byte capacity: none", result.StandardOutput);
+            Assert.Contains("Provider mode source: explicit", result.StandardOutput);
+            Assert.Contains("Provider overlap source: current-default", result.StandardOutput);
+            Assert.Contains("Retention strategy source: current-default", result.StandardOutput);
+            Assert.Contains("Provider queue capacity source: explicit", result.StandardOutput);
+            Assert.Contains("Worker queue capacity source: not-applicable", result.StandardOutput);
+            Assert.Contains("Provider queue retained byte capacity source: current-default", result.StandardOutput);
+            Assert.Contains("Queue telemetry source: explicit", result.StandardOutput);
+            Assert.Contains("Provider overlap telemetry source: not-applicable", result.StandardOutput);
+            Assert.Contains("Provider overlap consumer delay source: not-applicable", result.StandardOutput);
+            Assert.Contains("Execution mode source: current-default", result.StandardOutput);
+            Assert.Contains("Worker count source: not-applicable", result.StandardOutput);
             Assert.Contains("Default-candidate contour: no", result.StandardOutput);
+            Assert.Contains("Provider default rollout contour: no", result.StandardOutput);
+            Assert.Contains("Provider rollout default expansion: no", result.StandardOutput);
+            Assert.Contains("Provider fallback contour: no", result.StandardOutput);
             Assert.Contains("Provider overlap evidence contour: not-applicable", result.StandardOutput);
             Assert.Contains("Provider overlap evidence scope: not-applicable", result.StandardOutput);
             Assert.Contains(
@@ -1009,7 +1023,21 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             Assert.Contains("Provider overlap consumer delay ms: 1.00", result.StandardOutput);
             Assert.Contains("Retention strategy: pooled-copy", result.StandardOutput);
             Assert.Contains("Provider queue retained byte capacity: 4_096", result.StandardOutput);
+            Assert.Contains("Provider mode source: explicit", result.StandardOutput);
+            Assert.Contains("Provider overlap source: explicit", result.StandardOutput);
+            Assert.Contains("Retention strategy source: explicit", result.StandardOutput);
+            Assert.Contains("Provider queue capacity source: current-default", result.StandardOutput);
+            Assert.Contains("Worker queue capacity source: not-applicable", result.StandardOutput);
+            Assert.Contains("Provider queue retained byte capacity source: explicit", result.StandardOutput);
+            Assert.Contains("Queue telemetry source: current-default", result.StandardOutput);
+            Assert.Contains("Provider overlap telemetry source: explicit", result.StandardOutput);
+            Assert.Contains("Provider overlap consumer delay source: explicit", result.StandardOutput);
+            Assert.Contains("Execution mode source: current-default", result.StandardOutput);
+            Assert.Contains("Worker count source: not-applicable", result.StandardOutput);
             Assert.Contains("Default-candidate contour: no", result.StandardOutput);
+            Assert.Contains("Provider default rollout contour: no", result.StandardOutput);
+            Assert.Contains("Provider rollout default expansion: no", result.StandardOutput);
+            Assert.Contains("Provider fallback contour: no", result.StandardOutput);
             Assert.Contains("Provider overlap evidence contour: controlled-proof", result.StandardOutput);
             Assert.Contains("Provider overlap evidence scope: controlled-mechanics-proof", result.StandardOutput);
             Assert.Contains("Retained payload strategy: pooled-copy", result.StandardOutput);
@@ -1083,7 +1111,21 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             Assert.Contains("Provider overlap consumer delay ms: 0.00", result.StandardOutput);
             Assert.Contains("Retention strategy: pooled-copy", result.StandardOutput);
             Assert.Contains("Provider queue retained byte capacity: 536_870_912", result.StandardOutput);
+            Assert.Contains("Provider mode source: explicit", result.StandardOutput);
+            Assert.Contains("Provider overlap source: explicit", result.StandardOutput);
+            Assert.Contains("Retention strategy source: explicit", result.StandardOutput);
+            Assert.Contains("Provider queue capacity source: explicit", result.StandardOutput);
+            Assert.Contains("Worker queue capacity source: explicit", result.StandardOutput);
+            Assert.Contains("Provider queue retained byte capacity source: explicit", result.StandardOutput);
+            Assert.Contains("Queue telemetry source: explicit", result.StandardOutput);
+            Assert.Contains("Provider overlap telemetry source: explicit", result.StandardOutput);
+            Assert.Contains("Provider overlap consumer delay source: current-default", result.StandardOutput);
+            Assert.Contains("Execution mode source: explicit", result.StandardOutput);
+            Assert.Contains("Worker count source: explicit", result.StandardOutput);
             Assert.Contains("Default-candidate contour: yes", result.StandardOutput);
+            Assert.Contains("Provider default rollout contour: yes", result.StandardOutput);
+            Assert.Contains("Provider rollout default expansion: no", result.StandardOutput);
+            Assert.Contains("Provider fallback contour: no", result.StandardOutput);
             Assert.Contains("Provider overlap evidence contour: natural-default-candidate", result.StandardOutput);
             Assert.Contains("Provider overlap evidence scope: natural-readiness", result.StandardOutput);
             Assert.Contains("Provider queue combined retained payload bytes high watermark: 0", result.StandardOutput);
@@ -1132,10 +1174,81 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             Assert.Contains("Provider overlap consumer delay ms: 0.00", result.StandardOutput);
             Assert.Contains("Retention strategy: pooled-copy", result.StandardOutput);
             Assert.Contains("Provider queue retained byte capacity: 536_870_912", result.StandardOutput);
+            Assert.Contains("Provider mode source: rollout-default", result.StandardOutput);
+            Assert.Contains("Provider overlap source: rollout-default", result.StandardOutput);
+            Assert.Contains("Retention strategy source: rollout-default", result.StandardOutput);
+            Assert.Contains("Provider queue capacity source: rollout-default", result.StandardOutput);
+            Assert.Contains("Worker queue capacity source: rollout-default", result.StandardOutput);
+            Assert.Contains("Provider queue retained byte capacity source: rollout-default", result.StandardOutput);
+            Assert.Contains("Queue telemetry source: rollout-default", result.StandardOutput);
+            Assert.Contains("Provider overlap telemetry source: rollout-default", result.StandardOutput);
+            Assert.Contains("Provider overlap consumer delay source: rollout-default", result.StandardOutput);
+            Assert.Contains("Execution mode source: rollout-default", result.StandardOutput);
+            Assert.Contains("Worker count source: rollout-default", result.StandardOutput);
             Assert.Contains("Default-candidate contour: yes", result.StandardOutput);
+            Assert.Contains("Provider default rollout contour: yes", result.StandardOutput);
+            Assert.Contains("Provider rollout default expansion: yes", result.StandardOutput);
+            Assert.Contains("Provider fallback contour: no", result.StandardOutput);
             Assert.Contains("Provider overlap evidence contour: natural-default-candidate", result.StandardOutput);
             Assert.Contains("Provider overlap evidence scope: natural-readiness", result.StandardOutput);
             Assert.Contains("Execution mode: async", result.StandardOutput);
+            Assert.Equal(string.Empty, result.StandardError);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ArchiveRebalanceBenchmarkCommandLabelsExplicitBorrowedFallback()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "RadarPulse.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        File.WriteAllBytes(Path.Combine(directory, "notes.txt"), [1, 2, 3]);
+
+        try
+        {
+            var result = RunCli(
+                "processing",
+                "benchmark",
+                "rebalance-archive",
+                "--cache",
+                directory,
+                "--max-files",
+                "1",
+                "--mode",
+                "static",
+                "--provider",
+                "blocking-borrowed",
+                "--partitions",
+                "4",
+                "--shards",
+                "2",
+                "--iterations",
+                "1",
+                "--warmup-iterations",
+                "0");
+
+            Assert.Equal(0, result.ExitCode);
+            Assert.Contains("Provider mode: blocking-borrowed", result.StandardOutput);
+            Assert.Contains("Provider mode source: explicit", result.StandardOutput);
+            Assert.Contains("Provider overlap source: not-applicable", result.StandardOutput);
+            Assert.Contains("Retention strategy source: not-applicable", result.StandardOutput);
+            Assert.Contains("Provider queue capacity source: not-applicable", result.StandardOutput);
+            Assert.Contains("Worker queue capacity source: not-applicable", result.StandardOutput);
+            Assert.Contains("Provider queue retained byte capacity source: not-applicable", result.StandardOutput);
+            Assert.Contains("Queue telemetry source: not-applicable", result.StandardOutput);
+            Assert.Contains("Provider overlap telemetry source: not-applicable", result.StandardOutput);
+            Assert.Contains("Provider overlap consumer delay source: not-applicable", result.StandardOutput);
+            Assert.Contains("Execution mode source: current-default", result.StandardOutput);
+            Assert.Contains("Worker count source: not-applicable", result.StandardOutput);
+            Assert.Contains("Default-candidate contour: no", result.StandardOutput);
+            Assert.Contains("Provider default rollout contour: no", result.StandardOutput);
+            Assert.Contains("Provider rollout default expansion: no", result.StandardOutput);
+            Assert.Contains("Provider fallback contour: yes", result.StandardOutput);
+            Assert.Contains("Provider overlap evidence contour: not-applicable", result.StandardOutput);
+            Assert.Contains("Provider overlap evidence scope: not-applicable", result.StandardOutput);
             Assert.Equal(string.Empty, result.StandardError);
         }
         finally
@@ -1185,7 +1298,21 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             Assert.Equal(0, result.ExitCode);
             Assert.Contains("Provider mode: queued-owned", result.StandardOutput);
             Assert.Contains("Provider overlap mode: producer-consumer", result.StandardOutput);
+            Assert.Contains("Provider mode source: explicit", result.StandardOutput);
+            Assert.Contains("Provider overlap source: explicit", result.StandardOutput);
+            Assert.Contains("Retention strategy source: explicit", result.StandardOutput);
+            Assert.Contains("Provider queue capacity source: current-default", result.StandardOutput);
+            Assert.Contains("Worker queue capacity source: not-applicable", result.StandardOutput);
+            Assert.Contains("Provider queue retained byte capacity source: current-default", result.StandardOutput);
+            Assert.Contains("Queue telemetry source: explicit", result.StandardOutput);
+            Assert.Contains("Provider overlap telemetry source: explicit", result.StandardOutput);
+            Assert.Contains("Provider overlap consumer delay source: current-default", result.StandardOutput);
+            Assert.Contains("Execution mode source: current-default", result.StandardOutput);
+            Assert.Contains("Worker count source: not-applicable", result.StandardOutput);
             Assert.Contains("Default-candidate contour: no", result.StandardOutput);
+            Assert.Contains("Provider default rollout contour: no", result.StandardOutput);
+            Assert.Contains("Provider rollout default expansion: no", result.StandardOutput);
+            Assert.Contains("Provider fallback contour: no", result.StandardOutput);
             Assert.Contains("Provider overlap evidence contour: natural-opt-in", result.StandardOutput);
             Assert.Contains("Provider overlap evidence scope: opt-in-diagnostic", result.StandardOutput);
             Assert.Contains("Retained payload telemetry: summary", result.StandardOutput);

@@ -153,9 +153,58 @@ controlled consumer delay remains rejected outside queued-owned
   producer-consumer contours
 ```
 
-The next implementation step is slice 5 from the plan: operator output for
-default versus explicit selection. The runtime now has provenance internally,
-but CLI output still needs to print source/rollout/fallback fields explicitly.
+Milestone 012 slice 5 operator output for default versus explicit selection is
+implemented in the current working tree. There were no benchmark invocation
+behavior changes.
+
+`processing benchmark rebalance-archive` file and cache output now prints these
+source fields:
+
+```text
+Provider mode source
+Provider overlap source
+Retention strategy source
+Provider queue capacity source
+Worker queue capacity source
+Provider queue retained byte capacity source
+Queue telemetry source
+Provider overlap telemetry source
+Provider overlap consumer delay source
+Execution mode source
+Worker count source
+```
+
+Source values are:
+
+```text
+rollout-default: selected by omitted-provider milestone 012 expansion
+explicit: selected by an explicit CLI option
+current-default: inherited from the non-rollout default under an explicit
+  provider contour
+not-applicable: queued-owned or async-only source is not active for this run
+```
+
+Output now also prints:
+
+```text
+Provider default rollout contour: yes|no
+Provider rollout default expansion: yes|no
+Provider fallback contour: yes|no
+```
+
+`Default-candidate contour`, `Provider overlap evidence contour`, and
+`Provider overlap evidence scope` remain stable. CLI coverage now proves that
+omitted provider defaults are visibly rollout-default, explicit queued-owned
+rollout-shape runs are not treated as omitted-default expansion, explicit
+`--provider blocking-borrowed` is visibly fallback, natural opt-in diagnostic
+runs remain `opt-in-diagnostic`, and controlled proof rows remain
+`controlled-mechanics-proof`.
+
+The next implementation step is slice 6 from the plan: benchmark invocation
+defaults and same-run oracle preservation. The output now makes fallback
+selection auditable; slice 6 should verify that CLI default and explicit
+borrowed paths reach the intended benchmark/provider code paths and that the
+borrowed oracle remains available.
 
 Latest verification after milestone 012 slice 1:
 
@@ -212,6 +261,21 @@ Recorded result:
 ```text
 24 passed, 0 failed, 0 skipped.
 45 passed, 0 failed, 0 skipped.
+```
+
+Latest verification after milestone 012 slice 5:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests"
+```
+
+Recorded result:
+
+```text
+25 passed, 0 failed, 0 skipped.
+46 passed, 0 failed, 0 skipped.
 ```
 
 Milestone 011 remains complete. The closed documents are:

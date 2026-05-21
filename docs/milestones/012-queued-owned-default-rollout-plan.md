@@ -902,6 +902,83 @@ Do not remove milestone 011 evidence labels unless the replacement remains
 clear for existing gate interpretation.
 ```
 
+Implemented in slice 5:
+
+```text
+status:
+  complete
+
+output changes:
+  rebalance-archive file and cache output now receive the parsed CLI options
+  alongside benchmark results so operator-visible output can print option
+  provenance without changing MeasureFile/MeasureCache invocation behavior
+
+source vocabulary:
+  rollout-default:
+    value came from omitted-provider milestone 012 default expansion
+  explicit:
+    value came from an explicit CLI option
+  current-default:
+    value came from a non-rollout existing default under an explicit provider
+    contour
+  not-applicable:
+    source belongs to queued-owned or async-only behavior that is not active
+    for the printed run
+
+new source fields:
+  Provider mode source
+  Provider overlap source
+  Retention strategy source
+  Provider queue capacity source
+  Worker queue capacity source
+  Provider queue retained byte capacity source
+  Queue telemetry source
+  Provider overlap telemetry source
+  Provider overlap consumer delay source
+  Execution mode source
+  Worker count source
+
+new contour fields:
+  Provider default rollout contour:
+    yes when the printed run matches the queued-owned default rollout shape
+  Provider rollout default expansion:
+    yes only when the rollout shape came from omitted provider defaults
+  Provider fallback contour:
+    yes only for explicit --provider blocking-borrowed fallback runs
+
+preserved fields:
+  Default-candidate contour remains printed
+  Provider overlap evidence contour remains stable
+  Provider overlap evidence scope remains stable
+
+covered output rows:
+  omitted provider default expansion prints rollout-default sources and
+    Provider rollout default expansion: yes
+  explicit queued-owned rollout-shape run prints explicit sources,
+    Provider default rollout contour: yes, and Provider rollout default
+    expansion: no
+  explicit blocking-borrowed run prints Provider fallback contour: yes and
+    not-applicable for queued-owned-only sources
+  natural opt-in diagnostic run remains opt-in-diagnostic
+  controlled proof run remains controlled-mechanics-proof
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests"
+```
+
+Recorded result:
+
+```text
+25 passed, 0 failed, 0 skipped for focused CLI rebalance benchmark coverage.
+46 passed, 0 failed, 0 skipped for focused CLI, readiness gate, and overlap
+runner coverage.
+```
+
 ### 6. Benchmark Invocation Defaults And Same-Run Oracle Preservation
 
 Ensure benchmark invocation paths receive the intended defaults and can still
@@ -1235,7 +1312,7 @@ controlled proof rows separated if captured
 [x] CLI default expansion resolves to queued-owned rollout contour
 [x] explicit blocking-borrowed fallback remains selectable
 [ ] same-run borrowed benchmark oracle remains available
-[ ] operator output distinguishes default expansion, fallback, rollout
+[x] operator output distinguishes default expansion, fallback, rollout
     contour, opt-in diagnostic, and controlled proof
 [ ] invalid mixed provider options fail closed
 [ ] failure, cancellation, and cleanup guardrails remain covered
