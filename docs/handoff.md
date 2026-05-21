@@ -8,6 +8,7 @@ Milestone 014 is in progress. The milestone documents created so far are:
 docs/milestones/014-direct-archive-rebalance-api-default-migration.md
 docs/milestones/014-direct-archive-rebalance-api-default-migration-plan.md
 docs/milestones/014-direct-archive-rebalance-api-default-migration-performance-gate.md
+docs/milestones/014-direct-archive-rebalance-api-default-migration-decision-trace.md
 ```
 
 Milestone 014 is the direct archive rebalance API default migration milestone.
@@ -40,7 +41,7 @@ overlap telemetry: summary where available in result contracts
 overlap consumer delay: 0
 ```
 
-Current code and gate posture after milestone 014 slice 8:
+Current code, gate, and decision posture after milestone 014 slice 9:
 
 ```text
 direct MeasureFile() omitted defaults:
@@ -117,7 +118,8 @@ slice 5: fallback, failure, and cleanup guardrails complete
 slice 6: operator help and documentation cleanup complete
 slice 7: focused regression pass before gate complete
 slice 8: direct API Release gate complete
-slice 9: direct API migration decision trace next
+slice 9: direct API migration decision trace complete
+slice 10: closeout and handoff next
 runtime behavior changes so far:
   direct MeasureFile() omitted defaults now use the queued-owned rollout
   contour
@@ -127,6 +129,7 @@ runtime behavior changes so far:
   slice 6 updates operator help/docs only; no runtime behavior changed
   slice 7 is verification-only; no runtime behavior changed
   slice 8 is gate documentation only; no runtime behavior changed
+  slice 9 is decision documentation only; no runtime behavior changed
 latest focused verification:
   dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
     --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests"
@@ -144,6 +147,19 @@ latest Release gate:
     536870912 byte budget
   release failures: 0 across direct default rows
   retained pressure at completion: 0 across direct default rows
+latest decision trace:
+  docs/milestones/014-direct-archive-rebalance-api-default-migration-decision-trace.md
+  decision: direct MeasureFile()/MeasureCache() omitted defaults are accepted
+    as the queued-owned rollout contour
+  file/cache symmetry: accepted
+  explicit BlockingBorrowed fallback/oracle: preserved
+  CLI/direct rollout contour alignment: accepted
+  KTLX 2026-05-05 allocation: accepted as warning, not clean green
+  live/runtime defaults: out of scope and not approved
+  recommended next milestone input: targeted allocation reduction or
+    allocation-readiness before any live/runtime default expansion; if broader
+    benchmark expansion is chosen first, keep same-run BlockingBorrowed oracle
+    rows and the KTLX warning visible
 ```
 
 Milestone 014 slice 1 baseline capture:
@@ -380,7 +396,59 @@ direct API default rows were captured through direct MeasureCache() calls
 same-run explicit blocking-borrowed oracle rows were captured
 KTLX 2026-05-05 allocation warning repeated and remains visible
 primary favorable timing outlier should be named but is not a slowdown blocker
-slice 9 should record the direct API migration decision, not recapture the gate
+slice 9 recorded the direct API migration decision without recapturing the gate
+```
+
+Milestone 014 slice 9 direct API migration decision trace:
+
+```text
+runtime behavior changes:
+  none
+decision trace:
+  docs/milestones/014-direct-archive-rebalance-api-default-migration-decision-trace.md
+standard format:
+  top-level decision, decision matrix, decision explanations with Decision,
+  Why chosen, Alternatives, Rejected because, Trade-offs/debt, and Review
+  explanation fields, evidence, threshold decisions, allocation decision,
+  operational posture, residual risks, and final decision
+decision:
+  direct RadarProcessingArchiveRebalanceBenchmark.MeasureFile() and
+  MeasureCache() omitted defaults are accepted as the queued-owned rollout
+  contour
+file/cache symmetry:
+  accepted; both direct surfaces migrated to the same shared rollout contour
+fallback/oracle posture:
+  accepted; explicit BlockingBorrowed remains selectable, tested, documented,
+  and required for same-run comparison gates
+CLI/direct alignment:
+  accepted; CLI omitted-provider rollout constants and direct omitted defaults
+  share the same accepted contour
+KTLX 2026-05-05 allocation:
+  accepted as warning, not clean green; direct gate average was 1.0997x
+  borrowed with one row at 1.1018x and one row at 1.0976x
+runtime expansion:
+  not approved; live ingestion/runtime defaults, durable queues,
+  cross-process workers, ordered concurrent rebalance, and builder-transfer
+  remain out of scope
+recommended next milestone input:
+  targeted allocation reduction or allocation-readiness for the queued-owned
+  direct/default contour before any live/runtime default expansion; if broader
+  benchmark expansion is chosen first, it must keep same-run BlockingBorrowed
+  oracle rows and the KTLX 2026-05-05 warning visible
+next:
+  write closeout and finalize handoff with accepted direct API posture,
+  explicit fallback/oracle posture, allocation warning, and next milestone
+  recommendation
+```
+
+Milestone 014 decision posture after slice 9:
+
+```text
+direct API default migration is accepted
+explicit BlockingBorrowed remains fallback/oracle
+KTLX 2026-05-05 allocation warning remains tracked debt
+live/runtime defaults remain out of scope
+slice 10 should close the milestone and finalize handoff
 ```
 
 Milestone 014 expected verification before closeout:

@@ -1021,8 +1021,8 @@ gate result:
   blocker because every direct default row was faster than borrowed, but it
   should be named in the decision trace
 next:
-  slice 9 should write the direct API migration decision trace and decide how
-  to carry the KTLX 2026-05-05 allocation warning into the final posture
+  slice 9 has now written the direct API migration decision trace and carried
+  the KTLX 2026-05-05 allocation warning into the final posture
 ```
 
 ### 9. Direct API Migration Decision Trace
@@ -1065,6 +1065,43 @@ Guardrail:
 If the gate misses a correctness, release, cleanup, or pressure threshold, do
 not accept the direct default migration. Record the blocker and the next
 milestone input.
+```
+
+Implemented in slice 9:
+
+```text
+status: complete
+runtime behavior changes: none
+decision trace:
+  docs/milestones/014-direct-archive-rebalance-api-default-migration-decision-trace.md
+decision:
+  direct RadarProcessingArchiveRebalanceBenchmark.MeasureFile() and
+  MeasureCache() omitted defaults are accepted as the queued-owned rollout
+  contour
+file/cache symmetry:
+  accepted; both direct surfaces migrated to the same shared rollout contour
+fallback/oracle posture:
+  accepted; explicit BlockingBorrowed remains selectable, tested, documented,
+  and required for same-run comparison gates
+CLI/direct alignment:
+  accepted; CLI omitted-provider rollout constants and direct omitted defaults
+  share the same accepted contour
+KTLX 2026-05-05 allocation:
+  accepted as warning, not clean green; direct gate average was 1.0997x
+  borrowed with one row at 1.1018x and one row at 1.0976x
+runtime expansion:
+  not approved; live ingestion/runtime defaults, durable queues,
+  cross-process workers, ordered concurrent rebalance, and builder-transfer
+  remain out of scope
+recommended next milestone input:
+  targeted allocation reduction or allocation-readiness for the queued-owned
+  direct/default contour before any live/runtime default expansion; if broader
+  benchmark expansion is chosen first, it must keep same-run BlockingBorrowed
+  oracle rows and the KTLX 2026-05-05 warning visible
+next:
+  slice 10 should write closeout and finalize handoff with the accepted direct
+  API default posture, explicit fallback/oracle posture, allocation warning,
+  and next milestone recommendation
 ```
 
 ### 10. Closeout And Handoff
@@ -1200,7 +1237,7 @@ controlled proof rows separated if captured
 [x] KTLX 2026-05-05 allocation warning is repeated and interpreted
 [x] performance gate interprets correctness, cleanup, pressure, allocation,
     timing, variance, fallback/oracle posture, and attribution
-[ ] decision trace records the direct API default decision
+[x] decision trace records the direct API default decision
 [ ] closeout is written
 [ ] handoff is updated with current direct default, fallback/oracle,
     allocation-risk, and next-milestone posture
