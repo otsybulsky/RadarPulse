@@ -1,8 +1,91 @@
-# Handoff: Milestone 012 Complete
+# Handoff: Milestone 013 Planning Started
 
 ## Current State
 
-Milestone 012 is complete. The milestone documents are:
+Milestone 013 planning is active. The milestone documents started so far are:
+
+```text
+docs/milestones/013-post-rollout-hardening-broader-validation.md
+docs/milestones/013-post-rollout-hardening-broader-validation-plan.md
+```
+
+Milestone 013 is the post-rollout hardening and broader validation milestone
+for the scoped queued-owned default accepted in milestone 012. It does not
+start by broadening into direct API defaults, live ingestion, durable queues,
+cross-process workers, builder-transfer, or ordered concurrent rebalance.
+
+Milestone 013 goal:
+
+```text
+prove whether the milestone 012 scoped queued-owned default is stable enough
+across broader workload and regression evidence to serve as the baseline for
+the next expansion decision
+```
+
+Current milestone 013 scoped subject:
+
+```text
+surface: processing benchmark rebalance-archive CLI omitted-provider path
+provider mode: queued-owned
+provider overlap: producer-consumer
+retention strategy: pooled-copy
+execution: async
+worker count: 4
+provider queue capacity: 8
+retained-byte budget: 536870912
+queue telemetry: summary
+overlap telemetry: summary
+overlap consumer delay: 0
+provider source: rollout-default
+```
+
+Milestone 013 preserves these guardrails:
+
+```text
+blocking-borrowed remains explicit fallback through
+  --provider blocking-borrowed
+same-run blocking-borrowed remains the benchmark oracle
+direct RadarProcessingArchiveRebalanceBenchmark.MeasureFile()/MeasureCache()
+  defaults remain blocking-borrowed unless a later milestone migrates them
+queued-owned failures fail closed
+no automatic borrowed fallback follows queued-owned failure
+controlled consumer delay remains mechanics-only proof
+builder-transfer remains unsupported
+```
+
+Milestone 013 implementation plan status:
+
+```text
+status: draft
+next slice: post-rollout surface audit
+first verification target:
+  focused CLI, direct benchmark compatibility, and readiness tests before any
+  behavior changes
+```
+
+Planned milestone 013 slices:
+
+```text
+1. post-rollout surface audit
+2. default contour drift guardrails
+3. direct API compatibility guardrails
+4. operator help and output compatibility cleanup
+5. allocation attribution pass
+6. failure, cleanup, and fallback regression pass
+7. focused regression pass before gate
+8. broader natural Release gate
+9. stability decision trace
+10. closeout and handoff
+```
+
+Milestone 013 closeout question:
+
+```text
+Is the milestone 012 scoped queued-owned default stable enough to be the
+baseline for the next expansion decision?
+```
+
+Milestone 012 remains complete. The milestone documents are:
 
 ```text
 docs/milestones/012-queued-owned-default-rollout.md
