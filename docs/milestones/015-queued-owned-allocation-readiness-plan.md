@@ -1671,6 +1671,50 @@ Runtime behavior changes:
 none
 ```
 
+Implemented in slice 9:
+
+```text
+status: complete
+runtime behavior changes: none
+decision trace:
+  docs/milestones/015-queued-owned-allocation-readiness-decision-trace.md
+
+required decision fields:
+  each decision explanation uses the required format:
+    Decision
+    Why chosen
+    Alternatives
+    Rejected because
+    Trade-offs/debt
+    Review explanation
+
+decision:
+  cache-level allocation readiness is accepted for the queued-owned
+  direct/default archive rebalance contour
+  the KTLX 2026-05-05 warning is reduced and bounded for cache-level
+  readiness
+  the single-file cold warning is accepted as expected retained-ownership
+  cost and a scope limit, not as a cache-level blocker
+  standard and adopted experimental optimizations are sufficient for the
+  current cache-level readiness decision
+  explicit BlockingBorrowed remains fallback and same-run oracle
+  CLI and direct omitted defaults remain aligned to the shared queued-owned
+  rollout contour
+  broader cache-level benchmark/default-readiness work is approved as the
+  next named input
+  live/runtime defaults remain out of scope and are not approved
+
+recommended next milestone input:
+  broader cache-level benchmark/default-readiness work with same-run
+  BlockingBorrowed oracle rows and explicit scope language for the
+  single-file cold retained-ownership warning
+  if file-level default latency/allocation is chosen instead, treat the
+  single-file cold warning as the named optimization target
+
+next slice input:
+  write closeout and update handoff with final milestone posture
+```
+
 ### 10. Closeout And Handoff
 
 Finalize milestone documentation and project handoff.
@@ -1828,7 +1872,7 @@ standard and experimental optimization outcomes recorded
 [x] performance gate interprets correctness, cleanup, pressure, allocation,
     timing, variance, fallback/oracle posture, attribution, and optimization
     posture
-[ ] decision trace records the allocation readiness decision
+[x] decision trace records the allocation readiness decision
 [ ] closeout is written
 [ ] handoff is updated with current allocation posture, fallback/oracle,
     standard and experimental optimization posture, allocation risk, and next

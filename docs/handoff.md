@@ -8,6 +8,7 @@ Milestone 015 is in progress. The milestone documents created so far are:
 docs/milestones/015-queued-owned-allocation-readiness.md
 docs/milestones/015-queued-owned-allocation-readiness-plan.md
 docs/milestones/015-queued-owned-allocation-readiness-performance-gate.md
+docs/milestones/015-queued-owned-allocation-readiness-decision-trace.md
 ```
 
 Milestone 015 is the queued-owned allocation readiness milestone. It starts
@@ -26,8 +27,8 @@ Milestone 015 current status:
 ```text
 architecture document: draft
 implementation plan: in progress
-implementation: slice 8 allocation readiness Release gate complete; next
-  slice 9 allocation readiness decision trace
+implementation: slice 9 allocation readiness decision trace complete; next
+  slice 10 closeout and handoff
 runtime behavior changes so far: allocation-only optimization, including
   cheaper bounded recent-detail copying and explicit pooled retained payload
   release ownership and a dedicated retained event-array pool; retained
@@ -50,7 +51,8 @@ file-level warning:
   event-array and byte-array snapshot is not amortized across many retained
   batches; this is an expected cold retained-ownership price for the current
   queued-owned pooled-copy architecture, not a JIT warmup artifact
-decision trace: not written
+decision trace: written in
+  docs/milestones/015-queued-owned-allocation-readiness-decision-trace.md
 closeout: not written
 ```
 
@@ -98,7 +100,7 @@ Milestone 015 planned slices:
 6. fallback, failure, cleanup, and drift guardrails complete
 7. focused regression and allocation sanity pass complete
 8. allocation readiness Release gate complete
-9. allocation readiness decision trace
+9. allocation readiness decision trace complete
 10. closeout and handoff
 ```
 
@@ -649,6 +651,41 @@ next slice:
   expected file-level cold retained-ownership warning, and explicitly name
   file-level default latency/allocation as a separate future target if that
   surface is chosen next
+```
+
+Milestone 015 slice 9 allocation readiness decision trace:
+
+```text
+status: complete
+runtime behavior changes: none
+decision trace:
+  docs/milestones/015-queued-owned-allocation-readiness-decision-trace.md
+format:
+  each decision explanation uses the required Decision / Why chosen /
+  Alternatives / Rejected because / Trade-offs/debt / Review explanation
+  structure
+decision:
+  cache-level allocation readiness is accepted for the queued-owned
+  direct/default archive rebalance contour
+  KTLX 2026-05-05 warning is reduced and bounded for cache-level readiness
+  single-file cold warning is accepted as expected retained-ownership cost
+  and a scope limit, not a cache-level blocker
+  standard and adopted experimental optimizations are sufficient for the
+  current cache-level readiness decision
+  explicit BlockingBorrowed remains fallback and same-run oracle
+  CLI and direct omitted defaults remain aligned to the shared queued-owned
+  rollout contour
+  broader cache-level benchmark/default-readiness work is approved as the
+  next named input
+  live/runtime defaults remain out of scope and are not approved
+recommended next milestone input:
+  broader cache-level benchmark/default-readiness work with same-run
+  BlockingBorrowed oracle rows and explicit scope language for the
+  single-file cold retained-ownership warning
+  if file-level default latency/allocation is chosen instead, treat the
+  single-file cold warning as the named optimization target
+next slice:
+  write closeout and update handoff with final milestone posture
 ```
 
 Milestone 015 likely implementation targets:
