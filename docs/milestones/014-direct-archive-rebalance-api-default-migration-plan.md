@@ -1,6 +1,6 @@
 # Milestone 014: Direct Archive Rebalance API Default Migration Implementation Plan
 
-Status: in progress.
+Status: complete.
 
 This plan implements the milestone 014 architecture defined in
 `014-direct-archive-rebalance-api-default-migration.md`.
@@ -1099,9 +1099,9 @@ recommended next milestone input:
   benchmark expansion is chosen first, it must keep same-run BlockingBorrowed
   oracle rows and the KTLX 2026-05-05 warning visible
 next:
-  slice 10 should write closeout and finalize handoff with the accepted direct
-  API default posture, explicit fallback/oracle posture, allocation warning,
-  and next milestone recommendation
+  slice 10 wrote closeout and finalized handoff with the accepted direct API
+  default posture, explicit fallback/oracle posture, allocation warning, and
+  next milestone recommendation
 ```
 
 ### 10. Closeout And Handoff
@@ -1164,6 +1164,39 @@ Guardrail:
 Do not mark milestone 014 complete until handoff names the current direct API
 default posture, fallback/oracle posture, KTLX allocation posture, and next
 milestone recommendation unambiguously.
+```
+
+Implemented in slice 10:
+
+```text
+status: complete
+runtime behavior changes: none
+closeout:
+  docs/milestones/014-direct-archive-rebalance-api-default-migration-closeout.md
+handoff:
+  docs/handoff.md
+final status:
+  milestone 014 complete
+final direct API posture:
+  direct RadarProcessingArchiveRebalanceBenchmark.MeasureFile() and
+  MeasureCache() omitted defaults migrate symmetrically to the accepted
+  queued-owned rollout contour
+explicit fallback/oracle posture:
+  providerMode: RadarProcessingArchiveProviderMode.BlockingBorrowed remains
+  selectable and remains the same-run comparison oracle
+KTLX 2026-05-05 allocation posture:
+  accepted as tracked allocation warning, not clean green; direct gate average
+  was 1.0997x borrowed with one row above and one row below the 1.10x
+  threshold
+recommended next milestone input:
+  targeted allocation reduction or allocation-readiness for the queued-owned
+  direct/default contour before any live/runtime default expansion; if broader
+  benchmark expansion is chosen first, keep same-run BlockingBorrowed oracle
+  rows and the KTLX 2026-05-05 warning visible
+final verification:
+  focused closeout filter passed, 84 passed, 0 failed, 0 skipped
+  Release build succeeded, 0 warnings, 0 errors
+  full test project passed, 761 passed, 0 failed, 3 skipped
 ```
 
 ## Verification Strategy
@@ -1238,8 +1271,8 @@ controlled proof rows separated if captured
 [x] performance gate interprets correctness, cleanup, pressure, allocation,
     timing, variance, fallback/oracle posture, and attribution
 [x] decision trace records the direct API default decision
-[ ] closeout is written
-[ ] handoff is updated with current direct default, fallback/oracle,
+[x] closeout is written
+[x] handoff is updated with current direct default, fallback/oracle,
     allocation-risk, and next-milestone posture
 ```
 
