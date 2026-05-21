@@ -306,6 +306,177 @@ Do not change defaults in this slice. Establish the audit trail and edit points
 first.
 ```
 
+Slice 1 baseline capture:
+
+```text
+status:
+  complete
+
+runtime changes:
+  none
+
+CLI help surface:
+  radarpulse processing benchmark rebalance-archive still presents provider
+  controls as optional flags:
+    --provider blocking-borrowed|queued-owned
+    --provider-overlap none|producer-consumer
+    --retention-strategy snapshot-copy|pooled-copy|builder-transfer
+    --execution sync|async
+    --workers n
+    --queue-capacity n
+    --queue-timeout-ms n
+    --queue-retained-bytes n
+    --queue-telemetry none|summary|recent
+    --overlap-telemetry none|summary|recent
+    --overlap-consumer-delay-ms n
+
+ProcessingBenchmarkArchiveRebalanceOptions constructor defaults:
+  ProviderMode = BlockingBorrowed
+  ProviderQueueCapacity = 1
+  ProviderQueueTimeout = null
+  ProviderOverlapMode = None
+  RetentionStrategy = SnapshotCopy
+  ProviderQueueRetainedPayloadBytes = null
+  OverlapConsumerDelay = TimeSpan.Zero
+  QueueTelemetryOutput = Summary
+  OverlapTelemetryOutput = Summary
+  ExecutionMode = PartitionedBarrier
+  AsyncExecution = null
+
+ProcessingBenchmarkArchiveRebalanceOptions.Parse() local defaults:
+  providerMode = BlockingBorrowed
+  providerOverlapMode = None
+  retentionStrategy = SnapshotCopy
+  queueRetainedPayloadBytes = null
+  queueTimeout = null
+  queueTelemetryOutput = Summary
+  overlapTelemetryOutput = Summary
+  overlapConsumerDelay = TimeSpan.Zero
+  executionMode = PartitionedBarrier
+  workerCount = null
+  queueCapacity = null
+
+Parse() derived defaults:
+  when execution is async:
+    AsyncExecution worker count defaults to shard count
+    AsyncExecution queue capacity defaults to 1
+  when provider mode is queued-owned:
+    ProviderQueueCapacity defaults to queueCapacity ?? 1
+  when provider mode is blocking-borrowed:
+    ProviderQueueCapacity remains 1
+    ProviderQueueRetainedPayloadBytes remains null
+
+Parse() current validation rules:
+  --queue-timeout-ms requires --provider queued-owned
+  --queue-retained-bytes requires --provider queued-owned
+  --provider-overlap requires --provider queued-owned
+  explicit --retention-strategy requires --provider queued-owned
+  builder-transfer is rejected for queued-owned
+  explicit non-none --overlap-telemetry requires
+    --provider-overlap producer-consumer
+  --overlap-consumer-delay-ms must be positive and requires
+    --provider queued-owned --provider-overlap producer-consumer
+  --workers requires --execution async
+  --queue-capacity requires --execution async or --provider queued-owned
+
+RadarProcessingArchiveRebalanceBenchmark.MeasureFile() defaults:
+  executionMode = PartitionedBarrier
+  asyncExecution = null
+  providerMode = BlockingBorrowed
+  queueCapacity = 1
+  queueTimeout = null
+  providerOverlapMode = None
+  retentionStrategy = SnapshotCopy
+  queueRetainedPayloadBytes = null
+  overlapConsumerDelay = TimeSpan.Zero
+
+RadarProcessingArchiveRebalanceBenchmark.MeasureCache() defaults:
+  same provider, queue, retention, overlap, and execution defaults as
+  MeasureFile()
+
+MeasureFile()/MeasureCache() derived defaults:
+  async execution without explicit async options uses workerCount = shardCount
+  and worker queue capacity = 1
+  result.QueueCapacity is 0 for blocking-borrowed and queueCapacity for
+  queued-owned
+  result.QueueRetainedPayloadBytes is null for blocking-borrowed and the
+  configured value for queued-owned
+
+current milestone 011 candidate constants:
+  DefaultCandidateProviderQueueCapacity = 8
+  DefaultCandidateRetainedPayloadBytes = 536870912
+  MatchesDefaultCandidateContour() requires:
+    queued-owned
+    queue capacity 8
+    producer-consumer overlap
+    pooled-copy retention
+    retained-byte budget 536870912
+    zero consumer delay
+    queue telemetry not none
+    overlap telemetry not none
+    async execution
+
+tests that currently pin blocking-borrowed or pre-rollout defaults:
+  RadarPulseCliRebalanceBenchmarkTests.
+    ArchiveRebalanceBenchmarkOptionsParseFileModeAndTopology
+      -> ProviderMode BlockingBorrowed
+      -> ProviderQueueCapacity 1
+      -> ProviderOverlapMode None
+      -> RetentionStrategy SnapshotCopy
+      -> ProviderQueueRetainedPayloadBytes null
+      -> ExecutionMode async only when explicitly supplied
+      -> default-candidate no / not-applicable evidence
+  RadarPulseCliRebalanceBenchmarkTests.
+    ArchiveRebalanceBenchmarkOptionsRequireFileAndCompatibleTopology
+      -> queued-only controls without --provider queued-owned are rejected
+  NexradArchiveRadarEventBatchPublisherTests.
+    RebalanceArchiveBenchmarkCacheAsyncMatchesSynchronousTotals
+      -> direct MeasureCache() without provider args remains borrowed
+  NexradArchiveRadarEventBatchPublisherTests.
+    RebalanceArchiveBenchmarkFileSupportsQueuedOwnedProviderMode
+      -> direct borrowed reference uses omitted provider args
+
+explicit queued-owned tests that must continue to work after rollout:
+  RadarPulseCliRebalanceBenchmarkTests.
+    ArchiveRebalanceBenchmarkOptionsParseQueuedProviderSettings
+  RadarPulseCliRebalanceBenchmarkTests.
+    ArchiveRebalanceBenchmarkOptionsIdentifyDefaultCandidateContour
+  RadarPulseCliRebalanceBenchmarkTests.
+    ArchiveRebalanceBenchmarkCommandEmitsQueuedProviderTelemetry
+  RadarPulseCliRebalanceBenchmarkTests.
+    ArchiveRebalanceBenchmarkCommandEmitsOverlapTelemetry
+  RadarPulseCliRebalanceBenchmarkTests.
+    ArchiveRebalanceBenchmarkCommandLabelsDefaultCandidateContour
+  RadarPulseCliRebalanceBenchmarkTests.
+    ArchiveRebalanceBenchmarkCommandSuppressesOptionalTelemetryWhenNone
+  NexradArchiveRadarEventBatchPublisherTests.
+    RebalanceArchiveBenchmarkQueuedOwnedAsyncKeepsWorkerTelemetry
+  NexradArchiveRadarEventBatchPublisherTests.
+    RebalanceArchiveBenchmarkCacheQueuedOwnedAggregatesQueueTelemetry
+  NexradArchiveRadarEventBatchPublisherTests.
+    RebalanceArchiveBenchmarkCacheOverlapUsesSharedQueueAcrossFiles
+  NexradArchiveRadarEventBatchPublisherTests.
+    RebalanceArchiveBenchmarkControlledConsumerDelayProvesQueuedAheadOverlap
+
+slice 2 implementation input:
+  rollout threshold contracts should be added before changing defaults
+  because slice 1 found no existing cleanup-completion gate for current
+  pending/active/combined retained pressure returning to zero
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests"
+```
+
+Recorded result:
+
+```text
+38 passed, 0 failed, 0 skipped for focused CLI, readiness gate, and overlap
+runner baseline coverage.
+```
+
 ### 2. Rollout Threshold Contracts
 
 Capture rollout thresholds in stable code or documentation before final gate

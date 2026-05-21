@@ -18,13 +18,45 @@ comparison available for benchmark gates, and define rollout guardrails for
 allocation ratio, retained pressure, release failures, validation parity, and
 run variance.
 
-The next implementation step is slice 1 from the plan: baseline default surface
-audit. It should freeze current provider-related defaults in
+Milestone 012 slice 1 baseline default surface audit is implemented in the
+current working tree. There were no runtime changes. The plan now captures the
+current provider-related defaults in
 `ProcessingBenchmarkArchiveRebalanceOptions.Parse()`,
 `ProcessingBenchmarkArchiveRebalanceOptions` constructor defaults,
 `RadarProcessingArchiveRebalanceBenchmark.MeasureFile()`,
 `RadarProcessingArchiveRebalanceBenchmark.MeasureCache()`, CLI help text, and
 tests before any runtime default changes.
+
+Current default posture before rollout implementation:
+
+```text
+provider mode: blocking-borrowed
+provider overlap: none
+retention strategy: snapshot-copy
+provider queue capacity: 1
+retained-byte budget: none
+overlap consumer delay: 0
+queue telemetry: summary
+overlap telemetry: summary
+execution: partitioned barrier unless --execution async is supplied
+```
+
+The next implementation step is slice 2 from the plan: rollout threshold
+contracts. Slice 1 specifically found that cleanup-completion gating for current
+pending/active/combined retained pressure returning to zero should be added or
+made explicit before default behavior changes.
+
+Latest verification after milestone 012 slice 1:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests"
+```
+
+Recorded result:
+
+```text
+38 passed, 0 failed, 0 skipped.
+```
 
 Milestone 011 remains complete. The closed documents are:
 
