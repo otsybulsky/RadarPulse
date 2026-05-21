@@ -1,27 +1,36 @@
-# Handoff: Milestone 013 Planning Started
+# Handoff: Milestone 013 Complete
 
 ## Current State
 
-Milestone 013 planning is active. The milestone documents started so far are:
+Milestone 013 is complete. The milestone documents are:
 
 ```text
 docs/milestones/013-post-rollout-hardening-broader-validation.md
 docs/milestones/013-post-rollout-hardening-broader-validation-plan.md
 docs/milestones/013-post-rollout-hardening-broader-validation-performance-gate.md
 docs/milestones/013-post-rollout-hardening-broader-validation-decision-trace.md
+docs/milestones/013-post-rollout-hardening-broader-validation-closeout.md
 ```
 
 Milestone 013 is the post-rollout hardening and broader validation milestone
-for the scoped queued-owned default accepted in milestone 012. It does not
-start by broadening into direct API defaults, live ingestion, durable queues,
-cross-process workers, builder-transfer, or ordered concurrent rebalance.
+for the scoped queued-owned default accepted in milestone 012. It did not
+broaden into direct API defaults, live ingestion, durable queues, cross-process
+workers, builder-transfer, or ordered concurrent rebalance.
 
-Milestone 013 goal:
+Milestone 013 final result:
 
 ```text
-prove whether the milestone 012 scoped queued-owned default is stable enough
-across broader workload and regression evidence to serve as the baseline for
-the next expansion decision
+the milestone 012 scoped queued-owned default remains stable enough to keep as
+the processing benchmark rebalance-archive omitted-provider default and to use
+as the baseline for the next expansion decision
+```
+
+Recommended next milestone input:
+
+```text
+direct archive rebalance API default migration for MeasureFile()/MeasureCache()
+with same-run blocking-borrowed oracle coverage and repeated KTLX 2026-05-05
+allocation tracking
 ```
 
 Current milestone 013 scoped subject:
@@ -53,6 +62,17 @@ queued-owned failures fail closed
 no automatic borrowed fallback follows queued-owned failure
 controlled consumer delay remains mechanics-only proof
 builder-transfer remains unsupported
+```
+
+Milestone 013 closeout answer:
+
+```text
+yes for keeping the existing scoped CLI default
+yes for using direct archive rebalance API default migration as the next
+  milestone input
+no for live/runtime default migration in milestone 013
+KTLX 2026-05-05 allocation warning at 1.1005x borrowed average is accepted as
+  direct API migration cost and remains a tracked risk
 ```
 
 Decision trace base format:
@@ -94,7 +114,7 @@ rule:
 Milestone 013 implementation plan status:
 
 ```text
-status: draft
+status: complete
 slice 1: post-rollout surface audit complete
 slice 2: default contour drift guardrails complete
 slice 3: direct API compatibility guardrails complete
@@ -104,10 +124,11 @@ slice 6: failure, cleanup, and fallback regression pass complete
 slice 7: focused regression pass before gate complete
 slice 8: broader natural Release gate captured with allocation warning
 slice 9: stability decision trace complete
-next slice: closeout and handoff
-next verification target:
-  write milestone closeout, run final verification, and record final handoff
-  posture
+slice 10: closeout and handoff complete
+final closeout verification:
+  79 passed, 0 failed, 0 skipped for focused closeout verification
+  Release build succeeded with 0 warnings and 0 errors
+  756 passed, 0 failed, 3 skipped for the full test project
 ```
 
 Planned milestone 013 slices:
@@ -325,11 +346,32 @@ recommended next milestone input: direct archive rebalance API default
   repeated KTLX 2026-05-05 allocation tracking
 ```
 
+Milestone 013 slice 10 closeout and handoff:
+
+```text
+runtime behavior changes: none
+document:
+  docs/milestones/013-post-rollout-hardening-broader-validation-closeout.md
+decision: milestone 013 is complete
+closeout answer: yes, the milestone 012 scoped queued-owned default is stable
+  enough to remain in place and serve as the baseline for the next expansion
+next milestone input: direct archive rebalance API default migration for
+  MeasureFile()/MeasureCache()
+tracked risk: KTLX 2026-05-05 allocation warning at 1.1005x borrowed average
+  remains visible in the next migration gate
+final verification:
+  focused closeout verification: 79 passed, 0 failed, 0 skipped
+  Release build: succeeded, 0 warnings, 0 errors
+  full test project: 756 passed, 0 failed, 3 skipped
+```
+
 Milestone 013 closeout question:
 
 ```text
 Is the milestone 012 scoped queued-owned default stable enough to be the
 baseline for the next expansion decision?
+
+Answer: yes.
 ```
 
 Milestone 012 remains complete. The milestone documents are:

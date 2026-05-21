@@ -1,6 +1,6 @@
 # Milestone 013: Post-Rollout Hardening And Broader Validation Implementation Plan
 
-Status: draft.
+Status: complete.
 
 This plan implements the milestone 013 architecture defined in
 `013-post-rollout-hardening-broader-validation.md`.
@@ -1624,8 +1624,8 @@ controlled proof rows separated if captured
 [x] performance gate interprets correctness, cleanup, pressure, allocation,
     timing, variance, provenance, and attribution
 [x] decision trace records the post-rollout stability decision
-[ ] closeout is written
-[ ] handoff is updated with current default, fallback/oracle, compatibility,
+[x] closeout is written
+[x] handoff is updated with current default, fallback/oracle, compatibility,
     and next-milestone posture
 ```
 

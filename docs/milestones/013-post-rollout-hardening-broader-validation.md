@@ -1,6 +1,6 @@
 # Milestone 013: Post-Rollout Hardening And Broader Validation Architecture
 
-Status: draft.
+Status: complete.
 
 RadarPulse milestone 013 starts from the closed milestone 012 scoped default
 rollout. Milestone 012 changed omitted-provider behavior for the
