@@ -270,6 +270,17 @@ adopted standard optimization:
   the existing async wait loop remains the fallback for full queue,
   retained-byte budget pressure, state changes, timeout, cancellation, or
   failed immediate write
+attribution refinement:
+  RadarProcessingBenchmarkAllocationSnapshot now records global versus
+  current-thread counter scope and rejects mixed-scope deltas
+  retained payload factory allocation telemetry now uses current-thread
+  snapshots because retained snapshot-copy and pooled-copy execute
+  synchronously on the producer thread
+  end-to-end, processing callback, and provider overlap measured allocation
+  remain global-counter measurements, so the Release gate allocation ratio is
+  not hidden or moved out of the measured contract
+  CLI output labels the counter scopes for allocation attribution, retained
+  payload telemetry, and provider overlap telemetry
 interim allocation sanity, not final gate:
   Release CLI omitted-provider KTLX 2026-05-05 --max-files 220 same-run
   borrowed/default pairs were captured to decide whether more optimization is
@@ -289,6 +300,15 @@ interpretation:
   the next optimization blocker is not provider enqueue overhead; it is
   retained pooled-copy cold/churn allocation plus overlap attribution
   ambiguity from the global allocation counter
+retained allocation profile after current-thread attribution:
+  one Release CLI omitted-provider KTLX 2026-05-05 --max-files 220 default row
+  reported retained payload allocated bytes 222323496, provider overlap
+  measured allocated bytes 2577831248, provider overlap unattributed
+  allocated bytes 2355507752, end-to-end allocated bytes 2581186808, and
+  processing callback non-owned snapshot bytes 1999761400
+  interpretation: retained pooled-copy cold/churn allocation is real, while
+  the much larger processing callback non-owned snapshot and overlap
+  unattributed buckets are global-counter overlap attribution buckets
 rejected spike:
   increasing RadarProcessingRetainedPayloadByteArrayPool default retained
   bytes from 128 MiB to 256 MiB was tested and reverted because it retained
@@ -300,9 +320,14 @@ verification:
   83 passed, 0 failed, 0 skipped
   dotnet build RadarPulse.sln -c Release --no-restore
   succeeded, 0 warnings, 0 errors
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests|FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+  82 passed, 0 failed, 0 skipped
+  dotnet build RadarPulse.sln -c Release --no-restore
+  succeeded, 0 warnings, 0 errors
 next:
-  split or profile retained pooled-copy allocation and overlap attribution
-  before adding another production optimization
+  optimize retained pooled-copy cold allocation directly or run a narrow
+  retained-copy micro-harness before changing pool policy
 ```
 
 Milestone 015 likely implementation targets:

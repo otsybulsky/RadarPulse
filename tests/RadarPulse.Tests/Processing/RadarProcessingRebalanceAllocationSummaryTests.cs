@@ -73,6 +73,21 @@ public sealed class RadarProcessingRebalanceAllocationSummaryTests
 
         Assert.Equal(500, after.DeltaSince(before));
         Assert.Equal(0, before.DeltaSince(after));
+        Assert.True(before.IsGlobal);
+        Assert.False(before.IsCurrentThread);
+    }
+
+    [Fact]
+    public void SnapshotDeltasRejectMixedAllocationCounterScopes()
+    {
+        var global = new RadarProcessingBenchmarkAllocationSnapshot(1_000);
+        var currentThread = new RadarProcessingBenchmarkAllocationSnapshot(
+            1_500,
+            isCurrentThread: true);
+
+        Assert.True(currentThread.IsCurrentThread);
+        Assert.False(currentThread.IsGlobal);
+        Assert.Throws<ArgumentException>(() => currentThread.DeltaSince(global));
     }
 
     [Fact]

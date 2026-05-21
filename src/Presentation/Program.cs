@@ -789,6 +789,8 @@ static void PrintProcessingArchiveRebalanceAllocationAttribution(
     long payloadValueCount)
 {
     Console.WriteLine("Allocation attribution: summary");
+    Console.WriteLine("Allocation measured counter scope: global");
+    Console.WriteLine("Allocation processing callback counter scope: global");
     Console.WriteLine($"Allocation measured bytes: {FormatNumber(allocation.MeasuredAllocatedBytes)}");
     Console.WriteLine($"Allocation processing callback bytes: {FormatNumber(allocation.ProcessingCallbackAllocatedBytes)}");
     Console.WriteLine($"Allocation replay and batch construction bytes: {FormatNumber(allocation.ReplayAndBatchConstructionAllocatedBytes)}");
@@ -979,6 +981,7 @@ static void PrintProcessingProviderRetentionTelemetrySummary(
     RadarProcessingRetainedPayloadTelemetrySummary telemetry)
 {
     Console.WriteLine("Retained payload telemetry: summary");
+    Console.WriteLine("Retained payload allocation counter scope: current-thread");
     Console.WriteLine($"Retained payload strategy: {FormatProcessingRetentionStrategy(telemetry.Strategy)}");
     Console.WriteLine($"Retained payload attempts: {FormatNumber(telemetry.RetentionAttemptCount)}");
     Console.WriteLine($"Retained payload batches: {FormatNumber(telemetry.RetainedBatchCount)}");
@@ -1052,6 +1055,7 @@ static void PrintProcessingProviderOverlapTelemetrySummary(
     Console.WriteLine($"Provider overlap retained payload bytes: {FormatNumber(telemetry.RetainedPayloadBytes)}");
     Console.WriteLine($"Provider overlap retained payload values: {FormatNumber(telemetry.RetainedPayloadValueCount)}");
     Console.WriteLine($"Provider overlap retention allocated bytes: {FormatNumber(telemetry.RetentionAllocatedBytes)}");
+    Console.WriteLine("Provider overlap measured allocation counter scope: global");
     Console.WriteLine($"Provider overlap measured allocated bytes: {FormatNumber(telemetry.MeasuredAllocatedBytes)}");
     Console.WriteLine($"Provider overlap unattributed allocated bytes: {FormatNumber(telemetry.UnattributedAllocatedBytes)}");
     Console.WriteLine($"Provider overlap release attempts: {FormatNumber(telemetry.ReleaseAttemptCount)}");

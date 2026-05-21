@@ -62,11 +62,11 @@ public sealed class RadarProcessingRetainedPayloadFactory
                 "Retained payload retention was canceled before snapshot copy.");
         }
 
-        var before = RadarProcessingBenchmarkAllocationSnapshot.Capture();
+        var before = RadarProcessingBenchmarkAllocationSnapshot.CaptureCurrentThread();
         var started = TimeProvider.System.GetTimestamp();
         var owned = batch.ToOwnedSnapshot();
         var elapsed = TimeProvider.System.GetElapsedTime(started);
-        var allocatedBytes = RadarProcessingBenchmarkAllocationSnapshot.Capture().DeltaSince(before);
+        var allocatedBytes = RadarProcessingBenchmarkAllocationSnapshot.CaptureCurrentThread().DeltaSince(before);
 
         return RadarProcessingRetainedPayloadRetentionResult.Succeeded(
             RadarProcessingRetainedPayloadStrategy.SnapshotCopy,
@@ -99,7 +99,7 @@ public sealed class RadarProcessingRetainedPayloadFactory
         byte[]? payloadArray = null;
         try
         {
-            var before = RadarProcessingBenchmarkAllocationSnapshot.Capture();
+            var before = RadarProcessingBenchmarkAllocationSnapshot.CaptureCurrentThread();
             var started = TimeProvider.System.GetTimestamp();
 
             ReadOnlyMemory<RadarStreamEvent> events = ReadOnlyMemory<RadarStreamEvent>.Empty;
@@ -155,7 +155,7 @@ public sealed class RadarProcessingRetainedPayloadFactory
                         batch.PayloadLength));
 
             var elapsed = TimeProvider.System.GetElapsedTime(started);
-            var allocatedBytes = RadarProcessingBenchmarkAllocationSnapshot.Capture().DeltaSince(before);
+            var allocatedBytes = RadarProcessingBenchmarkAllocationSnapshot.CaptureCurrentThread().DeltaSince(before);
             eventArray = null;
             payloadArray = null;
 

@@ -911,6 +911,27 @@ adopted standard optimization:
   retained-byte budget is exhausted, state changes, timeout/cancellation must
   be observed, or the queue cannot write immediately
 
+attribution refinement:
+  RadarProcessingBenchmarkAllocationSnapshot now records whether a snapshot
+  came from the global allocation counter or the current-thread allocation
+  counter and rejects mixed-scope deltas
+
+  retained payload factory allocation telemetry now uses current-thread
+  snapshots because snapshot-copy and pooled-copy retention execute
+  synchronously on the producer thread; this keeps retained-copy telemetry
+  from counting concurrent consumer-side allocation during producer-consumer
+  overlap
+
+  end-to-end, processing callback, and overlap measured allocation remain
+  global-counter measurements, so the Release gate allocation ratio is not
+  hidden or moved out of the measured contract
+
+  CLI output now labels allocation counter scopes:
+    allocation measured counter scope: global
+    allocation processing callback counter scope: global
+    retained payload allocation counter scope: current-thread
+    provider overlap measured allocation counter scope: global
+
 interim allocation sanity, not final gate:
   Release CLI omitted-provider KTLX 2026-05-05 --max-files 220 same-run
   borrowed/default pairs were captured to decide whether more optimization is
@@ -940,6 +961,24 @@ interpretation:
   cold/churn allocation plus overlap attribution ambiguity; provider enqueue
   fast-path overhead is not the dominant remaining allocation source
 
+retained allocation profile after current-thread attribution:
+  one Release CLI omitted-provider KTLX 2026-05-05 --max-files 220 default row
+  after current-thread retained telemetry reported:
+    retained payload allocated bytes: 222323496
+    provider overlap measured allocated bytes: 2577831248
+    provider overlap unattributed allocated bytes: 2355507752
+    end-to-end allocated bytes: 2581186808
+    processing callback non-owned snapshot bytes: 1999761400
+
+  interpretation:
+    retained pooled-copy cold/churn allocation is real and remains roughly the
+    same magnitude as the same-shape queued-owned allocation delta seen in the
+    interim pairs
+
+    the very large processing callback non-owned snapshot and provider overlap
+    unattributed buckets are global-counter overlap attribution buckets, not
+    precise retained-copy optimization targets
+
 rejected spike:
   increasing RadarProcessingRetainedPayloadByteArrayPool default retained
   bytes from 128 MiB to 256 MiB was tested as a bounded pool-tuning spike and
@@ -955,11 +994,18 @@ verification:
   dotnet build RadarPulse.sln -c Release --no-restore
   succeeded, 0 warnings, 0 errors
 
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests|FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+  passed, 82 passed, 0 failed, 0 skipped
+
+  dotnet build RadarPulse.sln -c Release --no-restore
+  succeeded, 0 warnings, 0 errors
+
 next:
-  before more production optimization, split or profile retained pooled-copy
-  allocation and overlap attribution enough to distinguish real retained-copy
-  churn from attribution noise caused by producer/consumer overlap sharing the
-  global allocation counter
+  optimize retained pooled-copy cold allocation directly or run a narrow
+  retained-copy micro-harness before changing pool policy; do not treat
+  processing callback non-owned snapshot bytes as an actionable retained-copy
+  target without a more precise per-source profile
 ```
 
 ### 6. Fallback, Failure, Cleanup, And Drift Guardrails

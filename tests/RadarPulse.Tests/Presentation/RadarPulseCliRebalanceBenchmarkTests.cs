@@ -987,6 +987,8 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             Assert.Contains("Provider queue active retained payload bytes high watermark: 0", result.StandardOutput);
             Assert.Contains("Provider queue combined retained payload bytes high watermark: 0", result.StandardOutput);
             Assert.Contains("Allocation attribution: summary", result.StandardOutput);
+            Assert.Contains("Allocation measured counter scope: global", result.StandardOutput);
+            Assert.Contains("Allocation processing callback counter scope: global", result.StandardOutput);
             Assert.Contains("Allocation measured bytes:", result.StandardOutput);
             Assert.Contains("Allocation processing callback bytes:", result.StandardOutput);
             Assert.Contains("Allocation replay and batch construction bytes:", result.StandardOutput);
@@ -995,6 +997,7 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             Assert.Contains("Allocation includes archive replay and batch construction: yes", result.StandardOutput);
             Assert.Contains("Allocation includes CLI formatting: no", result.StandardOutput);
             Assert.Contains("Retained payload telemetry: summary", result.StandardOutput);
+            Assert.Contains("Retained payload allocation counter scope: current-thread", result.StandardOutput);
             Assert.Contains("Retained payload attempts: 0", result.StandardOutput);
             Assert.Contains("Retained payload allocated bytes: 0", result.StandardOutput);
             Assert.DoesNotContain("Provider overlap telemetry:", result.StandardOutput);
@@ -1079,6 +1082,7 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             Assert.Contains("Provider overlap active retained payload bytes high watermark: 0", result.StandardOutput);
             Assert.Contains("Provider overlap combined retained payload bytes high watermark: 0", result.StandardOutput);
             Assert.Contains("Provider overlap retention allocated bytes: 0", result.StandardOutput);
+            Assert.Contains("Provider overlap measured allocation counter scope: global", result.StandardOutput);
             Assert.Contains("Provider overlap measured allocated bytes:", result.StandardOutput);
             Assert.Contains("Provider overlap unattributed allocated bytes:", result.StandardOutput);
             Assert.Equal(string.Empty, result.StandardError);
@@ -1228,10 +1232,12 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             Assert.Contains("Execution mode: async", result.StandardOutput);
             Assert.Contains("Provider queue telemetry: summary", result.StandardOutput);
             Assert.Contains("Retained payload telemetry: summary", result.StandardOutput);
+            Assert.Contains("Retained payload allocation counter scope: current-thread", result.StandardOutput);
             Assert.Contains("Retained payload allocated bytes: 0", result.StandardOutput);
             Assert.Contains("Provider overlap telemetry: summary", result.StandardOutput);
             Assert.Contains("Provider overlap retained payload strategy: pooled-copy", result.StandardOutput);
             Assert.Contains("Provider overlap retention allocated bytes: 0", result.StandardOutput);
+            Assert.Contains("Provider overlap measured allocation counter scope: global", result.StandardOutput);
             Assert.Contains("Provider overlap measured allocated bytes:", result.StandardOutput);
             Assert.Contains("Provider overlap unattributed allocated bytes:", result.StandardOutput);
             Assert.Equal(string.Empty, result.StandardError);
@@ -1300,6 +1306,8 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             Assert.Contains("Provider overlap evidence scope: not-applicable", result.StandardOutput);
             Assert.Contains("Execution mode: partitioned", result.StandardOutput);
             Assert.Contains("Allocation attribution: summary", result.StandardOutput);
+            Assert.Contains("Allocation measured counter scope: global", result.StandardOutput);
+            Assert.Contains("Allocation processing callback counter scope: global", result.StandardOutput);
             Assert.Contains("Allocation owned snapshot bytes: 0", result.StandardOutput);
             Assert.Contains("Allocation includes archive replay and batch construction: yes", result.StandardOutput);
             Assert.Contains("Allocation includes CLI formatting: no", result.StandardOutput);
