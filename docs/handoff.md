@@ -294,12 +294,67 @@ focused failure and cleanup tests
 Release build with 0 warnings and 0 errors
 ```
 
-The next implementation step is slice 9 from the plan: natural rollout
-performance gate. That slice should capture Release benchmark rows for
-same-run borrowed references and omitted-provider default queued-owned rows,
-then interpret validation parity, release failures, retained pressure,
-allocation ratio, elapsed ratio, and candidate run spread against the milestone
-012 thresholds.
+Milestone 012 slice 9 natural rollout performance gate is implemented in the
+current working tree. There were no runtime changes.
+
+New gate document:
+
+```text
+docs/milestones/012-queued-owned-default-rollout-performance-gate.md
+```
+
+Release build before capture succeeded with 0 warnings and 0 errors.
+
+Captured contours:
+
+```text
+primary KTLX:
+  --cache data\nexrad --date 2026-05-04 --radar KTLX --max-files 220
+  three same-run borrowed/default pairs
+
+mixed cache:
+  --cache data\nexrad --max-files 1000000
+  one same-run borrowed/default pair across all local radar/date shapes
+```
+
+Primary matrix result:
+
+```text
+borrowed average elapsed ms: 17865.16
+default queued-owned average elapsed ms: 15274.16
+default queued-owned elapsed ratio: 0.855x borrowed
+default queued-owned allocation ratio: 1.072x borrowed
+default queued-owned run spread: 2.39% of average
+```
+
+Mixed-cache result:
+
+```text
+borrowed elapsed ms: 77542.34
+default queued-owned elapsed ms: 60229.87
+default queued-owned elapsed ratio: 0.777x borrowed
+default queued-owned allocation ratio: 1.064x borrowed
+```
+
+Gate interpretation:
+
+```text
+validation parity: pass
+release failures: pass, 0 failed releases
+cleanup at completion: pass, current retained pressure returns to 0
+retained pressure budget: pass, max observed combined retained payload
+  high-water mark is 54413280 bytes of the 536870912 byte budget
+allocation ratio: pass, <= 1.10x borrowed
+elapsed ratio: pass, <= 1.00x borrowed
+candidate spread: pass, <= 7.50% of candidate average
+default expansion evidence: pass
+fallback separation: pass
+```
+
+The next implementation step is slice 10 from the plan: rollout decision
+trace. That slice should decide whether the scoped CLI default remains the new
+omitted-provider queued-owned rollout behavior, name the fallback/oracle
+posture, and point to the threshold evidence in the performance gate.
 
 Latest verification after milestone 012 slice 1:
 
@@ -422,6 +477,29 @@ Recorded result:
 22 passed, 0 failed, 0 skipped.
 24 passed, 0 failed, 0 skipped.
 Release build succeeded with 0 warnings and 0 errors.
+```
+
+Latest verification after milestone 012 slice 9:
+
+```powershell
+dotnet build RadarPulse.sln -c Release --no-restore
+
+dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --cache data\nexrad --date 2026-05-04 --radar KTLX --max-files 220 --mode rebalance --provider blocking-borrowed --execution async --workers 4 --iterations 1 --warmup-iterations 0 --parallelism 24 --partitions 24 --shards 4
+
+dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --cache data\nexrad --date 2026-05-04 --radar KTLX --max-files 220 --mode rebalance --iterations 1 --warmup-iterations 0 --parallelism 24 --partitions 24 --shards 4
+
+dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --cache data\nexrad --max-files 1000000 --mode rebalance --provider blocking-borrowed --execution async --workers 4 --iterations 1 --warmup-iterations 0 --parallelism 24 --partitions 24 --shards 4
+
+dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --cache data\nexrad --max-files 1000000 --mode rebalance --iterations 1 --warmup-iterations 0 --parallelism 24 --partitions 24 --shards 4
+```
+
+Recorded result:
+
+```text
+Release build succeeded with 0 warnings and 0 errors.
+Primary KTLX matrix: three borrowed/default same-run pairs captured.
+Mixed-cache row: one borrowed/default same-run pair captured.
+Natural rollout performance gate passes the measured local contours.
 ```
 
 Milestone 011 remains complete. The closed documents are:

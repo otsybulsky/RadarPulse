@@ -1314,6 +1314,61 @@ Do not close the milestone from a single favorable row. The gate must show
 whether omitted provider flags truly use the rollout default.
 ```
 
+Implemented in slice 9:
+
+```text
+status:
+  complete
+
+document:
+  docs/milestones/012-queued-owned-default-rollout-performance-gate.md
+
+runtime changes:
+  none
+
+release verification:
+  dotnet build RadarPulse.sln -c Release --no-restore
+  succeeded with 0 warnings and 0 errors
+
+captured contours:
+  primary KTLX contour:
+    --cache data\nexrad --date 2026-05-04 --radar KTLX --max-files 220
+    three same-run borrowed/default pairs
+  mixed-cache contour:
+    --cache data\nexrad --max-files 1000000
+    one same-run borrowed/default pair across all local radar/date shapes
+
+primary matrix result:
+  borrowed average elapsed ms: 17865.16
+  default queued-owned average elapsed ms: 15274.16
+  default queued-owned elapsed ratio: 0.855x borrowed
+  default queued-owned allocation ratio: 1.072x borrowed
+  default queued-owned run spread: 2.39% of average
+
+mixed-cache result:
+  borrowed elapsed ms: 77542.34
+  default queued-owned elapsed ms: 60229.87
+  default queued-owned elapsed ratio: 0.777x borrowed
+  default queued-owned allocation ratio: 1.064x borrowed
+
+threshold interpretation:
+  validation parity: pass
+  release failures: pass, 0 failed releases
+  cleanup at completion: pass, current retained pressure returns to 0
+  retained pressure budget: pass, max observed combined retained payload
+    high-water mark is 54413280 bytes of the 536870912 byte budget
+  allocation ratio: pass, <= 1.10x borrowed
+  elapsed ratio: pass, <= 1.00x borrowed
+  candidate spread: pass, <= 7.50% of candidate average
+  default expansion evidence: pass, omitted provider rows report
+    rollout-default source and rollout expansion
+  fallback separation: pass, borrowed rows remain explicit fallback
+
+decision posture:
+  the natural performance gate passes for the measured local contours
+  final default posture is still recorded in slice 10 decision trace
+```
+
 ### 10. Rollout Decision Trace
 
 Record the default decision after the gate.
@@ -1468,8 +1523,8 @@ controlled proof rows separated if captured
 [x] invalid mixed provider options fail closed
 [x] failure, cancellation, and cleanup guardrails remain covered
 [x] focused regression pass succeeds before gate capture
-[ ] natural rollout performance gate is captured
-[ ] performance gate interprets correctness, cleanup, pressure, allocation,
+[x] natural rollout performance gate is captured
+[x] performance gate interprets correctness, cleanup, pressure, allocation,
     timing, and variance thresholds
 [ ] decision trace records whether the provider default changed
 [ ] closeout is written
