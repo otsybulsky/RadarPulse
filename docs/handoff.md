@@ -1,8 +1,126 @@
-# Handoff: Milestone 014 Complete
+# Handoff: Milestone 015 Planning
 
 ## Current State
 
-Milestone 014 is complete. The milestone documents are:
+Milestone 015 planning has started. The milestone documents created so far are:
+
+```text
+docs/milestones/015-queued-owned-allocation-readiness.md
+docs/milestones/015-queued-owned-allocation-readiness-plan.md
+```
+
+Milestone 015 is the queued-owned allocation readiness milestone. It starts
+from the closed milestone 014 direct archive rebalance API default migration.
+
+Milestone 015 target:
+
+```text
+reduce, bound, or deliberately accept the queued-owned direct/default
+allocation warning with stronger attribution before any live/runtime default
+expansion
+```
+
+Milestone 015 current status:
+
+```text
+architecture document: draft
+implementation plan: draft
+implementation: not started
+runtime behavior changes so far: none
+performance gate: not captured
+decision trace: not written
+closeout: not written
+```
+
+Milestone 015 must preserve these guardrails:
+
+```text
+direct MeasureFile()/MeasureCache() omitted defaults remain queued-owned
+explicit BlockingBorrowed remains fallback/oracle
+same-run BlockingBorrowed rows remain required for allocation gates
+CLI omitted-provider rebalance-archive remains aligned with direct defaults
+queued-owned failures fail closed
+no automatic borrowed fallback follows queued-owned failure
+controlled consumer delay remains mechanics-only proof
+builder-transfer remains unsupported
+live ingestion/runtime defaults remain out of scope
+durable queues, cross-process workers, and ordered concurrent rebalance remain
+  out of scope
+thresholds must not be raised after gate capture
+KTLX 2026-05-05 allocation warning must remain visible until reduced,
+  bounded, or deliberately accepted for a named next surface
+```
+
+Milestone 015 optimization posture:
+
+```text
+use the best standard .NET allocation-reduction practices that fit the
+  existing codebase
+actively search for, investigate, prototype, and evaluate non-standard or
+  experimental allocation-reduction approaches where standard practice is not
+  enough
+accept experimental approaches only when they preserve lifetime, ownership,
+  cleanup, release, correctness, attribution, and maintainability guardrails
+record adopted, deferred, and rejected standard/experimental approaches in the
+  plan, decision trace, or closeout
+```
+
+Milestone 015 planned slices:
+
+```text
+1. baseline and attribution audit
+2. allocation instrumentation and contract check
+3. standard allocation optimization pass
+4. experimental optimization research and spikes
+5. adopted optimization integration
+6. fallback, failure, cleanup, and drift guardrails
+7. focused regression and allocation sanity pass
+8. allocation readiness Release gate
+9. allocation readiness decision trace
+10. closeout and handoff
+```
+
+Milestone 015 starting allocation posture:
+
+```text
+KTLX 2026-05-05 allocation warning:
+  direct gate average from milestone 014: 1.0997x borrowed
+  row 1: 1.1018x borrowed
+  row 2: 1.0976x borrowed
+  threshold: <= 1.10x borrowed
+  interpretation: accepted as direct API migration warning, not clean green
+
+primary attribution hypothesis:
+  direct default allocation overhead is concentrated in processing callback
+  allocation and retained/owned snapshot work
+```
+
+Milestone 015 likely implementation targets:
+
+```text
+src/Infrastructure/Processing/RadarProcessingArchiveRebalanceBenchmark.cs
+src/Infrastructure/Processing/RadarProcessingRetainedPayloadFactory.cs
+src/Infrastructure/Processing/RadarProcessingArchiveQueuedOverlapRunner.cs
+src/Infrastructure/Processing/RadarProcessingOwnedBatchQueue.cs
+src/Infrastructure/Processing/RadarProcessingQueuedProcessingSession.cs
+src/Infrastructure/Processing/RadarProcessingQueuedRebalanceSession.cs
+src/Infrastructure/Archive/ArchiveOwnedRadarEventBatchQueueingPublisher.cs
+src/Domain/Processing/RadarProcessingRebalanceAllocationSummary.cs
+src/Domain/Processing/RadarProcessingOwnedSnapshotAllocationSummary.cs
+src/Domain/Processing/RadarProcessingRetainedBatchResource.cs
+src/Domain/Processing/RadarProcessingRetainedPayloadTelemetrySummary.cs
+src/Domain/Processing/RadarProcessingProviderQueueTelemetrySummary.cs
+tests/RadarPulse.Tests/Archive/NexradArchiveRadarEventBatchPublisherTests.cs
+tests/RadarPulse.Tests/Archive/ArchiveOwnedRadarEventBatchQueueingPublisherTests.cs
+tests/RadarPulse.Tests/Processing/RadarProcessingRebalanceAllocationSummaryTests.cs
+tests/RadarPulse.Tests/Processing/RadarProcessingRetainedPayloadFactoryTests.cs
+tests/RadarPulse.Tests/Processing/RadarProcessingRetainedBatchResourceTests.cs
+tests/RadarPulse.Tests/Processing/RadarProcessingArchiveQueuedOverlapRunnerTests.cs
+tests/RadarPulse.Tests/Processing/RadarProcessingQueuedProviderReadinessGateTests.cs
+tests/RadarPulse.Tests/Presentation/RadarPulseCliRebalanceBenchmarkTests.cs
+```
+
+Milestone 014 remains the closed baseline. The milestone 014 documents are:
 
 ```text
 docs/milestones/014-direct-archive-rebalance-api-default-migration.md

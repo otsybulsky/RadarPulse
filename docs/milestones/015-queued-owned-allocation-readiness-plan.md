@@ -1,0 +1,1087 @@
+# Milestone 015: Queued-Owned Allocation Readiness Implementation Plan
+
+Status: draft.
+
+This plan implements the milestone 015 architecture defined in
+`015-queued-owned-allocation-readiness.md`.
+
+The plan is intentionally scoped to allocation readiness for the already
+accepted queued-owned direct/default archive rebalance contour. It should not
+implement live ingestion, durable broker integration, cross-process workers,
+ordered concurrent rebalance, builder-transfer, synthetic benchmark defaults,
+or non-benchmark archive publishing defaults.
+
+## Goal
+
+Milestone 015 decides whether the queued-owned direct/default allocation
+profile is ready for the next broader benchmark or runtime-default decision.
+
+The accepted direct/default contour remains:
+
+```text
+provider mode: queued-owned
+provider overlap: producer-consumer
+retention strategy: pooled-copy
+execution: async shard transport
+worker count: 4
+async worker queue capacity: 8
+provider queue capacity: 8
+retained-byte budget: 536870912
+overlap consumer delay: 0
+```
+
+The milestone target is not to change that contour. The target is to reduce,
+bound, or deliberately accept the allocation warning with stronger attribution.
+
+The most important rules are:
+
+```text
+preserve direct MeasureFile()/MeasureCache() queued-owned omitted defaults
+preserve explicit BlockingBorrowed direct calls as fallback and oracle
+keep same-run borrowed rows in allocation gates
+keep CLI omitted-provider rollout contour aligned with direct defaults
+carry KTLX 2026-05-05 allocation warning visibly through the gate
+do not silently fall back from queued-owned failure to borrowed success
+do not tune the accepted rollout contour to make allocation pass
+do not broaden into live/runtime/durable surfaces
+do not raise thresholds after seeing gate measurements
+```
+
+Milestone 015 also has an explicit optimization research requirement:
+
+```text
+use the best standard .NET allocation-reduction practices where they fit the
+  existing codebase
+
+actively search for, investigate, prototype, and evaluate non-standard or
+  experimental allocation-reduction approaches where standard practice is not
+  enough
+
+accept an experimental approach only if it preserves lifetime, ownership,
+  cleanup, release, correctness, attribution, and maintainability guardrails
+```
+
+The implementation target is deliberately evidence-driven:
+
+```text
+capture current allocation attribution before optimizing
+identify the highest-confidence retained/owned and processing-callback costs
+apply low-risk standard optimizations first
+run bounded experimental spikes for harder allocation sources
+promote only the safest measured improvement into production code
+prove deterministic output and retained-resource health after each accepted
+  change
+record why rejected approaches were not used
+capture a Release allocation-readiness gate before deciding the milestone
+```
+
+## Starting Point
+
+Milestone 014 is complete and provides:
+
+```text
+direct MeasureFile()/MeasureCache() omitted defaults:
+  queued-owned rollout contour
+
+explicit fallback/oracle:
+  providerMode: BlockingBorrowed
+
+CLI omitted-provider rebalance-archive path:
+  aligned with the same queued-owned rollout contour
+
+allocation warning:
+  KTLX 2026-05-05 averaged 1.0997x borrowed allocation
+  row 1 was 1.1018x borrowed
+  row 2 was 1.0976x borrowed
+  threshold was <= 1.10x borrowed
+  warning accepted for direct API migration, not clean green
+```
+
+Milestone 014 gate facts to carry forward:
+
+```text
+primary KTLX 2026-05-04:
+  elapsed ratio: 0.911x borrowed
+  allocation ratio: 1.071x borrowed
+  all-row direct-default timing spread: 10.41%
+  stabilized rows 2-4 timing spread: 0.39%
+
+KTLX 2026-05-05:
+  elapsed ratio: 0.960x borrowed average
+  allocation ratio: 1.0997x borrowed average
+  run 1 allocation ratio: 1.1018x borrowed
+  run 2 allocation ratio: 1.0976x borrowed
+
+KINX 2026-05-04:
+  elapsed ratio: 0.906x borrowed
+  allocation ratio: 1.069x borrowed
+
+mixed cache:
+  elapsed ratio: 0.878x borrowed
+  allocation ratio: 1.066x borrowed
+
+retained pressure:
+  max observed combined retained payload high-water 54413280 bytes of the
+  536870912 byte budget
+
+release and cleanup:
+  release failures 0
+  current pending, active, and combined retained pressure returned to 0
+```
+
+Current attribution hypothesis:
+
+```text
+direct default allocation overhead is concentrated in processing callback
+allocation and retained/owned snapshot work
+```
+
+Known local gate data availability from prior milestones:
+
+```text
+data\nexrad\level2\2026\05\04\KINX: 462 files
+data\nexrad\level2\2026\05\04\KTLX: 244 files
+data\nexrad\level2\2026\05\05\KTLX: 848 files
+data\nexrad total files: 1554
+```
+
+## Scope
+
+The implementation should explicitly scope milestone 015 to:
+
+```text
+queued-owned direct/default allocation baseline audit
+allocation attribution audit
+processing callback allocation reduction
+retained/owned snapshot allocation reduction
+safe queue, overlap, and telemetry allocation reduction
+standard allocation optimization pass
+experimental allocation optimization research and spikes
+direct file/cache result contour assertions
+direct explicit BlockingBorrowed fallback coverage
+direct explicit queued-owned rollout equivalence coverage
+CLI/direct rollout contour alignment checks
+focused failure, cleanup, fallback, and default drift coverage
+natural Release gate documentation for allocation readiness
+decision trace, closeout, and handoff
+```
+
+The implementation should not change:
+
+```text
+queued-owned rollout defaults
+synthetic processing benchmark defaults
+archive download, inspection, replay-only, stream, parse, or publish defaults
+non-benchmark archive publishing APIs
+domain enum numeric values
+retained payload factory strategy semantics
+queued session ordering and rebalance commit rules
+worker topology capture timing
+automatic fallback semantics
+live ingestion/runtime provider defaults
+```
+
+## Optimization Research Requirement
+
+Milestone 015 should not limit allocation work to obvious local cleanup. It
+must include both conventional engineering and deliberate research.
+
+Standard practices to consider first:
+
+```text
+remove avoidable defensive copies
+remove hot-path closures, iterator allocations, LINQ allocation, and delegate
+  captures where direct loops fit the local style
+pre-size collections when the final count is known
+replace per-batch temporary collections with counters or reusable summaries
+use ArrayPool<T> where ownership, clearing, and return timing are explicit
+avoid boxing, interface dispatch allocation, and accidental record copying in
+  measured hot paths
+use readonly structs or existing immutable summaries where they reduce heap
+  allocation without making contracts brittle
+avoid repeated allocation snapshot capture when a coarser measurement gives
+  the same attribution evidence
+keep telemetry contracts stable while making recorder internals cheaper
+```
+
+Non-standard or experimental approaches to investigate:
+
+```text
+batch-scoped scratch arenas for short-lived retained/owned helper state
+specialized retained payload wrappers that avoid closure-backed release
+  callbacks while preserving release accounting
+pooled telemetry accumulator instances with explicit reset/return ownership
+struct-backed queue items or lightweight handles where the queue can preserve
+  sequence and ownership without extra heap objects
+source-local or contour-local allocation probes to split callback allocation
+  into more precise buckets
+feature-gated prototypes for alternate retained resource representation
+micro-harnesses that isolate retained-copy, queue-enqueue, overlap, and
+  processing-callback allocation from archive replay allocation
+```
+
+Experimental approaches must follow these rules:
+
+```text
+prototype in a narrow slice before changing production behavior broadly
+keep the old behavior available until tests and measurements justify removal
+prove release and cleanup on success, failure, cancellation, validation
+  failure, and queue acceptance failure
+do not use unsafe memory, stack lifetime tricks, or pooled mutable state unless
+  the ownership model is simpler than the allocation it removes
+do not ship an experiment that depends on undocumented timing or GC behavior
+do not hide an allocation warning by moving allocation out of the measured
+  window unless the measurement contract is explicitly changed and justified
+record rejected experiments in the plan or decision trace with the reason
+```
+
+Expected research outputs:
+
+```text
+short list of accepted standard optimizations
+short list of experimental approaches investigated
+decision for each experiment: adopt, defer, or reject
+measurement or code-reading evidence for each adopted approach
+explicit statement that lifetime and release contracts remain intact
+```
+
+## Readiness Thresholds
+
+Milestone 015 starts from the milestone 014 thresholds. The plan should not
+change them after any new gate measurements are captured.
+
+Thresholds:
+
+```text
+correctness parity:
+  required, same-run borrowed reference must match
+
+topology/rebalance parity:
+  required, topology versions, accepted moves, skipped decisions, failed
+  migrations, validation checksum, and skipped reason counters must match
+
+release failures:
+  retained payload failed releases and provider overlap failed releases must
+  equal 0
+
+retained cleanup:
+  current pending, active, and combined retained batch/byte counts must return
+  to 0 at completion
+
+retained pressure:
+  combined retained payload high-water must be <= 536870912 bytes unless the
+  configured retained-byte budget is explicitly changed in a future contour
+
+allocation:
+  queued-owned direct/default allocated bytes should remain <= 1.10x same-run
+  borrowed allocated bytes; KTLX 2026-05-05 remains the named borderline risk
+  contour and must be interpreted explicitly
+
+preferred allocation readiness:
+  each repeated KTLX 2026-05-05 row should be below 1.10x borrowed, not only
+  the average
+
+strong allocation readiness:
+  KTLX 2026-05-05 average should move materially away from 1.10x rather than
+  remain another borderline value
+
+performance:
+  queued-owned direct/default elapsed time should remain <= 1.00x same-run
+  borrowed elapsed time on the primary repeated natural matrix
+
+variance:
+  repeated natural direct/default spread should remain <= 7.50% of candidate
+  average, or the decision trace must explain why the spread does not block
+  the allocation conclusion
+
+natural evidence:
+  overlap consumer delay must be 0 and evidence scope must remain natural
+  readiness evidence, not controlled mechanics proof
+```
+
+Guardrail:
+
+```text
+Do not change thresholds after seeing final gate measurements. If thresholds
+need to change, record the reason before interpreting the gate.
+```
+
+## Target Implementation Shape
+
+The safest implementation shape is to start with attribution, then apply
+bounded changes to the highest-confidence allocation source.
+
+Candidate layering:
+
+```text
+Domain:
+  owns allocation summary contracts, retained resource contracts, readiness
+  vocabulary, pressure summaries, and queued provider validation
+
+Infrastructure:
+  owns archive rebalance benchmark execution, retained payload factory,
+  queueing, overlap runner, and direct result construction
+
+Presentation:
+  owns CLI option parsing, help, output formatting, and option provenance
+
+Tests:
+  own deterministic contour assertions, allocation contract assertions,
+  retained release/cleanup guardrails, and failure/cancellation coverage
+
+Documentation:
+  owns baseline interpretation, gate results, decision trace, closeout, and
+  handoff posture
+```
+
+Implementation guidance:
+
+```text
+prefer simple local hot-path changes before broad abstraction
+use structured allocation summary fields instead of parsing output text
+keep direct defaults and CLI rollout constants pinned against drift
+avoid changing result contract shape unless current attribution is too coarse
+avoid pooling if the pool ownership story is harder to review than the saved
+  allocation
+add abstractions only when they reduce real allocation or clarify lifetime
+record any intentionally rejected allocation idea before closeout
+```
+
+Primary files to inspect:
+
+```text
+src/Infrastructure/Processing/RadarProcessingArchiveRebalanceBenchmark.cs
+src/Infrastructure/Processing/RadarProcessingRetainedPayloadFactory.cs
+src/Infrastructure/Processing/RadarProcessingArchiveQueuedOverlapRunner.cs
+src/Infrastructure/Processing/RadarProcessingOwnedBatchQueue.cs
+src/Infrastructure/Processing/RadarProcessingQueuedProcessingSession.cs
+src/Infrastructure/Processing/RadarProcessingQueuedRebalanceSession.cs
+src/Infrastructure/Archive/ArchiveOwnedRadarEventBatchQueueingPublisher.cs
+src/Domain/Processing/RadarProcessingRebalanceAllocationSummary.cs
+src/Domain/Processing/RadarProcessingOwnedSnapshotAllocationSummary.cs
+src/Domain/Processing/RadarProcessingRetainedBatchResource.cs
+src/Domain/Processing/RadarProcessingRetainedPayloadTelemetrySummary.cs
+src/Domain/Processing/RadarProcessingProviderQueueTelemetrySummary.cs
+src/Presentation/Program.cs
+```
+
+Primary tests to inspect or extend:
+
+```text
+tests/RadarPulse.Tests/Archive/NexradArchiveRadarEventBatchPublisherTests.cs
+tests/RadarPulse.Tests/Archive/ArchiveOwnedRadarEventBatchQueueingPublisherTests.cs
+tests/RadarPulse.Tests/Processing/RadarProcessingRebalanceAllocationSummaryTests.cs
+tests/RadarPulse.Tests/Processing/RadarProcessingRetainedPayloadFactoryTests.cs
+tests/RadarPulse.Tests/Processing/RadarProcessingRetainedBatchResourceTests.cs
+tests/RadarPulse.Tests/Processing/RadarProcessingOwnedBatchQueueTests.cs
+tests/RadarPulse.Tests/Processing/RadarProcessingArchiveQueuedOverlapRunnerTests.cs
+tests/RadarPulse.Tests/Processing/RadarProcessingQueuedProviderReadinessGateTests.cs
+tests/RadarPulse.Tests/Presentation/RadarPulseCliRebalanceBenchmarkTests.cs
+```
+
+## Implementation Slices
+
+### 1. Baseline And Attribution Audit
+
+Capture the current allocation posture before changing code.
+
+Questions to answer:
+
+```text
+which result fields currently separate end-to-end, processing callback,
+  replay/build, owned snapshot, and non-owned snapshot allocation?
+which queued-owned hot paths allocate per batch?
+which retained/owned snapshot objects are unavoidable because of lifetime?
+which allocations are visible in unit tests versus only in Release gates?
+which attribution fields are too coarse for a before/after decision?
+```
+
+Files to inspect:
+
+```text
+src/Infrastructure/Processing/RadarProcessingArchiveRebalanceBenchmark.cs
+src/Infrastructure/Processing/RadarProcessingRetainedPayloadFactory.cs
+src/Domain/Processing/RadarProcessingRebalanceAllocationSummary.cs
+src/Domain/Processing/RadarProcessingOwnedSnapshotAllocationSummary.cs
+src/Presentation/Program.cs
+tests/RadarPulse.Tests/Processing/RadarProcessingRebalanceAllocationSummaryTests.cs
+tests/RadarPulse.Tests/Archive/NexradArchiveRadarEventBatchPublisherTests.cs
+docs/milestones/014-direct-archive-rebalance-api-default-migration-performance-gate.md
+```
+
+Expected findings:
+
+```text
+allocation summary already separates measured, processing callback,
+  replay/build, owned snapshot, and callback non-owned snapshot bytes
+KTLX 2026-05-05 remains the named risk contour
+retained/owned snapshot work is likely the first optimization target
+processing callback non-owned snapshot allocation is the second target
+```
+
+Runtime behavior changes:
+
+```text
+none
+```
+
+Documentation updates:
+
+```text
+record baseline observations in this plan under the slice 1 completion notes
+if implementation begins before a separate performance gate exists
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests
+```
+
+### 2. Allocation Instrumentation And Contract Check
+
+Decide whether current allocation attribution is sufficient or whether the
+milestone needs more precise fields.
+
+Implementation targets:
+
+```text
+keep current result contracts if they can prove before/after changes
+add allocation categories only if processing callback and retained/owned
+  snapshot allocation cannot be separated enough for a readiness decision
+ensure any new fields have unit tests and CLI output where operator-visible
+ensure allocation summaries remain non-negative and ratio helpers remain
+  stable for zero denominators
+```
+
+Candidate new attribution, only if needed:
+
+```text
+retained payload resource wrapper allocated bytes
+retained payload copy allocated bytes
+provider queue item allocated bytes
+overlap retention allocated bytes
+telemetry recorder allocated bytes
+processing callback residual allocated bytes
+```
+
+Guardrails:
+
+```text
+do not add noisy fields that cannot be interpreted in gates
+do not make infrastructure depend on presentation formatting
+do not change CLI output labels without updating CLI tests
+```
+
+Runtime behavior changes:
+
+```text
+none unless instrumentation changes measurement granularity
+```
+
+Expected tests:
+
+```text
+allocation summary contract tests for any new category
+archive benchmark result contract tests for non-negative derived values
+CLI output tests if a new field is printed
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+```
+
+### 3. Standard Allocation Optimization Pass
+
+Apply low-risk standard .NET allocation optimizations to the highest-confidence
+queued-owned hot paths.
+
+Candidate implementation targets:
+
+```text
+remove unnecessary defensive copies in retained/owned snapshot handling
+avoid closure allocation in retained resource release paths where a small
+  explicit resource type is clearer
+replace hot-path LINQ/enumerator allocation with direct loops where present
+pre-size collections used by queued-owned benchmark result aggregation
+avoid per-batch telemetry allocations where counters or reused recorders are
+  enough
+avoid repeated allocation snapshot capture when current attribution remains
+  sufficient with one capture around the measured block
+```
+
+Candidate files:
+
+```text
+src/Infrastructure/Processing/RadarProcessingRetainedPayloadFactory.cs
+src/Domain/Processing/RadarProcessingRetainedBatchResource.cs
+src/Infrastructure/Processing/RadarProcessingArchiveRebalanceBenchmark.cs
+src/Infrastructure/Processing/RadarProcessingArchiveQueuedOverlapRunner.cs
+src/Infrastructure/Processing/RadarProcessingOwnedBatchQueue.cs
+src/Infrastructure/Processing/RadarProcessingQueuedProcessingSession.cs
+src/Infrastructure/Archive/ArchiveOwnedRadarEventBatchQueueingPublisher.cs
+```
+
+Compatibility guardrails:
+
+```text
+pooled arrays must always be returned exactly once
+release failures must remain visible
+cancellation must still release accepted retained resources
+validation failures must not produce hidden borrowed success
+retained pressure counters must still return to zero
+telemetry summaries must remain semantically equivalent
+```
+
+Runtime behavior changes:
+
+```text
+allocation profile should improve; functional behavior should remain the same
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests|FullyQualifiedName~RadarProcessingRetainedBatchResourceTests|FullyQualifiedName~RadarProcessingOwnedBatchQueueTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests"
+```
+
+### 4. Experimental Optimization Research And Spikes
+
+Investigate non-standard or experimental allocation-reduction ideas after the
+standard pass identifies remaining cost.
+
+Required spike posture:
+
+```text
+each experiment must name the allocation source it targets
+each experiment must name the lifetime or correctness risk
+each experiment must have a reject condition before measurement
+each adopted experiment must have focused tests before broader gates
+each rejected experiment must be recorded with the reason
+```
+
+Candidate experiments:
+
+```text
+explicit retained pooled resource type:
+  replace closure-backed release with a small resource object that owns rented
+  arrays and returns them without captured delegates
+
+batch-scoped scratch owner:
+  group short-lived queued-owned helper state under an explicit owner that is
+  reset or released at batch completion
+
+pooled telemetry accumulator:
+  reuse summary recorder internals while returning immutable result summaries
+  at the API boundary
+
+struct-backed queued work item:
+  reduce per-item heap allocation if queue and session code can preserve
+  sequence, cancellation, and ownership clearly
+
+allocation probe split:
+  add temporary or permanent probes that separate retained copy, queue
+  enqueue, overlap retention, and processing callback residual allocation
+```
+
+Reject experiments if:
+
+```text
+ownership becomes less obvious
+release timing becomes harder to prove
+failure/cancellation cleanup requires fragile ordering
+tests need sleeps or GC timing assumptions to pass
+the optimization only moves allocation outside the measured window
+the code becomes disproportionate to the measured gain
+```
+
+Runtime behavior changes:
+
+```text
+none for rejected spikes; adopted spikes should reduce allocation without
+changing functional behavior
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests"
+```
+
+### 5. Adopted Optimization Integration
+
+Integrate only the standard or experimental changes that survive the previous
+slices.
+
+Implementation targets:
+
+```text
+keep production changes narrow and reviewable
+delete temporary spike code unless it is intentionally kept behind a test or
+  documented helper
+update allocation summary fields only when they are part of the accepted
+  evidence model
+update CLI output only when the operator should see new allocation categories
+update tests to assert lifetime, release, contour, and attribution behavior
+```
+
+Required tests:
+
+```text
+direct MeasureFile()/MeasureCache() defaults still use queued-owned rollout
+explicit BlockingBorrowed fallback still omits queued-only telemetry
+explicit queued-owned rollout still matches omitted defaults
+retained resources release on success
+retained resources release on queued-owned failure
+retained resources release on cancellation
+retained pressure returns to zero
+allocation summary categories remain non-negative
+```
+
+Runtime behavior changes:
+
+```text
+allocation profile changes; direct/default contour and functional semantics do
+not change
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests"
+```
+
+### 6. Fallback, Failure, Cleanup, And Drift Guardrails
+
+Run and extend guardrails around the optimized queued-owned paths.
+
+Required coverage:
+
+```text
+queued-owned direct default failure does not fall back to borrowed
+explicit BlockingBorrowed remains selectable
+builder-transfer remains unsupported
+controlled consumer delay remains mechanics-only proof
+retained payload failed releases are visible
+provider overlap failed releases are visible
+cancellation after accepted enqueue releases retained resources
+validation failure prevents later success claims
+direct/CLI rollout contour still matches shared defaults
+```
+
+Expected tests:
+
+```text
+NexradArchiveRadarEventBatchPublisherTests direct default and fallback tests
+RadarProcessingArchiveQueuedOverlapRunnerTests failure and cancellation tests
+RadarProcessingQueuedProviderReadinessGateTests threshold and cleanup tests
+RadarPulseCliRebalanceBenchmarkTests rollout contour and help tests
+```
+
+Runtime behavior changes:
+
+```text
+none beyond allocation changes from earlier slices
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+```
+
+### 7. Focused Regression And Allocation Sanity Pass
+
+Run focused tests before capturing the Release gate.
+
+Required focused checks:
+
+```text
+direct MeasureFile()/MeasureCache() default contour tests
+direct explicit BlockingBorrowed fallback tests
+direct explicit queued-owned equivalence tests
+CLI help and rollout contour alignment tests
+retained payload factory and retained resource release tests
+queued-owned failure, cancellation, cleanup, and fallback tests
+readiness threshold interpretation tests
+allocation summary attribution tests
+small allocation-sensitive regression tests added by milestone 015
+```
+
+Expected commands:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests|FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests|FullyQualifiedName~RadarProcessingRetainedBatchResourceTests"
+
+dotnet build RadarPulse.sln -c Release --no-restore
+```
+
+Gate precondition:
+
+```text
+Do not capture the Release allocation-readiness gate if focused tests fail or
+the Release build has warnings/errors.
+```
+
+Runtime behavior changes:
+
+```text
+none
+```
+
+### 8. Allocation Readiness Release Gate
+
+Capture natural Release evidence for allocation readiness.
+
+Candidate document:
+
+```text
+docs/milestones/015-queued-owned-allocation-readiness-performance-gate.md
+```
+
+Required command posture:
+
+```text
+Release build before measurements
+direct API default rows, not only CLI rows
+same-run explicit BlockingBorrowed oracle rows
+controlled consumer delay 0
+same mode, partition count, shard count, parallelism, iterations, and input
+between borrowed and default rows
+allocation attribution visible in result contracts
+```
+
+Required contours:
+
+```text
+primary repeated contour:
+  data\nexrad --date 2026-05-04 --radar KTLX --max-files 220
+
+borderline repeated contour:
+  data\nexrad --date 2026-05-05 --radar KTLX --max-files 220
+
+broader single-shape contour:
+  data\nexrad --date 2026-05-04 --radar KINX --max-files 220
+
+mixed-cache contour:
+  data\nexrad --max-files 1000000
+
+file-level smoke contour:
+  one representative KTLX Archive Two file through MeasureFile()
+```
+
+Required interpretation:
+
+```text
+correctness parity
+release health
+retained cleanup
+retained pressure budget
+elapsed timing
+primary repeated-run spread
+allocation ratio, with KTLX 2026-05-05 explicit
+before/after comparison against milestone 014 gate where valid
+direct default versus explicit queued-owned contour equivalence
+explicit borrowed fallback/oracle separation
+allocation attribution
+standard optimizations accepted or rejected
+experimental optimizations accepted, deferred, or rejected
+workload coverage limits
+```
+
+Expected gate status values:
+
+```text
+ready
+ready with allocation warning
+not ready because of named allocation blocker
+blocked by named correctness/cleanup/release/pressure regression
+```
+
+Guardrail:
+
+```text
+Do not call the gate clean green if KTLX 2026-05-05 remains at or above the
+1.10x allocation threshold. Name the warning and decide what it means.
+```
+
+Runtime behavior changes:
+
+```text
+none; this slice records evidence only
+```
+
+### 9. Allocation Readiness Decision Trace
+
+Record the allocation readiness decision after the gate.
+
+Candidate document:
+
+```text
+docs/milestones/015-queued-owned-allocation-readiness-decision-trace.md
+```
+
+Required decisions:
+
+```text
+whether allocation readiness is accepted
+whether KTLX 2026-05-05 warning was reduced, bounded, or remains debt
+whether each repeated KTLX 2026-05-05 row is below threshold
+whether the average moved materially away from threshold
+whether standard optimizations were sufficient
+whether any experimental approach was adopted
+whether rejected experimental approaches should be revisited
+whether explicit BlockingBorrowed fallback/oracle posture remains adequate
+whether CLI and direct rollout contours remain aligned
+whether any broader benchmark/runtime expansion is approved as next input
+whether live/runtime defaults remain out of scope
+```
+
+Decision explanation fields:
+
+```text
+Decision
+Why chosen
+Alternatives
+Rejected because
+Trade-offs/debt
+Review explanation
+```
+
+Guardrail:
+
+```text
+If the gate misses a correctness, release, cleanup, or pressure threshold, do
+not accept allocation readiness. Record the blocker and next milestone input.
+```
+
+Runtime behavior changes:
+
+```text
+none
+```
+
+### 10. Closeout And Handoff
+
+Finalize milestone documentation and project handoff.
+
+Candidate documents:
+
+```text
+docs/milestones/015-queued-owned-allocation-readiness-closeout.md
+docs/handoff.md
+```
+
+Required closeout content:
+
+```text
+final status
+implemented behavior
+not implemented behavior
+final allocation posture
+standard optimization summary
+experimental optimization summary
+rejected optimization summary
+explicit fallback/oracle posture
+focused verification commands and results
+Release gate summary
+KTLX 2026-05-05 allocation interpretation
+residual risks
+recommended next milestone input
+```
+
+Handoff must state one of:
+
+```text
+allocation warning reduced enough for the next named expansion
+
+or
+
+allocation warning remains but is deliberately accepted with stronger
+attribution for the next named surface
+
+or
+
+allocation warning remains a blocker and the next milestone should target the
+named allocation source
+
+or
+
+allocation readiness could not be decided because correctness, cleanup,
+release health, pressure, fail-closed behavior, or variance regressed
+```
+
+Expected verification before closeout:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests|FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests|FullyQualifiedName~RadarProcessingRetainedBatchResourceTests"
+
+dotnet build RadarPulse.sln -c Release --no-restore
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Guardrail:
+
+```text
+Do not mark milestone 015 complete until handoff names the current allocation
+posture, fallback/oracle posture, KTLX allocation posture, standard and
+experimental optimization posture, and next milestone recommendation
+unambiguously.
+```
+
+Runtime behavior changes:
+
+```text
+none
+```
+
+## Verification Strategy
+
+Use focused tests after each implementation slice and broader verification
+before the Release gate.
+
+Expected focused coverage:
+
+```text
+direct MeasureFile() omitted defaults
+direct MeasureCache() omitted defaults
+direct explicit BlockingBorrowed fallback
+direct explicit queued-owned rollout contour
+direct file/cache contour symmetry
+CLI/direct rollout contour alignment
+CLI help text direct default wording
+retained payload factory allocation and release behavior
+retained resource lifecycle behavior
+queued-owned invalid option rejection
+builder-transfer unsupported posture
+controlled consumer-delay rejection and labeling
+retained-resource release health
+retained pressure cleanup at completion
+queued-owned failure and cancellation cleanup
+allocation summary attribution
+standard optimization contract tests
+experimental optimization contract tests for any adopted experiment
+```
+
+Expected broad checks:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingRetainedBatchResourceTests
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+dotnet build RadarPulse.sln -c Release --no-restore
+```
+
+Expected performance gate:
+
+```text
+Release build before measurements
+same-run explicit BlockingBorrowed async reference
+direct default queued-owned rollout contour selected through omitted direct
+  provider/execution/queue/retention arguments
+active/combined retained pressure visible in result contracts
+allocation attribution visible in result contracts
+repeated natural rows and variance interpretation
+broader single-shape rows over available local data
+mixed-cache row over all local data
+KTLX 2026-05-05 allocation warning repeated and interpreted
+allocation ratio checked against 1.10x threshold
+performance ratio checked against 1.00x threshold
+controlled proof rows separated if captured
+standard and experimental optimization outcomes recorded
+```
+
+## Completion Checklist
+
+```text
+[ ] allocation baseline audit is captured
+[ ] attribution sufficiency decision is recorded
+[ ] standard allocation optimization pass is complete or explicitly rejected
+[ ] experimental optimization research/spike pass is complete
+[ ] adopted optimizations are integrated with focused tests
+[ ] rejected standard and experimental approaches are recorded
+[ ] direct MeasureFile()/MeasureCache() defaults remain queued-owned rollout
+[ ] explicit direct BlockingBorrowed fallback remains selectable and covered
+[ ] direct explicit queued-owned rollout calls match omitted direct defaults
+[ ] CLI omitted-provider rollout contour remains aligned with direct defaults
+[ ] failure, cancellation, release, and cleanup guardrails remain covered
+[ ] focused regression pass succeeds before gate capture
+[ ] allocation readiness Release gate is captured
+[ ] KTLX 2026-05-05 allocation warning is repeated and interpreted
+[ ] performance gate interprets correctness, cleanup, pressure, allocation,
+    timing, variance, fallback/oracle posture, attribution, and optimization
+    posture
+[ ] decision trace records the allocation readiness decision
+[ ] closeout is written
+[ ] handoff is updated with current allocation posture, fallback/oracle,
+    standard and experimental optimization posture, allocation risk, and next
+    milestone recommendation
+```
+
+## Non-Goals
+
+Milestone 015 does not implement:
+
+```text
+new queued-owned default contour
+synthetic processing benchmark default migration
+non-benchmark archive publishing API default migration
+live ingestion/runtime provider defaults
+durable queue or broker integration
+cross-process provider or worker transport
+ordered concurrent rebalance commit barrier
+multiple active rebalance-enabled processing batches
+builder-transfer retained payload execution
+source-level migration or partition splitting
+physical worker-local state transfer
+complex radar algorithms
+visualization or product-facing radar analysis features
+automatic silent fallback from queued-owned failure to borrowed success
+threshold changes after gate capture
+allocation optimization that hides cost by moving it outside the measured
+  contract
+```
+
+## Closeout Question
+
+The milestone closes by answering:
+
+```text
+Is the queued-owned direct/default allocation profile ready to support the next
+broader benchmark or runtime-default decision?
+```
+
+The acceptable answers are:
+
+```text
+ready:
+  allocation warning is reduced or bounded below the accepted threshold on the
+  repeated risk contour, safety gates pass, and the next milestone can
+  consider a named broader expansion
+
+ready with warning:
+  allocation remains near the threshold, but attribution is stronger, the cost
+  is deliberately accepted for the next named surface, and the warning remains
+  visible
+
+not ready:
+  allocation remains too close to or above threshold without enough reduction
+  or attribution, and the decision trace names the next optimization blocker
+
+defer:
+  correctness, release health, cleanup, retained pressure, fail-closed
+  behavior, or benchmark variance regressed, so allocation readiness cannot be
+  decided safely
+```
+
+The milestone should not close with an ambiguous monitoring posture. It should
+either accept allocation readiness or name the blocker that must be handled
+next.
