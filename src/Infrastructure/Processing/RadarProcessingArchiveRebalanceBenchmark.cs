@@ -34,36 +34,60 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         CancellationToken cancellationToken = default,
         RadarProcessingRebalanceHardeningOptions? hardeningOptions = null,
         RadarProcessingPressureSkewOptions? pressureSkewOptions = null,
-        RadarProcessingExecutionMode executionMode = RadarProcessingExecutionMode.PartitionedBarrier,
+        RadarProcessingExecutionMode? executionMode = null,
         RadarProcessingAsyncExecutionOptions? asyncExecution = null,
-        RadarProcessingArchiveProviderMode providerMode = RadarProcessingArchiveProviderMode.BlockingBorrowed,
-        int queueCapacity = 1,
+        RadarProcessingArchiveProviderMode? providerMode = null,
+        int? queueCapacity = null,
         TimeSpan? queueTimeout = null,
-        RadarProcessingQueuedProviderOverlapMode providerOverlapMode = RadarProcessingQueuedProviderOverlapMode.None,
-        RadarProcessingRetainedPayloadStrategy retentionStrategy = RadarProcessingRetainedPayloadStrategy.SnapshotCopy,
+        RadarProcessingQueuedProviderOverlapMode? providerOverlapMode = null,
+        RadarProcessingRetainedPayloadStrategy? retentionStrategy = null,
         long? queueRetainedPayloadBytes = null,
         TimeSpan overlapConsumerDelay = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         EnsureKnownMode(mode);
-        EnsureKnownExecutionMode(executionMode);
-        EnsureKnownProviderMode(providerMode);
-        EnsureKnownProviderOverlapMode(providerOverlapMode);
-        RadarProcessingRetainedPayloadOptions.EnsureKnownStrategy(retentionStrategy);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(iterations);
         ArgumentOutOfRangeException.ThrowIfNegative(warmupIterations);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(partitionCount);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(shardCount);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(degreeOfParallelism);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(queueCapacity);
         ValidateQueueTimeout(queueTimeout);
         ValidateQueueRetainedPayloadBytes(queueRetainedPayloadBytes);
         ValidateOverlapConsumerDelay(overlapConsumerDelay);
+
+        var useRolloutDefaults = !providerMode.HasValue;
+        var effectiveProviderMode = providerMode ?? RadarProcessingArchiveRebalanceRolloutDefaults.ProviderMode;
+        var effectiveExecutionMode = executionMode ??
+                                     (useRolloutDefaults
+                                         ? RadarProcessingArchiveRebalanceRolloutDefaults.ExecutionMode
+                                         : RadarProcessingExecutionMode.PartitionedBarrier);
+        var effectiveQueueCapacity = queueCapacity ??
+                                     (useRolloutDefaults
+                                         ? RadarProcessingArchiveRebalanceRolloutDefaults.ProviderQueueCapacity
+                                         : 1);
+        var effectiveProviderOverlapMode = providerOverlapMode ??
+                                           (useRolloutDefaults
+                                               ? RadarProcessingArchiveRebalanceRolloutDefaults.ProviderOverlapMode
+                                               : RadarProcessingQueuedProviderOverlapMode.None);
+        var effectiveRetentionStrategy = retentionStrategy ??
+                                         (useRolloutDefaults
+                                             ? RadarProcessingArchiveRebalanceRolloutDefaults.RetentionStrategy
+                                             : RadarProcessingRetainedPayloadStrategy.SnapshotCopy);
+        var effectiveQueueRetainedPayloadBytes = queueRetainedPayloadBytes ??
+                                                 (useRolloutDefaults
+                                                     ? RadarProcessingArchiveRebalanceRolloutDefaults.RetainedPayloadBytes
+                                                     : null);
+
+        EnsureKnownExecutionMode(effectiveExecutionMode);
+        EnsureKnownProviderMode(effectiveProviderMode);
+        EnsureKnownProviderOverlapMode(effectiveProviderOverlapMode);
+        RadarProcessingRetainedPayloadOptions.EnsureKnownStrategy(effectiveRetentionStrategy);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(effectiveQueueCapacity);
         ValidateQueuedProviderControls(
-            providerMode,
-            providerOverlapMode,
-            retentionStrategy,
-            queueRetainedPayloadBytes,
+            effectiveProviderMode,
+            effectiveProviderOverlapMode,
+            effectiveRetentionStrategy,
+            effectiveQueueRetainedPayloadBytes,
             overlapConsumerDelay);
 
         if (partitionCount < shardCount)
@@ -75,8 +99,10 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         }
 
         var effectiveHardeningOptions = hardeningOptions ?? RadarProcessingRebalanceHardeningOptions.Default;
-        var effectiveAsyncExecution = executionMode == RadarProcessingExecutionMode.AsyncShardTransport
-            ? asyncExecution ?? new RadarProcessingAsyncExecutionOptions(workerCount: shardCount, queueCapacity: 1)
+        var effectiveAsyncExecution = effectiveExecutionMode == RadarProcessingExecutionMode.AsyncShardTransport
+            ? asyncExecution ?? (useRolloutDefaults
+                ? RadarProcessingArchiveRebalanceRolloutDefaults.CreateAsyncExecution()
+                : new RadarProcessingAsyncExecutionOptions(workerCount: shardCount, queueCapacity: 1))
             : asyncExecution;
 
         var fileInfo = new FileInfo(filePath);
@@ -98,13 +124,13 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         using var archiveSession = new NexradArchiveRadarEventBatchPublishSession(
             decompressor,
             publishOptions);
-        var workerTelemetryRecorder = executionMode == RadarProcessingExecutionMode.AsyncShardTransport
+        var workerTelemetryRecorder = effectiveExecutionMode == RadarProcessingExecutionMode.AsyncShardTransport
             ? new RadarProcessingWorkerTelemetryRecorder(effectiveHardeningOptions.TelemetryRetention)
             : null;
         RadarProcessingAsyncWorkerGroup? workerGroup = null;
         try
         {
-            workerGroup = executionMode == RadarProcessingExecutionMode.AsyncShardTransport
+            workerGroup = effectiveExecutionMode == RadarProcessingExecutionMode.AsyncShardTransport
                 ? new RadarProcessingAsyncWorkerGroup(
                     new RadarProcessingAsyncWorkerGroupOptions(effectiveAsyncExecution))
                 : null;
@@ -121,16 +147,16 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                     shardCount,
                     effectiveHardeningOptions,
                     pressureSkewOptions ?? RadarProcessingPressureSkewOptions.None,
-                    executionMode,
+                    effectiveExecutionMode,
                     effectiveAsyncExecution,
                     workerTelemetryRecorder: null,
                     workerGroup,
-                    providerMode,
-                    queueCapacity,
+                    effectiveProviderMode,
+                    effectiveQueueCapacity,
                     queueTimeout,
-                    providerOverlapMode,
-                    retentionStrategy,
-                    queueRetainedPayloadBytes,
+                    effectiveProviderOverlapMode,
+                    effectiveRetentionStrategy,
+                    effectiveQueueRetainedPayloadBytes,
                     overlapConsumerDelay,
                     cancellationToken);
             }
@@ -152,16 +178,16 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                     shardCount,
                     effectiveHardeningOptions,
                     pressureSkewOptions ?? RadarProcessingPressureSkewOptions.None,
-                    executionMode,
+                    effectiveExecutionMode,
                     effectiveAsyncExecution,
                     workerTelemetryRecorder,
                     workerGroup,
-                    providerMode,
-                    queueCapacity,
+                    effectiveProviderMode,
+                    effectiveQueueCapacity,
                     queueTimeout,
-                    providerOverlapMode,
-                    retentionStrategy,
-                    queueRetainedPayloadBytes,
+                    effectiveProviderOverlapMode,
+                    effectiveRetentionStrategy,
+                    effectiveQueueRetainedPayloadBytes,
                     overlapConsumerDelay,
                     cancellationToken);
                 if (expectedIteration.HasValue && !expectedIteration.Value.HasSameStableTotals(iterationTelemetry))
@@ -230,13 +256,13 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 effectiveHardeningOptions.TelemetryRetention.MaxRetainedValidationFailures,
                 pressureSkewOptions ?? RadarProcessingPressureSkewOptions.None,
                 allocationSummary,
-                executionMode,
+                effectiveExecutionMode,
                 workerTelemetry,
-                providerMode,
-                providerMode == RadarProcessingArchiveProviderMode.QueuedOwned ? queueCapacity : 0,
-                providerOverlapMode,
-                retentionStrategy,
-                providerMode == RadarProcessingArchiveProviderMode.QueuedOwned ? queueRetainedPayloadBytes : null,
+                effectiveProviderMode,
+                effectiveProviderMode == RadarProcessingArchiveProviderMode.QueuedOwned ? effectiveQueueCapacity : 0,
+                effectiveProviderOverlapMode,
+                effectiveRetentionStrategy,
+                effectiveProviderMode == RadarProcessingArchiveProviderMode.QueuedOwned ? effectiveQueueRetainedPayloadBytes : null,
                 aggregate.QueueTelemetry,
                 aggregate.RetentionTelemetry,
                 aggregate.OverlapTelemetry,

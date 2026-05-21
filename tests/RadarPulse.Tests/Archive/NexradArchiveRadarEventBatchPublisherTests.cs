@@ -610,7 +610,7 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
     }
 
     [Fact]
-    public void RebalanceArchiveBenchmarkFilePreservesBorrowedDefaultAndExplicitRolloutContour()
+    public void RebalanceArchiveBenchmarkFileUsesRolloutDefaultAndPreservesBorrowedFallback()
     {
         var record = BuildMessage(31, BuildEightBitType31Payload("REF", [1, 2, 3], scale: 2f, offset: 66f));
         var compressedPayload = BuildFakeBZip2Payload(1);
@@ -627,7 +627,7 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
 
         try
         {
-            var borrowed = benchmark.MeasureFile(
+            var directDefault = benchmark.MeasureFile(
                 path,
                 RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession,
                 iterations: 1,
@@ -636,6 +636,16 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
                 shardCount: 2,
                 degreeOfParallelism: 1,
                 CancellationToken.None);
+            var borrowed = benchmark.MeasureFile(
+                path,
+                RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession,
+                iterations: 1,
+                warmupIterations: 0,
+                partitionCount: 4,
+                shardCount: 2,
+                degreeOfParallelism: 1,
+                CancellationToken.None,
+                providerMode: RadarProcessingArchiveProviderMode.BlockingBorrowed);
             var rollout = benchmark.MeasureFile(
                 path,
                 RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession,
@@ -653,8 +663,21 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
                 retentionStrategy: RadarProcessingArchiveRebalanceRolloutDefaults.RetentionStrategy,
                 queueRetainedPayloadBytes: RadarProcessingArchiveRebalanceRolloutDefaults.RetainedPayloadBytes);
 
+            AssertDirectQueuedOwnedRolloutContour(directDefault);
             AssertDirectBorrowedDefaultContour(borrowed);
             AssertDirectQueuedOwnedRolloutContour(rollout);
+            Assert.Equal(directDefault.BatchesPerIteration, rollout.BatchesPerIteration);
+            Assert.Equal(directDefault.EventsPerIteration, rollout.EventsPerIteration);
+            Assert.Equal(directDefault.PayloadValuesPerIteration, rollout.PayloadValuesPerIteration);
+            Assert.Equal(directDefault.RawValueChecksumPerIteration, rollout.RawValueChecksumPerIteration);
+            Assert.Equal(directDefault.TopologyVersionCount, rollout.TopologyVersionCount);
+            Assert.Equal(directDefault.RebalanceEvaluationCount, rollout.RebalanceEvaluationCount);
+            Assert.Equal(directDefault.AcceptedMoveCount, rollout.AcceptedMoveCount);
+            Assert.Equal(directDefault.SkippedDecisionCount, rollout.SkippedDecisionCount);
+            Assert.Equal(directDefault.FailedMigrationCount, rollout.FailedMigrationCount);
+            Assert.Equal(directDefault.ValidationSucceeded, rollout.ValidationSucceeded);
+            Assert.Equal(directDefault.ValidationChecksum, rollout.ValidationChecksum);
+            Assert.Equal(directDefault.SkippedReasonCounters, rollout.SkippedReasonCounters);
             Assert.Equal(borrowed.BatchesPerIteration, rollout.BatchesPerIteration);
             Assert.Equal(borrowed.EventsPerIteration, rollout.EventsPerIteration);
             Assert.Equal(borrowed.PayloadValuesPerIteration, rollout.PayloadValuesPerIteration);
@@ -735,7 +758,8 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
                 partitionCount: 4,
                 shardCount: 2,
                 degreeOfParallelism: 1,
-                CancellationToken.None);
+                CancellationToken.None,
+                providerMode: RadarProcessingArchiveProviderMode.BlockingBorrowed);
             var queued = benchmark.MeasureFile(
                 path,
                 RadarProcessingSyntheticRebalanceBenchmarkMode.PressureSamplingOnly,
@@ -975,6 +999,7 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
                     shardCount: 2,
                     degreeOfParallelism: 1,
                     CancellationToken.None,
+                    providerMode: RadarProcessingArchiveProviderMode.BlockingBorrowed,
                     providerOverlapMode: RadarProcessingQueuedProviderOverlapMode.ProducerConsumer));
             Assert.Throws<InvalidOperationException>(() =>
                 benchmark.MeasureFile(
@@ -986,6 +1011,7 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
                     shardCount: 2,
                     degreeOfParallelism: 1,
                     CancellationToken.None,
+                    providerMode: RadarProcessingArchiveProviderMode.BlockingBorrowed,
                     retentionStrategy: RadarProcessingRetainedPayloadStrategy.PooledCopy));
             Assert.Throws<ArgumentOutOfRangeException>(() =>
                 benchmark.MeasureFile(
