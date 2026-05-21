@@ -39,7 +39,7 @@ overlap telemetry: summary where available in result contracts
 overlap consumer delay: 0
 ```
 
-Current code posture after milestone 014 slice 6:
+Current code posture after milestone 014 slice 7:
 
 ```text
 direct MeasureFile() omitted defaults:
@@ -114,7 +114,8 @@ slice 3: direct file default migration complete
 slice 4: direct cache default migration complete
 slice 5: fallback, failure, and cleanup guardrails complete
 slice 6: operator help and documentation cleanup complete
-slice 7: focused regression pass before gate next
+slice 7: focused regression pass before gate complete
+slice 8: direct API Release gate next
 runtime behavior changes so far:
   direct MeasureFile() omitted defaults now use the queued-owned rollout
   contour
@@ -122,14 +123,13 @@ runtime behavior changes so far:
   contour
   slice 5 adds guardrail coverage only; no runtime behavior changed
   slice 6 updates operator help/docs only; no runtime behavior changed
+  slice 7 is verification-only; no runtime behavior changed
 latest focused verification:
   dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
-    --filter FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests
-  27 passed, 0 failed, 0 skipped
+    --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests"
+  84 passed, 0 failed, 0 skipped
   dotnet build RadarPulse.sln -c Release --no-restore
   succeeded, 0 warnings, 0 errors
-  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
-  761 passed, 0 failed, 3 skipped
 ```
 
 Milestone 014 slice 1 baseline capture:
@@ -295,6 +295,29 @@ verification:
   761 passed, 0 failed, 3 skipped
 next:
   run the focused regression pass before Release gate capture
+```
+
+Milestone 014 slice 7 focused regression pass before gate:
+
+```text
+runtime behavior changes:
+  none
+focused regression:
+  direct MeasureFile()/MeasureCache() default migration tests passed
+  explicit blocking-borrowed fallback/oracle tests passed
+  explicit queued-owned equivalence tests passed
+  CLI help and rollout contour alignment tests passed
+  queued-owned failure, cancellation, cleanup, and fallback tests passed
+  readiness threshold interpretation tests passed
+  allocation summary attribution tests passed
+verification:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests"
+  84 passed, 0 failed, 0 skipped
+  dotnet build RadarPulse.sln -c Release --no-restore
+  succeeded, 0 warnings, 0 errors
+next:
+  capture the direct API Release gate
 ```
 
 Milestone 014 gate posture:

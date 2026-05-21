@@ -879,6 +879,29 @@ Do not capture the Release migration gate if focused tests fail or the Release
 build has warnings/errors.
 ```
 
+Implemented in slice 7:
+
+```text
+status: complete
+runtime behavior changes: none
+focused regression:
+  direct MeasureFile()/MeasureCache() default migration tests passed
+  explicit blocking-borrowed fallback/oracle tests passed
+  explicit queued-owned equivalence tests passed
+  CLI help and rollout contour alignment tests passed
+  queued-owned failure, cancellation, cleanup, and fallback tests passed
+  readiness threshold interpretation tests passed
+  allocation summary attribution tests passed
+verification:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests"
+  passed, 84 passed, 0 failed, 0 skipped
+  dotnet build RadarPulse.sln -c Release --no-restore
+  succeeded, 0 warnings, 0 errors
+next:
+  slice 8 should capture the direct API Release gate
+```
+
 ### 8. Direct API Release Gate
 
 Capture natural Release evidence for the direct default migration.
@@ -1117,7 +1140,7 @@ controlled proof rows separated if captured
 [x] CLI omitted-provider rollout contour remains aligned with direct defaults
 [x] operator help/docs no longer claim direct defaults remain borrowed
 [x] failure, cancellation, release, and cleanup guardrails remain covered
-[ ] focused regression pass succeeds before gate capture
+[x] focused regression pass succeeds before gate capture
 [ ] direct API Release gate is captured
 [ ] KTLX 2026-05-05 allocation warning is repeated and interpreted
 [ ] performance gate interprets correctness, cleanup, pressure, allocation,
