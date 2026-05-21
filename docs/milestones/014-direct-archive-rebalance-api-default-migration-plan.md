@@ -756,8 +756,8 @@ verification:
   dotnet build RadarPulse.sln -c Release --no-restore
   succeeded, 0 warnings, 0 errors
 next:
-  slice 6 should update operator help and CLI tests that still describe direct
-  MeasureFile()/MeasureCache() defaults as borrowed
+  slice 6 updated operator help and CLI tests to describe direct
+  MeasureFile()/MeasureCache() defaults as the queued-owned rollout contour
 ```
 
 ### 6. Operator Help And Documentation Cleanup
@@ -813,6 +813,39 @@ Focused verification:
 
 ```powershell
 dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests
+```
+
+Implemented in slice 6:
+
+```text
+status: complete
+runtime behavior changes: none
+operator help:
+  rebalance-archive usage still names the omitted-provider rollout default as
+  queued-owned + pooled-copy + producer-consumer, async workers 4, queue
+  capacity 8, retained-byte budget 536870912
+  rebalance-archive usage now states direct MeasureFile()/MeasureCache()
+  defaults use the same queued-owned rollout contour
+  rebalance-archive usage still names --provider blocking-borrowed as the
+  fallback/oracle path for same-run comparison
+  controlled overlap consumer delay remains documented as mechanics proof
+  rather than natural rollout evidence
+tests:
+  RadarPulseCliRebalanceBenchmarkTests now assert the new direct default
+  help posture
+docs:
+  this plan and handoff record slice 6 completion; historical milestone 012
+  and 013 statements remain unchanged as closed-context history
+verification:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests
+  passed, 27 passed, 0 failed, 0 skipped
+  dotnet build RadarPulse.sln -c Release --no-restore
+  succeeded, 0 warnings, 0 errors
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  passed, 761 passed, 0 failed, 3 skipped
+next:
+  slice 7 should run the focused regression pass before Release gate capture
 ```
 
 ### 7. Focused Regression Pass Before Gate
@@ -1081,8 +1114,8 @@ controlled proof rows separated if captured
 [x] direct MeasureCache() omitted defaults migrate to queued-owned rollout
 [x] explicit direct blocking-borrowed fallback remains selectable and covered
 [x] direct explicit queued-owned rollout calls match omitted direct defaults
-[ ] CLI omitted-provider rollout contour remains aligned with direct defaults
-[ ] operator help/docs no longer claim direct defaults remain borrowed
+[x] CLI omitted-provider rollout contour remains aligned with direct defaults
+[x] operator help/docs no longer claim direct defaults remain borrowed
 [x] failure, cancellation, release, and cleanup guardrails remain covered
 [ ] focused regression pass succeeds before gate capture
 [ ] direct API Release gate is captured

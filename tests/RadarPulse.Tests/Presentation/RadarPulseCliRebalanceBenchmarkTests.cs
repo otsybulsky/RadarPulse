@@ -155,7 +155,7 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
     }
 
     [Fact]
-    public void UsageNamesArchiveRebalanceDefaultFallbackAndCompatibilityBoundary()
+    public void UsageNamesArchiveRebalanceDefaultsFallbackAndControlledProofBoundary()
     {
         var result = RunCli();
 
@@ -169,7 +169,7 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             "rebalance-archive fallback/oracle: use --provider blocking-borrowed for the borrowed path and same-run comparison.",
             result.StandardOutput);
         Assert.Contains(
-            "rebalance-archive CLI default is scoped; direct MeasureFile()/MeasureCache() defaults remain blocking-borrowed.",
+            "rebalance-archive direct MeasureFile()/MeasureCache() defaults use the same queued-owned rollout contour.",
             result.StandardOutput);
         Assert.Contains(
             "--overlap-consumer-delay-ms is controlled mechanics proof, not natural rollout evidence.",

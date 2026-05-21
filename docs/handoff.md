@@ -39,7 +39,7 @@ overlap telemetry: summary where available in result contracts
 overlap consumer delay: 0
 ```
 
-Current code posture after milestone 014 slice 5:
+Current code posture after milestone 014 slice 6:
 
 ```text
 direct MeasureFile() omitted defaults:
@@ -65,6 +65,11 @@ direct MeasureCache() omitted defaults:
 CLI omitted-provider rebalance-archive path:
   already uses the queued-owned rollout contour accepted in milestone 012 and
   hardened in milestone 013
+
+operator help:
+  rebalance-archive usage now states direct MeasureFile()/MeasureCache()
+  defaults use the same queued-owned rollout contour
+  --provider blocking-borrowed remains the documented fallback/oracle path
 ```
 
 Milestone 014 must preserve these guardrails:
@@ -108,22 +113,23 @@ slice 2: shared rollout contour contract complete
 slice 3: direct file default migration complete
 slice 4: direct cache default migration complete
 slice 5: fallback, failure, and cleanup guardrails complete
-slice 6: operator help and documentation cleanup next
+slice 6: operator help and documentation cleanup complete
+slice 7: focused regression pass before gate next
 runtime behavior changes so far:
   direct MeasureFile() omitted defaults now use the queued-owned rollout
   contour
   direct MeasureCache() omitted defaults now use the queued-owned rollout
   contour
   slice 5 adds guardrail coverage only; no runtime behavior changed
+  slice 6 updates operator help/docs only; no runtime behavior changed
 latest focused verification:
-  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
-    --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests"
-  50 passed, 0 failed, 0 skipped
   dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
     --filter FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests
   27 passed, 0 failed, 0 skipped
   dotnet build RadarPulse.sln -c Release --no-restore
   succeeded, 0 warnings, 0 errors
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  761 passed, 0 failed, 3 skipped
 ```
 
 Milestone 014 slice 1 baseline capture:
@@ -254,8 +260,41 @@ verification:
   dotnet build RadarPulse.sln -c Release --no-restore
   succeeded, 0 warnings, 0 errors
 next:
-  update operator help and CLI tests that still describe direct
-  MeasureFile()/MeasureCache() defaults as borrowed
+  slice 6 updated operator help and CLI tests to describe direct
+  MeasureFile()/MeasureCache() defaults as the queued-owned rollout contour
+```
+
+Milestone 014 slice 6 operator help and documentation cleanup:
+
+```text
+runtime behavior changes:
+  none
+operator help:
+  rebalance-archive usage still names the omitted-provider rollout default as
+  queued-owned + pooled-copy + producer-consumer, async workers 4, queue
+  capacity 8, retained-byte budget 536870912
+  rebalance-archive usage now states direct MeasureFile()/MeasureCache()
+  defaults use the same queued-owned rollout contour
+  rebalance-archive usage still names --provider blocking-borrowed as the
+  fallback/oracle path for same-run comparison
+  controlled overlap consumer delay remains documented as mechanics proof
+  rather than natural rollout evidence
+tests:
+  RadarPulseCliRebalanceBenchmarkTests asserts the new direct default help
+  posture
+docs:
+  this handoff and the milestone 014 plan record slice 6 completion;
+  historical milestone 012 and 013 statements remain closed-context history
+verification:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests
+  27 passed, 0 failed, 0 skipped
+  dotnet build RadarPulse.sln -c Release --no-restore
+  succeeded, 0 warnings, 0 errors
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  761 passed, 0 failed, 3 skipped
+next:
+  run the focused regression pass before Release gate capture
 ```
 
 Milestone 014 gate posture:
