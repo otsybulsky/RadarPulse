@@ -41,10 +41,46 @@ overlap telemetry: summary
 execution: partitioned barrier unless --execution async is supplied
 ```
 
-The next implementation step is slice 2 from the plan: rollout threshold
-contracts. Slice 1 specifically found that cleanup-completion gating for current
-pending/active/combined retained pressure returning to zero should be added or
-made explicit before default behavior changes.
+Milestone 012 slice 2 rollout threshold contracts are implemented in the
+current working tree. There were no provider default changes.
+
+New contract:
+
+```text
+RadarProcessingQueuedProviderRolloutThresholds
+```
+
+Milestone 012 rollout threshold defaults are now fixed in code before default
+behavior changes:
+
+```text
+release failures: 0
+current retained batch count at completion: 0
+current retained payload bytes at completion: 0
+combined retained payload byte budget: 536870912
+candidate-to-borrowed allocation ratio: <= 1.10
+candidate-to-borrowed elapsed ratio: <= 1.00
+candidate run spread / average elapsed ratio: <= 0.075
+```
+
+`RadarProcessingQueuedProviderReadinessEvaluator` now includes:
+
+```text
+EvaluateRetainedResourceCleanupCompletion()
+EvaluateRunSpread()
+```
+
+Cleanup completion now explicitly fails readiness when current pending,
+active, or combined retained pressure remains non-zero at completion. Run
+spread now evaluates repeated natural candidate spread against the milestone
+012 rollout threshold. Existing readiness methods still cover release failures,
+retained pressure budget, allocation movement, performance delta, and natural
+evidence separation.
+
+The next implementation step is slice 3 from the plan: default contour
+constants and option provenance. It should introduce the rollout contour as the
+default source of truth for CLI option expansion while still avoiding provider
+default behavior changes until the provenance surface is ready.
 
 Latest verification after milestone 012 slice 1:
 
@@ -56,6 +92,21 @@ Recorded result:
 
 ```text
 38 passed, 0 failed, 0 skipped.
+```
+
+Latest verification after milestone 012 slice 2:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests"
+```
+
+Recorded result:
+
+```text
+14 passed, 0 failed, 0 skipped.
+41 passed, 0 failed, 0 skipped.
 ```
 
 Milestone 011 remains complete. The closed documents are:

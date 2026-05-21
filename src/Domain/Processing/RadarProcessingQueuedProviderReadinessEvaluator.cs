@@ -127,6 +127,36 @@ public static class RadarProcessingQueuedProviderReadinessEvaluator
             RadarProcessingQueuedProviderReadinessGate.RetainedResourcePressure);
     }
 
+    public static RadarProcessingQueuedProviderReadinessResult EvaluateRetainedResourceCleanupCompletion(
+        RadarProcessingRetainedResourcePressureSummary? pressure)
+    {
+        if (pressure is null)
+        {
+            return RadarProcessingQueuedProviderReadinessResult.Inconclusive(
+                RadarProcessingQueuedProviderReadinessGate.RetainedResourcePressure,
+                RadarProcessingQueuedProviderReadinessError.MissingRetainedResourcePressureTelemetry,
+                "Retained-resource pressure telemetry is required to verify cleanup completion.");
+        }
+
+        if (pressure.CurrentCombinedRetainedBatchCount !=
+                RadarProcessingQueuedProviderRolloutThresholds.RequiredCurrentRetainedBatchCount ||
+            pressure.CurrentCombinedRetainedPayloadBytes !=
+                RadarProcessingQueuedProviderRolloutThresholds.RequiredCurrentRetainedPayloadBytes)
+        {
+            return RadarProcessingQueuedProviderReadinessResult.Failed(
+                RadarProcessingQueuedProviderReadinessGate.RetainedResourcePressure,
+                RadarProcessingQueuedProviderReadinessError.RetainedResourceCleanupIncomplete,
+                "Retained-resource cleanup must return pending, active, and combined pressure to zero.",
+                expectedCount: RadarProcessingQueuedProviderRolloutThresholds.RequiredCurrentRetainedBatchCount,
+                actualCount: pressure.CurrentCombinedRetainedBatchCount,
+                expectedBytes: RadarProcessingQueuedProviderRolloutThresholds.RequiredCurrentRetainedPayloadBytes,
+                actualBytes: pressure.CurrentCombinedRetainedPayloadBytes);
+        }
+
+        return RadarProcessingQueuedProviderReadinessResult.Passed(
+            RadarProcessingQueuedProviderReadinessGate.RetainedResourcePressure);
+    }
+
     public static RadarProcessingQueuedProviderReadinessResult EvaluateNaturalEvidence(
         bool isDefaultCandidateContour,
         TimeSpan overlapConsumerDelay)
@@ -270,6 +300,59 @@ public static class RadarProcessingQueuedProviderReadinessEvaluator
                 "Repeated natural candidate measurements exceeded the configured variance threshold.",
                 expectedRatio: maximumRelativeStandardDeviation,
                 actualRatio: variance);
+        }
+
+        return RadarProcessingQueuedProviderReadinessResult.Passed(
+            RadarProcessingQueuedProviderReadinessGate.RunVariance);
+    }
+
+    public static RadarProcessingQueuedProviderReadinessResult EvaluateRunSpread(
+        TimeSpan? candidateRunSpread,
+        TimeSpan? candidateAverageElapsed,
+        double maximumSpreadToAverageRatio)
+    {
+        if (candidateRunSpread is { } suppliedSpread &&
+            suppliedSpread < TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(candidateRunSpread));
+        }
+
+        if (candidateAverageElapsed is { } suppliedAverage &&
+            suppliedAverage < TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(candidateAverageElapsed));
+        }
+
+        if (maximumSpreadToAverageRatio < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maximumSpreadToAverageRatio));
+        }
+
+        if (candidateRunSpread is not { } spread ||
+            candidateAverageElapsed is not { } average)
+        {
+            return RadarProcessingQueuedProviderReadinessResult.NotEvaluated(
+                RadarProcessingQueuedProviderReadinessGate.RunVariance,
+                "Run spread readiness requires repeated natural candidate measurements.");
+        }
+
+        if (average == TimeSpan.Zero)
+        {
+            return RadarProcessingQueuedProviderReadinessResult.Inconclusive(
+                RadarProcessingQueuedProviderReadinessGate.RunVariance,
+                RadarProcessingQueuedProviderReadinessError.RunVarianceTooHigh,
+                "Run spread readiness requires a positive candidate average duration.");
+        }
+
+        var ratio = spread.TotalSeconds / average.TotalSeconds;
+        if (ratio > maximumSpreadToAverageRatio)
+        {
+            return RadarProcessingQueuedProviderReadinessResult.Failed(
+                RadarProcessingQueuedProviderReadinessGate.RunVariance,
+                RadarProcessingQueuedProviderReadinessError.RunVarianceTooHigh,
+                "Repeated natural candidate run spread exceeded the configured threshold.",
+                expectedRatio: maximumSpreadToAverageRatio,
+                actualRatio: ratio);
         }
 
         return RadarProcessingQueuedProviderReadinessResult.Passed(

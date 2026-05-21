@@ -524,6 +524,73 @@ Threshold tests should use synthetic values. Do not tune thresholds from a
 fresh benchmark row in this slice.
 ```
 
+Implemented in slice 2:
+
+```text
+status:
+  complete
+
+runtime provider default changes:
+  none
+
+new contract:
+  RadarProcessingQueuedProviderRolloutThresholds
+
+default rollout thresholds:
+  RequiredReleaseFailureCount = 0
+  RequiredCurrentRetainedBatchCount = 0
+  RequiredCurrentRetainedPayloadBytes = 0
+  CombinedRetainedPayloadBytesBudget = 536870912
+  MaximumCandidateToBorrowedAllocationRatio = 1.10
+  MaximumCandidateToBorrowedElapsedRatio = 1.00
+  MaximumCandidateRunSpreadRatio = 0.075
+
+new readiness evaluator behavior:
+  EvaluateRetainedResourceCleanupCompletion()
+    -> inconclusive when retained-resource pressure telemetry is missing
+    -> passed when current pending/active/combined retained counts and bytes
+       have returned to zero, even if high-water marks prove earlier pressure
+    -> failed with RetainedResourceCleanupIncomplete when current combined
+       retained batch count or payload bytes remain non-zero at completion
+
+  EvaluateRunSpread()
+    -> not evaluated when repeated natural candidate measurements are missing
+    -> inconclusive when candidate average elapsed time is zero
+    -> passed when run spread / average <= configured threshold
+    -> failed with RunVarianceTooHigh when run spread / average exceeds the
+       configured threshold
+
+existing evaluator behavior reused for rollout thresholds:
+  EvaluateRetainedResourceReleaseHealth()
+    -> release failures and retention failures fail
+  EvaluateRetainedResourcePressure()
+    -> combined retained payload bytes above budget fail
+  EvaluatePerformanceDelta()
+    -> candidate elapsed / borrowed elapsed above 1.00 fails under default
+       milestone 012 threshold
+  EvaluateAllocationMovement()
+    -> candidate allocation / borrowed allocation above 1.10 fails under
+       default milestone 012 threshold
+  EvaluateNaturalEvidence()
+    -> controlled consumer-delay rows remain rejected as natural evidence
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests"
+```
+
+Recorded result:
+
+```text
+14 passed, 0 failed, 0 skipped for focused readiness gate coverage.
+41 passed, 0 failed, 0 skipped for focused CLI, readiness gate, and overlap
+runner coverage.
+```
+
 ### 3. Default Contour Constants And Option Provenance
 
 Introduce the rollout contour as the default source of truth for presentation
@@ -1009,8 +1076,8 @@ controlled proof rows separated if captured
 ## Completion Checklist
 
 ```text
-[ ] baseline default surface audit is captured
-[ ] rollout thresholds are recorded before final gate interpretation
+[x] baseline default surface audit is captured
+[x] rollout thresholds are recorded before final gate interpretation
 [ ] default contour constants/provenance are implemented or documented
 [ ] CLI default expansion resolves to queued-owned rollout contour
 [ ] explicit blocking-borrowed fallback remains selectable
