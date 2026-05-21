@@ -7,6 +7,7 @@ Milestone 013 planning is active. The milestone documents started so far are:
 ```text
 docs/milestones/013-post-rollout-hardening-broader-validation.md
 docs/milestones/013-post-rollout-hardening-broader-validation-plan.md
+docs/milestones/013-post-rollout-hardening-broader-validation-performance-gate.md
 ```
 
 Milestone 013 is the post-rollout hardening and broader validation milestone
@@ -64,10 +65,12 @@ slice 4: operator help and output compatibility cleanup complete
 slice 5: allocation attribution pass complete
 slice 6: failure, cleanup, and fallback regression pass complete
 slice 7: focused regression pass before gate complete
-next slice: broader natural Release gate
+slice 8: broader natural Release gate captured with allocation warning
+next slice: stability decision trace
 next verification target:
-  capture broader natural Release gate rows and write the performance-gate
-  document
+  decide whether the borderline KTLX 2026-05-05 allocation signal blocks the
+  next expansion, requires follow-up attribution, or remains acceptable for the
+  scoped default
 ```
 
 Planned milestone 013 slices:
@@ -113,21 +116,28 @@ data\nexrad total files: 1554
 Latest milestone 013 verification:
 
 ```powershell
-dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests
-dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests
-dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests"
-dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests|FullyQualifiedName~RadarProcessingQueuedProcessingSessionTests|FullyQualifiedName~RadarProcessingQueuedRebalanceSessionTests"
 dotnet build RadarPulse.sln -c Release --no-restore
+dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --cache data\nexrad --date 2026-05-04 --radar KTLX --max-files 220 --mode rebalance --provider blocking-borrowed --execution async --workers 4 --iterations 1 --warmup-iterations 0 --parallelism 24 --partitions 24 --shards 4
+dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --cache data\nexrad --date 2026-05-04 --radar KTLX --max-files 220 --mode rebalance --iterations 1 --warmup-iterations 0 --parallelism 24 --partitions 24 --shards 4
+dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --cache data\nexrad --date 2026-05-04 --radar KINX --max-files 220 --mode rebalance --provider blocking-borrowed --execution async --workers 4 --iterations 1 --warmup-iterations 0 --parallelism 24 --partitions 24 --shards 4
+dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --cache data\nexrad --date 2026-05-04 --radar KINX --max-files 220 --mode rebalance --iterations 1 --warmup-iterations 0 --parallelism 24 --partitions 24 --shards 4
+dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --cache data\nexrad --date 2026-05-05 --radar KTLX --max-files 220 --mode rebalance --provider blocking-borrowed --execution async --workers 4 --iterations 1 --warmup-iterations 0 --parallelism 24 --partitions 24 --shards 4
+dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --cache data\nexrad --date 2026-05-05 --radar KTLX --max-files 220 --mode rebalance --iterations 1 --warmup-iterations 0 --parallelism 24 --partitions 24 --shards 4
+dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --cache data\nexrad --max-files 1000000 --mode rebalance --provider blocking-borrowed --execution async --workers 4 --iterations 1 --warmup-iterations 0 --parallelism 24 --partitions 24 --shards 4
+dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --cache data\nexrad --max-files 1000000 --mode rebalance --iterations 1 --warmup-iterations 0 --parallelism 24 --partitions 24 --shards 4
 ```
 
 Recorded result:
 
 ```text
-RadarPulseCliRebalanceBenchmarkTests: 26 passed, 0 failed, 0 skipped
-NexradArchiveRadarEventBatchPublisherTests: 22 passed, 0 failed, 0 skipped
-Readiness/overlap/allocation filter: 31 passed, 0 failed, 0 skipped
-Failure/cleanup filter: 24 passed, 0 failed, 0 skipped
 Release build: succeeded, 0 warnings, 0 errors
+primary KTLX 2026-05-04 matrix: elapsed 0.911x borrowed, allocation 1.071x
+KINX 2026-05-04 row: elapsed 0.939x borrowed, allocation 1.070x
+KTLX 2026-05-05 rows: elapsed 0.943x borrowed average, allocation 1.1005x
+  average with one row above and one row below threshold
+mixed-cache row: elapsed 0.907x borrowed, allocation 1.062x
+all captured rollout-default rows: validation succeeded, release failures 0,
+  current retained pressure 0, pressure under budget
 ```
 
 Milestone 013 slice 2 default contour drift guard:
@@ -232,6 +242,27 @@ direct MeasureFile()/MeasureCache() compatibility tests passed
 readiness, overlap, and allocation guardrail tests passed
 failure and cleanup guardrail tests passed
 Release build succeeded with 0 warnings and 0 errors
+```
+
+Milestone 013 slice 8 broader natural Release gate:
+
+```text
+runtime behavior changes: none
+document:
+  docs/milestones/013-post-rollout-hardening-broader-validation-performance-gate.md
+gate status: captured with allocation warning
+primary KTLX 2026-05-04 matrix passed with candidate elapsed 0.911x borrowed,
+  candidate allocation 1.071x borrowed, and candidate spread 5.41%
+KINX 2026-05-04 passed with elapsed 0.939x and allocation 1.070x borrowed
+mixed-cache passed with elapsed 0.907x and allocation 1.062x borrowed
+KTLX 2026-05-05 correctness, cleanup, pressure, and elapsed timing passed, but
+  allocation sat on the threshold: run 1 was 1.101x, run 2 was 1.0996x, and
+  the two-run average was 1.1005x borrowed
+retained pressure stayed below 10.14% of the 536870912 byte budget across
+  captured rollout-default rows
+decision trace must decide whether the KTLX 2026-05-05 allocation signal blocks
+  the next expansion, requires follow-up, or remains acceptable for the scoped
+  CLI default
 ```
 
 Milestone 013 closeout question:

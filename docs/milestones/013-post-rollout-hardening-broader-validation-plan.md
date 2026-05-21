@@ -1409,6 +1409,24 @@ whether the already-rolled-out default remains stable across broader local
 workload shapes.
 ```
 
+Implemented in slice 8:
+
+```text
+status: captured with allocation warning
+runtime behavior changes: none
+document:
+  docs/milestones/013-post-rollout-hardening-broader-validation-performance-gate.md
+primary KTLX 2026-05-04 matrix passed correctness, cleanup, pressure, timing,
+  spread, allocation, provenance, and attribution checks
+broader KINX 2026-05-04 and mixed-cache rows passed correctness, cleanup,
+  pressure, timing, allocation, provenance, and attribution checks
+broader KTLX 2026-05-05 remained correctness/cleanup/pressure/timing clean
+  but allocation sat on the threshold: one row above 1.10x, one row below,
+  two-row average 1.1005x borrowed
+decision trace must treat KTLX 2026-05-05 allocation as a follow-up signal
+  rather than a clean green gate
+```
+
 ### 9. Stability Decision Trace
 
 Record the post-rollout stability decision after the gate.
@@ -1583,8 +1601,8 @@ controlled proof rows separated if captured
 [x] allocation attribution is visible enough to explain residual overhead
 [x] failure, cancellation, release, and cleanup guardrails remain covered
 [x] focused regression pass succeeds before gate capture
-[ ] broader natural Release gate is captured
-[ ] performance gate interprets correctness, cleanup, pressure, allocation,
+[x] broader natural Release gate is captured
+[x] performance gate interprets correctness, cleanup, pressure, allocation,
     timing, variance, provenance, and attribution
 [ ] decision trace records the post-rollout stability decision
 [ ] closeout is written
