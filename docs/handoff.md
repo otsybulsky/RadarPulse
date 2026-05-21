@@ -1,8 +1,28 @@
-# Handoff: Milestone 011 Complete
+# Handoff: Milestone 012 Started
 
 ## Current Goal
 
-Milestone 011 is complete. The closed documents are:
+Milestone 012 has started. The architecture/concepts draft is:
+
+```text
+docs/milestones/012-queued-owned-default-rollout.md
+```
+
+Milestone 012 is the explicit queued-owned default rollout decision. It should
+decide whether and how to switch the provider default to
+`queued-owned + pooled-copy + producer-consumer`, preserve
+`blocking-borrowed` as an operator-selectable fallback, keep same-run borrowed
+comparison available for benchmark gates, and define rollout guardrails for
+allocation ratio, retained pressure, release failures, validation parity, and
+run variance.
+
+The next documentation step is the milestone 012 implementation plan:
+
+```text
+docs/milestones/012-queued-owned-default-rollout-plan.md
+```
+
+Milestone 011 remains complete. The closed documents are:
 
 ```text
 docs/milestones/011-queued-owned-default-readiness.md
@@ -17,12 +37,6 @@ Milestone 011 concludes that
 for an explicit default-rollout milestone under the measured limits.
 `blocking-borrowed` remains the current default provider and same-run oracle.
 The provider default was not changed in milestone 011.
-
-The next milestone should be an explicit default rollout decision. It should
-decide whether and how to switch the default provider mode, preserve
-`blocking-borrowed` as an operator-selectable fallback, and keep guardrails for
-allocation ratio, retained pressure, release failures, validation parity, and
-run variance.
 
 Milestone 011 slice 1 baseline readiness audit is complete. There were no
 runtime changes. The current pending retained-byte field is
