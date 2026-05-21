@@ -39,7 +39,7 @@ overlap telemetry: summary where available in result contracts
 overlap consumer delay: 0
 ```
 
-Current code posture after milestone 014 slice 4:
+Current code posture after milestone 014 slice 5:
 
 ```text
 direct MeasureFile() omitted defaults:
@@ -107,16 +107,18 @@ slice 1: direct API baseline audit complete
 slice 2: shared rollout contour contract complete
 slice 3: direct file default migration complete
 slice 4: direct cache default migration complete
-slice 5: fallback, failure, and cleanup guardrails next
+slice 5: fallback, failure, and cleanup guardrails complete
+slice 6: operator help and documentation cleanup next
 runtime behavior changes so far:
   direct MeasureFile() omitted defaults now use the queued-owned rollout
   contour
   direct MeasureCache() omitted defaults now use the queued-owned rollout
   contour
+  slice 5 adds guardrail coverage only; no runtime behavior changed
 latest focused verification:
   dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
-    --filter FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests
-  23 passed, 0 failed, 0 skipped
+    --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests"
+  50 passed, 0 failed, 0 skipped
   dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
     --filter FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests
   27 passed, 0 failed, 0 skipped
@@ -215,8 +217,45 @@ verification:
   dotnet build RadarPulse.sln -c Release --no-restore
   succeeded, 0 warnings, 0 errors
 next:
-  implement slice 5 fallback, failure, cancellation, release, and cleanup
+  slice 5 added fallback, failure, cancellation, release, and cleanup
   guardrails around the now-migrated direct defaults
+```
+
+Milestone 014 slice 5 fallback, failure, and cleanup guardrails:
+
+```text
+runtime behavior changes:
+  none beyond the direct default migrations from slices 3 and 4
+direct API guardrails:
+  RebalanceArchiveBenchmarkDirectBorrowedFallbackOmitsQueuedTelemetry proves
+  explicit BlockingBorrowed file/cache calls remain selectable and do not
+  report queue, retention, overlap, retained-pressure, or worker telemetry
+  RebalanceArchiveBenchmarkDirectDefaultFailureDoesNotFallbackToBorrowed
+  proves an omitted-provider queued-owned retained-byte-budget failure is
+  surfaced as a failure instead of silently rerunning the borrowed path
+  RebalanceArchiveBenchmarkDirectDefaultRejectsBuilderTransfer proves
+  omitted-provider direct file/cache calls still reject builder-transfer
+  retained payload execution
+reused lower-level guardrails:
+  RadarProcessingArchiveQueuedOverlapRunnerTests cover producer failure,
+  cancellation after accepted enqueue, validation failure, release of pending
+  and active retained resources, retained-pressure cleanup, and no fallback
+  success after queued-owned faults
+  RadarProcessingQueuedProviderReadinessGateTests cover queued validation
+  failures, retention/release failures, cleanup incompleteness, natural
+  evidence exclusion for controlled delay, and threshold interpretation
+verification:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests"
+  50 passed, 0 failed, 0 skipped
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests
+  27 passed, 0 failed, 0 skipped
+  dotnet build RadarPulse.sln -c Release --no-restore
+  succeeded, 0 warnings, 0 errors
+next:
+  update operator help and CLI tests that still describe direct
+  MeasureFile()/MeasureCache() defaults as borrowed
 ```
 
 Milestone 014 gate posture:
