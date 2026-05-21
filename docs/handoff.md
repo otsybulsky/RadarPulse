@@ -1,22 +1,61 @@
-# Handoff: Milestone 012 Started
+# Handoff: Milestone 012 Complete
 
-## Current Goal
+## Current State
 
-Milestone 012 has started. The architecture/concepts draft and implementation
-plan are:
+Milestone 012 is complete. The milestone documents are:
 
 ```text
 docs/milestones/012-queued-owned-default-rollout.md
 docs/milestones/012-queued-owned-default-rollout-plan.md
+docs/milestones/012-queued-owned-default-rollout-performance-gate.md
+docs/milestones/012-queued-owned-default-rollout-decision-trace.md
+docs/milestones/012-queued-owned-default-rollout-closeout.md
 ```
 
-Milestone 012 is the explicit queued-owned default rollout decision. It should
-decide whether and how to switch the provider default to
-`queued-owned + pooled-copy + producer-consumer`, preserve
-`blocking-borrowed` as an operator-selectable fallback, keep same-run borrowed
-comparison available for benchmark gates, and define rollout guardrails for
-allocation ratio, retained pressure, release failures, validation parity, and
-run variance.
+Milestone 012 is the explicit queued-owned default rollout decision. It
+answers **yes** for the scoped CLI surface:
+
+```text
+processing benchmark rebalance-archive omitted-provider path:
+  queued-owned + pooled-copy + producer-consumer is now the scoped default
+```
+
+Current scoped default posture:
+
+```text
+provider mode: queued-owned
+provider overlap: producer-consumer
+retention strategy: pooled-copy
+execution: async
+worker count: 4
+provider queue capacity: 8
+retained-byte budget: 536870912
+queue telemetry: summary
+overlap telemetry: summary
+overlap consumer delay: 0
+provider source: rollout-default
+```
+
+Fallback/oracle posture:
+
+```text
+blocking-borrowed remains explicit fallback through
+  --provider blocking-borrowed
+same-run blocking-borrowed comparison remains required for future benchmark
+  gates and rollout regressions
+```
+
+Excluded default surfaces:
+
+```text
+direct RadarProcessingArchiveRebalanceBenchmark.MeasureFile()/MeasureCache()
+  defaults
+synthetic benchmark defaults
+non-benchmark archive publishing APIs
+live ingestion/runtime provider defaults
+builder-transfer retained payload execution
+automatic fallback from queued-owned to blocking-borrowed
+```
 
 Milestone 012 slice 1 baseline default surface audit is implemented in the
 current working tree. There were no runtime changes. The plan now captures the
@@ -411,10 +450,26 @@ default expansion evidence: accepted
 fallback separation: accepted
 ```
 
-The next implementation step is slice 11 from the plan: closeout and handoff.
-That slice should create the milestone closeout, run the expected closeout
-verification, and update handoff so the current scoped default provider posture
-is unambiguous.
+Milestone 012 slice 11 closeout and handoff is implemented in the current
+working tree. There were no runtime changes.
+
+New closeout:
+
+```text
+docs/milestones/012-queued-owned-default-rollout-closeout.md
+```
+
+Final closeout verification:
+
+```text
+47 passed, 0 failed, 0 skipped for focused closeout verification.
+Release build succeeded with 0 warnings and 0 errors.
+751 passed, 0 failed, 3 skipped for the full test project.
+```
+
+The next implementation step is not selected yet. Good next milestone inputs
+are broader default rollout, direct API default migration, live/durable
+ingestion, or ordered concurrent rebalance execution.
 
 Latest verification after milestone 012 slice 1:
 

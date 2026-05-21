@@ -1523,6 +1523,56 @@ Do not mark the milestone complete until handoff names the current provider
 default unambiguously.
 ```
 
+Implemented in slice 11:
+
+```text
+status:
+  complete
+
+document:
+  docs/milestones/012-queued-owned-default-rollout-closeout.md
+
+runtime changes:
+  none
+
+final default posture:
+  queued-owned + pooled-copy + producer-consumer is now the scoped default for
+  processing benchmark rebalance-archive omitted provider flags
+
+fallback posture:
+  blocking-borrowed remains available through explicit
+  --provider blocking-borrowed
+
+excluded default surfaces:
+  direct RadarProcessingArchiveRebalanceBenchmark.MeasureFile()/MeasureCache()
+  defaults
+  synthetic benchmark defaults
+  non-benchmark archive publishing APIs
+  live ingestion/runtime provider defaults
+  automatic fallback from queued-owned to blocking-borrowed
+
+handoff posture:
+  handoff now names the current scoped default provider posture explicitly
+```
+
+Closeout verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests"
+
+dotnet build RadarPulse.sln -c Release --no-restore
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Recorded result:
+
+```text
+47 passed, 0 failed, 0 skipped for focused closeout verification.
+Release build succeeded with 0 warnings and 0 errors.
+751 passed, 0 failed, 3 skipped for the full test project.
+```
+
 ## Verification Strategy
 
 Use focused tests after each implementation slice and broader verification
@@ -1584,8 +1634,8 @@ controlled proof rows separated if captured
 [x] performance gate interprets correctness, cleanup, pressure, allocation,
     timing, and variance thresholds
 [x] decision trace records whether the provider default changed
-[ ] closeout is written
-[ ] handoff is updated with the current default provider posture
+[x] closeout is written
+[x] handoff is updated with the current default provider posture
 ```
 
 ## Non-Goals
