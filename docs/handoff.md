@@ -1,8 +1,8 @@
-# Handoff: Milestone 015 Planning
+# Handoff: Milestone 015 In Progress
 
 ## Current State
 
-Milestone 015 planning has started. The milestone documents created so far are:
+Milestone 015 is in progress. The milestone documents created so far are:
 
 ```text
 docs/milestones/015-queued-owned-allocation-readiness.md
@@ -24,8 +24,8 @@ Milestone 015 current status:
 
 ```text
 architecture document: draft
-implementation plan: draft
-implementation: not started
+implementation plan: in progress
+implementation: slice 1 complete
 runtime behavior changes so far: none
 performance gate: not captured
 decision trace: not written
@@ -68,7 +68,7 @@ record adopted, deferred, and rejected standard/experimental approaches in the
 Milestone 015 planned slices:
 
 ```text
-1. baseline and attribution audit
+1. baseline and attribution audit complete
 2. allocation instrumentation and contract check
 3. standard allocation optimization pass
 4. experimental optimization research and spikes
@@ -93,6 +93,39 @@ KTLX 2026-05-05 allocation warning:
 primary attribution hypothesis:
   direct default allocation overhead is concentrated in processing callback
   allocation and retained/owned snapshot work
+```
+
+Milestone 015 slice 1 baseline and attribution audit:
+
+```text
+status: complete
+runtime behavior changes: none
+allocation/result contract posture:
+  current result contracts separate measured end-to-end allocation,
+  processing callback allocation, replay/build allocation, owned snapshot
+  allocation, and callback non-owned snapshot allocation
+  CLI output already prints these archive rebalance allocation fields
+attribution sufficiency:
+  sufficient for the first standard optimization pass
+  not fine-grained enough to independently prove retained resource wrapper,
+  release callback, queued batch object, recent-detail, bounded snapshot, and
+  telemetry-summary copy allocation without either code inspection or added
+  instrumentation
+primary hot-path targets:
+  RadarProcessingRetainedPayloadFactory.RetainPooledCopy retained batch and
+  closure-backed release resource creation
+  RadarProcessingRetainedBatchResource.NotRequired default release callback
+  ArchiveOwnedRadarEventBatchQueueingPublisher.Publish capturing onAccepted
+  callback
+  RadarProcessingOwnedBatchQueue per-accepted-batch queued object creation
+  RadarProcessingProviderQueueTelemetryRecorder recent-detail records and
+  snapshot allocation
+  RadarProcessingProviderQueueTelemetrySummary defensive recent-detail copy
+  RadarProcessingArchiveRebalanceBenchmark.AddQueueTelemetry
+  Concat/Skip/ToArray aggregation for bounded recent details
+slice 2 input:
+  keep current result contracts for the first pass unless callback residual
+  needs finer attribution before a safe optimization decision can be made
 ```
 
 Milestone 015 likely implementation targets:

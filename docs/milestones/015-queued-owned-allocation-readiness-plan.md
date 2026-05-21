@@ -1,6 +1,6 @@
 # Milestone 015: Queued-Owned Allocation Readiness Implementation Plan
 
-Status: draft.
+Status: in progress.
 
 This plan implements the milestone 015 architecture defined in
 `015-queued-owned-allocation-readiness.md`.
@@ -436,6 +436,81 @@ Focused verification:
 
 ```powershell
 dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests
+```
+
+Implemented in slice 1:
+
+```text
+status: complete
+runtime behavior changes: none
+
+audited allocation/result contracts:
+  RadarProcessingArchiveRebalanceBenchmark captures end-to-end measured
+  allocation around measured iterations and builds
+  RadarProcessingRebalanceAllocationSummary.ForArchiveReplay from measured
+  allocated bytes, aggregate processing callback allocated bytes, and
+  aggregate queue owned snapshot allocated bytes
+
+  RadarProcessingArchiveRebalanceBenchmarkResult and
+  RadarProcessingArchiveRebalanceCacheBenchmarkResult expose allocated bytes,
+  processing callback allocated bytes, replay/build allocated bytes, owned
+  snapshot allocated bytes, and processing callback non-owned snapshot
+  allocated bytes
+
+  RadarProcessingRebalanceAllocationSummary keeps derived allocation buckets
+  non-negative and already has focused contract coverage in
+  RadarProcessingRebalanceAllocationSummaryTests
+
+  RadarProcessingOwnedSnapshotAllocationSummary exposes owned snapshot count,
+  payload bytes, payload values, allocated bytes, elapsed time, and per-unit
+  ratios from provider queue telemetry
+
+  Program prints end-to-end, processing callback, replay/build, owned
+  snapshot, and callback non-owned snapshot allocation fields for archive
+  rebalance output
+
+attribution sufficiency:
+  current attribution is sufficient for the first standard optimization pass
+  because it separates measured, processing callback, replay/build, owned
+  snapshot, and callback residual allocation
+
+  current attribution is not yet fine-grained enough to prove every residual
+  source independently; retained resource wrappers/release callbacks, queued
+  batch objects, queue recent-detail records, bounded recent-detail snapshots,
+  and telemetry-summary copy/allocation are visible only through processing
+  callback residual or aggregate measured allocation
+
+hot-path targets for slice 2 and slice 3:
+  RadarProcessingRetainedPayloadFactory.RetainPooledCopy rents event and
+  payload arrays but creates a retained RadarEventBatch plus a
+  closure-backed RadarProcessingRetainedBatchResource release callback for
+  pooled retained batches
+
+  RadarProcessingRetainedBatchResource.NotRequired currently constructs a
+  stateful resource with a default release callback; that path should be
+  audited before changing because state transitions are part of the contract
+
+  ArchiveOwnedRadarEventBatchQueueingPublisher.Publish passes a capturing
+  onAccepted callback into RadarProcessingOwnedBatchQueue.EnqueueAsync so the
+  retained resource can be tracked after a sequence is assigned
+
+  RadarProcessingOwnedBatchQueue creates one RadarProcessingQueuedBatch for
+  each accepted queued-owned batch and records queue telemetry on accepted,
+  rejected, dequeued, and processed events
+
+  RadarProcessingProviderQueueTelemetryRecorder creates bounded recent-detail
+  records, snapshots them into arrays, and
+  RadarProcessingProviderQueueTelemetrySummary defensively copies recent
+  details through a List plus array/read-only wrapper
+
+  RadarProcessingArchiveRebalanceBenchmark.AddQueueTelemetry aggregates
+  bounded recent details through Concat/Skip/ToArray; this is bounded but is a
+  low-risk standard optimization candidate if it appears in callback residual
+
+slice 2 input:
+  keep current result contracts for the first pass unless code inspection or
+  focused measurements show that callback residual needs to be split before a
+  safe optimization decision can be made
 ```
 
 ### 2. Allocation Instrumentation And Contract Check
@@ -1002,8 +1077,8 @@ standard and experimental optimization outcomes recorded
 ## Completion Checklist
 
 ```text
-[ ] allocation baseline audit is captured
-[ ] attribution sufficiency decision is recorded
+[x] allocation baseline audit is captured
+[x] attribution sufficiency decision is recorded
 [ ] standard allocation optimization pass is complete or explicitly rejected
 [ ] experimental optimization research/spike pass is complete
 [ ] adopted optimizations are integrated with focused tests
