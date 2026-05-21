@@ -1,6 +1,6 @@
 # Milestone 015: Queued-Owned Allocation Readiness Implementation Plan
 
-Status: in progress.
+Status: complete.
 
 This plan implements the milestone 015 architecture defined in
 `015-queued-owned-allocation-readiness.md`.
@@ -1790,6 +1790,39 @@ Runtime behavior changes:
 none
 ```
 
+Implemented in slice 10:
+
+```text
+status: complete
+runtime behavior changes: none
+closeout:
+  docs/milestones/015-queued-owned-allocation-readiness-closeout.md
+
+final closeout answer:
+  yes, the queued-owned direct/default allocation profile is ready to support
+  the next broader cache-level benchmark/default-readiness decision
+
+final allocation posture:
+  cache-level allocation readiness is accepted
+  KTLX 2026-05-05 warning is reduced and bounded
+  single-file cold allocation remains an expected retained-ownership cost and
+  scope limit, not a cache-level blocker
+
+final verification:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests|FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests|FullyQualifiedName~RadarProcessingRetainedBatchResourceTests"
+  passed, 112 passed, 0 failed, 0 skipped
+
+  dotnet build RadarPulse.sln -c Release --no-restore
+  succeeded, 0 warnings, 0 errors
+
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  passed, 768 passed, 0 failed, 3 skipped
+
+recommended next milestone input:
+  broader cache-level benchmark/default-readiness
+```
+
 ## Verification Strategy
 
 Use focused tests after each implementation slice and broader verification
@@ -1873,8 +1906,8 @@ standard and experimental optimization outcomes recorded
     timing, variance, fallback/oracle posture, attribution, and optimization
     posture
 [x] decision trace records the allocation readiness decision
-[ ] closeout is written
-[ ] handoff is updated with current allocation posture, fallback/oracle,
+[x] closeout is written
+[x] handoff is updated with current allocation posture, fallback/oracle,
     standard and experimental optimization posture, allocation risk, and next
     milestone recommendation
 ```

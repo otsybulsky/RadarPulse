@@ -1,14 +1,15 @@
-# Handoff: Milestone 015 In Progress
+# Handoff: Milestone 015 Complete
 
 ## Current State
 
-Milestone 015 is in progress. The milestone documents created so far are:
+Milestone 015 is complete. The milestone documents are:
 
 ```text
 docs/milestones/015-queued-owned-allocation-readiness.md
 docs/milestones/015-queued-owned-allocation-readiness-plan.md
 docs/milestones/015-queued-owned-allocation-readiness-performance-gate.md
 docs/milestones/015-queued-owned-allocation-readiness-decision-trace.md
+docs/milestones/015-queued-owned-allocation-readiness-closeout.md
 ```
 
 Milestone 015 is the queued-owned allocation readiness milestone. It starts
@@ -25,10 +26,9 @@ expansion
 Milestone 015 current status:
 
 ```text
-architecture document: draft
-implementation plan: in progress
-implementation: slice 9 allocation readiness decision trace complete; next
-  slice 10 closeout and handoff
+architecture document: complete
+implementation plan: complete
+implementation: complete through slice 10 closeout and handoff
 runtime behavior changes so far: allocation-only optimization, including
   cheaper bounded recent-detail copying and explicit pooled retained payload
   release ownership and a dedicated retained event-array pool; retained
@@ -53,10 +53,20 @@ file-level warning:
   queued-owned pooled-copy architecture, not a JIT warmup artifact
 decision trace: written in
   docs/milestones/015-queued-owned-allocation-readiness-decision-trace.md
-closeout: not written
+closeout: written in
+  docs/milestones/015-queued-owned-allocation-readiness-closeout.md
+final closeout answer:
+  yes, the queued-owned direct/default allocation profile is ready to support
+  the next broader cache-level benchmark/default-readiness decision
+final verification:
+  focused closeout regression passed, 112 passed, 0 failed, 0 skipped
+  Release build succeeded, 0 warnings, 0 errors
+  full test project passed, 768 passed, 0 failed, 3 skipped
+recommended next milestone input:
+  broader cache-level benchmark/default-readiness
 ```
 
-Milestone 015 must preserve these guardrails:
+Milestone 015 preserved these guardrails:
 
 ```text
 direct MeasureFile()/MeasureCache() omitted defaults remain queued-owned
@@ -101,7 +111,7 @@ Milestone 015 planned slices:
 7. focused regression and allocation sanity pass complete
 8. allocation readiness Release gate complete
 9. allocation readiness decision trace complete
-10. closeout and handoff
+10. closeout and handoff complete
 ```
 
 Milestone 015 starting allocation posture:
@@ -686,6 +696,33 @@ recommended next milestone input:
   single-file cold warning as the named optimization target
 next slice:
   write closeout and update handoff with final milestone posture
+```
+
+Milestone 015 slice 10 closeout and handoff:
+
+```text
+status: complete
+runtime behavior changes: none
+closeout:
+  docs/milestones/015-queued-owned-allocation-readiness-closeout.md
+final closeout answer:
+  yes, the queued-owned direct/default allocation profile is ready to support
+  the next broader cache-level benchmark/default-readiness decision
+final allocation posture:
+  cache-level allocation readiness is accepted
+  KTLX 2026-05-05 warning is reduced and bounded
+  single-file cold allocation remains an expected retained-ownership cost and
+  scope limit, not a cache-level blocker
+final verification:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests|FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests|FullyQualifiedName~RadarProcessingRetainedBatchResourceTests"
+  passed, 112 passed, 0 failed, 0 skipped
+  dotnet build RadarPulse.sln -c Release --no-restore
+  succeeded, 0 warnings, 0 errors
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  passed, 768 passed, 0 failed, 3 skipped
+recommended next milestone input:
+  broader cache-level benchmark/default-readiness
 ```
 
 Milestone 015 likely implementation targets:
