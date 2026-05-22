@@ -15,6 +15,7 @@ docs/milestones/018-runtime-live-ingestion-readiness-lifecycle-guardrails.md
 docs/milestones/018-runtime-live-ingestion-readiness-steady-intake-gate.md
 docs/milestones/018-runtime-live-ingestion-readiness-pressure-failure-gate.md
 docs/milestones/018-runtime-live-ingestion-readiness-gate-interpretation.md
+docs/milestones/018-runtime-live-ingestion-readiness-decision-trace.md
 ```
 
 Milestone 018 is the runtime and live ingestion readiness milestone. It starts
@@ -31,7 +32,7 @@ implementation plan:
   drafted in docs/milestones/018-runtime-live-ingestion-readiness-plan.md
 
 implementation:
-  slices 1-8 complete
+  slices 1-9 complete
 
 runtime behavior changes:
   explicit ShutdownMode.CancelQueued cancellation shutdown now clears accepted
@@ -39,6 +40,9 @@ runtime behavior changes:
 
 current closeout question:
   Is the queued-owned contour ready for runtime/live ingestion defaults?
+
+current decision-trace answer:
+  explicit opt-in only
 ```
 
 Milestone 018 planning posture:
@@ -47,8 +51,8 @@ Milestone 018 planning posture:
 direct benchmark readiness from milestone 017 is accepted evidence, not
 automatic runtime approval
 
-runtime/live formal closeout remains pending until the decision trace and
-closeout; slice 8 recommends keeping omitted runtime defaults unchanged
+runtime/live formal closeout remains pending until slice 10 closeout; the
+decision trace keeps omitted runtime defaults unchanged
 
 runtime startup prewarm is selected only as the explicit queued-owned
 gate candidate; it is not accepted as an omitted runtime default
@@ -71,7 +75,7 @@ Milestone 018 planned slices:
 6. Runtime steady intake gate (complete)
 7. Runtime pressure, backpressure, cancellation, and failure gate (complete)
 8. Gate interpretation and follow-up fixes (complete)
-9. Runtime readiness decision trace
+9. Runtime readiness decision trace (complete)
 10. Closeout, handoff, and project progress
 ```
 
@@ -113,7 +117,7 @@ automatic silent borrowed fallback
 Milestone 018 current recommended next action:
 
 ```text
-begin slice 9 runtime readiness decision trace
+pause before slice 10 closeout review, then finalize closeout after review
 ```
 
 Milestone 018 slice 1 completion:
@@ -414,6 +418,43 @@ reason:
 carried to slice 9:
   formal decision trace, accepted warnings, residual coverage gaps, and next
     milestone input
+```
+
+Milestone 018 slice 9 completion:
+
+```text
+decision trace document:
+  docs/milestones/018-runtime-live-ingestion-readiness-decision-trace.md
+
+runtime behavior changes:
+  none
+
+decision:
+  explicit opt-in only
+
+accepted surface:
+  queued-owned is runtime-safe for scoped in-process runtime/archive replay
+    surfaces when selected explicitly with startup prewarm and existing
+    guardrails
+
+not accepted:
+  queued-owned is not accepted as the omitted runtime/live ingestion default
+
+default posture:
+  omitted runtime defaults remain unchanged
+
+accepted warnings:
+  startup prewarm is explicit lifecycle cost only
+  natural first-use remains allocation-blocked for omitted default readiness
+  true live ingestion, durable queues, cross-process providers/workers,
+    production operator reporting, and repeated variance gates remain open
+
+next milestone input:
+  gradual runtime rollout for queued-owned explicit opt-in
+  production runtime provider selection and operator reporting
+  explicit startup prewarm lifecycle wiring where selected
+  repeatability gates and true live ingestion or narrower archive-runtime
+    rollout evidence
 ```
 
 ## Milestone 017 Baseline

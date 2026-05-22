@@ -1368,8 +1368,41 @@ defer because gate health or repeatability regressed
 Slice 9 status:
 
 ```text
-status: pending
-runtime behavior changes: none expected
+status: complete
+runtime behavior changes: none
+decision trace document:
+  docs/milestones/018-runtime-live-ingestion-readiness-decision-trace.md
+```
+
+Slice 9 completion notes:
+
+```text
+decision:
+  explicit opt-in only
+
+accepted surface:
+  queued-owned is runtime-safe for scoped in-process runtime/archive replay
+    surfaces when selected explicitly with startup prewarm and existing
+    guardrails
+
+not accepted:
+  queued-owned is not accepted as the omitted runtime/live ingestion default
+
+default posture:
+  omitted runtime defaults remain unchanged
+
+accepted warnings:
+  startup prewarm is explicit lifecycle cost only
+  natural first-use remains allocation-blocked for omitted default readiness
+  true live ingestion, durable queues, cross-process providers/workers,
+    production operator reporting, and repeated variance gates remain open
+
+next milestone input:
+  gradual runtime rollout for queued-owned explicit opt-in
+  production runtime provider selection and operator reporting
+  explicit startup prewarm lifecycle wiring where selected
+  repeatability gates and true live ingestion or narrower archive-runtime
+    rollout evidence
 ```
 
 ### 10. Closeout, Handoff, And Project Progress
