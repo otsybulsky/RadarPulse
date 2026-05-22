@@ -247,6 +247,44 @@ public sealed class RadarProcessingRetainedPayloadFactoryTests
     }
 
     [Fact]
+    public void PooledCopyPrewarmMovesLargeArrayAllocationBeforeRetention()
+    {
+        const int eventCount = 8;
+        const int payloadLength = 8;
+        var eventPool = new RadarProcessingRetainedEventArrayPool(
+            largeArrayThreshold: 4,
+            maxRetainedArrayCount: 2,
+            maxRetainedBytes: 64 * RadarStreamEvent.SizeInBytes);
+        var payloadPool = new RadarProcessingRetainedPayloadByteArrayPool(
+            largeArrayThreshold: 4,
+            maxRetainedArrayCount: 2,
+            maxRetainedBytes: 64);
+        var factory = new RadarProcessingRetainedPayloadFactory(eventPool, payloadPool);
+
+        var prewarm = factory.Prewarm(eventCount, payloadLength);
+        var retained = RetainLeasedPooledCopyWithEventCount(factory, eventCount);
+
+        Assert.True(prewarm.AllocatedBytes > 0);
+        Assert.Equal(eventCount, prewarm.EventCount);
+        Assert.Equal(payloadLength, prewarm.PayloadBytes);
+        Assert.Equal(1, prewarm.RetainedBatchCount);
+        Assert.Equal(eventCount * RadarStreamEvent.SizeInBytes, prewarm.EventPoolRetainedBytes);
+        Assert.Equal(payloadLength, prewarm.PayloadPoolRetainedBytes);
+        Assert.Equal(2, retained.PoolRentCount);
+        Assert.Equal(0, retained.PoolMissCount);
+        Assert.Equal(0, retained.EventPoolMissCount);
+        Assert.Equal(0, retained.PayloadPoolMissCount);
+
+        var release = retained.Resource!.Release();
+
+        Assert.Equal(2, release.PoolReturnCount);
+        Assert.Equal(0, eventPool.MissCount);
+        Assert.Equal(0, payloadPool.MissCount);
+        Assert.Equal(1, eventPool.RetainedArrayCount);
+        Assert.Equal(1, payloadPool.RetainedArrayCount);
+    }
+
+    [Fact]
     public void RetainedEventArrayPoolReusesLargeReturnedArrays()
     {
         var fallback = new TrackingArrayPool<RadarStreamEvent>();

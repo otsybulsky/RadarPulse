@@ -27,6 +27,7 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunnerTests
         Assert.Same(
             RadarProcessingProviderQueueOptions.Default,
             RadarProcessingArchiveQueuedOverlapOptions.Default.QueueOptions);
+        Assert.Null(RadarProcessingArchiveQueuedOverlapOptions.Default.RetainedPayloadFactory);
 
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new RadarProcessingArchiveQueuedOverlapResult(

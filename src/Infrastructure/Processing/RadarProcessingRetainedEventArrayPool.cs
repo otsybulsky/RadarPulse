@@ -117,6 +117,57 @@ public sealed class RadarProcessingRetainedEventArrayPool : ArrayPool<RadarStrea
         return RentCore(minimumLength, out missed);
     }
 
+    public void Prewarm(
+        int minimumLength,
+        int arrayCount)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(minimumLength);
+        ArgumentOutOfRangeException.ThrowIfNegative(arrayCount);
+        if (arrayCount == 0 ||
+            minimumLength < LargeArrayThreshold ||
+            MaxRetainedArrayCount == 0)
+        {
+            return;
+        }
+
+        var arrayLength = RoundLargeArrayLength(minimumLength);
+        var arrayBytes = GetArrayBytes(arrayLength);
+        if (arrayBytes > MaxRetainedBytes)
+        {
+            return;
+        }
+
+        var retainedByBudget = MaxRetainedBytes / arrayBytes;
+        var retainedCount = (int)Math.Min(
+            arrayCount,
+            Math.Min(MaxRetainedArrayCount, retainedByBudget));
+        if (retainedCount == 0)
+        {
+            return;
+        }
+
+        var arrays = new RadarStreamEvent[retainedCount][];
+        for (var i = 0; i < arrays.Length; i++)
+        {
+            arrays[i] = new RadarStreamEvent[arrayLength];
+        }
+
+        lock (sync)
+        {
+            foreach (var array in arrays)
+            {
+                retainedArrays.Add(array);
+                retainedBytes = checked(retainedBytes + arrayBytes);
+            }
+
+            while (retainedArrays.Count > MaxRetainedArrayCount ||
+                   retainedBytes > MaxRetainedBytes)
+            {
+                RemoveSmallestRetainedArrayUnsafe();
+            }
+        }
+    }
+
     public override void Return(RadarStreamEvent[] array, bool clearArray = false)
     {
         ArgumentNullException.ThrowIfNull(array);

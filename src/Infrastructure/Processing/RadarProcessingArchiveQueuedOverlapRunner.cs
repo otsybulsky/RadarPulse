@@ -51,7 +51,8 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
         using var queue = new RadarProcessingOwnedBatchQueue(effectiveOptions.QueueOptions);
         using var publisher = new ArchiveOwnedRadarEventBatchQueueingPublisher(
             queue,
-            retainedPayloadOptions: effectiveOptions.RetainedPayloadOptions);
+            retainedPayloadOptions: effectiveOptions.RetainedPayloadOptions,
+            retainedPayloadFactory: effectiveOptions.RetainedPayloadFactory);
 
         var consumerTask = RunConsumerAsync(queue, publisher, consume, cancellationToken).AsTask();
         var producerTask = RunProducerAsync(publisher, produce, cancellationToken).AsTask();

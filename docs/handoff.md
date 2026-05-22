@@ -1,4 +1,4 @@
-# Handoff: Milestone 017 Planning
+# Handoff: Milestone 017 In Progress
 
 ## Current State
 
@@ -8,6 +8,8 @@ are:
 ```text
 docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost.md
 docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-plan.md
+docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-measurefile-gate.md
+docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-prewarmed-measurefile-gate.md
 ```
 
 Milestone 017 is the file-level default readiness and cold
@@ -29,10 +31,19 @@ architecture document: drafted in
   docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost.md
 implementation plan: drafted in
   docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-plan.md
-implementation: slice 4 focused regression and file sanity pass
+implementation: slice 5 cold and warm MeasureFile Release gate
   complete
 runtime behavior changes so far: none
-performance gate: not captured
+performance gate:
+  MeasureFile gate captured in
+    docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-measurefile-gate.md
+  small-file MeasureCache transition gate pending
+prewarm follow-up:
+  opt-in retained payload prewarm prototype implemented and full prewarmed
+  MeasureFile gate plus targeted timing rerun captured; allocation blocker
+  removed from measured rows, fail-level timing outliers did not reproduce,
+  remaining elapsed jitter is carried as a non-blocking filesystem timing note
+  before decision trace
 decision trace: not written
 closeout: not written
 project progress ledger:
@@ -364,6 +375,153 @@ blockers before Release gate:
   none found
 ```
 
+Milestone 017 slice 5 completion:
+
+```text
+status:
+  complete
+
+runtime behavior changes:
+  none
+
+gate document:
+  docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-measurefile-gate.md
+
+raw local outputs:
+  data\temp\m017-gate-runner\output\m017-measurefile-20260522-083951.jsonl
+  data\temp\m017-gate-runner\output\m017-measurefile-20260522-083951.md
+
+runner contour:
+  surface: RadarProcessingArchiveRebalanceBenchmark.MeasureFile()
+  mode: RebalanceSession
+  iterations: 1
+  warmup iterations: 0
+  parallelism: 24
+  partitions: 24
+  shards: 4
+  candidate rows omitted provider/execution/retention controls and resolved to
+    queued-owned rollout defaults
+  borrowed oracle rows used explicit BlockingBorrowed with AsyncShardTransport,
+    worker count 4, queue capacity 1
+
+result:
+  captured with file-level allocation blocker
+
+cold representative rows:
+  prior KTLX representative:
+    fail, elapsed 1.507x, allocation 2.995x
+  KTLX 2026-05-04 representative:
+    fail, elapsed 1.735x, allocation 2.060x
+  KINX 2026-05-04 representative:
+    fail, elapsed 0.585x, allocation 1.958x
+  KTLX 2026-05-05 representative:
+    fail, elapsed 1.809x, allocation 2.235x
+
+warm representative rows:
+  prior KTLX representative:
+    fail, elapsed 1.077x, allocation 2.128x, spread 6.94%
+  KTLX 2026-05-04 representative:
+    fail, elapsed 1.018x, allocation 2.012x, spread 3.90%
+  KINX 2026-05-04 representative:
+    fail, elapsed 0.961x, allocation 1.916x, spread 1.42%
+  KTLX 2026-05-05 representative:
+    fail, elapsed 1.029x, allocation 2.186x, spread 4.37%
+
+small and large warm file rows:
+  all selected rows failed allocation thresholds
+  allocation ratio range 1.443x to 2.207x
+  elapsed ratio range 0.950x to 1.160x
+
+safety guardrails:
+  all 20 borrowed/default pairs passed
+  validation/checksum parity passed
+  stable totals and topology parity passed
+  retained payload failed releases 0
+  provider overlap failed releases 0
+  current retained pressure returned to 0
+  max candidate combined retained high-water 51_484_320, below the
+    536_870_912 retained-byte budget
+  worker failed batches/items 0/0
+
+interpretation:
+  file-level readiness is not accepted by slice 5 evidence alone
+  the named blocker is retained owned snapshot allocation cost in direct
+    MeasureFile() rows
+  no correctness, release, cleanup, pressure, fallback, or validation blocker
+    was found
+  slice 6 remains required to determine whether low-count MeasureCache()
+    slices amortize the retained cost or preserve the same blocker
+```
+
+Milestone 017 cold-start prewarm follow-up:
+
+```text
+status:
+  opt-in prototype implemented and full prewarmed MeasureFile gate captured
+
+gate document:
+  docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-prewarmed-measurefile-gate.md
+
+default posture:
+  unchanged; omitted MeasureFile()/MeasureCache() defaults do not silently
+  prewarm retained pools
+
+implemented mechanics:
+  RadarProcessingRetainedEventArrayPool.Prewarm(...)
+  RadarProcessingRetainedPayloadByteArrayPool.Prewarm(...)
+  RadarProcessingRetainedPayloadFactory.Prewarm(...)
+  optional retained payload factory passthrough for MeasureFile(),
+    MeasureCache(), and queued overlap options
+
+full prewarmed gate:
+  raw primary outputs:
+    data\temp\m017-prewarmed-gate-runner\output\m017-prewarmed-measurefile-20260522-091327.jsonl
+    data\temp\m017-prewarmed-gate-runner\output\m017-prewarmed-measurefile-20260522-091327.md
+  all 20 borrowed/prewarmed-candidate pairs passed safety guardrails
+  all prewarmed candidate rows had retained pool misses 0
+  measured allocation ratios across the selected file matrix were 0.980x to
+    1.026x against same-run borrowed rows
+  explicit prewarm allocation remained real and ranged from 35_651_808 to
+    71_303_392 bytes by file shape
+  initial timing variance was captured for targeted recheck:
+    prior representative prewarmed-probe failed elapsed at 3.632x borrowed
+    KINX small prewarmed-warm failed elapsed at 1.253x borrowed
+    KTLX 2026-05-04 representative prewarmed-probe optimized at 1.167x
+    KTLX 2026-05-05 small prewarmed-warm optimized at 1.140x
+
+targeted timing rerun:
+  raw outputs:
+    data\temp\m017-prewarmed-timing-runner\output\m017-prewarmed-timing-20260522-092557.md
+    data\temp\m017-prewarmed-timing-runner\output\m017-prewarmed-timing-20260522-092557.csv
+  rows repeated:
+    prior representative probe and warm
+    KTLX 2026-05-04 representative probe and warm
+    KINX 2026-05-04 small warm
+    KTLX 2026-05-05 small warm
+  result:
+    all repeated scenarios are interpreted as filesystem timing notes, not
+    fail-level timing regressions
+    average elapsed ratios ranged 1.017x to 1.056x
+    max elapsed ratios ranged 1.040x to 1.143x
+    average allocation ratios ranged 0.995x to 1.003x
+    retained pool misses 0
+    release failures 0
+    worker failures 0/0
+
+verification:
+  focused regression passed:
+    54 passed, 0 failed, 0 skipped
+  Release build passed:
+    0 warnings, 0 errors
+
+interpretation:
+  prewarm removes the measured MeasureFile() allocation blocker
+  the prewarm cost remains real and must stay explicit
+  fail-level timing outliers did not reproduce in targeted repeats
+  the prewarmed MeasureFile contour is allocation-ready with a non-blocking
+    filesystem timing note
+```
+
 Milestone 017 planned slices:
 
 ```text
@@ -371,7 +529,7 @@ Milestone 017 planned slices:
 2. existing contract, reporting, and guardrail audit complete
 3. threshold and runner design complete
 4. focused regression and file sanity pass complete
-5. cold and warm MeasureFile Release gate pending
+5. cold and warm MeasureFile Release gate complete
 6. small-file cache transition gate pending
 7. gate interpretation and follow-up fixes pending
 8. file-level readiness decision trace pending
@@ -434,21 +592,23 @@ small-cache success
 Recommended current next action:
 
 ```text
-begin milestone 017 slice 5:
-  cold and warm MeasureFile Release gate
-
-slice 5 should:
-  build the temporary direct API gate runner under data\temp\m017-gate-runner
-  or an equivalent ignored path
-  run candidate-first cold queued-owned/default then BlockingBorrowed probes
-  for the required representative files
-  run warm explicit BlockingBorrowed then queued-owned/default pairs using the
-  slice 3 repeat policy
-  capture structured JSONL and Markdown summary output with effective contour,
-  correctness, elapsed, allocation, retained pressure, release, queue,
-  overlap, worker, and attribution fields
-  classify every file row against the slice 3 thresholds without changing
-  thresholds after measurement
+continue milestone 017 slice 6:
+  run same-run direct MeasureCache() borrowed/default pairs for the selected
+    low-count cache slices
+  use the slice 3 low-count threshold bands by expected published base-data
+    count
+  preserve explicit BlockingBorrowed oracle rows for every slice
+  capture KTLX 2026-05-04, KINX 2026-05-04, and KTLX 2026-05-05 low-count
+    slices with the selected max-files values
+  keep examined/skipped/published counts visible because metadata interleaves
+    in the KINX and KTLX 2026-05-05 low-count selectors
+  classify each low-count slice separately before aggregate interpretation
+  compare the small-file cache result against the slice 5 MeasureFile
+    allocation blocker
+  decide whether to add explicit prewarmed MeasureCache comparison rows after
+    the natural small-file cache rows, because prewarm has now removed the
+    measured MeasureFile allocation blocker and leaves only a filesystem
+    timing note
 ```
 
 ## Milestone 016 Baseline

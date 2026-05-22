@@ -105,6 +105,56 @@ public sealed class RadarProcessingRetainedPayloadByteArrayPool : ArrayPool<byte
         return RentCore(minimumLength, out missed);
     }
 
+    public void Prewarm(
+        int minimumLength,
+        int arrayCount)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(minimumLength);
+        ArgumentOutOfRangeException.ThrowIfNegative(arrayCount);
+        if (arrayCount == 0 ||
+            minimumLength < LargeArrayThreshold ||
+            MaxRetainedArrayCount == 0)
+        {
+            return;
+        }
+
+        var arrayLength = RoundLargeArrayLength(minimumLength);
+        if (arrayLength > MaxRetainedBytes)
+        {
+            return;
+        }
+
+        var retainedByBudget = MaxRetainedBytes / arrayLength;
+        var retainedCount = (int)Math.Min(
+            arrayCount,
+            Math.Min(MaxRetainedArrayCount, retainedByBudget));
+        if (retainedCount == 0)
+        {
+            return;
+        }
+
+        var arrays = new byte[retainedCount][];
+        for (var i = 0; i < arrays.Length; i++)
+        {
+            arrays[i] = new byte[arrayLength];
+        }
+
+        lock (sync)
+        {
+            foreach (var array in arrays)
+            {
+                retainedArrays.Add(array);
+                retainedBytes += array.Length;
+            }
+
+            while (retainedArrays.Count > MaxRetainedArrayCount ||
+                   retainedBytes > MaxRetainedBytes)
+            {
+                RemoveSmallestRetainedArrayUnsafe();
+            }
+        }
+    }
+
     private byte[] RentCore(
         int minimumLength,
         out bool missed)

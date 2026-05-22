@@ -698,6 +698,62 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
     }
 
     [Fact]
+    public void RebalanceArchiveBenchmarkFileCanUsePrewarmedRetainedPayloadFactory()
+    {
+        var record = BuildMessage(31, BuildEightBitType31Payload("REF", [1, 2, 3], scale: 2f, offset: 66f));
+        var compressedPayload = BuildFakeBZip2Payload(1);
+        var path = WriteTempFile(
+            "KTLX20260504_000245_V06",
+            BuildArchiveTwoHeader()
+                .Concat(BuildCompressedRecord(compressedPayload.Length, compressedPayload))
+                .ToArray());
+        var benchmark = new RadarProcessingArchiveRebalanceBenchmark(
+            new FakeArchiveBZip2Decompressor(new Dictionary<byte, byte[]>
+            {
+                [1] = record
+            }));
+        var eventPool = new RadarProcessingRetainedEventArrayPool(
+            largeArrayThreshold: 1,
+            maxRetainedArrayCount: 2,
+            maxRetainedBytes: 128 * RadarStreamEvent.SizeInBytes);
+        var payloadPool = new RadarProcessingRetainedPayloadByteArrayPool(
+            largeArrayThreshold: 1,
+            maxRetainedArrayCount: 2,
+            maxRetainedBytes: 128);
+        var retainedPayloadFactory = new RadarProcessingRetainedPayloadFactory(eventPool, payloadPool);
+        var prewarm = retainedPayloadFactory.Prewarm(eventCount: 1, payloadBytes: 3);
+
+        try
+        {
+            var result = benchmark.MeasureFile(
+                path,
+                RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession,
+                iterations: 1,
+                warmupIterations: 0,
+                partitionCount: 4,
+                shardCount: 2,
+                degreeOfParallelism: 1,
+                CancellationToken.None,
+                retainedPayloadFactory: retainedPayloadFactory);
+
+            AssertDirectQueuedOwnedRolloutContour(result);
+            Assert.True(prewarm.AllocatedBytes > 0);
+            Assert.Equal(1, result.RetentionTelemetry.EventPoolRentCount);
+            Assert.Equal(1, result.RetentionTelemetry.PayloadPoolRentCount);
+            Assert.Equal(0, result.RetentionTelemetry.PoolMissCount);
+            Assert.Equal(0, result.RetentionTelemetry.EventPoolMissCount);
+            Assert.Equal(0, result.RetentionTelemetry.PayloadPoolMissCount);
+            Assert.Equal(0, eventPool.MissCount);
+            Assert.Equal(0, payloadPool.MissCount);
+            Assert.True(result.ValidationSucceeded);
+        }
+        finally
+        {
+            Directory.Delete(Path.GetDirectoryName(path)!, recursive: true);
+        }
+    }
+
+    [Fact]
     public void RebalanceArchiveBenchmarkRolloutDefaultContractPinsAcceptedContour()
     {
         Assert.Equal(RadarProcessingArchiveProviderMode.QueuedOwned, RadarProcessingArchiveRebalanceRolloutDefaults.ProviderMode);

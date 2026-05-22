@@ -42,7 +42,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         RadarProcessingQueuedProviderOverlapMode? providerOverlapMode = null,
         RadarProcessingRetainedPayloadStrategy? retentionStrategy = null,
         long? queueRetainedPayloadBytes = null,
-        TimeSpan overlapConsumerDelay = default)
+        TimeSpan overlapConsumerDelay = default,
+        RadarProcessingRetainedPayloadFactory? retainedPayloadFactory = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         EnsureKnownMode(mode);
@@ -158,6 +159,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                     effectiveRetentionStrategy,
                     effectiveQueueRetainedPayloadBytes,
                     overlapConsumerDelay,
+                    retainedPayloadFactory,
                     cancellationToken);
             }
 
@@ -189,6 +191,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                     effectiveRetentionStrategy,
                     effectiveQueueRetainedPayloadBytes,
                     overlapConsumerDelay,
+                    retainedPayloadFactory,
                     cancellationToken);
                 if (expectedIteration.HasValue && !expectedIteration.Value.HasSameStableTotals(iterationTelemetry))
                 {
@@ -299,7 +302,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         RadarProcessingQueuedProviderOverlapMode? providerOverlapMode = null,
         RadarProcessingRetainedPayloadStrategy? retentionStrategy = null,
         long? queueRetainedPayloadBytes = null,
-        TimeSpan overlapConsumerDelay = default)
+        TimeSpan overlapConsumerDelay = default,
+        RadarProcessingRetainedPayloadFactory? retainedPayloadFactory = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(cachePath);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxFiles);
@@ -422,6 +426,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                     effectiveRetentionStrategy,
                     effectiveQueueRetainedPayloadBytes,
                     overlapConsumerDelay,
+                    retainedPayloadFactory,
                     cancellationToken);
             }
 
@@ -456,6 +461,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                     effectiveRetentionStrategy,
                     effectiveQueueRetainedPayloadBytes,
                     overlapConsumerDelay,
+                    retainedPayloadFactory,
                     cancellationToken);
                 if (expectedIteration.HasValue && !expectedIteration.Value.HasSameStableTotals(iterationTelemetry))
                 {
@@ -569,6 +575,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         RadarProcessingRetainedPayloadStrategy retentionStrategy,
         long? queueRetainedPayloadBytes,
         TimeSpan overlapConsumerDelay,
+        RadarProcessingRetainedPayloadFactory? retainedPayloadFactory,
         CancellationToken cancellationToken)
     {
         using var processor = new ArchiveRebalanceBatchProcessor(
@@ -598,6 +605,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 retentionStrategy,
                 queueRetainedPayloadBytes,
                 overlapConsumerDelay,
+                retainedPayloadFactory,
                 cancellationToken)
             : PublishFileQueuedOwned(
                 archiveSession,
@@ -607,6 +615,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 queueTimeout,
                 retentionStrategy,
                 queueRetainedPayloadBytes,
+                retainedPayloadFactory,
                 cancellationToken);
         return processor
             .BuildTelemetry(queuedResult.PublishResult)
@@ -638,6 +647,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         RadarProcessingRetainedPayloadStrategy retentionStrategy,
         long? queueRetainedPayloadBytes,
         TimeSpan overlapConsumerDelay,
+        RadarProcessingRetainedPayloadFactory? retainedPayloadFactory,
         CancellationToken cancellationToken)
     {
         using var processor = new ArchiveRebalanceBatchProcessor(
@@ -675,6 +685,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 retentionStrategy,
                 queueRetainedPayloadBytes,
                 overlapConsumerDelay,
+                retainedPayloadFactory,
                 cancellationToken);
 
             return processor
@@ -722,6 +733,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                         retentionStrategy,
                         queueRetainedPayloadBytes,
                         overlapConsumerDelay,
+                        retainedPayloadFactory,
                         cancellationToken)
                     : PublishFileQueuedOwned(
                         archiveSession,
@@ -731,6 +743,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                         queueTimeout,
                         retentionStrategy,
                         queueRetainedPayloadBytes,
+                        retainedPayloadFactory,
                         cancellationToken);
 
                 publishResult = queuedResult.PublishResult;
@@ -757,6 +770,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         TimeSpan? queueTimeout,
         RadarProcessingRetainedPayloadStrategy retentionStrategy,
         long? queueRetainedPayloadBytes,
+        RadarProcessingRetainedPayloadFactory? retainedPayloadFactory,
         CancellationToken cancellationToken)
     {
         using var queue = new RadarProcessingOwnedBatchQueue(
@@ -768,7 +782,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             queue,
             retainedPayloadOptions: new RadarProcessingRetainedPayloadOptions(
                 retentionStrategy,
-                queueRetainedPayloadBytes));
+                queueRetainedPayloadBytes),
+            retainedPayloadFactory: retainedPayloadFactory);
 
         var publishResult = archiveSession.PublishFile(filePath, queueingPublisher, cancellationToken);
         queueingPublisher.CompleteAdding();
@@ -844,6 +859,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         RadarProcessingRetainedPayloadStrategy retentionStrategy,
         long? queueRetainedPayloadBytes,
         TimeSpan overlapConsumerDelay,
+        RadarProcessingRetainedPayloadFactory? retainedPayloadFactory,
         CancellationToken cancellationToken)
     {
         var runner = new RadarProcessingArchiveQueuedOverlapRunner();
@@ -862,7 +878,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                         maxRetainedPayloadBytes: queueRetainedPayloadBytes),
                     new RadarProcessingRetainedPayloadOptions(
                         retentionStrategy,
-                        queueRetainedPayloadBytes)),
+                        queueRetainedPayloadBytes),
+                    retainedPayloadFactory),
                 cancellationToken)
             .AsTask()
             .GetAwaiter()
@@ -962,6 +979,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         RadarProcessingRetainedPayloadStrategy retentionStrategy,
         long? queueRetainedPayloadBytes,
         TimeSpan overlapConsumerDelay,
+        RadarProcessingRetainedPayloadFactory? retainedPayloadFactory,
         CancellationToken cancellationToken)
     {
         var selection = SelectCacheArchiveFiles(directoryInfo, date, radarId, maxFiles, cancellationToken);
@@ -1008,7 +1026,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                         maxRetainedPayloadBytes: queueRetainedPayloadBytes),
                     new RadarProcessingRetainedPayloadOptions(
                         retentionStrategy,
-                        queueRetainedPayloadBytes)),
+                        queueRetainedPayloadBytes),
+                    retainedPayloadFactory),
                 cancellationToken)
             .AsTask()
             .GetAwaiter()

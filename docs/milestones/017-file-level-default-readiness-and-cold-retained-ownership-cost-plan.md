@@ -1135,9 +1135,168 @@ allocation and elapsed attribution summary
 Slice 5 status:
 
 ```text
-status: pending
-runtime behavior changes: none expected unless a blocker requires a targeted
-  fix in a later slice
+status: complete
+runtime behavior changes: none
+gate document:
+  docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-measurefile-gate.md
+gate posture:
+  captured with file-level allocation blocker
+```
+
+Slice 5 completion notes:
+
+```text
+Release solution build:
+  dotnet build RadarPulse.sln -c Release --no-restore
+  succeeded, 0 warnings, 0 errors
+
+temporary runner:
+  location: data\temp\m017-gate-runner
+  product surface: none; ignored local measurement harness
+  output:
+    data\temp\m017-gate-runner\output\m017-measurefile-20260522-083951.jsonl
+    data\temp\m017-gate-runner\output\m017-measurefile-20260522-083951.md
+
+runner contour:
+  surface: RadarProcessingArchiveRebalanceBenchmark.MeasureFile()
+  mode: RebalanceSession
+  iterations: 1
+  warmup iterations: 0
+  parallelism: 24
+  partitions: 24
+  shards: 4
+  candidate rows omitted provider/execution/retention controls and resolved to
+    the queued-owned rollout default contour
+  borrowed oracle rows used explicit BlockingBorrowed with AsyncShardTransport,
+    worker count 4, queue capacity 1
+
+cold representative rows:
+  prior KTLX representative:
+    status fail, elapsed 1.507x, allocation 2.995x
+  KTLX 2026-05-04 representative:
+    status fail, elapsed 1.735x, allocation 2.060x
+  KINX 2026-05-04 representative:
+    status fail, elapsed 0.585x, allocation 1.958x
+  KTLX 2026-05-05 representative:
+    status fail, elapsed 1.809x, allocation 2.235x
+
+warm representative rows:
+  prior KTLX representative:
+    status fail, elapsed 1.077x, allocation 2.128x, spread 6.94%
+  KTLX 2026-05-04 representative:
+    status fail, elapsed 1.018x, allocation 2.012x, spread 3.90%
+  KINX 2026-05-04 representative:
+    status fail, elapsed 0.961x, allocation 1.916x, spread 1.42%
+  KTLX 2026-05-05 representative:
+    status fail, elapsed 1.029x, allocation 2.186x, spread 4.37%
+
+small and large warm file rows:
+  status: fail for every selected small/large row
+  allocation ratio range: 1.443x to 2.207x
+  elapsed ratio range: 0.950x to 1.160x
+
+safety guardrails:
+  all 20 borrowed/default pairs passed safety guardrails
+  validation/checksum parity passed
+  stable totals and topology parity passed
+  retained payload failed releases 0
+  provider overlap failed releases 0
+  current retained pressure returned to 0
+  max candidate combined retained high-water 51_484_320, below the
+    536_870_912 retained-byte budget
+  worker failed batches/items 0/0
+
+attribution:
+  candidate retained payload allocated bytes matched owned snapshot allocated
+    bytes
+  normal 32_400-event rows allocated approximately 69_206_296 to 69_206_320
+    retained payload bytes
+  smaller KTLX row allocated 35_651_864 retained payload bytes
+  KTLX 2026-05-05 large row allocated 71_303_448 retained payload bytes
+  event-array and byte-array pool misses were 1 per row group
+
+slice 5 interpretation:
+  MeasureFile() queued-owned omitted defaults failed the pre-recorded
+    file-level cost thresholds across cold, warm, small, representative,
+    large, primary, cross-radar, and named-risk rows
+  the blocker is allocation cost from retained owned snapshots, not
+    correctness, release, cleanup, pressure, fallback, or validation
+  file-level readiness is not accepted by slice 5 evidence alone
+  slice 6 remains required to determine whether low-count MeasureCache()
+    slices amortize the retained cost or preserve the same blocker
+```
+
+Slice 5 cold-start prewarm follow-up:
+
+```text
+status:
+  opt-in prototype implemented; full prewarmed MeasureFile gate captured
+
+gate document:
+  docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-prewarmed-measurefile-gate.md
+
+default posture:
+  unchanged; queued-owned omitted defaults still use the accepted rollout
+    contour without hidden prewarm
+
+implemented opt-in mechanics:
+  retained event-array pool prewarm
+  retained payload byte-array pool prewarm
+  retained payload factory prewarm
+  optional retained payload factory passthrough for MeasureFile(),
+    MeasureCache(), and queued overlap options
+
+full prewarmed gate result:
+  all 20 borrowed/prewarmed-candidate pairs passed safety guardrails
+  all prewarmed candidate rows had retained pool misses 0
+  measured allocation ratios across the selected file matrix were 0.980x to
+    1.026x against same-run borrowed rows
+  explicit prewarm allocation remained real and ranged from 35_651_808 bytes
+    to 71_303_392 bytes by file shape
+  initial elapsed outliers were captured for targeted recheck, including
+    prior representative prewarmed-probe 3.632x, KINX small prewarmed-warm
+    1.253x, KTLX 2026-05-04 representative prewarmed-probe 1.167x, and
+    KTLX 2026-05-05 small prewarmed-warm 1.140x
+
+targeted timing rerun:
+  repeated the elapsed outlier rows with five pairs each after one excluded
+    stabilization row
+  raw output:
+    data\temp\m017-prewarmed-timing-runner\output\m017-prewarmed-timing-20260522-092557.md
+    data\temp\m017-prewarmed-timing-runner\output\m017-prewarmed-timing-20260522-092557.csv
+  prior-probe:
+    filesystem timing note, average elapsed 1.034x, max elapsed 1.097x,
+    allocation 0.995x
+  prior-warm:
+    filesystem timing note, average elapsed 1.043x, max elapsed 1.143x,
+    allocation 0.999x
+  KTLX representative probe:
+    filesystem timing note, average elapsed 1.046x, max elapsed 1.085x,
+    allocation 1.000x
+  KTLX representative warm:
+    filesystem timing note, average elapsed 1.017x, max elapsed 1.040x,
+    allocation 1.000x
+  KINX small warm:
+    filesystem timing note, average elapsed 1.042x, max elapsed 1.051x,
+    allocation 1.003x
+  KTLX 2026-05-05 small warm:
+    filesystem timing note, average elapsed 1.056x, max elapsed 1.125x,
+    allocation 1.000x
+  rerun outcome:
+    fail-level elapsed outliers did not reproduce; elapsed spread is treated
+    as non-blocking filesystem jitter/spread
+
+verification:
+  focused regression passed, 54 passed, 0 failed, 0 skipped
+  Release build passed, 0 warnings, 0 errors
+
+interpretation:
+  prewarm removes the measured MeasureFile() allocation blocker
+  the prewarm allocation is real and must remain explicitly attributed
+  the prewarmed MeasureFile contour is allocation-ready with a non-blocking
+    filesystem timing note
+  slice 7 must decide the scoped prewarm-contour posture and how the
+    filesystem timing note is carried into the decision trace
 ```
 
 ### 6. Small-File Cache Transition Gate
@@ -1463,9 +1622,9 @@ Milestone 017 is complete when:
     rows
 [ ] release failures remain 0
 [ ] retained pressure stays within the configured 536870912 byte budget
-[ ] cold file-level allocation and elapsed cost are classified against
+[x] cold file-level allocation and elapsed cost are classified against
     thresholds recorded before gate interpretation
-[ ] repeated/warm file-level behavior is classified separately from cold
+[x] repeated/warm file-level behavior is classified separately from cold
     behavior
 [ ] small-file cache slices show whether cold retained cost is partially
     amortized or remains a blocker
