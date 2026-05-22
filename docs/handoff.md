@@ -29,7 +29,7 @@ architecture document: drafted in
   docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost.md
 implementation plan: drafted in
   docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-plan.md
-implementation: slice 2 existing contract, reporting, and guardrail audit
+implementation: slice 3 threshold and runner design
   complete
 runtime behavior changes so far: none
 performance gate: not captured
@@ -238,12 +238,74 @@ measurement posture:
   keep CLI output for slice 4 direct/CLI alignment spot-checks
 ```
 
+Milestone 017 slice 3 completion:
+
+```text
+status:
+  complete
+
+runtime behavior changes:
+  none
+
+threshold posture:
+  cold MeasureFile() allocation:
+    pass <= 1.10x, warning <= 1.50x, optimize <= 1.75x, fail > 1.75x
+  cold MeasureFile() elapsed:
+    pass <= 1.00x, warning <= 1.10x, optimize <= 1.25x, fail > 1.25x
+  warm MeasureFile() allocation:
+    pass <= 1.10x, warning <= 1.20x, optimize <= 1.35x, fail > 1.35x
+  warm MeasureFile() elapsed average:
+    pass <= 1.00x, warning <= 1.10x, optimize <= 1.20x, fail > 1.20x
+  small-file MeasureCache():
+    classify by expected published base-data count; 2-file slices get the
+    widest transition bands, 4-file slices narrower bands, and 8-file-or-larger
+    slices converge on cache-level expectations
+  repeated candidate elapsed spread:
+    <= 7.50% of candidate average; candidate-first cold rows are excluded
+    from spread
+
+pair ordering:
+  cold probes run queued-owned omitted-default first, then explicit
+  BlockingBorrowed in the same runner invocation
+  warm pairs run explicit BlockingBorrowed first, then queued-owned
+  omitted-default
+  queued-owned failures remain fail-closed and must not be retried as borrowed
+  success inside the row
+
+required cold probes:
+  KTLX20260504_000245_V06
+  KTLX20260504_144229_V06
+  KINX20260504_093652_V06
+  KTLX20260505_154040_V06
+
+repeat policy:
+  prior KTLX representative and KTLX 2026-05-04 representative:
+    1 candidate-first cold pair and 3 warm pairs
+  KINX representative and KTLX 2026-05-05 representative:
+    1 candidate-first cold pair and 2 warm pairs
+  small/large file rows:
+    1 warm pair each, with predefined conditional repeats if they enter a
+    warning/optimize band or land near a band boundary
+  primary KTLX 2/4/8 small-cache slices:
+    2 warm pairs each
+  KINX and KTLX 2026-05-05 small-cache slices:
+    1 warm pair each, with the same conditional repeat rule
+
+runner posture:
+  build a temporary direct API runner under data\temp\m017-gate-runner or an
+  equivalent ignored workspace path
+  emit JSONL rows plus a generated Markdown summary
+  use direct MeasureFile() and MeasureCache() result fields for the full gate
+  keep CLI as a spot-check for omitted-provider alignment and explicit
+  BlockingBorrowed visibility
+```
+
 Milestone 017 planned slices:
 
 ```text
 1. file corpus inventory and gate matrix design complete
 2. existing contract, reporting, and guardrail audit complete
-3. threshold and runner design pending
+3. threshold and runner design complete
 4. focused regression and file sanity pass pending
 5. cold and warm MeasureFile Release gate pending
 6. small-file cache transition gate pending
@@ -308,17 +370,18 @@ small-cache success
 Recommended current next action:
 
 ```text
-begin milestone 017 slice 3:
-  threshold and runner design
+begin milestone 017 slice 4:
+  focused regression and file sanity pass
 
-slice 3 should define before Release gate interpretation:
-  cold MeasureFile() allocation and elapsed pass/warning/optimize/fail bands
-  repeated/warm MeasureFile() allocation and elapsed bands
-  low-count MeasureCache() transition thresholds
-  candidate spread threshold and repeat policy
-  same-run borrowed/default pair ordering, including any candidate-first cold
-    row needed to preserve first-use queued-owned evidence
-  temporary direct API gate runner output schema and invocation notes
+slice 4 should run:
+  focused regression for archive publisher, CLI rebalance benchmark, queued
+  provider readiness, queued overlap runner, allocation summary, retained
+  payload factory, and retained batch resource behavior
+  selected file sanity checks with explicit BlockingBorrowed and omitted
+  provider where cheap enough
+  CLI --file omitted-provider spot-check
+  CLI --provider blocking-borrowed spot-check
+  blocker triage before Release gate runner implementation/capture
 ```
 
 ## Milestone 016 Baseline

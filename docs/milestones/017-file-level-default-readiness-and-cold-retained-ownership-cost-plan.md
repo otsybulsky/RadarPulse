@@ -296,30 +296,74 @@ natural evidence:
   readiness evidence, not controlled mechanics proof
 ```
 
-File-level cost thresholds to choose in slice 3 before gate capture:
+File-level cost thresholds recorded in slice 3 before gate capture:
 
 ```text
 cold MeasureFile() allocation ratio:
-  define pass, warning, optimize, and fail bands against same-run borrowed
+  pass: <= 1.10x same-run borrowed
+  warning: > 1.10x and <= 1.50x same-run borrowed
+  optimize: > 1.50x and <= 1.75x same-run borrowed
+  fail: > 1.75x same-run borrowed
 
 cold MeasureFile() elapsed ratio:
-  define pass, warning, optimize, and fail bands against same-run borrowed
+  pass: <= 1.00x same-run borrowed
+  warning: > 1.00x and <= 1.10x same-run borrowed
+  optimize: > 1.10x and <= 1.25x same-run borrowed
+  fail: > 1.25x same-run borrowed
 
 repeated/warm MeasureFile() allocation ratio:
-  define whether warm rows must meet cache-level allocation threshold or a
-  separate file-level threshold
+  pass: <= 1.10x same-run borrowed
+  warning: > 1.10x and <= 1.20x same-run borrowed
+  optimize: > 1.20x and <= 1.35x same-run borrowed
+  fail: > 1.35x same-run borrowed
 
 repeated/warm MeasureFile() elapsed ratio:
-  define whether warm rows must meet cache-level elapsed threshold or a
-  separate file-level threshold
+  pass: <= 1.00x same-run borrowed average
+  warning: > 1.00x and <= 1.10x same-run borrowed average
+  optimize: > 1.10x and <= 1.20x same-run borrowed average
+  fail: > 1.20x same-run borrowed average
+  individual pair note: if the repeated average passes but one individual
+    warm pair is > 1.00x and <= 1.05x, record a timing note rather than a
+    warning; any individual warm pair > 1.10x escalates the row to at least
+    warning even if the average passes
 
 small-file cache allocation and elapsed ratios:
-  define expected transition behavior for low-count MeasureCache() slices
+  classify by expected published base-data count, not raw max-files, because
+  metadata and MDM files may be examined but skipped
+
+  published base-data count 2:
+    allocation pass <= 1.20x, warning <= 1.35x, optimize <= 1.50x,
+      fail > 1.50x
+    elapsed pass <= 1.05x, warning <= 1.15x, optimize <= 1.25x,
+      fail > 1.25x
+
+  published base-data count 4:
+    allocation pass <= 1.15x, warning <= 1.25x, optimize <= 1.40x,
+      fail > 1.40x
+    elapsed pass <= 1.03x, warning <= 1.12x, optimize <= 1.22x,
+      fail > 1.22x
+
+  published base-data count 8 or more:
+    allocation pass <= 1.10x, warning <= 1.20x, optimize <= 1.30x,
+      fail > 1.30x
+    elapsed pass <= 1.00x, warning <= 1.10x, optimize <= 1.20x,
+      fail > 1.20x
 
 candidate run spread:
-  define acceptable spread for repeated file-level rows, starting from the
-  milestone 016 7.50% natural-row threshold unless the plan records a
-  file-level-specific reason to change it
+  repeated/warm candidate elapsed spread must be <= 7.50% of the candidate
+  average, preserving the milestone 016 natural-row spread threshold
+  candidate-first cold rows are not included in repeated/warm spread
+  allocation spread is recorded for diagnosis but does not create a separate
+  blocker unless average allocation crosses its band or attribution is
+  insufficient
+
+threshold override rule:
+  any non-negotiable correctness, release, cleanup, pressure, validation,
+  topology, or fail-closed failure overrides cost bands and marks the row fail
+  exact event-array versus byte-array allocated-byte attribution is not a
+  threshold for milestone 017; existing pool rent/return/miss split is
+  sufficient unless a row enters optimize/fail and cannot be explained by the
+  current retained telemetry
 ```
 
 Per-row status vocabulary:
@@ -765,8 +809,100 @@ gate command or direct-runner invocation notes
 Slice 3 status:
 
 ```text
-status: pending
-runtime behavior changes: none expected
+status: complete
+runtime behavior changes: none
+code/reporting fixes required before slice 4: none
+runner posture: temporary direct API runner, not product reporting surface
+```
+
+Slice 3 completion notes:
+
+```text
+threshold posture:
+  cold MeasureFile() rows have their own allocation and elapsed bands so the
+  first retained-ownership cost is visible and cannot be hidden behind warm
+  averages
+  repeated/warm MeasureFile() rows use stricter cache-level-style pass bands
+  because persistent single-file retained cost is the actual default-readiness
+  risk
+  low-count MeasureCache() rows use transition bands by expected published
+  base-data count: 2-file slices get the widest cost allowance, 4-file slices
+  are narrower, and 8-file-or-larger slices converge on cache-level
+  expectations
+  repeated candidate elapsed spread keeps the milestone 016 7.50% threshold
+  candidate-first cold rows are classified separately and are not included in
+  repeated/warm spread
+
+same-run pair ordering:
+  cold candidate-first probes run queued-owned omitted-default first, then
+  explicit BlockingBorrowed in the same runner invocation, and are classified
+  as first-use retained-ownership evidence
+  warm/repeated pairs run explicit BlockingBorrowed first, then queued-owned
+  omitted-default, so same-run oracle comparison remains visible and stable
+  no queued-owned failure may be retried as borrowed success inside the same
+  row; failure remains fail-closed evidence
+
+required cold probes:
+  prior representative KTLX 2026-05-04:
+    KTLX20260504_000245_V06
+  KTLX 2026-05-04 representative:
+    KTLX20260504_144229_V06
+  KINX 2026-05-04 representative:
+    KINX20260504_093652_V06
+  KTLX 2026-05-05 representative:
+    KTLX20260505_154040_V06
+
+repeat policy:
+  prior representative KTLX row:
+    1 candidate-first cold pair and 3 warm borrowed/default pairs
+  KTLX 2026-05-04 representative row:
+    1 candidate-first cold pair and 3 warm borrowed/default pairs
+  KINX 2026-05-04 representative row:
+    1 candidate-first cold pair and 2 warm borrowed/default pairs
+  KTLX 2026-05-05 representative row:
+    1 candidate-first cold pair and 2 warm borrowed/default pairs
+  KTLX/KINX/KTLX-2026-05-05 small and large file rows:
+    1 warm borrowed/default pair each
+  primary KTLX 2/4/8 small-cache transition slices:
+    2 warm borrowed/default pairs each
+  KINX and KTLX-2026-05-05 small-cache transition slices:
+    1 warm borrowed/default pair each
+  conditional repeat rule:
+    if any one-pair row enters warning/optimize by cost, lands within 0.03x
+    of a band boundary, or shows surprising worker counters while safety
+    guardrails pass, capture two more warm pairs before final interpretation
+
+temporary runner output:
+  location: data\temp\m017-gate-runner or equivalent ignored workspace path
+  build mode: Release
+  primary output: JSONL rows plus a generated Markdown summary table
+  surfaces: direct MeasureFile() and direct MeasureCache()
+  CLI role: spot-check only for omitted-provider alignment and explicit
+  BlockingBorrowed visibility
+
+runner row fields:
+  run id, timestamp, build configuration, row id, group, surface, role,
+  pair id, pair order, cold/warm classification, argument profile
+  file path or cache path/date/radar/max-files, file size where applicable,
+  expected published base-data count, examined/skipped/published counts for
+  cache rows
+  effective provider mode, overlap mode, retention strategy, execution mode,
+  worker count, worker queue capacity, provider queue capacity, retained-byte
+  budget, overlap consumer delay
+  elapsed ms, processing elapsed ms, replay/batch-construction elapsed ms,
+  allocated bytes, allocation ratio, elapsed ratio, spread inputs
+  validation status/checksum, raw checksum, topology versions, rebalance
+  evaluations, accepted moves, skipped decisions, failed migrations, skipped
+  reason counters, worker failed batch/item counters
+  queue depth high-water, retained payload high-water, retained resource
+  current/high-water pending/active/combined counts and bytes
+  retained payload failed copies, retained failed releases, provider overlap
+  failed releases, release attempts/released/not-required counts
+  retained allocated bytes, owned snapshot allocated bytes, processing
+  callback non-owned snapshot bytes, replay/batch construction bytes
+  event-array and byte-array pool rent/return/miss counts, overlap retained
+  batches/events/payload bytes, overlap measured/unattributed allocation
+  row status, warning/optimize/fail reason, attribution note
 ```
 
 ### 4. Focused Regression And File Sanity Pass
@@ -1191,7 +1327,7 @@ Milestone 017 is complete when:
     before interpretation
 [x] selected file-level and small-file shapes are broad enough for a readiness
     decision, or coverage insufficiency is explicitly recorded
-[ ] file-level thresholds are recorded before Release gate interpretation
+[x] file-level thresholds are recorded before Release gate interpretation
 [ ] same-run explicit BlockingBorrowed oracle rows remain available,
     documented, and visibly separate
 [ ] direct MeasureFile() omitted defaults still resolve to the accepted
