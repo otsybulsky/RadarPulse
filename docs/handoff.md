@@ -1,8 +1,8 @@
-# Handoff: Milestone 018 Active Implementation
+# Handoff: Milestone 018 Closeout
 
 ## Current State
 
-Milestone 018 is active in implementation. The milestone documents are:
+Milestone 018 is complete. The milestone documents are:
 
 ```text
 docs/milestones/018-runtime-live-ingestion-readiness.md
@@ -16,6 +16,7 @@ docs/milestones/018-runtime-live-ingestion-readiness-steady-intake-gate.md
 docs/milestones/018-runtime-live-ingestion-readiness-pressure-failure-gate.md
 docs/milestones/018-runtime-live-ingestion-readiness-gate-interpretation.md
 docs/milestones/018-runtime-live-ingestion-readiness-decision-trace.md
+docs/milestones/018-runtime-live-ingestion-readiness-closeout.md
 ```
 
 Milestone 018 is the runtime and live ingestion readiness milestone. It starts
@@ -32,7 +33,7 @@ implementation plan:
   drafted in docs/milestones/018-runtime-live-ingestion-readiness-plan.md
 
 implementation:
-  slices 1-9 complete
+  complete through decision trace and closeout
 
 runtime behavior changes:
   explicit ShutdownMode.CancelQueued cancellation shutdown now clears accepted
@@ -43,25 +44,33 @@ current closeout question:
 
 current decision-trace answer:
   explicit opt-in only
+
+final closeout answer:
+  explicit opt-in only, queued-owned is runtime-safe when selected explicitly
+  for scoped in-process runtime/archive replay surfaces with startup prewarm
+  and existing guardrails, but it is not accepted as the omitted runtime/live
+  ingestion default
 ```
 
-Milestone 018 planning posture:
+Milestone 018 final posture:
 
 ```text
 direct benchmark readiness from milestone 017 is accepted evidence, not
 automatic runtime approval
 
-runtime/live formal closeout remains pending until slice 10 closeout; the
-decision trace keeps omitted runtime defaults unchanged
+omitted runtime/live defaults remain unchanged
 
 runtime startup prewarm is selected only as the explicit queued-owned
 gate candidate; it is not accepted as an omitted runtime default
 
-queued-owned runtime outcome selected for decision-trace input:
+queued-owned runtime outcome:
   explicit opt-in only
 
-current recommended decision-trace posture:
-  explicit opt-in only, with gradual rollout as the next work direction
+recommended next milestone:
+  gradual runtime rollout for queued-owned explicit opt-in, including
+  production runtime provider selection, operator reporting, explicit startup
+  prewarm lifecycle wiring, repeatability gates, and true live ingestion or
+  narrower archive-runtime rollout evidence
 ```
 
 Milestone 018 planned slices:
@@ -76,7 +85,7 @@ Milestone 018 planned slices:
 7. Runtime pressure, backpressure, cancellation, and failure gate (complete)
 8. Gate interpretation and follow-up fixes (complete)
 9. Runtime readiness decision trace (complete)
-10. Closeout, handoff, and project progress
+10. Closeout, handoff, and project progress (complete)
 ```
 
 Milestone 018 implementation rules:
@@ -117,7 +126,8 @@ automatic silent borrowed fallback
 Milestone 018 current recommended next action:
 
 ```text
-pause before slice 10 closeout review, then finalize closeout after review
+begin the next milestone: gradual runtime rollout for queued-owned explicit
+opt-in
 ```
 
 Milestone 018 slice 1 completion:
@@ -457,6 +467,40 @@ next milestone input:
     rollout evidence
 ```
 
+Milestone 018 slice 10 completion:
+
+```text
+closeout document:
+  docs/milestones/018-runtime-live-ingestion-readiness-closeout.md
+
+runtime behavior changes:
+  none
+
+final answer:
+  explicit opt-in only
+
+accepted:
+  queued-owned is runtime-safe when selected explicitly for scoped in-process
+    runtime/archive replay surfaces with startup prewarm and existing
+    guardrails
+
+not accepted:
+  queued-owned is not accepted as the omitted runtime/live ingestion default
+
+final verification:
+  Release build succeeded, 0 warnings, 0 errors
+  focused runtime guardrail suite passed: 56 passed, 0 failed
+  full test project had the known allocation-sensitive synthetic benchmark
+    failure: 774 passed, 1 failed, 3 skipped
+  isolated rerun of that synthetic benchmark test passed
+
+project progress:
+  docs/project-progress.md updated after milestone 018 closeout
+
+recommended next milestone:
+  gradual runtime rollout for queued-owned explicit opt-in
+```
+
 ## Milestone 017 Baseline
 
 Milestone 017 is complete. It remains the baseline evidence for milestone 018.
@@ -546,8 +590,10 @@ decision trace: written in
   docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-decision-trace.md
 closeout: written in
   docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-closeout.md
-project progress ledger:
-  docs/project-progress.md is current after milestone 017 closeout
+project progress ledger at milestone 017 closeout:
+  docs/project-progress.md recorded the milestone 017 closeout state at that
+  time; the current project progress ledger is now updated after milestone 018
+  closeout
 recommended next milestone:
   runtime/live ingestion readiness, scoped separately from direct benchmark
   defaults

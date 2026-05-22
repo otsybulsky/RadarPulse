@@ -1,6 +1,6 @@
 # RadarPulse Project Progress
 
-Status: current after milestone 017 closeout.
+Status: current after milestone 018 closeout.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -11,13 +11,14 @@ production-ready result.
 ## Current Position
 
 RadarPulse has completed the direct archive benchmark default-readiness path
-through broader cache-level, file-level, and small-file evidence.
+and the first runtime/live ingestion readiness decision.
 
 Current state:
 
 ```text
-completed milestones: 001-017
+completed milestones: 001-018
 active milestone: none selected
+
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive
   rebalance benchmark workloads, file-level MeasureFile workloads, and
@@ -26,27 +27,22 @@ current accepted benchmark/default posture:
   default-equivalent contour and is explicitly attributed outside measured row
   allocation
 
+current runtime/live posture:
+  explicit opt-in only
+  queued-owned is runtime-safe when selected explicitly for scoped in-process
+  runtime/archive replay surfaces with startup prewarm and existing guardrails
+  queued-owned is not accepted as the omitted runtime/live ingestion default
+
 current recommended next milestone:
-  runtime/live ingestion readiness, scoped separately from direct benchmark
-  defaults
+  gradual runtime rollout for queued-owned explicit opt-in
 ```
 
-The current accepted direct/default contour is:
+The current accepted direct benchmark contour is:
 
 ```text
 surface:
   RadarProcessingArchiveRebalanceBenchmark.MeasureFile()
   RadarProcessingArchiveRebalanceBenchmark.MeasureCache()
-
-omitted controls:
-  providerMode
-  executionMode
-  asyncExecution
-  queueCapacity
-  providerOverlapMode
-  retentionStrategy
-  queueRetainedPayloadBytes
-  overlapConsumerDelay
 
 effective contour:
   provider mode: queued-owned
@@ -64,51 +60,61 @@ effective contour:
     1 retained batch
 ```
 
-The current accepted readiness answer is:
+The current runtime explicit candidate contour is:
 
 ```text
-yes with warnings, broader cache-level, file-level, and small-file direct
-benchmark default readiness is accepted with named scoped warnings
+surface:
+  scoped in-process runtime/archive replay surfaces
+
+effective contour:
+  provider mode: queued-owned
+  provider overlap: producer-consumer
+  retention strategy: pooled-copy
+  execution: async shard transport
+  worker count: 4
+  worker queue capacity: 8
+  provider queue capacity: 8
+  retained-byte budget: 536870912
+  startup retained payload prewarm: explicit candidate lifecycle only
+```
+
+The current accepted readiness answers are:
+
+```text
+direct benchmark readiness:
+  yes with warnings, broader cache-level, file-level, and small-file direct
+  benchmark default readiness is accepted with named scoped warnings
+
+runtime/live readiness:
+  explicit opt-in only, queued-owned is runtime-safe when selected explicitly
+  for scoped in-process runtime/archive replay surfaces, but it is not
+  accepted as the omitted runtime/live ingestion default
 ```
 
 The named warnings carried forward are:
 
 ```text
-cache-level primary spread warning:
-  KTLX 2026-05-04 max-files 220 candidate spread was 12.01%, above the 7.50%
-  threshold, while all individual candidate rows remained faster than same-run
-  borrowed and safety/allocation guardrails passed
-
-cache-level named-risk timing note:
-  KTLX 2026-05-05 max-files 220 had one individual elapsed pair at 1.001x
-  borrowed, while the repeated average passed at 0.822x and the larger
-  same-shape row passed at 0.810x
-
-file/small-cache prewarm cost:
+direct benchmark prewarm cost:
   retained payload prewarm is a real up-front direct benchmark default cost;
   it is not folded into measured row allocation and remains visible in result
   contracts and CLI output
 
-natural cold allocation note:
-  natural unprewarmed MeasureFile and low-count MeasureCache rows remain
-  allocation-blocked; the accepted readiness contour is queued-owned rollout
-  default plus retained payload prewarm
+natural cold/default allocation:
+  natural unprewarmed MeasureFile, low-count MeasureCache, and runtime
+  first-use rows remain allocation-blocked for default-readiness
+  interpretation
 
-file-level filesystem timing note:
-  fail-level prewarmed elapsed outliers did not reproduce in targeted timing
-  repeats, but local file I/O timing variance remains visible
+runtime startup prewarm:
+  accepted only as explicit lifecycle cost; not accepted as hidden omitted
+  runtime default behavior
 
-mixed-cache worker-counter follow-up:
-  milestone 017 follow-up diagnosed the 221/881 worker failed
-  batches/items as SourceOrderViolation from running mixed KINX/KTLX cache
-  rows through DefaultSingleRadar; MeasureCache now self-sizes mixed-radar
-  source universes and archive rebalance reporting treats processing-invalid
-  batches and worker failures as processing-completeness blockers; post-fix
-  mixed-cache-all passes with worker failed batches/items 0/0
+runtime coverage:
+  true live ingestion, durable queues, cross-process workers, production
+  runtime selection/reporting, and repeated variance gates remain future work
 
-runtime scope:
-  direct benchmark readiness does not approve live ingestion/runtime defaults,
-  durable queues, cross-process workers, or ordered concurrent rebalance
+full-suite allocation sensitivity:
+  one synthetic benchmark allocation-threshold test remains sensitive in the
+  full suite but passes in isolated rerun
 ```
 
 ## Completed Arc
@@ -264,10 +270,61 @@ Prepared:
 the direct benchmark path is ready enough across cache-level, file-level, and
 small-file workloads to stop treating direct archive benchmark defaults as the
 main blocker
+```
 
-the next concrete risk is runtime/live ingestion behavior, where prewarm
-lifecycle, backpressure, cleanup, fallback, and operator-visible failure
-policy must be designed explicitly
+### 6. Runtime And Live Ingestion Readiness
+
+Milestone:
+
+```text
+018 Runtime And Live Ingestion Readiness
+```
+
+Achieved:
+
+```text
+runtime/archive-provider surface and lifecycle audit
+runtime readiness gate matrix and threshold posture
+runtime prewarm lifecycle posture
+CancelQueued cancellation guardrail fix
+runtime steady intake gate over deterministic archive replay
+runtime pressure/backpressure/cancellation/failure gate over deterministic
+synthetic lifecycle shapes
+gate interpretation and formal decision trace
+explicit opt-in only runtime/live readiness answer
+```
+
+Final answer:
+
+```text
+explicit opt-in only, queued-owned is runtime-safe when selected explicitly
+for scoped in-process runtime/archive replay surfaces with startup prewarm and
+existing guardrails, but it is not accepted as the omitted runtime/live
+ingestion default
+```
+
+Verification summary:
+
+```text
+Release build:
+  succeeded, 0 warnings, 0 errors
+
+focused runtime guardrail suite:
+  56 passed, 0 failed
+
+full test project:
+  774 passed, 1 failed, 3 skipped
+  known allocation-sensitive synthetic benchmark test failed in full suite
+  isolated rerun of the same test passed
+```
+
+Prepared:
+
+```text
+the project now has an explicit runtime rollout boundary. Queued-owned can be
+used deliberately under runtime guardrails, while default promotion waits for
+production runtime selection, operator reporting, repeatability, and true live
+or narrower archive-runtime rollout evidence
 ```
 
 ## Remaining Arc
@@ -275,56 +332,58 @@ policy must be designed explicitly
 The following stages are not complete. They are the recommended route from the
 current state to the intended production-ready result.
 
-### 6. Runtime And Live Ingestion Readiness
+### 7. Gradual Runtime Explicit Opt-In Rollout
 
 Recommended next milestone:
 
 ```text
-runtime/live ingestion readiness
+gradual runtime rollout for queued-owned explicit opt-in
 ```
 
 Goal:
 
 ```text
-decide whether queued-owned can move beyond direct archive benchmark surfaces
-into live ingestion/runtime defaults
+turn the milestone 018 explicit-opt-in decision into a production-shaped
+runtime rollout path without promoting queued-owned to omitted runtime/live
+default
 ```
 
-Why this is next:
+Likely required work:
 
 ```text
-milestone 017 closed the file-level and small-file direct benchmark readiness
-question with scoped retained payload prewarm
-direct benchmark readiness is evidence, not automatic runtime approval
-runtime surfaces need explicit lifecycle, startup/prewarm timing,
-backpressure, fallback, cleanup, cancellation, and observability contracts
-```
-
-Expected evidence:
-
-```text
-runtime input and lifecycle contract audit
-live ingestion provider selection rules
-runtime pressure and backpressure policy
-operator-visible fallback and failure behavior
-runtime cleanup, cancellation, release, and validation guardrails
-Release gates over runtime-shaped workloads
-explicit statement that direct benchmark readiness is only one input
+production runtime provider selection surface
+operator-visible provider, prewarm, pressure, cancellation, failure, and
+cleanup reporting
+explicit startup prewarm lifecycle wiring where selected
+repeatability gates for startup-prewarmed runtime rows
+true live ingestion evidence or a narrower named archive-runtime rollout
+target
+BlockingBorrowed preserved as explicit fallback/oracle, not automatic silent
+fallback
 ```
 
 Prepared by current state:
 
 ```text
-cache-level, file-level, and small-file benchmark/default readiness are
-accepted with named scoped warnings
-BlockingBorrowed oracle posture and fail-closed behavior are preserved
-prewarm attribution exists in result contracts and CLI output
-processing completeness is now visible and gateable
+runtime lifecycle and pressure/failure guardrails are documented and gated
+steady startup-prewarmed candidate rows passed bounded evidence
+natural first-use default-readiness blocker is explicit
+decision trace already defines the rollout boundary
 ```
 
-### 7. Durable And Cross-Process Runtime
+Still not approved:
 
-Future milestone after runtime/live ingestion readiness.
+```text
+omitted runtime/live queued-owned default
+hidden runtime prewarm
+durable queues or brokers
+cross-process providers/workers
+ordered concurrent rebalance
+```
+
+### 8. Durable And Cross-Process Runtime
+
+Future milestone after runtime explicit opt-in rollout.
 
 Goal:
 
@@ -350,59 +409,9 @@ Prepared by current state:
 ```text
 direct benchmark readiness is accepted across cache, file, and small-file
 workloads
-direct API fallback/oracle semantics are clear
+in-process runtime explicit-opt-in behavior is bounded and gated
 retained pressure, cleanup, release, telemetry, validation, prewarm
 attribution, and processing-completeness guardrails can inform durable design
-```
-
-Still not approved:
-
-```text
-live ingestion/runtime defaults
-durable queues
-brokers
-cross-process providers/workers
-ordered concurrent rebalance
-builder-transfer
-```
-
-### 8. Durable And Cross-Process Runtime
-
-Future milestone after runtime readiness architecture.
-
-Goal:
-
-```text
-make the runtime provider/worker story durable and operationally safe across
-process boundaries, failures, restarts, and operator actions
-```
-
-Likely required work:
-
-```text
-durable queue or broker design
-cross-process provider/worker transport
-message ownership and acknowledgement semantics
-restart/recovery behavior
-poison/failure policy
-ordering and idempotency policy
-operator controls and observability
-performance gates that include durable transport overhead
-```
-
-Prepared by current state:
-
-```text
-the in-process queued-owned contour and fallback/oracle posture are understood
-benchmark and cache-level behavior is bounded enough to serve as a baseline
-```
-
-Still unresolved:
-
-```text
-durability semantics are not designed
-cross-process worker state is not designed
-runtime recovery is not certified
 ```
 
 ### 9. Production Pipeline Integration
@@ -431,8 +440,9 @@ performance budget and capacity planning
 Prepared by current state:
 
 ```text
-benchmark evidence and guardrails will provide baseline expectations for
-runtime integration, but production integration still needs separate evidence
+benchmark and runtime explicit-opt-in evidence provide baseline expectations
+for runtime integration, but production integration still needs separate
+evidence
 ```
 
 ### 10. Product-Facing Completion
@@ -460,9 +470,9 @@ documentation and release packaging
 Prepared by current state:
 
 ```text
-the backend data, replay, processing, rebalance, and provider default
-foundation is increasingly stable, but product-facing scope has not yet been
-the main milestone target
+the backend data, replay, processing, rebalance, direct benchmark, and
+runtime explicit-opt-in foundations are increasingly stable, but
+product-facing scope has not yet been the main milestone target
 ```
 
 ## Project Chain Summary
@@ -477,7 +487,8 @@ the main milestone target
 [done] cache-level allocation readiness
 [done] broader cache-level default readiness
 [done] file-level/small-file default readiness
-[next] runtime/live ingestion readiness
+[done] runtime/live ingestion readiness decision
+[next] gradual runtime explicit opt-in rollout
 [later] durable/cross-process runtime
 [later] production pipeline integration
 [later] product-facing completion

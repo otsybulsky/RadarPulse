@@ -1,6 +1,6 @@
 # Milestone 018: Runtime And Live Ingestion Readiness Implementation Plan
 
-Status: draft.
+Status: complete.
 
 This plan implements the milestone 018 architecture defined in
 `018-runtime-live-ingestion-readiness.md`.
@@ -1471,8 +1471,38 @@ whether the project chain changed
 Slice 10 status:
 
 ```text
-status: pending
-runtime behavior changes: none expected
+status: complete
+runtime behavior changes: none
+closeout document:
+  docs/milestones/018-runtime-live-ingestion-readiness-closeout.md
+```
+
+Slice 10 completion notes:
+
+```text
+final answer:
+  explicit opt-in only
+
+accepted:
+  queued-owned is runtime-safe when selected explicitly for scoped in-process
+    runtime/archive replay surfaces with startup prewarm and existing
+    guardrails
+
+not accepted:
+  queued-owned is not accepted as the omitted runtime/live ingestion default
+
+project progress:
+  updated docs/project-progress.md after milestone 018 closeout
+
+handoff:
+  updated docs/handoff.md after milestone 018 closeout
+
+final verification:
+  Release build succeeded, 0 warnings, 0 errors
+  focused runtime guardrail suite passed 56/56
+  full test project had the known allocation-sensitive synthetic benchmark
+    failure, 774 passed, 1 failed, 3 skipped
+  isolated rerun of the failing synthetic benchmark test passed
 ```
 
 ## Verification Strategy
@@ -1551,38 +1581,38 @@ per-row or per-scenario status
 Milestone 018 is complete when:
 
 ```text
-[ ] runtime/live/archive-provider surfaces under review are inventoried
-[ ] runtime default versus explicit opt-in provider posture is defined
-[ ] direct benchmark readiness from milestone 017 is treated as evidence, not
+[x] runtime/live/archive-provider surfaces under review are inventoried
+[x] runtime default versus explicit opt-in provider posture is defined
+[x] direct benchmark readiness from milestone 017 is treated as evidence, not
     automatic runtime approval
-[ ] runtime lifecycle states are documented and gateable
-[ ] runtime prewarm policy is accepted, rejected, explicit opt-in only, or
+[x] runtime lifecycle states are documented and gateable
+[x] runtime prewarm policy is accepted, rejected, explicit opt-in only, or
     deferred with named reasons
-[ ] startup/prewarm/first-use costs are attributed separately from
+[x] startup/prewarm/first-use costs are attributed separately from
     steady-state processing cost
-[ ] provider queue and worker queue backpressure behavior is defined
-[ ] retained-byte pressure policy is defined and gateable
-[ ] explicit BlockingBorrowed remains available where required and is not used
+[x] provider queue and worker queue backpressure behavior is defined
+[x] retained-byte pressure policy is defined and gateable
+[x] explicit BlockingBorrowed remains available where required and is not used
     as silent fallback
-[ ] queued-owned failures remain fail-closed with operator-visible failure
+[x] queued-owned failures remain fail-closed with operator-visible failure
     details
-[ ] processing completeness is required for runtime success
-[ ] processing validation failed batches and worker failed batches/items are
+[x] processing completeness is required for runtime success
+[x] processing validation failed batches and worker failed batches/items are
     readiness blockers unless explicitly accepted with named scope
-[ ] retained cleanup returns pending, active, and combined pressure to zero
+[x] retained cleanup returns pending, active, and combined pressure to zero
     after success, cancellation, drain, fault, and dispose gates
-[ ] release failures remain 0 or block readiness
-[ ] runtime-shaped gates cover steady intake, backpressure, cancellation,
+[x] release failures remain 0 or block readiness
+[x] runtime-shaped gates cover steady intake, backpressure, cancellation,
     failure, drain, cleanup, release, pressure, ordering, and observability
-[ ] runtime cost thresholds or interpretation bands are recorded before gate
+[x] runtime cost thresholds or interpretation bands are recorded before gate
     interpretation
-[ ] decision trace records whether runtime/live queued-owned readiness is
+[x] decision trace records whether runtime/live queued-owned readiness is
     accepted, accepted with warnings, explicit opt-in only,
     optimization-bound, architecture-blocked, rejected,
     coverage-insufficient, or deferred
-[ ] closeout records verification, gate results, residual risks, and carry
+[x] closeout records verification, gate results, residual risks, and carry
     forward items
-[ ] handoff and project-progress state the current runtime readiness posture
+[x] handoff and project-progress state the current runtime readiness posture
     and recommended next milestone unambiguously
 ```
 
