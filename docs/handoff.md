@@ -1,6 +1,220 @@
-# Handoff: Milestone 016 Complete
+# Handoff: Milestone 017 Planning
 
 ## Current State
+
+Milestone 017 has started in planning. The milestone documents created so far
+are:
+
+```text
+docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost.md
+docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-plan.md
+```
+
+Milestone 017 is the file-level default readiness and cold
+retained-ownership cost milestone. It starts from the closed milestone 016
+broader cache-level default readiness result.
+
+Milestone 017 target:
+
+```text
+decide whether the queued-owned direct/default contour is ready for
+file-level MeasureFile() and small-file workloads, or whether file-level
+needs a scoped optimization/default decision before runtime expansion
+```
+
+Milestone 017 current status:
+
+```text
+architecture document: drafted in
+  docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost.md
+implementation plan: drafted in
+  docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-plan.md
+implementation: not started beyond planning documents
+runtime behavior changes so far: none
+performance gate: not captured
+decision trace: not written
+closeout: not written
+project progress ledger:
+  docs/project-progress.md remains current after milestone 016 closeout until
+  milestone 017 closes
+```
+
+Milestone 017 keeps this starting direct/default contour:
+
+```text
+surface:
+  RadarProcessingArchiveRebalanceBenchmark.MeasureFile()
+  RadarProcessingArchiveRebalanceBenchmark.MeasureCache()
+
+omitted controls:
+  providerMode
+  executionMode
+  asyncExecution
+  queueCapacity
+  providerOverlapMode
+  retentionStrategy
+  queueRetainedPayloadBytes
+  overlapConsumerDelay
+
+effective contour:
+  provider mode: queued-owned
+  provider overlap: producer-consumer
+  retention strategy: pooled-copy
+  execution: async shard transport
+  worker count: 4
+  worker queue capacity: 8
+  provider queue capacity: 8
+  retained-byte budget: 536870912
+  overlap consumer delay: 0
+```
+
+Milestone 017 starting evidence from milestone 016:
+
+```text
+broader cache-level default readiness:
+  accepted with named scoped warnings
+
+explicit fallback/oracle:
+  providerMode: RadarProcessingArchiveProviderMode.BlockingBorrowed
+  same-run BlockingBorrowed rows remain required for readiness gates
+
+representative single-file smoke:
+  data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_000245_V06
+  elapsed ratio: 0.675x borrowed
+  allocation ratio: 1.041x borrowed
+  status: coverage-only, not file-level default readiness proof
+
+prior file-level warning from milestone 015:
+  representative KTLX single-file cold smoke allocation ratio 1.512x borrowed
+  representative KTLX single-file cold smoke elapsed ratio 1.072x borrowed
+  interpretation: expected cold retained-ownership price for the current
+  queued-owned pooled-copy architecture, not a cache-level blocker
+```
+
+Milestone 017 known local corpus at planning start:
+
+```text
+data\nexrad\level2\2026\05\04\KTLX:
+  244 files, 1_347_625_897 bytes
+data\nexrad\level2\2026\05\04\KINX:
+  462 files, 1_404_452_903 bytes
+data\nexrad\level2\2026\05\05\KTLX:
+  848 files, 2_232_493_336 bytes
+data\nexrad total:
+  1_554 files, 4_984_572_136 bytes
+```
+
+Milestone 017 seed file candidates recorded in the plan:
+
+```text
+prior file-smoke candidate:
+  data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_000245_V06
+  size: 5_406_854 bytes
+
+KTLX 2026-05-04 smaller non-MDM candidates:
+  KTLX20260504_220338_V06, 4_403_971 bytes
+  KTLX20260504_123715_V06, 4_494_334 bytes
+
+KTLX 2026-05-04 larger non-MDM candidates:
+  KTLX20260504_034117_V06, 7_757_670 bytes
+  KTLX20260504_035526_V06, 7_755_692 bytes
+
+KINX 2026-05-04 smaller non-MDM candidates:
+  KINX20260504_124819_V06, 5_012_884 bytes
+  KINX20260504_123431_V06, 5_016_231 bytes
+
+KINX 2026-05-04 larger non-MDM candidates:
+  KINX20260504_035026_V06, 8_453_655 bytes
+  KINX20260504_034322_V06, 8_452_883 bytes
+
+KTLX 2026-05-05 larger non-MDM candidates:
+  KTLX20260505_034612_V06, 8_656_438 bytes
+  KTLX20260505_034226_V06, 8_633_851 bytes
+```
+
+Milestone 017 planned slices:
+
+```text
+1. file corpus inventory and gate matrix design pending
+2. existing contract, reporting, and guardrail audit pending
+3. threshold and runner design pending
+4. focused regression and file sanity pass pending
+5. cold and warm MeasureFile Release gate pending
+6. small-file cache transition gate pending
+7. gate interpretation and follow-up fixes pending
+8. file-level readiness decision trace pending
+9. closeout, handoff, and project progress pending
+```
+
+Milestone 017 closeout question:
+
+```text
+Is the queued-owned direct/default contour ready for file-level MeasureFile()
+and small-file workloads?
+```
+
+Valid milestone 017 closeout answers:
+
+```text
+yes, file-level default readiness is accepted
+
+yes with warnings, file-level default readiness is accepted with named scoped
+warnings
+
+optimize, file-level default readiness requires a named optimization before
+runtime expansion
+
+posture change, file-level defaults should split from cache-level defaults or
+move behind explicit opt-in with a named reason
+
+no, file-level default readiness is rejected with a named file, small-file
+slice, threshold, lifecycle, validation, or attribution blocker
+
+coverage insufficient, file-level default readiness cannot be decided from
+the available workload evidence
+
+defer, file-level default readiness cannot be decided because correctness,
+cleanup, release health, pressure, fail-closed behavior, timing variance, or
+benchmark repeatability regressed
+```
+
+Milestone 017 preserved guardrails:
+
+```text
+direct MeasureFile()/MeasureCache() omitted defaults start queued-owned
+explicit BlockingBorrowed remains fallback/oracle
+same-run BlockingBorrowed rows remain required for readiness gates
+CLI omitted-provider rebalance-archive remains aligned with direct defaults
+unless a scoped file-level decision changes that posture
+queued-owned failures fail closed
+no automatic borrowed fallback follows queued-owned failure
+controlled consumer delay remains mechanics-only proof
+builder-transfer remains unsupported
+broader cache-level readiness remains accepted with named scoped warnings
+live ingestion/runtime defaults remain out of scope
+durable queues, cross-process workers, and ordered concurrent rebalance remain
+out of scope
+thresholds must not be raised after gate capture
+cold retained-ownership cost must not be hidden behind prewarm or aggregate
+small-cache success
+```
+
+Recommended current next action:
+
+```text
+begin milestone 017 slice 1:
+  file corpus inventory and gate matrix design
+
+slice 1 should validate:
+  which local files are valid base-data MeasureFile() candidates
+  whether the prior KTLX representative file is publishable and still useful
+  which files cover small, representative, large, KTLX, KINX, and KTLX
+    2026-05-05 named-risk shapes
+  whether _MDM files are excluded, coverage-only, or a separate class
+  which low-count MeasureCache() selectors represent small-file amortization
+```
+
+## Milestone 016 Baseline
 
 Milestone 016 is complete. The milestone documents are:
 
