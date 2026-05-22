@@ -952,8 +952,128 @@ list of blockers, if any
 Slice 4 status:
 
 ```text
-status: pending
-runtime behavior changes: none expected
+status: complete
+runtime behavior changes: none
+blockers before Release gate: none found
+```
+
+Slice 4 completion notes:
+
+```text
+focused regression:
+  command:
+    dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests|FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests|FullyQualifiedName~RadarProcessingRetainedBatchResourceTests"
+  result:
+    passed, 112 passed, 0 failed, 0 skipped
+
+CLI omitted-provider file spot-check:
+  command shape:
+    dotnet run --project src\Presentation\RadarPulse.Cli.csproj -c Release --no-restore -- processing benchmark rebalance-archive --file data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_000245_V06 --mode static --partitions 4 --shards 2 --iterations 1 --warmup-iterations 0 --parallelism 1 --queue-telemetry summary --overlap-telemetry summary
+  result:
+    Provider mode: queued-owned
+    Provider mode source: rollout-default
+    Provider overlap source: rollout-default
+    Retention strategy source: rollout-default
+    Provider queue capacity source: rollout-default
+    Worker queue capacity source: rollout-default
+    Provider queue retained byte capacity source: rollout-default
+    Provider default rollout contour: yes
+    Provider rollout default expansion: yes
+    Provider fallback contour: no
+    Default-candidate contour: yes
+    Provider overlap evidence scope: natural-readiness
+    Validation: succeeded
+    Retained payload failed releases: 0
+    Provider overlap failed releases: 0
+    current pending/active/combined retained pressure returned to 0
+
+CLI explicit BlockingBorrowed file spot-check:
+  first guardrail check:
+    explicit blocking-borrowed with --overlap-telemetry summary was rejected
+    with "--overlap-telemetry requires --provider-overlap producer-consumer",
+    preserving queued-only option validation
+  command shape:
+    dotnet run --project src\Presentation\RadarPulse.Cli.csproj -c Release --no-restore -- processing benchmark rebalance-archive --file data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_000245_V06 --mode static --provider blocking-borrowed --partitions 4 --shards 2 --iterations 1 --warmup-iterations 0 --parallelism 1
+  result:
+    Provider mode: blocking-borrowed
+    Provider mode source: explicit
+    Provider default rollout contour: no
+    Provider rollout default expansion: no
+    Provider fallback contour: yes
+    Default-candidate contour: no
+    Provider overlap evidence scope: not-applicable
+    Validation: succeeded
+    Validation checksum matched the omitted-provider spot-check:
+      2_813_350_973_321_257_292
+
+selected file static sanity:
+  command shape:
+    dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --file <selected-file> --mode static --partitions 4 --shards 2 --iterations 1 --warmup-iterations 0 --parallelism 1 --queue-telemetry none --overlap-telemetry none
+  result:
+    all selected MeasureFile() readiness files published with omitted-provider
+    queued-owned mode and Validation: succeeded
+
+  KTLX20260504_000245_V06:
+    validation checksum 2_813_350_973_321_257_292, events 32_400,
+    payload bytes 48_257_280
+  KTLX20260504_220338_V06:
+    validation checksum 11_291_311_070_573_145_995, events 18_960,
+    payload bytes 31_079_040
+  KTLX20260504_144229_V06:
+    validation checksum 2_975_717_052_562_627_441, events 32_400,
+    payload bytes 48_257_280
+  KTLX20260504_034117_V06:
+    validation checksum 7_945_987_576_042_852_707, events 32_400,
+    payload bytes 48_257_280
+  KINX20260504_124819_V06:
+    validation checksum 11_253_733_498_806_519_418, events 32_400,
+    payload bytes 48_342_240
+  KINX20260504_093652_V06:
+    validation checksum 6_904_323_739_345_245_968, events 32_400,
+    payload bytes 48_342_240
+  KINX20260504_035026_V06:
+    validation checksum 5_096_944_298_289_890_017, events 32_400,
+    payload bytes 48_342_240
+  KTLX20260505_220542_V06:
+    validation checksum 4_120_427_155_509_216_206, events 32_400,
+    payload bytes 48_257_280
+  KTLX20260505_154040_V06:
+    validation checksum 7_676_054_101_070_045_969, events 32_400,
+    payload bytes 48_257_280
+  KTLX20260505_034612_V06:
+    validation checksum 13_903_915_601_095_124_975, events 37_440,
+    payload bytes 51_484_320
+
+low-count cache static sanity:
+  command shape:
+    dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll processing benchmark rebalance-archive --cache data\nexrad --date <date> --radar <radar> --max-files <n> --mode static --partitions 4 --shards 2 --iterations 1 --warmup-iterations 0 --parallelism 1 --queue-telemetry none --overlap-telemetry none
+  result:
+    all selected low-count MeasureCache() slices published with
+    omitted-provider queued-owned mode and Validation: succeeded
+
+  KTLX 2026-05-04 max-files 2:
+    examined 2, skipped 0, published 2
+  KTLX 2026-05-04 max-files 4:
+    examined 4, skipped 0, published 4
+  KTLX 2026-05-04 max-files 8:
+    examined 8, skipped 0, published 8
+  KINX 2026-05-04 max-files 4:
+    examined 4, skipped 2, published 2
+  KINX 2026-05-04 max-files 8:
+    examined 8, skipped 4, published 4
+  KINX 2026-05-04 max-files 16:
+    examined 16, skipped 8, published 8
+  KTLX 2026-05-05 max-files 4:
+    examined 4, skipped 2, published 2
+  KTLX 2026-05-05 max-files 8:
+    examined 8, skipped 4, published 4
+  KTLX 2026-05-05 max-files 16:
+    examined 16, skipped 8, published 8
+
+slice 4 outcome:
+  no focused regression, file publishability, low-count cache selector,
+  omitted-provider alignment, fallback visibility, cleanup, release, or
+  queued-only option-validation blocker was found before Release gate capture
 ```
 
 ### 5. Cold And Warm MeasureFile Release Gate
@@ -1328,14 +1448,14 @@ Milestone 017 is complete when:
 [x] selected file-level and small-file shapes are broad enough for a readiness
     decision, or coverage insufficiency is explicitly recorded
 [x] file-level thresholds are recorded before Release gate interpretation
-[ ] same-run explicit BlockingBorrowed oracle rows remain available,
+[x] same-run explicit BlockingBorrowed oracle rows remain available,
     documented, and visibly separate
-[ ] direct MeasureFile() omitted defaults still resolve to the accepted
+[x] direct MeasureFile() omitted defaults still resolve to the accepted
     queued-owned rollout contour unless a scoped file-level decision changes
     that posture
-[ ] direct MeasureCache() omitted defaults preserve the milestone 016 accepted
+[x] direct MeasureCache() omitted defaults preserve the milestone 016 accepted
     cache-level posture
-[ ] CLI omitted-provider file benchmark remains aligned with direct API
+[x] CLI omitted-provider file benchmark remains aligned with direct API
     defaults unless a scoped file-level decision changes that posture
 [ ] correctness parity against borrowed rows is preserved for every readiness
     row

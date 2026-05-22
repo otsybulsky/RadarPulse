@@ -29,7 +29,7 @@ architecture document: drafted in
   docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost.md
 implementation plan: drafted in
   docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-plan.md
-implementation: slice 3 threshold and runner design
+implementation: slice 4 focused regression and file sanity pass
   complete
 runtime behavior changes so far: none
 performance gate: not captured
@@ -300,13 +300,77 @@ runner posture:
   BlockingBorrowed visibility
 ```
 
+Milestone 017 slice 4 completion:
+
+```text
+status:
+  complete
+
+runtime behavior changes:
+  none
+
+focused regression:
+  command:
+    dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests|FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests|FullyQualifiedName~RadarProcessingRetainedBatchResourceTests"
+  result:
+    passed, 112 passed, 0 failed, 0 skipped
+
+CLI omitted-provider file spot-check:
+  representative file:
+    data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_000245_V06
+  result:
+    provider mode queued-owned
+    provider mode source rollout-default
+    provider rollout default expansion yes
+    default-candidate contour yes
+    fallback contour no
+    provider overlap evidence scope natural-readiness
+    validation succeeded
+    retained payload failed releases 0
+    provider overlap failed releases 0
+    current pending/active/combined retained pressure returned to 0
+
+CLI explicit BlockingBorrowed file spot-check:
+  representative file:
+    data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_000245_V06
+  result:
+    provider mode blocking-borrowed
+    provider mode source explicit
+    provider default rollout contour no
+    provider fallback contour yes
+    validation succeeded
+    validation checksum matched the omitted-provider spot-check
+  guardrail note:
+    explicit blocking-borrowed with --overlap-telemetry summary was rejected
+    because overlap telemetry requires producer-consumer overlap, preserving
+    queued-only option validation
+
+selected file static sanity:
+  all 10 selected MeasureFile() readiness files published with
+  omitted-provider queued-owned mode and Validation: succeeded
+  selected checksums/events/payload bytes were recorded in the implementation
+  plan slice 4 notes
+
+low-count cache static sanity:
+  all selected low-count MeasureCache() slices published with omitted-provider
+  queued-owned mode and Validation: succeeded
+  KTLX 2026-05-04 max-files 2/4/8 published 2/4/8
+  KINX 2026-05-04 max-files 4/8/16 published 2/4/8 because skipped metadata
+    interleaves in sorted order
+  KTLX 2026-05-05 max-files 4/8/16 published 2/4/8 because skipped metadata
+    interleaves in sorted order
+
+blockers before Release gate:
+  none found
+```
+
 Milestone 017 planned slices:
 
 ```text
 1. file corpus inventory and gate matrix design complete
 2. existing contract, reporting, and guardrail audit complete
 3. threshold and runner design complete
-4. focused regression and file sanity pass pending
+4. focused regression and file sanity pass complete
 5. cold and warm MeasureFile Release gate pending
 6. small-file cache transition gate pending
 7. gate interpretation and follow-up fixes pending
@@ -370,18 +434,21 @@ small-cache success
 Recommended current next action:
 
 ```text
-begin milestone 017 slice 4:
-  focused regression and file sanity pass
+begin milestone 017 slice 5:
+  cold and warm MeasureFile Release gate
 
-slice 4 should run:
-  focused regression for archive publisher, CLI rebalance benchmark, queued
-  provider readiness, queued overlap runner, allocation summary, retained
-  payload factory, and retained batch resource behavior
-  selected file sanity checks with explicit BlockingBorrowed and omitted
-  provider where cheap enough
-  CLI --file omitted-provider spot-check
-  CLI --provider blocking-borrowed spot-check
-  blocker triage before Release gate runner implementation/capture
+slice 5 should:
+  build the temporary direct API gate runner under data\temp\m017-gate-runner
+  or an equivalent ignored path
+  run candidate-first cold queued-owned/default then BlockingBorrowed probes
+  for the required representative files
+  run warm explicit BlockingBorrowed then queued-owned/default pairs using the
+  slice 3 repeat policy
+  capture structured JSONL and Markdown summary output with effective contour,
+  correctness, elapsed, allocation, retained pressure, release, queue,
+  overlap, worker, and attribution fields
+  classify every file row against the slice 3 thresholds without changing
+  thresholds after measurement
 ```
 
 ## Milestone 016 Baseline
