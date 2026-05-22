@@ -1,8 +1,122 @@
-# Handoff: Milestone 017 Complete
+# Handoff: Milestone 018 Planning
 
 ## Current State
 
-Milestone 017 is complete. The milestone documents are:
+Milestone 018 is active in planning. The milestone documents are:
+
+```text
+docs/milestones/018-runtime-live-ingestion-readiness.md
+docs/milestones/018-runtime-live-ingestion-readiness-plan.md
+```
+
+Milestone 018 is the runtime and live ingestion readiness milestone. It starts
+from the closed milestone 017 file-level and small-file direct benchmark
+default readiness result.
+
+Milestone 018 current status:
+
+```text
+architecture document:
+  drafted in docs/milestones/018-runtime-live-ingestion-readiness.md
+
+implementation plan:
+  drafted in docs/milestones/018-runtime-live-ingestion-readiness-plan.md
+
+implementation:
+  not started
+
+runtime behavior changes:
+  none yet
+
+current closeout question:
+  Is the queued-owned contour ready for runtime/live ingestion defaults?
+```
+
+Milestone 018 planning posture:
+
+```text
+direct benchmark readiness from milestone 017 is accepted evidence, not
+automatic runtime approval
+
+runtime/live defaults remain undecided until lifecycle, prewarm, pressure,
+backpressure, fallback, failure, cancellation, cleanup, release, processing
+completeness, worker health, and observability gates are designed and
+captured
+
+queued-owned runtime outcomes remain open:
+  accepted default
+  accepted default with named warnings
+  explicit opt-in only
+  optimization-bound
+  architecture-blocked
+  rejected
+  coverage-insufficient
+  deferred
+```
+
+Milestone 018 planned slices:
+
+```text
+1. Runtime surface inventory and lifecycle audit
+2. Runtime readiness contract and gate matrix design
+3. Reporting, contract, and harness gap closure
+4. Runtime prewarm lifecycle decision and guardrails
+5. Backpressure, failure, cancellation, and cleanup guardrails
+6. Runtime steady intake gate
+7. Runtime pressure, backpressure, cancellation, and failure gate
+8. Gate interpretation and follow-up fixes
+9. Runtime readiness decision trace
+10. Closeout, handoff, and project progress
+```
+
+Milestone 018 implementation rules:
+
+```text
+preserve explicit BlockingBorrowed as fallback/oracle where supported
+preserve queued-owned fail-closed behavior
+do not add automatic silent borrowed fallback
+do not hide retained payload prewarm or startup cost
+do not claim provider enqueue success as processing completion
+require processing completeness for runtime success
+require worker failed batches/items and processing validation failed batches
+  to be visible and gateable
+require retained pressure cleanup and release health through success,
+  cancellation, failure, drain, and dispose paths
+use deterministic archive replay as live-input stand-in only through
+  runtime-shaped lifecycle gates
+do not broaden into durable/cross-process/ordered-concurrent surfaces
+```
+
+Milestone 018 out-of-scope surfaces:
+
+```text
+durable queues
+brokers
+cross-process providers/workers
+ordered concurrent rebalance
+multiple active rebalance-enabled processing batches
+builder-transfer retained payload execution
+source-level migration
+partition splitting
+physical worker-local state transfer
+synthetic processing benchmark default migration
+product-facing radar workflows
+automatic silent borrowed fallback
+```
+
+Milestone 018 current recommended next action:
+
+```text
+begin slice 1: runtime surface inventory and lifecycle audit over archive
+provider, owned queue, queued processing/rebalance session, retained payload,
+pressure, worker, CLI/reporting, and focused test surfaces
+```
+
+## Milestone 017 Baseline
+
+Milestone 017 is complete. It remains the baseline evidence for milestone 018.
+
+Milestone 017 documents:
 
 ```text
 docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost.md
