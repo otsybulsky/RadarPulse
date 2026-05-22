@@ -89,6 +89,10 @@ new result attribution:
   HasRetainedPayloadPrewarm
   RetainedPayloadPrewarmAllocatedBytes
   RetainedPayloadPrewarmRetainedBytes
+  ProcessingSucceeded
+  ProcessingValidationFailedBatchCount
+  WorkerFailedBatchCount
+  WorkerFailedWorkItemCount
 
 CLI attribution:
   retained payload prewarm enabled/disabled
@@ -98,6 +102,8 @@ CLI attribution:
   prewarm elapsed ms
   prewarm allocated bytes
   prewarm retained bytes
+  processing completeness
+  processing validation failed batches
 ```
 
 The prewarm allocation is deliberately not folded into measured row
@@ -113,6 +119,11 @@ implemented:
   explicit retained payload factory passthrough remains supported
   result contracts expose prewarm attribution
   CLI output exposes prewarm attribution
+  cache `MeasureCache()` auto-sizes the source universe for mixed-radar
+    selected base-data files when no radar filter is provided
+  archive rebalance result contracts and CLI expose processing completeness
+  generic archive rebalance validation now includes processing-result validity
+    instead of only rebalance session validation
   focused tests pin default prewarm constants and result behavior
 
 not implemented:
@@ -123,19 +134,20 @@ not implemented:
   builder-transfer retained payload execution
 ```
 
-## Post-Default Cache Regression Matrix
+## Post-Fix Cache Regression Matrix
 
-After scoped default prewarm was implemented, the broader cache-level and
-small-file `MeasureCache()` matrix was rerun against same-run
-`BlockingBorrowed` oracle rows.
+After scoped default prewarm and the mixed-cache source-universe fix were
+implemented, the broader cache-level and small-file `MeasureCache()` matrix
+was rerun against same-run `BlockingBorrowed` oracle rows with processing
+completeness as a safety blocker.
 
 ```text
 runner:
   data\temp\m017-cache-regression-runner
 
 raw outputs:
-  data\temp\m017-cache-regression-runner\output\m017-cache-regression-20260522-101200.jsonl
-  data\temp\m017-cache-regression-runner\output\m017-cache-regression-20260522-101200.md
+  data\temp\m017-cache-regression-runner\output\m017-cache-regression-20260522-110241.jsonl
+  data\temp\m017-cache-regression-runner\output\m017-cache-regression-20260522-110241.md
 
 matrix:
   broader primary KTLX 2026-05-04 max-files 220: 3 pairs
@@ -149,27 +161,123 @@ result:
   group rows: 16 passed, 0 warning, 0 optimize, 0 failed
   pairs: 28 passed safety, 0 failed safety
   measurements: 56
-  worst measured allocation ratio: 1.008x on mixed-cache-all
-  worst elapsed ratio: 0.994x on KTLX 2026-05-04 4-file small-cache row
-  worst candidate spread: 3.68%, below the 7.50% spread threshold
+  worst measured allocation ratio: 1.009x on mixed-cache-all
+  worst elapsed ratio: 0.988x on KTLX 2026-05-05 2-file small-cache row
+  worst candidate spread: 4.60% on KTLX 2026-05-05 2-file small-cache row,
+    below the 7.50% spread threshold
   retained payload pool misses: 0
   retained event-array pool misses: 0
   retained byte-array pool misses: 0
   validation failures: 0
+  processing completeness failures: 0
+  processing validation failed batches: 0
+  worker failed batches/items: 0/0
   release failures: 0
   current retained bytes after rows: 0
   default prewarm allocation: approximately 71_303_392 bytes per candidate row
 
 interpretation:
   no cache-level performance regression was found after making prewarm the
-    scoped direct benchmark default
+    scoped direct benchmark default and fixing mixed-cache source sizing
   measured allocation is now near parity with borrowed on small-cache rows
     and remains below the broader cache threshold
-  mixed-cache-all allocation ratio is 1.008x, still well inside the <= 1.10x
-    cache-level threshold
-  mixed-cache-all still carries the known milestone 016 worker-counter note,
-    but validation, checksums, failed migrations, release, and cleanup
-    guardrails remained clean
+  mixed-cache-all elapsed ratio is 0.934x and allocation ratio is 1.009x,
+    still well inside cache-level thresholds
+  mixed-cache-all worker failed batches/items are 0/0 after auto-sizing the
+    source universe to the selected radar count
+```
+
+## Mixed-Cache Source-Universe Follow-Up
+
+The post-default matrix reproduced the milestone 016 `mixed-cache-all`
+worker-counter note:
+
+```text
+worker failed batches/items: 221/881
+failure kind: SourceOrderViolation
+first failed batch: KTLX20260504_000245_V06
+last failed batch: KTLX20260505_000026_V06
+```
+
+Diagnosis:
+
+```text
+mixed-cache-all selected KINX and KTLX files
+MeasureCache() used DefaultSingleRadar for all cache workloads
+DefaultSingleRadar has one radar ordinal
+ArchiveTwoRadarEventBatchProjector resets the identity normalizer on radar
+  changes in a one-radar universe
+processing state was not reset between radars
+therefore KTLX events reused source ids already advanced by KINX end-of-day
+  timestamps, so source-local timestamp order was violated
+```
+
+Counterfactual verification with the same files and a two-radar source
+universe produced:
+
+```text
+valid processing batches: 828
+invalid processing batches: 0
+worker completed/failed batches: 828/0
+worker succeeded/failed items: 3312/0
+```
+
+Implementation fix:
+
+```text
+MeasureCache() keeps DefaultSingleRadar when a radar filter is supplied
+MeasureCache() scans the selected base-data file set when no radar filter is
+  supplied
+the cache source universe uses max(1, distinct selected radar ids)
+auto-sizing has a guardrail of 256 distinct radar ids
+the same source universe is passed to archive publishing and processing
+```
+
+Gate/reporting fix:
+
+```text
+archive rebalance result contracts expose ProcessingSucceeded
+ProcessingSucceeded requires:
+  ValidationSucceeded
+  ProcessingValidationFailedBatchCount == 0
+  WorkerFailedBatchCount == 0
+  WorkerFailedWorkItemCount == 0
+ValidationSucceeded now includes processing-result validity for rebalance
+  session rows, preventing processing-invalid batches from looking green
+CLI output prints processing completeness and processing validation failed
+  batch counts
+```
+
+Verification after implementation:
+
+```text
+focused synthetic mixed-radar regression:
+  KINX late-day file followed by KTLX early-day file
+  unfiltered MeasureCache() source count: 46080
+  radar-filtered KTLX MeasureCache() source count: 23040
+  processing completeness: succeeded
+  worker failed batches/items: 0/0
+
+local mixed-cache-all borrowed async spot check:
+  source count: 46080
+  examined/skipped/published files: 1554/726/828
+  validation: succeeded
+  processing completeness: succeeded
+  processing validation failed batches: 0
+  worker completed/failed batches: 828/0
+  worker succeeded/failed items: 3312/0
+
+local mixed-cache-all omitted default candidate spot check:
+  source count: 46080
+  examined/skipped/published files: 1554/726/828
+  validation: succeeded
+  processing completeness: succeeded
+  processing validation failed batches: 0
+  worker completed/failed batches: 828/0
+  worker succeeded/failed items: 3312/0
+  retained payload pool misses: 0
+  retained payload failed releases: 0
+  provider overlap failed releases: 0
 ```
 
 ## Guardrails
@@ -177,6 +285,7 @@ interpretation:
 ```text
 correctness:
   unchanged; same-run BlockingBorrowed oracle remains required for gates
+  worker failed batches/items are processing-completeness blockers
 
 release and cleanup:
   unchanged; retained payload and provider overlap releases must remain 0

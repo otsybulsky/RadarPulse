@@ -1408,6 +1408,92 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
     }
 
     [Fact]
+    public void RebalanceArchiveBenchmarkCacheAutoSizesSourceUniverseForMixedRadars()
+    {
+        var kinxRecord = BuildMessage(
+            31,
+            BuildEightBitType31Payload("REF", [1, 2, 3], scale: 2f, offset: 66f),
+            millisecondsPastMidnight: 86_000_000);
+        var ktlxRecord = BuildMessage(
+            31,
+            BuildEightBitType31Payload("REF", [4, 5, 6], scale: 2f, offset: 66f),
+            millisecondsPastMidnight: 164_018);
+        var compressedPayload1 = BuildFakeBZip2Payload(1);
+        var compressedPayload2 = BuildFakeBZip2Payload(2);
+        var directory = Path.Combine(Path.GetTempPath(), "RadarPulse.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        WriteTempFileInDirectory(
+            directory,
+            "KINX20260504_235749_V06",
+            BuildArchiveTwoHeader("KINX", millisecondsPastMidnight: 86_000_000)
+                .Concat(BuildCompressedRecord(compressedPayload1.Length, compressedPayload1))
+                .ToArray());
+        WriteTempFileInDirectory(
+            directory,
+            "KTLX20260504_000245_V06",
+            BuildArchiveTwoHeader("KTLX", millisecondsPastMidnight: 164_018)
+                .Concat(BuildCompressedRecord(compressedPayload2.Length, compressedPayload2))
+                .ToArray());
+        var benchmark = new RadarProcessingArchiveRebalanceBenchmark(
+            new FakeArchiveBZip2Decompressor(new Dictionary<byte, byte[]>
+            {
+                [1] = kinxRecord,
+                [2] = ktlxRecord
+            }));
+
+        try
+        {
+            var mixed = benchmark.MeasureCache(
+                directory,
+                date: null,
+                radarId: null,
+                maxFiles: 10,
+                mode: RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession,
+                iterations: 1,
+                warmupIterations: 0,
+                partitionCount: 4,
+                shardCount: 2,
+                degreeOfParallelism: 1,
+                CancellationToken.None,
+                executionMode: RadarProcessingExecutionMode.AsyncShardTransport,
+                asyncExecution: new RadarProcessingAsyncExecutionOptions(workerCount: 2, queueCapacity: 1),
+                providerMode: RadarProcessingArchiveProviderMode.BlockingBorrowed);
+            var filtered = benchmark.MeasureCache(
+                directory,
+                date: null,
+                radarId: "KTLX",
+                maxFiles: 10,
+                mode: RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession,
+                iterations: 1,
+                warmupIterations: 0,
+                partitionCount: 4,
+                shardCount: 2,
+                degreeOfParallelism: 1,
+                CancellationToken.None,
+                providerMode: RadarProcessingArchiveProviderMode.BlockingBorrowed);
+
+            var singleRadarSourceCount = ArchiveRadarEventBatchPublishOptions.DefaultSingleRadar.SourceUniverse.SourceCount;
+            Assert.Equal(singleRadarSourceCount * 2, mixed.SourceCount);
+            Assert.Equal(singleRadarSourceCount, filtered.SourceCount);
+            Assert.Equal(2, mixed.PublishedFilesPerIteration);
+            Assert.Equal(1, filtered.PublishedFilesPerIteration);
+            Assert.True(mixed.ValidationSucceeded);
+            Assert.True(mixed.ProcessingSucceeded);
+            Assert.Equal(0, mixed.ProcessingValidationFailedBatchCount);
+            Assert.Equal(0, mixed.WorkerFailedBatchCount);
+            Assert.Equal(0, mixed.WorkerFailedWorkItemCount);
+            Assert.NotNull(mixed.WorkerTelemetry);
+            Assert.Equal(2, mixed.WorkerTelemetry.Counters.CompletedBatchCount);
+            Assert.Equal(0, mixed.WorkerTelemetry.Counters.FailedBatchCount);
+            Assert.Equal(0, mixed.WorkerTelemetry.Counters.FailedWorkItemCount);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
     public void RebalanceArchiveBenchmarkCacheQueuedOwnedAggregatesQueueTelemetry()
     {
         var firstRecord = BuildMessage(31, BuildEightBitType31Payload("REF", [1, 2, 3], scale: 2f, offset: 66f));
@@ -1795,15 +1881,19 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
         }
     }
 
-    private static byte[] BuildArchiveTwoHeader()
+    private static byte[] BuildArchiveTwoHeader(
+        string radarId = "KTLX",
+        DateOnly? date = null,
+        int millisecondsPastMidnight = 164_018)
     {
+        var effectiveDate = date ?? new DateOnly(2026, 5, 4);
         var header = new byte[24];
         Encoding.ASCII.GetBytes("AR2V0006.266").CopyTo(header, 0);
         BinaryPrimitives.WriteInt32BigEndian(
             header.AsSpan(12, 4),
-            new DateOnly(2026, 5, 4).DayNumber - new DateOnly(1970, 1, 1).DayNumber + 1);
-        BinaryPrimitives.WriteInt32BigEndian(header.AsSpan(16, 4), 164_018);
-        Encoding.ASCII.GetBytes("KTLX").CopyTo(header, 20);
+            effectiveDate.DayNumber - new DateOnly(1970, 1, 1).DayNumber + 1);
+        BinaryPrimitives.WriteInt32BigEndian(header.AsSpan(16, 4), millisecondsPastMidnight);
+        Encoding.ASCII.GetBytes(radarId).CopyTo(header, 20);
         return header;
     }
 
@@ -1819,8 +1909,14 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
 
     private static byte[] BuildFakeBZip2Payload(byte key) => [(byte)'B', (byte)'Z', (byte)'h', key];
 
-    private static byte[] BuildMessage(byte messageType, byte[] payload)
+    private static byte[] BuildMessage(
+        byte messageType,
+        byte[] payload,
+        DateOnly? date = null,
+        uint? millisecondsPastMidnight = null)
     {
+        var effectiveDate = date ?? new DateOnly(2026, 5, 4);
+        var effectiveMillisecondsPastMidnight = millisecondsPastMidnight ?? 164_018;
         var messageBytes = 16 + payload.Length;
         if (messageBytes % 2 != 0)
         {
@@ -1831,8 +1927,10 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
         BinaryPrimitives.WriteUInt16BigEndian(message.AsSpan(0, 2), (ushort)(messageBytes / 2));
         message[2] = 8;
         message[3] = messageType;
-        BinaryPrimitives.WriteUInt16BigEndian(message.AsSpan(6, 2), 20_578);
-        BinaryPrimitives.WriteUInt32BigEndian(message.AsSpan(8, 4), 164_018);
+        BinaryPrimitives.WriteUInt16BigEndian(
+            message.AsSpan(6, 2),
+            checked((ushort)(effectiveDate.DayNumber - new DateOnly(1970, 1, 1).DayNumber + 1)));
+        BinaryPrimitives.WriteUInt32BigEndian(message.AsSpan(8, 4), effectiveMillisecondsPastMidnight);
         BinaryPrimitives.WriteUInt16BigEndian(message.AsSpan(12, 2), 1);
         BinaryPrimitives.WriteUInt16BigEndian(message.AsSpan(14, 2), 1);
         payload.CopyTo(message.AsSpan(16));
@@ -1936,6 +2034,10 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
         Assert.Equal(TimeSpan.Zero, result.OverlapConsumerDelay);
         Assert.False(result.HasWorkerTelemetry);
         Assert.Null(result.WorkerTelemetry);
+        Assert.True(result.ProcessingSucceeded);
+        Assert.Equal(0, result.ProcessingValidationFailedBatchCount);
+        Assert.Equal(0, result.WorkerFailedBatchCount);
+        Assert.Equal(0, result.WorkerFailedWorkItemCount);
         Assert.False(result.HasQueueTelemetry);
         Assert.False(result.HasRetentionTelemetry);
         Assert.False(result.HasOverlapTelemetry);
@@ -1968,6 +2070,10 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
         Assert.Equal(TimeSpan.Zero, result.OverlapConsumerDelay);
         Assert.False(result.HasWorkerTelemetry);
         Assert.Null(result.WorkerTelemetry);
+        Assert.True(result.ProcessingSucceeded);
+        Assert.Equal(0, result.ProcessingValidationFailedBatchCount);
+        Assert.Equal(0, result.WorkerFailedBatchCount);
+        Assert.Equal(0, result.WorkerFailedWorkItemCount);
         Assert.False(result.HasQueueTelemetry);
         Assert.False(result.HasRetentionTelemetry);
         Assert.False(result.HasOverlapTelemetry);
@@ -2055,6 +2161,10 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
         Assert.Equal(
             RadarProcessingArchiveRebalanceRolloutDefaults.WorkerQueueCapacity,
             workerTelemetry.QueueCapacity);
+        Assert.True(result.ProcessingSucceeded);
+        Assert.Equal(0, result.ProcessingValidationFailedBatchCount);
+        Assert.Equal(0, result.WorkerFailedBatchCount);
+        Assert.Equal(0, result.WorkerFailedWorkItemCount);
         Assert.True(result.HasQueueTelemetry);
         Assert.True(result.HasRetentionTelemetry);
         Assert.True(result.HasOverlapTelemetry);
@@ -2104,6 +2214,10 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
         Assert.Equal(
             RadarProcessingArchiveRebalanceRolloutDefaults.WorkerQueueCapacity,
             workerTelemetry.QueueCapacity);
+        Assert.True(result.ProcessingSucceeded);
+        Assert.Equal(0, result.ProcessingValidationFailedBatchCount);
+        Assert.Equal(0, result.WorkerFailedBatchCount);
+        Assert.Equal(0, result.WorkerFailedWorkItemCount);
         Assert.True(result.HasQueueTelemetry);
         Assert.True(result.HasRetentionTelemetry);
         Assert.True(result.HasOverlapTelemetry);

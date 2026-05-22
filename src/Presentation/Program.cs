@@ -718,6 +718,8 @@ static void PrintProcessingArchiveRebalanceBenchmarkResult(
     Console.WriteLine($"Cold evacuation moves: {FormatNumber(result.ColdEvacuationCount)}");
     Console.WriteLine($"Failed migrations: {FormatNumber(result.FailedMigrationCount)}");
     Console.WriteLine($"Validation: {(result.ValidationSucceeded ? "succeeded" : "failed")}");
+    Console.WriteLine($"Processing completeness: {(result.ProcessingSucceeded ? "succeeded" : "failed")}");
+    Console.WriteLine($"Processing validation failed batches: {FormatNumber(result.ProcessingValidationFailedBatchCount)}");
     Console.WriteLine($"Validation checksum: {FormatUnsignedNumber(result.ValidationChecksum)}");
     Console.WriteLine($"Skipped reasons: {FormatProcessingRebalanceSkippedReasons(result.SkippedReasons)}");
     Console.WriteLine($"Skipped reason counters: {FormatProcessingRebalanceSkippedReasonCounters(result.SkippedReasonCounters)}");
@@ -905,6 +907,8 @@ static void PrintProcessingArchiveRebalanceCacheBenchmarkResult(
     Console.WriteLine($"Cold evacuation moves: {FormatNumber(result.ColdEvacuationCount)}");
     Console.WriteLine($"Failed migrations: {FormatNumber(result.FailedMigrationCount)}");
     Console.WriteLine($"Validation: {(result.ValidationSucceeded ? "succeeded" : "failed")}");
+    Console.WriteLine($"Processing completeness: {(result.ProcessingSucceeded ? "succeeded" : "failed")}");
+    Console.WriteLine($"Processing validation failed batches: {FormatNumber(result.ProcessingValidationFailedBatchCount)}");
     Console.WriteLine($"Validation checksum: {FormatUnsignedNumber(result.ValidationChecksum)}");
     Console.WriteLine($"Skipped reasons: {FormatProcessingRebalanceSkippedReasons(result.SkippedReasons)}");
     Console.WriteLine($"Skipped reason counters: {FormatProcessingRebalanceSkippedReasonCounters(result.SkippedReasonCounters)}");

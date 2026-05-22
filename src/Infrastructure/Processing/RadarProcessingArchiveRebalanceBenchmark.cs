@@ -10,6 +10,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
 {
     private const ulong ChecksumInitial = 14_695_981_039_346_656_037UL;
     private const ulong ChecksumPrime = 1_099_511_628_211UL;
+    private const int MaxAutoSizedCacheRadarOrdinalCount = 256;
 
     private readonly IArchiveBZip2Decompressor decompressor;
 
@@ -282,7 +283,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 aggregate.RetentionTelemetry,
                 aggregate.OverlapTelemetry,
                 overlapConsumerDelay,
-                defaultRetainedPayloadPrewarm?.Result);
+                defaultRetainedPayloadPrewarm?.Result,
+                aggregate.ProcessingValidationFailedBatchCount);
         }
         finally
         {
@@ -401,7 +403,12 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         var normalizedRadarId = string.IsNullOrWhiteSpace(radarId)
             ? null
             : HistoricalArchiveRequest.NormalizeRadarId(radarId);
-        var sourceUniverse = ArchiveRadarEventBatchPublishOptions.DefaultSingleRadar.SourceUniverse;
+        var sourceUniverse = CreateCacheSourceUniverse(
+            directoryInfo,
+            date,
+            normalizedRadarId,
+            maxFiles,
+            cancellationToken);
         if (partitionCount > sourceUniverse.SourceCount)
         {
             throw new ArgumentOutOfRangeException(
@@ -570,7 +577,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 aggregate.RetentionTelemetry,
                 aggregate.OverlapTelemetry,
                 overlapConsumerDelay,
-                defaultRetainedPayloadPrewarm?.Result);
+                defaultRetainedPayloadPrewarm?.Result,
+                aggregate.ProcessingValidationFailedBatchCount);
         }
         finally
         {
@@ -579,6 +587,73 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 workerGroup.DisposeAsync().GetAwaiter().GetResult();
             }
         }
+    }
+
+    private static RadarSourceUniverse CreateCacheSourceUniverse(
+        DirectoryInfo directoryInfo,
+        DateOnly? date,
+        string? radarId,
+        int maxFiles,
+        CancellationToken cancellationToken)
+    {
+        if (radarId is not null)
+        {
+            return ArchiveRadarEventBatchPublishOptions.DefaultSingleRadar.SourceUniverse;
+        }
+
+        var radarOrdinalCount = CountSelectedCacheRadarOrdinals(
+            directoryInfo,
+            date,
+            radarId,
+            maxFiles,
+            cancellationToken);
+        return CreateArchiveSourceUniverse(radarOrdinalCount);
+    }
+
+    private static int CountSelectedCacheRadarOrdinals(
+        DirectoryInfo directoryInfo,
+        DateOnly? date,
+        string? radarId,
+        int maxFiles,
+        CancellationToken cancellationToken)
+    {
+        var selection = SelectCacheArchiveFiles(directoryInfo, date, radarId, maxFiles, cancellationToken);
+        if (selection.BaseDataFiles.Count == 0)
+        {
+            return ArchiveRadarEventBatchPublishOptions.DefaultSingleRadar.SourceUniverse.RadarOrdinalCount;
+        }
+
+        var radarIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var fileInfo in selection.BaseDataFiles)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var header = ArchiveTwoFileReader.ReadVolumeHeader(fileInfo);
+            radarIds.Add(header.RadarId);
+            if (radarIds.Count > MaxAutoSizedCacheRadarOrdinalCount)
+            {
+                throw new InvalidOperationException(
+                    $"Cache benchmark auto-sized source universe supports at most {MaxAutoSizedCacheRadarOrdinalCount} distinct radar ids. " +
+                    "Pass a radar id filter or reduce max files.");
+            }
+        }
+
+        return Math.Max(1, radarIds.Count);
+    }
+
+    private static RadarSourceUniverse CreateArchiveSourceUniverse(int radarOrdinalCount)
+    {
+        var defaultUniverse = ArchiveRadarEventBatchPublishOptions.DefaultSingleRadar.SourceUniverse;
+        if (radarOrdinalCount == defaultUniverse.RadarOrdinalCount)
+        {
+            return defaultUniverse;
+        }
+
+        return new RadarSourceUniverse(
+            defaultUniverse.Version,
+            radarOrdinalCount,
+            defaultUniverse.ElevationSlotCount,
+            defaultUniverse.AzimuthBucketCount,
+            defaultUniverse.RangeBandCount);
     }
 
     private static DefaultRetainedPayloadPrewarm? CreateDefaultRetainedPayloadPrewarm(
@@ -1964,7 +2039,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         long ProcessingCallbackAllocatedBytes,
         RadarProcessingProviderQueueTelemetrySummary QueueTelemetry,
         RadarProcessingRetainedPayloadTelemetrySummary RetentionTelemetry,
-        RadarProcessingArchiveOverlapTelemetrySummary OverlapTelemetry)
+        RadarProcessingArchiveOverlapTelemetrySummary OverlapTelemetry,
+        long ProcessingValidationFailedBatchCount)
     {
         public static ArchiveIterationTelemetry Empty =>
             new(
@@ -1997,7 +2073,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 ProcessingCallbackAllocatedBytes: 0,
                 QueueTelemetry: RadarProcessingProviderQueueTelemetrySummary.Empty,
                 RetentionTelemetry: RadarProcessingRetainedPayloadTelemetrySummary.Empty,
-                OverlapTelemetry: RadarProcessingArchiveOverlapTelemetrySummary.Empty);
+                OverlapTelemetry: RadarProcessingArchiveOverlapTelemetrySummary.Empty,
+                ProcessingValidationFailedBatchCount: 0);
 
         public static ArchiveIterationTelemetry FromMetrics(
             RadarProcessingMetrics metrics,
@@ -2071,7 +2148,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 DirectHotReliefCount = directHotReliefCount,
                 ColdEvacuationCount = coldEvacuationCount,
                 FailedMigrationCount = failedMigrationCount,
-                ValidationSucceeded = result.Validation.IsValid,
+                ValidationSucceeded = result.Validation.IsValid && result.ProcessingResult.IsValid,
+                ProcessingValidationFailedBatchCount = result.ProcessingResult.IsValid ? 0 : 1,
                 SkippedReasons = skippedReasons,
                 SkippedReasonCounters = skippedReasonCounters,
                 AcceptedMovePressures = movePressures
@@ -2129,6 +2207,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 FailedMigrationCount = checked(FailedMigrationCount + other.FailedMigrationCount),
                 ValidationSucceeded = ValidationSucceeded && other.ValidationSucceeded,
                 ValidationChecksum = AppendUInt64(ValidationChecksum, other.ValidationChecksum),
+                ProcessingValidationFailedBatchCount = checked(
+                    ProcessingValidationFailedBatchCount + other.ProcessingValidationFailedBatchCount),
                 SkippedReasons = skippedReasons,
                 SkippedReasonCounters = skippedReasonCounters,
                 AcceptedMovePressures = movePressures,
@@ -2274,6 +2354,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
             FailedMigrationCount == other.FailedMigrationCount &&
             ValidationSucceeded == other.ValidationSucceeded &&
             ValidationChecksum == other.ValidationChecksum &&
+            ProcessingValidationFailedBatchCount == other.ProcessingValidationFailedBatchCount &&
             HasSameSkippedReasonCounters(SkippedReasonCounters, other.SkippedReasonCounters) &&
             HasSameRetentionStats(RetentionStats, other.RetentionStats);
 

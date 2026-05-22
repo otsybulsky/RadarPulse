@@ -32,11 +32,17 @@ architecture document: drafted in
   docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost.md
 implementation plan: drafted in
   docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-plan.md
-implementation: slice 7 gate interpretation and scoped default prewarm
-  complete
+implementation: slice 8 mixed-cache source-universe and processing-completeness
+  follow-up complete
 runtime behavior changes so far:
   direct MeasureFile()/MeasureCache() default-equivalent queued-owned contour
     now prewarms retained payload resources before measured rows
+  direct MeasureCache() auto-sizes its source universe to the selected
+    distinct radar ids when no radar filter is supplied; radar-filtered cache
+    rows remain single-radar
+  archive rebalance result/CLI reporting now exposes processing completeness,
+    processing validation failed batches, and worker failure counts as
+    processing-completeness blockers
   runtime/live ingestion, durable queues, and cross-process surfaces remain
     unchanged
 performance gate:
@@ -44,6 +50,11 @@ performance gate:
     docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-measurefile-gate.md
   small-file MeasureCache gate captured in
     docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-small-cache-gate.md
+  post-fix full cache regression matrix captured in
+    data\temp\m017-cache-regression-runner\output\m017-cache-regression-20260522-110241.md
+    result: 16/16 group rows pass, 28/28 pairs pass safety, processing
+      completeness failures 0, worker failed batches/items 0/0, worst elapsed
+      0.988x, worst allocation 1.009x
 prewarm follow-up:
   opt-in retained payload prewarm prototype implemented and full prewarmed
   MeasureFile gate plus targeted timing rerun captured; explicit prewarmed
@@ -51,6 +62,17 @@ prewarm follow-up:
   allocation blocker for file and selected small-cache rows, with up-front
   prewarm allocation cost kept explicit; slice 7 promoted this to the scoped
   direct benchmark default-equivalent posture with result and CLI attribution
+mixed-cache follow-up:
+  mixed-cache-all worker failures were diagnosed as SourceOrderViolation from
+  running KINX and KTLX through DefaultSingleRadar; MeasureCache now
+  self-sizes mixed-radar source universes and result validation includes
+  processing-result validity
+  verification after the fix:
+    borrowed async mixed-cache-all: source count 46080, published files 828,
+      processing validation failed batches 0, worker failed batches/items 0/0
+    omitted default candidate mixed-cache-all: source count 46080, published
+      files 828, processing validation failed batches 0, worker failed
+      batches/items 0/0, retained pool misses 0, release failures 0
 decision trace: not written
 closeout: not written
 project progress ledger:

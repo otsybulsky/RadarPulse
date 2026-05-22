@@ -1,6 +1,7 @@
 # RadarPulse Project Progress
 
-Status: current after milestone 016 closeout.
+Status: current during milestone 017 after mixed-cache source-universe
+follow-up.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -17,6 +18,7 @@ Current state:
 
 ```text
 completed milestones: 001-016
+active milestone: 017
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive
   rebalance benchmark workloads, accepted with named scoped warnings
@@ -75,9 +77,11 @@ named-risk timing note:
   same-shape row passed at 0.810x
 
 mixed-cache worker-counter note:
-  candidate worker failed batches/items were 221/881 while validation
-  succeeded and failed migrations remained 0; borrowed worker failed counters
-  were not recaptured in milestone 016 slice 5
+  milestone 017 follow-up diagnosed the 221/881 worker failed
+  batches/items as SourceOrderViolation from running mixed KINX/KTLX cache
+  rows through DefaultSingleRadar; MeasureCache now self-sizes mixed-radar
+  source universes and archive rebalance reporting treats processing-invalid
+  batches and worker failures as processing-completeness blockers
 
 file-smoke coverage-only scope:
   the milestone 016 single-file smoke did not reproduce the milestone 015 cold

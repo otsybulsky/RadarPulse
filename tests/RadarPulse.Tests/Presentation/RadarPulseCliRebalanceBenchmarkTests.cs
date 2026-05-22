@@ -1171,6 +1171,8 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             Assert.Contains("Provider queue combined retained payload bytes high watermark: 0", result.StandardOutput);
             Assert.Contains("Provider overlap combined retained payload bytes high watermark: 0", result.StandardOutput);
             Assert.Contains("Execution mode: async", result.StandardOutput);
+            Assert.Contains("Processing completeness: succeeded", result.StandardOutput);
+            Assert.Contains("Processing validation failed batches: 0", result.StandardOutput);
             Assert.Equal(string.Empty, result.StandardError);
         }
         finally
@@ -1240,6 +1242,8 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             Assert.Contains("Provider overlap evidence contour: natural-default-candidate", result.StandardOutput);
             Assert.Contains("Provider overlap evidence scope: natural-readiness", result.StandardOutput);
             Assert.Contains("Execution mode: async", result.StandardOutput);
+            Assert.Contains("Processing completeness: succeeded", result.StandardOutput);
+            Assert.Contains("Processing validation failed batches: 0", result.StandardOutput);
             Assert.Contains("Provider queue telemetry: summary", result.StandardOutput);
             Assert.Contains("Retained payload telemetry: summary", result.StandardOutput);
             Assert.Contains("Retained payload allocation counter scope: current-thread", result.StandardOutput);
