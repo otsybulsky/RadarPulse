@@ -1333,8 +1333,8 @@ Candidate small-file slices, subject to slice 1 and 3 finalization:
 
 ```text
 data\nexrad --date 2026-05-04 --radar KTLX --max-files 2/4/8
-data\nexrad --date 2026-05-04 --radar KINX --max-files 2/4/8
-data\nexrad --date 2026-05-05 --radar KTLX --max-files 2/4/8
+data\nexrad --date 2026-05-04 --radar KINX --max-files 4/8/16
+data\nexrad --date 2026-05-05 --radar KTLX --max-files 4/8/16
 ```
 
 Expected output:
@@ -1349,9 +1349,101 @@ comparison to accepted milestone 016 cache-level posture
 Slice 6 status:
 
 ```text
-status: pending
-runtime behavior changes: none expected unless a blocker requires a targeted
-  fix in a later slice
+status: complete
+runtime behavior changes: none
+gate document:
+  docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-small-cache-gate.md
+gate posture:
+  captured with natural small-file allocation blocker and explicit prewarmed
+  comparison pass
+```
+
+Slice 6 completion notes:
+
+```text
+Release solution build:
+  dotnet build RadarPulse.sln -c Release --no-restore
+  succeeded, 0 warnings, 0 errors
+
+natural temporary runner:
+  location: data\temp\m017-small-cache-gate-runner
+  product surface: none; ignored local measurement harness
+  output:
+    data\temp\m017-small-cache-gate-runner\output\m017-small-cache-20260522-094609.jsonl
+    data\temp\m017-small-cache-gate-runner\output\m017-small-cache-20260522-094609.md
+
+prewarmed comparison runner:
+  location: data\temp\m017-prewarmed-small-cache-gate-runner
+  product surface: none; ignored local measurement harness
+  output:
+    data\temp\m017-prewarmed-small-cache-gate-runner\output\m017-prewarmed-small-cache-20260522-094843.jsonl
+    data\temp\m017-prewarmed-small-cache-gate-runner\output\m017-prewarmed-small-cache-20260522-094843.md
+
+runner contour:
+  surface: RadarProcessingArchiveRebalanceBenchmark.MeasureCache()
+  mode: RebalanceSession
+  iterations: 1
+  warmup iterations: 0
+  parallelism: 24
+  partitions: 24
+  shards: 4
+  pairs per selected slice: 2
+  candidate rows omitted provider/execution/retention controls and resolved to
+    the queued-owned rollout default contour
+  borrowed oracle rows used explicit BlockingBorrowed with AsyncShardTransport,
+    worker count 4, queue capacity 1
+  classification used observed published base-data count, not raw max-files
+
+selected natural slices:
+  KTLX 2026-05-04 max-files 2/4/8:
+    published 2/4/8, skipped 0/0/0
+  KINX 2026-05-04 max-files 4/8/16:
+    published 2/4/8, skipped 2/4/8
+  KTLX 2026-05-05 max-files 4/8/16:
+    published 2/4/8, skipped 2/4/8
+
+natural gate result:
+  all 18 borrowed/default pairs passed safety guardrails
+  validation/checksum parity passed
+  stable totals and topology parity passed
+  examined/skipped/published file counts matched selected slice expectations
+  retained payload failed releases 0
+  provider overlap failed releases 0
+  worker failed batches/items 0/0
+  current retained pressure returned to 0
+  natural elapsed ratios ranged from 0.521x to 0.986x borrowed average
+  natural allocation ratios ranged from 1.176x to 2.168x borrowed average
+  KTLX 2026-05-04 max-files 2:
+    warning, elapsed 0.521x, allocation 1.176x, spread 10.98%
+  KTLX 2026-05-04 max-files 4:
+    optimize, elapsed 0.909x, allocation 1.284x
+  KTLX 2026-05-04 max-files 8:
+    warning, elapsed 0.900x, allocation 1.189x
+  KINX 2026-05-04 max-files 4/8/16:
+    fail/optimize/optimize, allocation 2.063x/1.375x/1.279x
+  KTLX 2026-05-05 max-files 4/8/16:
+    fail/fail/fail, allocation 2.168x/2.077x/1.988x
+
+natural interpretation:
+  low-count MeasureCache() does not amortize the retained owned snapshot
+    allocation cost enough for small-file readiness
+  elapsed is not the blocker
+  natural file/small-file readiness remains allocation-blocked
+
+prewarmed comparison:
+  all 18 borrowed/prewarmed-candidate pairs passed safety guardrails
+  all selected slices passed measured allocation and elapsed thresholds
+  measured allocation ratios ranged from 0.818x to 1.002x
+  elapsed ratios ranged from 0.454x to 0.979x
+  retained pool misses were 0 for every prewarmed candidate row
+  explicit prewarm allocation remained real at approximately 69_206_240 bytes
+    per measured candidate row
+
+slice 6 interpretation:
+  MeasureFile() and low-count MeasureCache() now point at the same posture:
+    natural defaults are safety-clean but allocation-blocked for file and
+    small-file readiness, while explicit prewarm removes the measured
+    allocation blocker if its up-front cost is accepted and attributed
 ```
 
 ### 7. Gate Interpretation And Follow-Up Fixes
@@ -1616,23 +1708,23 @@ Milestone 017 is complete when:
     cache-level posture
 [x] CLI omitted-provider file benchmark remains aligned with direct API
     defaults unless a scoped file-level decision changes that posture
-[ ] correctness parity against borrowed rows is preserved for every readiness
+[x] correctness parity against borrowed rows is preserved for every readiness
     row
-[ ] retained cleanup returns current pressure to zero in natural direct/default
+[x] retained cleanup returns current pressure to zero in natural direct/default
     rows
-[ ] release failures remain 0
-[ ] retained pressure stays within the configured 536870912 byte budget
+[x] release failures remain 0
+[x] retained pressure stays within the configured 536870912 byte budget
 [x] cold file-level allocation and elapsed cost are classified against
     thresholds recorded before gate interpretation
 [x] repeated/warm file-level behavior is classified separately from cold
     behavior
-[ ] small-file cache slices show whether cold retained cost is partially
+[x] small-file cache slices show whether cold retained cost is partially
     amortized or remains a blocker
-[ ] allocation and timing attribution are sufficient to explain remaining cost
+[x] allocation and timing attribution are sufficient to explain remaining cost
     or the decision trace names attribution as a blocker
 [ ] queued-owned failures remain fail-closed with no automatic borrowed
     fallback
-[ ] performance gate is captured
+[x] performance gate is captured
 [ ] decision trace records the file-level default-readiness decision
 [ ] closeout records verification, gate results, residual risks, and carry
     forward items

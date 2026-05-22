@@ -2,14 +2,14 @@
 
 ## Current State
 
-Milestone 017 has started in planning. The milestone documents created so far
-are:
+Milestone 017 is in progress. The milestone documents created so far are:
 
 ```text
 docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost.md
 docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-plan.md
 docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-measurefile-gate.md
 docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-prewarmed-measurefile-gate.md
+docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-small-cache-gate.md
 ```
 
 Milestone 017 is the file-level default readiness and cold
@@ -31,19 +31,20 @@ architecture document: drafted in
   docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost.md
 implementation plan: drafted in
   docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-plan.md
-implementation: slice 5 cold and warm MeasureFile Release gate
+implementation: slice 6 small-file MeasureCache transition gate
   complete
 runtime behavior changes so far: none
 performance gate:
   MeasureFile gate captured in
     docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-measurefile-gate.md
-  small-file MeasureCache transition gate pending
+  small-file MeasureCache gate captured in
+    docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-small-cache-gate.md
 prewarm follow-up:
   opt-in retained payload prewarm prototype implemented and full prewarmed
-  MeasureFile gate plus targeted timing rerun captured; allocation blocker
-  removed from measured rows, fail-level timing outliers did not reproduce,
-  remaining elapsed jitter is carried as a non-blocking filesystem timing note
-  before decision trace
+  MeasureFile gate plus targeted timing rerun captured; explicit prewarmed
+  MeasureCache comparison also captured; prewarm removed the measured
+  allocation blocker for file and selected small-cache rows, with up-front
+  prewarm allocation cost kept explicit
 decision trace: not written
 closeout: not written
 project progress ledger:
@@ -522,6 +523,70 @@ interpretation:
     filesystem timing note
 ```
 
+Milestone 017 slice 6 small-file MeasureCache gate:
+
+```text
+status:
+  complete
+
+runtime behavior changes:
+  none
+
+gate document:
+  docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-small-cache-gate.md
+
+natural raw outputs:
+  data\temp\m017-small-cache-gate-runner\output\m017-small-cache-20260522-094609.jsonl
+  data\temp\m017-small-cache-gate-runner\output\m017-small-cache-20260522-094609.md
+
+prewarmed comparison raw outputs:
+  data\temp\m017-prewarmed-small-cache-gate-runner\output\m017-prewarmed-small-cache-20260522-094843.jsonl
+  data\temp\m017-prewarmed-small-cache-gate-runner\output\m017-prewarmed-small-cache-20260522-094843.md
+
+selected slices:
+  KTLX 2026-05-04 max-files 2/4/8:
+    published 2/4/8, skipped 0/0/0
+  KINX 2026-05-04 max-files 4/8/16:
+    published 2/4/8, skipped 2/4/8
+  KTLX 2026-05-05 max-files 4/8/16:
+    published 2/4/8, skipped 2/4/8
+
+natural gate result:
+  all 18 borrowed/default pairs passed safety guardrails
+  validation/checksum parity passed
+  stable totals and topology parity passed
+  release failures 0
+  worker failed batches/items 0/0
+  current retained pressure returned to 0
+  elapsed ratios ranged 0.521x to 0.986x borrowed average
+  allocation ratios ranged 1.176x to 2.168x borrowed average
+  status summary:
+    KTLX 2026-05-04: warning/optimize/warning for 2/4/8 published files
+    KINX 2026-05-04: fail/optimize/optimize for 2/4/8 published files
+    KTLX 2026-05-05: fail/fail/fail for 2/4/8 published files
+
+natural interpretation:
+  low-count MeasureCache() does not amortize retained owned snapshot
+    allocation enough for small-file readiness
+  elapsed is not the blocker
+  natural file/small-file readiness remains allocation-blocked
+
+prewarmed comparison:
+  all 18 borrowed/prewarmed-candidate pairs passed safety guardrails
+  all selected slices passed measured allocation and elapsed thresholds
+  measured allocation ratios ranged 0.818x to 1.002x
+  elapsed ratios ranged 0.454x to 0.979x
+  retained pool misses were 0 for every prewarmed candidate row
+  explicit prewarm allocation remained real at about 69_206_240 bytes per
+    measured candidate row
+
+slice 6 interpretation:
+  MeasureFile() and low-count MeasureCache() now point at the same posture:
+  natural defaults are safety-clean but allocation-blocked for file and
+  small-file readiness, while explicit prewarm removes the measured allocation
+  blocker if its up-front cost is accepted and attributed
+```
+
 Milestone 017 planned slices:
 
 ```text
@@ -530,7 +595,7 @@ Milestone 017 planned slices:
 3. threshold and runner design complete
 4. focused regression and file sanity pass complete
 5. cold and warm MeasureFile Release gate complete
-6. small-file cache transition gate pending
+6. small-file cache transition gate complete
 7. gate interpretation and follow-up fixes pending
 8. file-level readiness decision trace pending
 9. closeout, handoff, and project progress pending
@@ -592,23 +657,17 @@ small-cache success
 Recommended current next action:
 
 ```text
-continue milestone 017 slice 6:
-  run same-run direct MeasureCache() borrowed/default pairs for the selected
-    low-count cache slices
-  use the slice 3 low-count threshold bands by expected published base-data
-    count
-  preserve explicit BlockingBorrowed oracle rows for every slice
-  capture KTLX 2026-05-04, KINX 2026-05-04, and KTLX 2026-05-05 low-count
-    slices with the selected max-files values
-  keep examined/skipped/published counts visible because metadata interleaves
-    in the KINX and KTLX 2026-05-05 low-count selectors
-  classify each low-count slice separately before aggregate interpretation
-  compare the small-file cache result against the slice 5 MeasureFile
-    allocation blocker
-  decide whether to add explicit prewarmed MeasureCache comparison rows after
-    the natural small-file cache rows, because prewarm has now removed the
-    measured MeasureFile allocation blocker and leaves only a filesystem
-    timing note
+continue milestone 017 slice 7:
+  interpret MeasureFile and small-file MeasureCache evidence together
+  decide whether natural file/small-file defaults remain rejected,
+    optimization-bound, or split behind explicit prewarm
+  keep broader cache-level default readiness separate from file/small-file
+    readiness
+  preserve explicit BlockingBorrowed oracle posture
+  decide how to carry the prewarm cost and filesystem timing note into the
+    decision trace
+  list any follow-up fixes, or explicitly record no-fix posture before the
+    decision trace
 ```
 
 ## Milestone 016 Baseline
