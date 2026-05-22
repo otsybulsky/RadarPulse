@@ -1236,8 +1236,10 @@ gate document:
   docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-prewarmed-measurefile-gate.md
 
 default posture:
-  unchanged; queued-owned omitted defaults still use the accepted rollout
-    contour without hidden prewarm
+  slice 5 gate posture was unchanged; queued-owned omitted defaults still used
+    the accepted rollout contour without hidden prewarm
+  superseded by slice 7 scoped default-prewarm posture for the direct
+    file/small-cache benchmark default-equivalent contour
 
 implemented opt-in mechanics:
   retained event-array pool prewarm
@@ -1444,6 +1446,8 @@ slice 6 interpretation:
     natural defaults are safety-clean but allocation-blocked for file and
     small-file readiness, while explicit prewarm removes the measured
     allocation blocker if its up-front cost is accepted and attributed
+  slice 7 accepts that scoped cost as the direct file/small-cache benchmark
+    default posture, with separate prewarm attribution
 ```
 
 ### 7. Gate Interpretation And Follow-Up Fixes
@@ -1497,13 +1501,84 @@ gate interpretation notes
 follow-up fix list, or explicit no-fix posture
 decision-trace input
 residual warnings and blockers
+docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-interpretation.md
 ```
 
 Slice 7 status:
 
 ```text
-status: pending
-runtime behavior changes: none unless a targeted fix is accepted
+status: complete
+runtime behavior changes:
+  direct MeasureFile()/MeasureCache() default-equivalent queued-owned contour
+    now prewarms retained payload resources before measured rows
+  prewarm cost is not folded into measured row allocation; it is exposed
+    through result attribution and CLI output
+  runtime/live ingestion, durable queues, and cross-process surfaces remain
+    unchanged
+interpretation document:
+  docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-interpretation.md
+```
+
+Slice 7 completion notes:
+
+```text
+implemented default contour:
+  effective queued-owned rollout-default contour
+  provider overlap: producer-consumer
+  retention strategy: pooled-copy
+  execution: async shard transport
+  worker count: 4
+  worker queue capacity: 8
+  provider queue capacity: 8
+  retained-byte budget: 536870912
+  overlap consumer delay: 0
+
+default prewarm sizing:
+  event count: 65_536
+  payload bytes: 67_108_864
+  retained batch count: 1
+
+implementation:
+  RadarProcessingArchiveRebalanceRolloutDefaults pins the default prewarm
+    enablement and sizing constants
+  RadarProcessingArchiveRebalanceBenchmark.MeasureFile() and MeasureCache()
+    create a prewarmed retained payload factory automatically when the
+    effective contour matches the rollout default and no caller supplied a
+    retained payload factory
+  explicit BlockingBorrowed remains unprewarmed
+  caller-supplied retained payload factories remain caller-owned and are not
+    reported as automatic default prewarm
+  result contracts expose RetainedPayloadPrewarm,
+    HasRetainedPayloadPrewarm, RetainedPayloadPrewarmAllocatedBytes, and
+    RetainedPayloadPrewarmRetainedBytes
+  CLI rebalance-archive output prints retained payload prewarm attribution
+
+verification:
+  focused regression passed:
+    89 passed, 0 failed, 0 skipped
+  post-default cache regression matrix:
+    data\temp\m017-cache-regression-runner\output\m017-cache-regression-20260522-101200.jsonl
+    data\temp\m017-cache-regression-runner\output\m017-cache-regression-20260522-101200.md
+    16 group rows passed, 0 warning, 0 optimize, 0 failed
+    28 borrowed/candidate pairs passed safety, 0 failed
+    worst measured allocation ratio 1.008x on mixed-cache-all
+    worst elapsed ratio 0.994x on KTLX 2026-05-04 4-file small-cache row
+    worst candidate spread 3.68%
+    pool misses 0, validation failures 0, release failures 0, current
+      retained bytes 0
+
+interpretation:
+  natural file/small-file defaults remain historical evidence for the cold
+    retained allocation blocker
+  current direct file/small-cache default posture is queued-owned rollout
+    default plus retained payload prewarm
+  prewarm allocation is accepted as a named up-front default cost for this
+    direct benchmark surface, not hidden inside measured allocation
+  post-default cache regression matrix found no cache-level performance
+    regression; mixed-cache-all retains the known worker-counter note while
+    validation, migration, release, and cleanup guardrails remain clean
+  broader cache-level milestone 016 readiness remains accepted and runtime
+    expansion remains out of scope
 ```
 
 ### 8. File-Level Readiness Decision Trace
@@ -1701,13 +1776,13 @@ Milestone 017 is complete when:
 [x] file-level thresholds are recorded before Release gate interpretation
 [x] same-run explicit BlockingBorrowed oracle rows remain available,
     documented, and visibly separate
-[x] direct MeasureFile() omitted defaults still resolve to the accepted
-    queued-owned rollout contour unless a scoped file-level decision changes
-    that posture
-[x] direct MeasureCache() omitted defaults preserve the milestone 016 accepted
-    cache-level posture
+[x] direct MeasureFile() omitted defaults resolve to the accepted queued-owned
+    rollout contour with the slice 7 scoped retained-payload prewarm default
+[x] direct MeasureCache() omitted defaults preserve the accepted queued-owned
+    contour with the slice 7 scoped retained-payload prewarm attribution on
+    the direct benchmark default-equivalent path
 [x] CLI omitted-provider file benchmark remains aligned with direct API
-    defaults unless a scoped file-level decision changes that posture
+    defaults, including slice 7 retained-payload prewarm attribution
 [x] correctness parity against borrowed rows is preserved for every readiness
     row
 [x] retained cleanup returns current pressure to zero in natural direct/default
@@ -1722,7 +1797,7 @@ Milestone 017 is complete when:
     amortized or remains a blocker
 [x] allocation and timing attribution are sufficient to explain remaining cost
     or the decision trace names attribution as a blocker
-[ ] queued-owned failures remain fail-closed with no automatic borrowed
+[x] queued-owned failures remain fail-closed with no automatic borrowed
     fallback
 [x] performance gate is captured
 [ ] decision trace records the file-level default-readiness decision

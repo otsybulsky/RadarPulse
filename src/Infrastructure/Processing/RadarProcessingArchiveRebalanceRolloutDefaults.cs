@@ -14,6 +14,10 @@ public static class RadarProcessingArchiveRebalanceRolloutDefaults
     public const int WorkerQueueCapacity = 8;
     public const int ProviderQueueCapacity = 8;
     public const long RetainedPayloadBytes = 536_870_912;
+    public const bool RetainedPayloadPrewarmEnabled = true;
+    public const int RetainedPayloadPrewarmEventCount = 65_536;
+    public const int RetainedPayloadPrewarmPayloadBytes = 64 * 1024 * 1024;
+    public const int RetainedPayloadPrewarmBatchCount = 1;
 
     public static TimeSpan OverlapConsumerDelay => TimeSpan.Zero;
 

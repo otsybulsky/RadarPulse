@@ -7,4 +7,12 @@ public sealed record RadarProcessingRetainedPayloadPrewarmResult(
     TimeSpan Elapsed,
     long AllocatedBytes,
     long EventPoolRetainedBytes,
-    long PayloadPoolRetainedBytes);
+    long PayloadPoolRetainedBytes)
+{
+    public static RadarProcessingRetainedPayloadPrewarmResult None { get; } =
+        new(0, 0, 0, TimeSpan.Zero, 0, 0, 0);
+
+    public bool Applied => RetainedBatchCount > 0;
+
+    public long RetainedBytes => EventPoolRetainedBytes + PayloadPoolRetainedBytes;
+}

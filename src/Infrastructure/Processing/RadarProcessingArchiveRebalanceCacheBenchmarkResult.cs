@@ -63,7 +63,8 @@ public sealed record RadarProcessingArchiveRebalanceCacheBenchmarkResult(
     RadarProcessingProviderQueueTelemetrySummary? QueueTelemetry = null,
     RadarProcessingRetainedPayloadTelemetrySummary? RetentionTelemetry = null,
     RadarProcessingArchiveOverlapTelemetrySummary? OverlapTelemetry = null,
-    TimeSpan OverlapConsumerDelay = default)
+    TimeSpan OverlapConsumerDelay = default,
+    RadarProcessingRetainedPayloadPrewarmResult? RetainedPayloadPrewarm = null)
 {
     public bool HasWorkerTelemetry => WorkerTelemetry is not null;
 
@@ -97,6 +98,15 @@ public sealed record RadarProcessingArchiveRebalanceCacheBenchmarkResult(
 
     public RadarProcessingArchiveOverlapTelemetrySummary OverlapTelemetry { get; init; } =
         OverlapTelemetry ?? RadarProcessingArchiveOverlapTelemetrySummary.Empty;
+
+    public RadarProcessingRetainedPayloadPrewarmResult RetainedPayloadPrewarm { get; init; } =
+        RetainedPayloadPrewarm ?? RadarProcessingRetainedPayloadPrewarmResult.None;
+
+    public bool HasRetainedPayloadPrewarm => RetainedPayloadPrewarm.Applied;
+
+    public long RetainedPayloadPrewarmAllocatedBytes => RetainedPayloadPrewarm.AllocatedBytes;
+
+    public long RetainedPayloadPrewarmRetainedBytes => RetainedPayloadPrewarm.RetainedBytes;
 
     public long TotalExaminedFiles => ExaminedFilesPerIteration * Iterations;
 

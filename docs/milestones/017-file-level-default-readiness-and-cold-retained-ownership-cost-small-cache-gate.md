@@ -7,8 +7,10 @@ This document records the milestone 017 low-count direct `MeasureCache()` gate.
 The gate was captured after the slice 5 direct `MeasureFile()` evidence showed
 that retained owned snapshot allocation is the file-level blocker.
 
-The default queued-owned rollout contour was not changed. Prewarm remained an
-explicit opt-in comparison contour.
+At capture time, the default queued-owned rollout contour was not changed.
+Prewarm remained an explicit opt-in comparison contour. Slice 7 later used
+this evidence to implement scoped default prewarm for the direct benchmark
+default-equivalent file/small-cache contour, with separate cost attribution.
 
 ## Gate Purpose
 

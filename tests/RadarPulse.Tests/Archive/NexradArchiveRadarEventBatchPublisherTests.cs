@@ -666,6 +666,9 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
             AssertDirectQueuedOwnedRolloutContour(directDefault);
             AssertDirectBorrowedDefaultContour(borrowed);
             AssertDirectQueuedOwnedRolloutContour(rollout);
+            AssertDefaultRetainedPayloadPrewarm(directDefault);
+            Assert.False(borrowed.HasRetainedPayloadPrewarm);
+            AssertDefaultRetainedPayloadPrewarm(rollout);
             Assert.Equal(directDefault.BatchesPerIteration, rollout.BatchesPerIteration);
             Assert.Equal(directDefault.EventsPerIteration, rollout.EventsPerIteration);
             Assert.Equal(directDefault.PayloadValuesPerIteration, rollout.PayloadValuesPerIteration);
@@ -737,6 +740,7 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
                 retainedPayloadFactory: retainedPayloadFactory);
 
             AssertDirectQueuedOwnedRolloutContour(result);
+            Assert.False(result.HasRetainedPayloadPrewarm);
             Assert.True(prewarm.AllocatedBytes > 0);
             Assert.Equal(1, result.RetentionTelemetry.EventPoolRentCount);
             Assert.Equal(1, result.RetentionTelemetry.PayloadPoolRentCount);
@@ -768,6 +772,10 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
             RadarProcessingArchiveRebalanceRolloutDefaults.ExecutionMode);
         Assert.Equal(4, RadarProcessingArchiveRebalanceRolloutDefaults.WorkerCount);
         Assert.Equal(8, RadarProcessingArchiveRebalanceRolloutDefaults.WorkerQueueCapacity);
+        Assert.True(RadarProcessingArchiveRebalanceRolloutDefaults.RetainedPayloadPrewarmEnabled);
+        Assert.Equal(65_536, RadarProcessingArchiveRebalanceRolloutDefaults.RetainedPayloadPrewarmEventCount);
+        Assert.Equal(64 * 1024 * 1024, RadarProcessingArchiveRebalanceRolloutDefaults.RetainedPayloadPrewarmPayloadBytes);
+        Assert.Equal(1, RadarProcessingArchiveRebalanceRolloutDefaults.RetainedPayloadPrewarmBatchCount);
         Assert.Equal(8, RadarProcessingArchiveRebalanceRolloutDefaults.ProviderQueueCapacity);
         Assert.Equal(536_870_912, RadarProcessingArchiveRebalanceRolloutDefaults.RetainedPayloadBytes);
         Assert.Equal(TimeSpan.Zero, RadarProcessingArchiveRebalanceRolloutDefaults.OverlapConsumerDelay);
@@ -1553,6 +1561,9 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
             AssertDirectQueuedOwnedRolloutContour(directDefault);
             AssertDirectBorrowedDefaultContour(borrowed);
             AssertDirectQueuedOwnedRolloutContour(rollout);
+            AssertDefaultRetainedPayloadPrewarm(directDefault);
+            Assert.False(borrowed.HasRetainedPayloadPrewarm);
+            AssertDefaultRetainedPayloadPrewarm(rollout);
             Assert.Equal(directDefault.ExaminedFilesPerIteration, rollout.ExaminedFilesPerIteration);
             Assert.Equal(directDefault.SkippedFilesPerIteration, rollout.SkippedFilesPerIteration);
             Assert.Equal(directDefault.PublishedFilesPerIteration, rollout.PublishedFilesPerIteration);
@@ -1940,6 +1951,8 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
         Assert.Equal(0, result.CurrentActiveRetainedBatchCount);
         Assert.Equal(0, result.CurrentCombinedRetainedBatchCount);
         Assert.Equal(0, result.CurrentCombinedRetainedPayloadBytes);
+        Assert.False(result.HasRetainedPayloadPrewarm);
+        Assert.Equal(0, result.RetainedPayloadPrewarmAllocatedBytes);
         Assert.False(result.AllocationSummary.IncludesCliFormatting);
     }
 
@@ -1970,7 +1983,47 @@ public sealed class NexradArchiveRadarEventBatchPublisherTests
         Assert.Equal(0, result.CurrentActiveRetainedBatchCount);
         Assert.Equal(0, result.CurrentCombinedRetainedBatchCount);
         Assert.Equal(0, result.CurrentCombinedRetainedPayloadBytes);
+        Assert.False(result.HasRetainedPayloadPrewarm);
+        Assert.Equal(0, result.RetainedPayloadPrewarmAllocatedBytes);
         Assert.False(result.AllocationSummary.IncludesCliFormatting);
+    }
+
+    private static void AssertDefaultRetainedPayloadPrewarm(
+        RadarProcessingArchiveRebalanceBenchmarkResult result)
+    {
+        Assert.True(result.HasRetainedPayloadPrewarm);
+        Assert.Equal(
+            RadarProcessingArchiveRebalanceRolloutDefaults.RetainedPayloadPrewarmEventCount,
+            result.RetainedPayloadPrewarm.EventCount);
+        Assert.Equal(
+            RadarProcessingArchiveRebalanceRolloutDefaults.RetainedPayloadPrewarmPayloadBytes,
+            result.RetainedPayloadPrewarm.PayloadBytes);
+        Assert.Equal(
+            RadarProcessingArchiveRebalanceRolloutDefaults.RetainedPayloadPrewarmBatchCount,
+            result.RetainedPayloadPrewarm.RetainedBatchCount);
+        Assert.True(result.RetainedPayloadPrewarmAllocatedBytes > 0);
+        Assert.Equal(
+            result.RetainedPayloadPrewarm.RetainedBytes,
+            result.RetainedPayloadPrewarmRetainedBytes);
+    }
+
+    private static void AssertDefaultRetainedPayloadPrewarm(
+        RadarProcessingArchiveRebalanceCacheBenchmarkResult result)
+    {
+        Assert.True(result.HasRetainedPayloadPrewarm);
+        Assert.Equal(
+            RadarProcessingArchiveRebalanceRolloutDefaults.RetainedPayloadPrewarmEventCount,
+            result.RetainedPayloadPrewarm.EventCount);
+        Assert.Equal(
+            RadarProcessingArchiveRebalanceRolloutDefaults.RetainedPayloadPrewarmPayloadBytes,
+            result.RetainedPayloadPrewarm.PayloadBytes);
+        Assert.Equal(
+            RadarProcessingArchiveRebalanceRolloutDefaults.RetainedPayloadPrewarmBatchCount,
+            result.RetainedPayloadPrewarm.RetainedBatchCount);
+        Assert.True(result.RetainedPayloadPrewarmAllocatedBytes > 0);
+        Assert.Equal(
+            result.RetainedPayloadPrewarm.RetainedBytes,
+            result.RetainedPayloadPrewarmRetainedBytes);
     }
 
     private static void AssertDirectQueuedOwnedRolloutContour(

@@ -10,6 +10,7 @@ docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cos
 docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-measurefile-gate.md
 docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-prewarmed-measurefile-gate.md
 docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-small-cache-gate.md
+docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-interpretation.md
 ```
 
 Milestone 017 is the file-level default readiness and cold
@@ -31,9 +32,13 @@ architecture document: drafted in
   docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost.md
 implementation plan: drafted in
   docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-plan.md
-implementation: slice 6 small-file MeasureCache transition gate
+implementation: slice 7 gate interpretation and scoped default prewarm
   complete
-runtime behavior changes so far: none
+runtime behavior changes so far:
+  direct MeasureFile()/MeasureCache() default-equivalent queued-owned contour
+    now prewarms retained payload resources before measured rows
+  runtime/live ingestion, durable queues, and cross-process surfaces remain
+    unchanged
 performance gate:
   MeasureFile gate captured in
     docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-measurefile-gate.md
@@ -44,7 +49,8 @@ prewarm follow-up:
   MeasureFile gate plus targeted timing rerun captured; explicit prewarmed
   MeasureCache comparison also captured; prewarm removed the measured
   allocation blocker for file and selected small-cache rows, with up-front
-  prewarm allocation cost kept explicit
+  prewarm allocation cost kept explicit; slice 7 promoted this to the scoped
+  direct benchmark default-equivalent posture with result and CLI attribution
 decision trace: not written
 closeout: not written
 project progress ledger:
@@ -79,6 +85,10 @@ effective contour:
   provider queue capacity: 8
   retained-byte budget: 536870912
   overlap consumer delay: 0
+  retained payload prewarm: on for the direct benchmark default-equivalent
+    contour
+  retained payload prewarm sizing: 65_536 events, 67_108_864 payload bytes,
+    1 retained batch
 ```
 
 Milestone 017 starting evidence from milestone 016:
@@ -458,14 +468,17 @@ Milestone 017 cold-start prewarm follow-up:
 
 ```text
 status:
-  opt-in prototype implemented and full prewarmed MeasureFile gate captured
+  opt-in prototype implemented, prewarmed MeasureFile and small-cache
+  comparisons captured, and slice 7 scoped default prewarm implemented
 
 gate document:
   docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-prewarmed-measurefile-gate.md
 
-default posture:
-  unchanged; omitted MeasureFile()/MeasureCache() defaults do not silently
-  prewarm retained pools
+current default posture:
+  direct MeasureFile()/MeasureCache() default-equivalent queued-owned contour
+  prewarms retained payload resources automatically before measured rows
+  prewarm is not silent: result contracts and CLI output expose the up-front
+  allocated and retained bytes
 
 implemented mechanics:
   RadarProcessingRetainedEventArrayPool.Prewarm(...)
@@ -473,6 +486,8 @@ implemented mechanics:
   RadarProcessingRetainedPayloadFactory.Prewarm(...)
   optional retained payload factory passthrough for MeasureFile(),
     MeasureCache(), and queued overlap options
+  automatic default prewarm for the direct benchmark default-equivalent
+    queued-owned contour when no caller supplied retained payload factory
 
 full prewarmed gate:
   raw primary outputs:
@@ -521,6 +536,8 @@ interpretation:
   fail-level timing outliers did not reproduce in targeted repeats
   the prewarmed MeasureFile contour is allocation-ready with a non-blocking
     filesystem timing note
+  slice 7 accepts scoped default prewarm for the direct file/small-cache
+    benchmark default-equivalent contour
 ```
 
 Milestone 017 slice 6 small-file MeasureCache gate:
@@ -585,6 +602,71 @@ slice 6 interpretation:
   natural defaults are safety-clean but allocation-blocked for file and
   small-file readiness, while explicit prewarm removes the measured allocation
   blocker if its up-front cost is accepted and attributed
+  slice 7 accepted that cost as the scoped direct benchmark default posture
+```
+
+Milestone 017 slice 7 interpretation and default prewarm:
+
+```text
+status:
+  complete
+
+interpretation document:
+  docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-interpretation.md
+
+implemented default contour:
+  effective queued-owned rollout-default contour
+  provider overlap: producer-consumer
+  retention strategy: pooled-copy
+  execution: async shard transport
+  worker count: 4
+  worker queue capacity: 8
+  provider queue capacity: 8
+  retained-byte budget: 536870912
+  overlap consumer delay: 0
+
+default prewarm sizing:
+  event count: 65_536
+  payload bytes: 67_108_864
+  retained batch count: 1
+
+product behavior:
+  MeasureFile() and MeasureCache() create a prewarmed retained payload factory
+    automatically when the effective contour matches the rollout default and
+    no caller supplied a retained payload factory
+  explicit BlockingBorrowed remains unprewarmed
+  caller-supplied retained payload factories remain caller-owned and are not
+    reported as automatic default prewarm
+  result contracts expose RetainedPayloadPrewarm,
+    HasRetainedPayloadPrewarm, RetainedPayloadPrewarmAllocatedBytes, and
+    RetainedPayloadPrewarmRetainedBytes
+  CLI rebalance-archive output prints retained payload prewarm attribution
+
+verification:
+  focused regression passed:
+    89 passed, 0 failed, 0 skipped
+  post-default cache regression matrix:
+    data\temp\m017-cache-regression-runner\output\m017-cache-regression-20260522-101200.jsonl
+    data\temp\m017-cache-regression-runner\output\m017-cache-regression-20260522-101200.md
+    16 group rows passed, 0 warning, 0 optimize, 0 failed
+    28 borrowed/candidate pairs passed safety, 0 failed
+    worst measured allocation ratio 1.008x on mixed-cache-all
+    worst elapsed ratio 0.994x on KTLX 2026-05-04 4-file small-cache row
+    worst candidate spread 3.68%
+    pool misses 0, validation failures 0, release failures 0, current
+      retained bytes 0
+
+decision-trace input:
+  natural file/small-file defaults remain historical evidence for the cold
+    retained allocation blocker
+  current file/small-cache default posture is queued-owned rollout default
+    plus retained payload prewarm
+  prewarm allocation is accepted as a named up-front default cost for this
+    direct benchmark surface, not hidden inside measured allocation
+  post-default cache regression matrix found no cache-level performance
+    regression; mixed-cache-all retains the known worker-counter note while
+    validation, migration, release, and cleanup guardrails remain clean
+  broader cache-level milestone 016 readiness remains accepted
 ```
 
 Milestone 017 planned slices:
@@ -596,7 +678,7 @@ Milestone 017 planned slices:
 4. focused regression and file sanity pass complete
 5. cold and warm MeasureFile Release gate complete
 6. small-file cache transition gate complete
-7. gate interpretation and follow-up fixes pending
+7. gate interpretation and follow-up fixes complete
 8. file-level readiness decision trace pending
 9. closeout, handoff, and project progress pending
 ```
@@ -636,7 +718,9 @@ benchmark repeatability regressed
 Milestone 017 preserved guardrails:
 
 ```text
-direct MeasureFile()/MeasureCache() omitted defaults start queued-owned
+direct MeasureFile()/MeasureCache() omitted defaults start queued-owned with
+scoped retained-payload prewarm on the direct benchmark default-equivalent
+contour
 explicit BlockingBorrowed remains fallback/oracle
 same-run BlockingBorrowed rows remain required for readiness gates
 CLI omitted-provider rebalance-archive remains aligned with direct defaults
@@ -650,24 +734,21 @@ live ingestion/runtime defaults remain out of scope
 durable queues, cross-process workers, and ordered concurrent rebalance remain
 out of scope
 thresholds must not be raised after gate capture
-cold retained-ownership cost must not be hidden behind prewarm or aggregate
-small-cache success
+cold retained-ownership cost must not be hidden behind aggregate small-cache
+success; scoped prewarm cost must remain explicit in result and CLI
 ```
 
 Recommended current next action:
 
 ```text
-continue milestone 017 slice 7:
-  interpret MeasureFile and small-file MeasureCache evidence together
-  decide whether natural file/small-file defaults remain rejected,
-    optimization-bound, or split behind explicit prewarm
-  keep broader cache-level default readiness separate from file/small-file
-    readiness
+continue milestone 017 slice 8:
+  write the formal file-level readiness decision trace
+  record current direct file/small-cache default posture as queued-owned
+    rollout default plus retained payload prewarm
+  keep broader cache-level default readiness separate from runtime expansion
   preserve explicit BlockingBorrowed oracle posture
-  decide how to carry the prewarm cost and filesystem timing note into the
-    decision trace
-  list any follow-up fixes, or explicitly record no-fix posture before the
-    decision trace
+  carry the named prewarm cost and filesystem timing note into the decision
+    trace
 ```
 
 ## Milestone 016 Baseline

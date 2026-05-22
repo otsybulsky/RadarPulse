@@ -105,6 +105,18 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 ? RadarProcessingArchiveRebalanceRolloutDefaults.CreateAsyncExecution()
                 : new RadarProcessingAsyncExecutionOptions(workerCount: shardCount, queueCapacity: 1))
             : asyncExecution;
+        var defaultRetainedPayloadPrewarm = CreateDefaultRetainedPayloadPrewarm(
+            effectiveProviderMode,
+            effectiveProviderOverlapMode,
+            effectiveRetentionStrategy,
+            effectiveExecutionMode,
+            effectiveAsyncExecution,
+            effectiveQueueCapacity,
+            effectiveQueueRetainedPayloadBytes,
+            overlapConsumerDelay,
+            retainedPayloadFactory);
+        var effectiveRetainedPayloadFactory =
+            defaultRetainedPayloadPrewarm?.Factory ?? retainedPayloadFactory;
 
         var fileInfo = new FileInfo(filePath);
         if (!fileInfo.Exists)
@@ -159,7 +171,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                     effectiveRetentionStrategy,
                     effectiveQueueRetainedPayloadBytes,
                     overlapConsumerDelay,
-                    retainedPayloadFactory,
+                    effectiveRetainedPayloadFactory,
                     cancellationToken);
             }
 
@@ -191,7 +203,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                     effectiveRetentionStrategy,
                     effectiveQueueRetainedPayloadBytes,
                     overlapConsumerDelay,
-                    retainedPayloadFactory,
+                    effectiveRetainedPayloadFactory,
                     cancellationToken);
                 if (expectedIteration.HasValue && !expectedIteration.Value.HasSameStableTotals(iterationTelemetry))
                 {
@@ -269,7 +281,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 aggregate.QueueTelemetry,
                 aggregate.RetentionTelemetry,
                 aggregate.OverlapTelemetry,
-                overlapConsumerDelay);
+                overlapConsumerDelay,
+                defaultRetainedPayloadPrewarm?.Result);
         }
         finally
         {
@@ -366,6 +379,18 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 ? RadarProcessingArchiveRebalanceRolloutDefaults.CreateAsyncExecution()
                 : new RadarProcessingAsyncExecutionOptions(workerCount: shardCount, queueCapacity: 1))
             : asyncExecution;
+        var defaultRetainedPayloadPrewarm = CreateDefaultRetainedPayloadPrewarm(
+            effectiveProviderMode,
+            effectiveProviderOverlapMode,
+            effectiveRetentionStrategy,
+            effectiveExecutionMode,
+            effectiveAsyncExecution,
+            effectiveQueueCapacity,
+            effectiveQueueRetainedPayloadBytes,
+            overlapConsumerDelay,
+            retainedPayloadFactory);
+        var effectiveRetainedPayloadFactory =
+            defaultRetainedPayloadPrewarm?.Factory ?? retainedPayloadFactory;
 
         var directoryInfo = new DirectoryInfo(cachePath);
         if (!directoryInfo.Exists)
@@ -426,7 +451,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                     effectiveRetentionStrategy,
                     effectiveQueueRetainedPayloadBytes,
                     overlapConsumerDelay,
-                    retainedPayloadFactory,
+                    effectiveRetainedPayloadFactory,
                     cancellationToken);
             }
 
@@ -461,7 +486,7 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                     effectiveRetentionStrategy,
                     effectiveQueueRetainedPayloadBytes,
                     overlapConsumerDelay,
-                    retainedPayloadFactory,
+                    effectiveRetainedPayloadFactory,
                     cancellationToken);
                 if (expectedIteration.HasValue && !expectedIteration.Value.HasSameStableTotals(iterationTelemetry))
                 {
@@ -544,7 +569,8 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 aggregate.QueueTelemetry,
                 aggregate.RetentionTelemetry,
                 aggregate.OverlapTelemetry,
-                overlapConsumerDelay);
+                overlapConsumerDelay,
+                defaultRetainedPayloadPrewarm?.Result);
         }
         finally
         {
@@ -553,6 +579,40 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
                 workerGroup.DisposeAsync().GetAwaiter().GetResult();
             }
         }
+    }
+
+    private static DefaultRetainedPayloadPrewarm? CreateDefaultRetainedPayloadPrewarm(
+        RadarProcessingArchiveProviderMode providerMode,
+        RadarProcessingQueuedProviderOverlapMode providerOverlapMode,
+        RadarProcessingRetainedPayloadStrategy retentionStrategy,
+        RadarProcessingExecutionMode executionMode,
+        RadarProcessingAsyncExecutionOptions? asyncExecution,
+        int providerQueueCapacity,
+        long? retainedPayloadBytes,
+        TimeSpan overlapConsumerDelay,
+        RadarProcessingRetainedPayloadFactory? retainedPayloadFactory)
+    {
+        if (!RadarProcessingArchiveRebalanceRolloutDefaults.RetainedPayloadPrewarmEnabled ||
+            retainedPayloadFactory is not null ||
+            !RadarProcessingArchiveRebalanceRolloutDefaults.Matches(
+                providerMode,
+                providerOverlapMode,
+                retentionStrategy,
+                executionMode,
+                asyncExecution,
+                providerQueueCapacity,
+                retainedPayloadBytes,
+                overlapConsumerDelay))
+        {
+            return null;
+        }
+
+        var factory = new RadarProcessingRetainedPayloadFactory();
+        var prewarm = factory.Prewarm(
+            RadarProcessingArchiveRebalanceRolloutDefaults.RetainedPayloadPrewarmEventCount,
+            RadarProcessingArchiveRebalanceRolloutDefaults.RetainedPayloadPrewarmPayloadBytes,
+            RadarProcessingArchiveRebalanceRolloutDefaults.RetainedPayloadPrewarmBatchCount);
+        return new DefaultRetainedPayloadPrewarm(factory, prewarm);
     }
 
     private static ArchiveIterationTelemetry RunIteration(
@@ -2413,6 +2473,10 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         RadarProcessingProviderQueueTelemetrySummary QueueTelemetry,
         RadarProcessingRetainedPayloadTelemetrySummary RetentionTelemetry,
         RadarProcessingArchiveOverlapTelemetrySummary OverlapTelemetry);
+
+    private sealed record DefaultRetainedPayloadPrewarm(
+        RadarProcessingRetainedPayloadFactory Factory,
+        RadarProcessingRetainedPayloadPrewarmResult Result);
 
     private sealed class CacheArchiveFileSelection
     {

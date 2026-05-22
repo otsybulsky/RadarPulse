@@ -163,7 +163,7 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
         Assert.Contains("Usage:", result.StandardOutput);
         Assert.Contains("radarpulse processing benchmark rebalance-archive", result.StandardOutput);
         Assert.Contains(
-            "rebalance-archive omitted-provider default: queued-owned + pooled-copy + producer-consumer, async workers 4, queue capacity 8, retained-byte budget 536870912.",
+            "rebalance-archive omitted-provider default: queued-owned + pooled-copy + producer-consumer, async workers 4, queue capacity 8, retained-byte budget 536870912, retained-payload prewarm on.",
             result.StandardOutput);
         Assert.Contains(
             "rebalance-archive fallback/oracle: use --provider blocking-borrowed for the borrowed path and same-run comparison.",
@@ -1146,6 +1146,11 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             Assert.Contains("Provider overlap consumer delay ms: 0.00", result.StandardOutput);
             Assert.Contains("Retention strategy: pooled-copy", result.StandardOutput);
             Assert.Contains("Provider queue retained byte capacity: 536_870_912", result.StandardOutput);
+            Assert.Contains("Retained payload prewarm: yes", result.StandardOutput);
+            Assert.Contains("Retained payload prewarm event count: 65_536", result.StandardOutput);
+            Assert.Contains("Retained payload prewarm payload bytes: 67_108_864", result.StandardOutput);
+            Assert.Contains("Retained payload prewarm batch count: 1", result.StandardOutput);
+            Assert.Contains("Retained payload prewarm allocated bytes:", result.StandardOutput);
             Assert.Contains("Provider mode source: explicit", result.StandardOutput);
             Assert.Contains("Provider overlap source: explicit", result.StandardOutput);
             Assert.Contains("Retention strategy source: explicit", result.StandardOutput);
@@ -1209,6 +1214,11 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             Assert.Contains("Provider overlap consumer delay ms: 0.00", result.StandardOutput);
             Assert.Contains("Retention strategy: pooled-copy", result.StandardOutput);
             Assert.Contains("Provider queue retained byte capacity: 536_870_912", result.StandardOutput);
+            Assert.Contains("Retained payload prewarm: yes", result.StandardOutput);
+            Assert.Contains("Retained payload prewarm event count: 65_536", result.StandardOutput);
+            Assert.Contains("Retained payload prewarm payload bytes: 67_108_864", result.StandardOutput);
+            Assert.Contains("Retained payload prewarm batch count: 1", result.StandardOutput);
+            Assert.Contains("Retained payload prewarm allocated bytes:", result.StandardOutput);
             Assert.Contains(
                 "Batch lifetime: leased batches are converted to owned snapshots before provider queue enqueue",
                 result.StandardOutput);
