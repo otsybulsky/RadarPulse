@@ -1170,8 +1170,62 @@ named blocker if any cleanup/release/pressure/fail-closed invariant fails
 Slice 7 status:
 
 ```text
-status: pending
-runtime behavior changes: none expected during capture
+status: complete
+runtime behavior changes: none
+pressure/failure gate document:
+  docs/milestones/018-runtime-live-ingestion-readiness-pressure-failure-gate.md
+```
+
+Slice 7 completion notes:
+
+```text
+temporary runner:
+  data\temp\m018-runtime-pressure-gate-runner
+
+raw output:
+  data\temp\m018-runtime-pressure-gate-runner\output\m018-pressure-20260522-135835.jsonl
+  data\temp\m018-runtime-pressure-gate-runner\output\m018-pressure-20260522-135835.md
+
+rows:
+  11 total
+  11 pass
+  0 fail
+  11 terminal pressure clean
+  3 backpressure rows
+  4 cancellation rows
+  6 failure rows
+
+covered gate shapes:
+  return-full queue capacity rejection
+  retained-byte budget rejection
+  wait-on-full queue timeout
+  enqueue cancellation before start and while waiting
+  cancel-queued shutdown for accepted pending work
+  archive overlap cancellation after accepted enqueue
+  active consumer cancellation and active retained resource release
+  drain with pending work
+  processing validation failure without fallback
+  retained release failure visibility and readiness blocking
+  producer failure pending-resource cleanup
+
+terminal cleanup:
+  current pending, active, and combined retained pressure returned to zero in
+    every row
+
+release failure:
+  deterministic release-failure injection remained visible through retention
+    telemetry and readiness error RetainedResourceReleaseFailed
+  the injected row proves visibility/blocking behavior, not readiness success
+
+focused verification:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests|FullyQualifiedName~RadarProcessingOwnedBatchQueueTests|FullyQualifiedName~RadarProcessingQueuedRebalanceSessionTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingProviderQueueContractTests"
+  passed: 56
+  failed: 0
+
+carried to slice 8:
+  gate interpretation, follow-up fix triage, true live-ingestion coverage gap,
+    runtime default posture, and decision-trace input remain open
 ```
 
 ### 8. Gate Interpretation And Follow-Up Fixes

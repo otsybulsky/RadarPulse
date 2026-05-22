@@ -13,6 +13,7 @@ docs/milestones/018-runtime-live-ingestion-readiness-reporting-harness.md
 docs/milestones/018-runtime-live-ingestion-readiness-prewarm-posture.md
 docs/milestones/018-runtime-live-ingestion-readiness-lifecycle-guardrails.md
 docs/milestones/018-runtime-live-ingestion-readiness-steady-intake-gate.md
+docs/milestones/018-runtime-live-ingestion-readiness-pressure-failure-gate.md
 ```
 
 Milestone 018 is the runtime and live ingestion readiness milestone. It starts
@@ -29,7 +30,7 @@ implementation plan:
   drafted in docs/milestones/018-runtime-live-ingestion-readiness-plan.md
 
 implementation:
-  slices 1-6 complete
+  slices 1-7 complete
 
 runtime behavior changes:
   explicit ShutdownMode.CancelQueued cancellation shutdown now clears accepted
@@ -73,7 +74,7 @@ Milestone 018 planned slices:
 4. Runtime prewarm lifecycle decision and guardrails (complete)
 5. Backpressure, failure, cancellation, and cleanup guardrails (complete)
 6. Runtime steady intake gate (complete)
-7. Runtime pressure, backpressure, cancellation, and failure gate
+7. Runtime pressure, backpressure, cancellation, and failure gate (complete)
 8. Gate interpretation and follow-up fixes
 9. Runtime readiness decision trace
 10. Closeout, handoff, and project progress
@@ -117,8 +118,7 @@ automatic silent borrowed fallback
 Milestone 018 current recommended next action:
 
 ```text
-begin slice 7 runtime pressure, backpressure, cancellation, and failure gate
-capture
+begin slice 8 gate interpretation and follow-up fix triage
 ```
 
 Milestone 018 slice 1 completion:
@@ -338,6 +338,52 @@ natural first-use queued-owned control:
 carried to slice 7:
   pressure, backpressure, cancellation, failure, drain, cleanup, release
     failure replay evidence, and true live-ingestion coverage remain open
+```
+
+Milestone 018 slice 7 completion:
+
+```text
+pressure/failure gate document:
+  docs/milestones/018-runtime-live-ingestion-readiness-pressure-failure-gate.md
+
+runtime behavior changes:
+  none
+
+temporary runner:
+  data\temp\m018-runtime-pressure-gate-runner
+
+raw output:
+  data\temp\m018-runtime-pressure-gate-runner\output\m018-pressure-20260522-135835.jsonl
+  data\temp\m018-runtime-pressure-gate-runner\output\m018-pressure-20260522-135835.md
+
+gate result:
+  11 rows passed
+  0 rows failed
+  11 rows terminal pressure clean
+  3 backpressure rows
+  4 cancellation rows
+  6 failure rows
+
+covered:
+  return-full queue capacity rejection
+  retained-byte budget rejection
+  wait-on-full queue timeout
+  enqueue cancellation before start and while waiting
+  cancel-queued shutdown for accepted pending work
+  archive overlap cancellation after accepted enqueue
+  active consumer cancellation with active retained resource release
+  drain with pending work
+  processing validation failure without borrowed fallback
+  retained release failure visibility and readiness blocking
+  producer failure pending-resource cleanup
+
+focused verification:
+  focused queue, provider, rebalance-session, archive-overlap, and provider
+    contract tests pass: 56 passed, 0 failed
+
+carried to slice 8:
+  gate interpretation, follow-up fix triage, true live-ingestion coverage gap,
+    runtime default posture, and decision-trace input remain open
 ```
 
 ## Milestone 017 Baseline
