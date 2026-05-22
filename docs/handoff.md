@@ -27,8 +27,8 @@ Milestone 016 current status:
 ```text
 architecture document: complete
 implementation plan: draft
-implementation: complete through slice 6 gate interpretation and follow-up
-  decision
+implementation: complete through slice 7 broader cache-level readiness
+  decision trace
 runtime behavior changes so far: none
 performance gate: captured in
   docs/milestones/016-broader-cache-level-default-readiness-performance-gate.md
@@ -36,10 +36,13 @@ gate posture: captured with primary spread warning
 interpretation posture:
   proceed to decision trace with broader cache-level default readiness accepted
   with named scoped warnings
-decision trace: not written
+decision trace: written in
+  docs/milestones/016-broader-cache-level-default-readiness-decision-trace.md
+decision:
+  accept broader cache-level default readiness with named scoped warnings
 closeout: not written
 current next slice:
-  slice 7, broader cache-level readiness decision trace
+  slice 8, closeout and handoff
 ```
 
 Milestone 016 keeps this accepted direct/default contour:
@@ -179,6 +182,45 @@ named warnings/notes to carry:
     but it remains insufficient for a file-level default readiness claim
 ```
 
+Milestone 016 slice 7 decision trace:
+
+```text
+document:
+  docs/milestones/016-broader-cache-level-default-readiness-decision-trace.md
+
+decision:
+  accept broader cache-level default readiness with named scoped warnings
+
+closeout answer:
+  yes with warnings, broader cache-level default readiness is accepted with
+  named scoped warnings
+
+named warnings and scope limits:
+  primary spread warning:
+    candidate spread was 12.01%, above the 7.50% threshold, accepted as
+    scoped warning because every individual candidate run remained faster than
+    same-run borrowed and correctness, lifecycle, pressure, and allocation
+    guardrails passed
+
+  named-risk timing note:
+    one KTLX 2026-05-05 individual pair was 1.001x borrowed, accepted because
+    the repeated average was 0.822x and the larger same-shape row was 0.810x
+
+  mixed-cache worker-counter note:
+    candidate worker failed batches/items were 221/881 while validation
+    succeeded and failed migrations remained 0; borrowed worker failed
+    counters were not recaptured in slice 5
+
+  file-smoke coverage-only note:
+    current single-file smoke did not reproduce the milestone 015 cold warning
+    but does not certify file-level default readiness
+
+runtime expansion:
+  not approved; live ingestion, durable queues, brokers, cross-process
+  providers, ordered concurrent rebalance, builder-transfer, and runtime
+  defaults remain out of scope
+```
+
 Milestone 016 preserved guardrails:
 
 ```text
@@ -207,7 +249,7 @@ Milestone 016 planned slices:
 4. focused regression and cache sanity pass complete
 5. broader cache-level Release gate complete
 6. gate interpretation and follow-up fixes complete
-7. broader cache-level readiness decision trace pending
+7. broader cache-level readiness decision trace complete
 8. closeout and handoff pending
 ```
 
@@ -236,17 +278,22 @@ defer, broader cache-level default readiness cannot be decided because
 Recommended current next action:
 
 ```text
-begin milestone 016 slice 7 by writing the durable decision trace:
-  docs/milestones/016-broader-cache-level-default-readiness-decision-trace.md
+begin milestone 016 slice 8 by writing closeout and updating handoff:
+  docs/milestones/016-broader-cache-level-default-readiness-closeout.md
+  docs/handoff.md
 
-use the slice 6 posture:
+use the slice 7 decision:
   accept broader cache-level default readiness with named scoped warnings
 
-carry the named warnings/notes:
+closeout must carry:
+  gate summary and decision trace pointer
+  preserved direct/default contour and explicit BlockingBorrowed oracle
   primary spread warning
   named-risk borderline individual elapsed timing note
   mixed-cache worker-counter note with no slice 5 borrowed counter recapture
   file-smoke coverage-only scope
+  live/runtime/durable out-of-scope posture
+  final verification and recommended next milestone input
 ```
 
 Milestone 016 gate capture posture after slice 5:
@@ -273,6 +320,15 @@ CLI role:
 Milestone 016 latest verification:
 
 ```text
+slice 7 decision trace:
+  document:
+    docs/milestones/016-broader-cache-level-default-readiness-decision-trace.md
+
+  decision:
+    accept broader cache-level default readiness with named scoped warnings
+
+  runtime behavior changes: none
+
 slice 6 gate interpretation:
   runtime behavior changes: none
   follow-up fixes: none

@@ -1259,7 +1259,51 @@ defer because safety, correctness, lifecycle, timing, variance, or
 Slice 7 completion notes:
 
 ```text
-status: pending
+status: complete
+runtime behavior changes: none
+
+decision trace:
+  docs/milestones/016-broader-cache-level-default-readiness-decision-trace.md
+
+top-level decision:
+  accept broader cache-level default readiness with named scoped warnings
+
+closeout answer selected:
+  yes with warnings, broader cache-level default readiness is accepted with
+  named scoped warnings
+
+named warnings and scope limits carried:
+  primary spread warning:
+    candidate spread was 12.01%, above the 7.50% threshold, accepted as a
+    scoped warning because every individual candidate run remained faster than
+    same-run borrowed and correctness, lifecycle, pressure, and allocation
+    guardrails passed
+
+  named-risk timing note:
+    one KTLX 2026-05-05 individual pair was 1.001x borrowed, accepted because
+    the repeated average was 0.822x and the larger same-shape row was 0.810x
+
+  mixed-cache worker-counter note:
+    candidate worker failed batches/items were 221/881 while validation
+    succeeded and failed migrations remained 0
+    borrowed worker failed counters were not recaptured in slice 5
+
+  file-smoke coverage-only note:
+    current single-file smoke did not reproduce the milestone 015 cold warning
+    but does not certify file-level default readiness
+
+preserved posture:
+  explicit BlockingBorrowed remains fallback and same-run oracle
+  CLI omitted-provider cache path remains aligned with direct defaults
+  queued-owned failures remain fail-closed
+  live/runtime/durable defaults remain out of scope
+  no targeted rerun, borrowed worker-counter recapture, runtime change,
+  reporting fix, or threshold change is required before closeout
+
+slice 8 input:
+  write closeout and update handoff with the accepted-with-warnings broader
+  cache-level default-readiness posture, final verification, residual limits,
+  and next milestone input
 ```
 
 ### 8. Closeout And Handoff
