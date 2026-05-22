@@ -5,6 +5,7 @@
 Milestone 016 is complete. The milestone documents are:
 
 ```text
+docs/project-progress.md
 docs/milestones/016-broader-cache-level-default-readiness.md
 docs/milestones/016-broader-cache-level-default-readiness-plan.md
 docs/milestones/016-broader-cache-level-default-readiness-performance-gate.md
@@ -43,6 +44,8 @@ final closeout answer:
   named scoped warnings
 recommended next milestone:
   File-Level Default Readiness And Cold Retained-Ownership Cost
+project progress ledger:
+  docs/project-progress.md
 ```
 
 Milestone 016 keeps this accepted direct/default contour:
