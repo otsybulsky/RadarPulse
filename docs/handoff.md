@@ -27,14 +27,13 @@ Milestone 016 current status:
 ```text
 architecture document: complete
 implementation plan: draft
-implementation: complete through slice 1 corpus inventory and gate matrix
-  design
+implementation: complete through slice 2 existing contract and guardrail audit
 runtime behavior changes so far: none
 performance gate: not captured
 decision trace: not written
 closeout: not written
 current next slice:
-  slice 2, existing contract and guardrail audit
+  slice 3, reporting and harness readiness
 ```
 
 Milestone 016 keeps this accepted direct/default contour:
@@ -142,7 +141,7 @@ Milestone 016 planned slices:
 
 ```text
 1. corpus inventory and gate matrix design complete
-2. existing contract and guardrail audit pending
+2. existing contract and guardrail audit complete
 3. reporting and harness readiness pending
 4. focused regression and cache sanity pass pending
 5. broader cache-level Release gate pending
@@ -176,9 +175,20 @@ defer, broader cache-level default readiness cannot be decided because
 Recommended current next action:
 
 ```text
-begin milestone 016 slice 2 by auditing existing direct/CLI contracts,
-fallback/oracle separation, retained telemetry visibility, and guardrail test
-coverage before any Release gate capture
+begin milestone 016 slice 3 by deciding whether existing CLI/direct output
+plus documented commands are enough for repeatable Release gate capture, or
+whether a temporary direct API gate runner/reporting helper is needed
+```
+
+Milestone 016 latest verification:
+
+```text
+slice 2 focused verification:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests"
+
+result:
+  69 passed, 0 failed, 0 skipped
 ```
 
 ## Milestone 015 Closed Baseline

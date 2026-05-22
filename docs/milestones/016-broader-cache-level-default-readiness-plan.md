@@ -541,7 +541,82 @@ dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter
 Slice 2 completion notes:
 
 ```text
-status: pending
+status: complete
+runtime behavior changes: none
+
+contract decision:
+  no product behavior change is needed before the first broader cache-level
+  Release gate
+
+direct default audit:
+  RadarProcessingArchiveRebalanceBenchmark.MeasureFile() and MeasureCache()
+  still treat omitted providerMode as the rollout-default selector
+
+  omitted providerMode resolves provider, overlap, retention, execution,
+  provider queue capacity, retained-byte budget, and async worker settings
+  through RadarProcessingArchiveRebalanceRolloutDefaults
+
+  explicit providerMode: BlockingBorrowed still resolves to the borrowed
+  fallback/oracle contour with no queued telemetry and no retained-byte budget
+
+  explicit queued-owned rollout calls remain comparable to omitted defaults
+  through AssertDirectQueuedOwnedRolloutContour() for file and cache results
+
+CLI default audit:
+  ProcessingBenchmarkArchiveRebalanceOptions.Parse() expands omitted provider
+  to rollout-default provenance and keeps explicit blocking-borrowed as a
+  fallback contour
+
+  CLI output prints provider source, default rollout contour, rollout default
+  expansion, fallback contour, natural-readiness scope, queue telemetry,
+  retained payload telemetry, event-array pool telemetry, byte-array pool
+  telemetry, overlap telemetry, allocation attribution, and retained pressure
+  fields needed by the gate
+
+retained telemetry audit:
+  RadarProcessingRetainedPayloadTelemetrySummary keeps aggregate retained pool
+  rent/return/miss telemetry plus split event-array and byte-array
+  rent/return/miss telemetry
+
+  RadarProcessingArchiveRebalanceBenchmark aggregates cache retained telemetry
+  with checked event-array and byte-array counters
+
+  direct rollout contour tests assert retained event-array and byte-array pool
+  rents are returned and release failures remain 0
+
+guardrail test coverage:
+  NexradArchiveRadarEventBatchPublisherTests cover direct file/cache omitted
+  defaults, explicit BlockingBorrowed fallback, explicit queued-owned rollout
+  equivalence, no automatic borrowed fallback after direct default failure,
+  builder-transfer rejection, cleanup returning current pressure to 0, release
+  failure count 0, and retained pool split telemetry
+
+  RadarPulseCliRebalanceBenchmarkTests cover CLI omitted-provider rollout
+  expansion, explicit BlockingBorrowed fallback labeling, default/fallback
+  provenance, natural-readiness scope, optional telemetry suppression, and
+  operator-visible retained/overlap/allocation output
+
+  RadarProcessingQueuedProviderReadinessGateTests cover stable threshold
+  values, missing borrowed reference handling, correctness/topology failure
+  diagnostics, release health, cleanup completion, pressure budget, natural
+  evidence, allocation ratio, elapsed ratio, and run-spread gates
+
+identified gaps:
+  no blocking contract or guardrail gap found for milestone 016 gate capture
+
+  Release gate capture still needs a repeatable command matrix or temporary
+  direct API harness decision in slice 3 to avoid manual transcription errors
+
+focused verification:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests"
+
+  result: 69 passed, 0 failed, 0 skipped
+
+slice 3 input:
+  decide whether existing CLI/direct output plus documented commands are
+  enough for repeatable Release gate capture, or whether a temporary direct
+  API gate runner/reporting helper is needed
 ```
 
 ### 3. Reporting And Harness Readiness
