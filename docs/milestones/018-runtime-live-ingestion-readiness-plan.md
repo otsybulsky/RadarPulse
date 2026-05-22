@@ -877,9 +877,59 @@ named blocker if runtime prewarm cannot be made reviewable
 Slice 4 status:
 
 ```text
-status: pending
-runtime behavior changes: possible scoped prewarm lifecycle work only after
-  slice 1-3 audit
+status: complete
+runtime behavior changes: none
+production code changes: none
+prewarm posture document:
+  docs/milestones/018-runtime-live-ingestion-readiness-prewarm-posture.md
+```
+
+Slice 4 completion notes:
+
+```text
+chosen candidate:
+  startup-owned retained payload prewarm is the explicit queued-owned
+    runtime-shaped gate candidate
+
+runtime default migration:
+  not accepted yet; omitted runtime defaults remain unchanged and undecided
+    until the milestone 018 decision trace
+
+control rows:
+  natural first-use queued-owned rows remain unprewarmed control evidence
+  explicit BlockingBorrowed/reference rows remain unprewarmed and visibly
+    separate
+
+initial sizing:
+  reuse milestone 017 prewarm sizing for the explicit candidate:
+    65_536 events
+    67_108_864 payload bytes
+    1 retained batch
+
+ownership:
+  the runtime gate harness owns the prewarmed retained payload factory,
+    records RadarProcessingRetainedPayloadPrewarmResult, and passes the
+    factory through RadarProcessingArchiveQueuedOverlapOptions
+
+attribution:
+  prewarm elapsed time, allocated bytes, retained bytes, source, and sizing
+    are lifecycle cost and must not be hidden inside steady-state row
+    allocation
+
+failure policy:
+  prewarm failure fails the candidate row before intake and does not allow
+    hidden borrowed/reference fallback
+
+cleanup policy:
+  prewarmed pool retention does not relax pending, active, combined retained
+    pressure, release failure, drain, stop, dispose, cancellation, or fault
+    cleanup requirements
+
+slice 5 carry-forward:
+  add or verify guardrails for no silent fallback, prewarmed cancellation and
+    fault cleanup, borrowed/reference unprewarmed separation, natural
+    first-use separation, prewarm failure policy, and the existing
+    ShutdownMode.CancelQueued gap
 ```
 
 ### 5. Backpressure, Failure, Cancellation, And Cleanup Guardrails

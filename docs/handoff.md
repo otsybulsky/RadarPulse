@@ -1,12 +1,16 @@
-# Handoff: Milestone 018 Planning
+# Handoff: Milestone 018 Active Implementation
 
 ## Current State
 
-Milestone 018 is active in planning. The milestone documents are:
+Milestone 018 is active in implementation. The milestone documents are:
 
 ```text
 docs/milestones/018-runtime-live-ingestion-readiness.md
 docs/milestones/018-runtime-live-ingestion-readiness-plan.md
+docs/milestones/018-runtime-live-ingestion-readiness-lifecycle-audit.md
+docs/milestones/018-runtime-live-ingestion-readiness-gate-matrix.md
+docs/milestones/018-runtime-live-ingestion-readiness-reporting-harness.md
+docs/milestones/018-runtime-live-ingestion-readiness-prewarm-posture.md
 ```
 
 Milestone 018 is the runtime and live ingestion readiness milestone. It starts
@@ -23,10 +27,10 @@ implementation plan:
   drafted in docs/milestones/018-runtime-live-ingestion-readiness-plan.md
 
 implementation:
-  slices 1-3 complete; no runtime behavior changes
+  slices 1-4 complete; no runtime behavior changes
 
 runtime behavior changes:
-  none yet
+  none
 
 current closeout question:
   Is the queued-owned contour ready for runtime/live ingestion defaults?
@@ -42,6 +46,9 @@ runtime/live defaults remain undecided until lifecycle, prewarm, pressure,
 backpressure, fallback, failure, cancellation, cleanup, release, processing
 completeness, worker health, and observability gates are designed and
 captured
+
+runtime startup prewarm is selected only as the explicit queued-owned
+gate candidate; it is not accepted as an omitted runtime default
 
 queued-owned runtime outcomes remain open:
   accepted default
@@ -60,7 +67,7 @@ Milestone 018 planned slices:
 1. Runtime surface inventory and lifecycle audit (complete)
 2. Runtime readiness contract and gate matrix design (complete)
 3. Reporting, contract, and harness gap closure (complete)
-4. Runtime prewarm lifecycle decision and guardrails
+4. Runtime prewarm lifecycle decision and guardrails (complete)
 5. Backpressure, failure, cancellation, and cleanup guardrails
 6. Runtime steady intake gate
 7. Runtime pressure, backpressure, cancellation, and failure gate
@@ -107,7 +114,7 @@ automatic silent borrowed fallback
 Milestone 018 current recommended next action:
 
 ```text
-stop for prewarm lifecycle decision before slice 4
+begin slice 5 backpressure, failure, cancellation, and cleanup guardrails
 ```
 
 Milestone 018 slice 1 completion:
@@ -211,18 +218,45 @@ carried gaps:
     show product reporting is required before decision trace
 ```
 
-Milestone 018 decision checkpoint:
+Milestone 018 slice 4 completion:
 
 ```text
-slice 4 requires choosing the runtime prewarm lifecycle candidate:
-  no runtime prewarm
-  startup prewarm
-  operator-triggered prewarm
-  lazy first-use prewarm
-  explicit opt-in prewarm only
+prewarm posture document:
+  docs/milestones/018-runtime-live-ingestion-readiness-prewarm-posture.md
 
-This is a runtime posture decision and should be reviewed before implementation
-continues.
+runtime behavior changes:
+  none
+
+production code changes:
+  none
+
+chosen candidate:
+  startup-owned retained payload prewarm is the explicit queued-owned
+    runtime-shaped gate candidate
+
+runtime default migration:
+  not accepted yet; omitted runtime defaults remain unchanged and undecided
+    until the milestone 018 decision trace
+
+initial sizing:
+  65_536 events
+  67_108_864 payload bytes
+  1 retained batch
+
+control separation:
+  natural first-use queued-owned rows remain unprewarmed control evidence
+  explicit BlockingBorrowed/reference rows remain unprewarmed and visibly
+    separate
+
+failure policy:
+  prewarm failure fails the candidate row before intake and does not allow
+    hidden borrowed/reference fallback
+
+slice 5 carry-forward:
+  add or verify guardrails for no silent fallback, retained cleanup,
+    cancellation and fault with a prewarmed factory, borrowed/reference
+    unprewarmed separation, natural first-use separation, prewarm failure
+    policy, and the existing ShutdownMode.CancelQueued gap
 ```
 
 ## Milestone 017 Baseline
