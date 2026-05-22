@@ -27,14 +27,15 @@ Milestone 016 current status:
 ```text
 architecture document: complete
 implementation plan: draft
-implementation: complete through slice 4 focused regression and cache sanity
-  pass
+implementation: complete through slice 5 broader cache-level Release gate
 runtime behavior changes so far: none
-performance gate: not captured
+performance gate: captured in
+  docs/milestones/016-broader-cache-level-default-readiness-performance-gate.md
+gate posture: captured with primary spread warning
 decision trace: not written
 closeout: not written
 current next slice:
-  slice 5, broader cache-level Release gate
+  slice 6, gate interpretation and follow-up fixes
 ```
 
 Milestone 016 keeps this accepted direct/default contour:
@@ -94,29 +95,36 @@ data\nexrad total:
   1_554 files, 4_984_572_136 bytes
 ```
 
-Milestone 016 proposed minimum gate matrix:
+Milestone 016 captured gate matrix:
 
 ```text
 primary drift/spread row:
   data\nexrad --date 2026-05-04 --radar KTLX --max-files 220,
-  repeated 3 pairs
+  repeated 3 pairs, warning because candidate spread was 12.01%
 
 named allocation-risk row:
   data\nexrad --date 2026-05-05 --radar KTLX --max-files 220,
-  repeated 2 pairs, with a third pair if noisy
+  repeated 2 pairs, pass with timing note because one individual pair was
+  1.001x borrowed
 
 cross-radar row:
-  data\nexrad --date 2026-05-04 --radar KINX --max-files 220
+  data\nexrad --date 2026-05-04 --radar KINX --max-files 220, pass
 
 mixed-cache row:
-  data\nexrad --max-files 1000000
+  data\nexrad --max-files 1000000, pass with mixed-cache worker-counter note
+
+optional coverage rows:
+  data\nexrad --date 2026-05-04 --radar KTLX --max-files 244, pass
+  data\nexrad --date 2026-05-04 --radar KINX --max-files 440, pass
+  data\nexrad --date 2026-05-05 --radar KTLX --max-files 440, pass
 
 CLI/direct alignment spot-check:
-  processing benchmark rebalance-archive --cache with omitted provider
+  processing benchmark rebalance-archive --cache with omitted provider passed
+  explicit --provider blocking-borrowed visibility spot-check passed
 
 file-level warning visibility:
-  representative KTLX MeasureFile() single-file smoke, interpreted only as
-  file-level cold retained-ownership cost
+  representative KTLX MeasureFile() single-file smoke passed in this run but
+  remains coverage-only, not a file-level default readiness claim
 ```
 
 Milestone 016 preserved guardrails:
@@ -145,7 +153,7 @@ Milestone 016 planned slices:
 2. existing contract and guardrail audit complete
 3. reporting and harness readiness complete
 4. focused regression and cache sanity pass complete
-5. broader cache-level Release gate pending
+5. broader cache-level Release gate complete
 6. gate interpretation and follow-up fixes pending
 7. broader cache-level readiness decision trace pending
 8. closeout and handoff pending
@@ -176,17 +184,23 @@ defer, broader cache-level default readiness cannot be decided because
 Recommended current next action:
 
 ```text
-begin milestone 016 slice 5 by building the solution in Release, building the
-temporary direct API gate runner in Release, capturing the broader cache-level
-Release gate, and writing the performance gate document
+begin milestone 016 slice 6 by interpreting the captured Release gate:
+  decide whether the primary 12.01% spread warning is accepted or needs a
+  targeted rerun
+  decide whether the named-risk 1.001x individual elapsed pair needs more
+  evidence
+  decide whether the mixed-cache worker-counter note needs borrowed counter
+  recapture
+  keep the file-smoke row coverage-only despite the milestone 015 warning not
+  reproducing in this run
 ```
 
-Milestone 016 gate capture posture after slice 3:
+Milestone 016 gate capture posture after slice 5:
 
 ```text
 primary Release gate capture:
-  use a temporary local direct API gate runner, built in Release and not
-  committed as a product surface
+  completed with a temporary local direct API gate runner, built in Release and
+  not committed as a product surface
 
 direct gate rows:
   paired MeasureCache() rows with omitted provider-related arguments for
@@ -198,13 +212,71 @@ file-level warning row:
   visibility
 
 CLI role:
-  omitted-provider cache spot-check and explicit borrowed fallback visibility,
-  not the primary paired-row aggregation mechanism
+  omitted-provider cache spot-check and explicit borrowed fallback visibility
+  passed; CLI was not the primary paired-row aggregation mechanism
 ```
 
 Milestone 016 latest verification:
 
 ```text
+slice 5 Release build:
+  dotnet build RadarPulse.sln -c Release --no-restore
+
+result:
+  succeeded, 0 warnings, 0 errors
+
+slice 5 temporary direct API gate runner build:
+  dotnet build data\temp\m016-gate-runner\M016GateRunner.csproj
+    -c Release --no-restore
+
+result:
+  succeeded, 0 warnings, 0 errors
+
+slice 5 broader cache-level Release gate:
+  document:
+    docs/milestones/016-broader-cache-level-default-readiness-performance-gate.md
+
+  gate status:
+    captured with primary spread warning
+
+  correctness/release/cleanup/pressure:
+    validation succeeded across captured rows
+    same-run borrowed/candidate counters and checksums matched in gate output
+    retained payload failed releases: 0
+    provider overlap failed releases: 0
+    current combined retained bytes returned to 0
+    max retained high-water: 54_413_280 bytes
+    retained-byte budget: 536_870_912 bytes
+
+  cache-level allocation:
+    max average ratio: 1.028x borrowed
+    max individual measured pair ratio: 1.040x borrowed
+    threshold: <= 1.10x borrowed
+
+  cache-level elapsed:
+    primary KTLX 2026-05-04 max-files 220 average: 0.881x borrowed
+    KTLX 2026-05-05 max-files 220 average: 0.822x borrowed
+    KINX 2026-05-04 max-files 220: 0.769x borrowed
+    mixed local cache: 0.873x borrowed
+    optional KTLX 244: 0.887x borrowed
+    optional KINX 440: 0.782x borrowed
+    optional KTLX 2026-05-05 440: 0.810x borrowed
+
+  warnings/notes for slice 6:
+    primary candidate spread: 12.01%, above 7.50% threshold
+    named-risk candidate spread: 7.42%, below but near 7.50% threshold
+    named-risk individual pair 2 elapsed: 1.001x borrowed
+    mixed-cache candidate worker failed batches/items: 221/881 while
+      validation succeeded and failed migrations remained 0
+    representative single-file smoke did not reproduce the milestone 015 cold
+      warning but remains coverage-only
+
+  CLI spot-check:
+    omitted-provider cache command passed with queued-owned rollout-default
+    provenance and natural-readiness telemetry visible
+    explicit --provider blocking-borrowed command passed with fallback
+    provenance visible and queued/retained telemetry absent as expected
+
 slice 4 focused regression and cache sanity:
   local cache selectors present:
     KTLX 2026-05-04: 244 files, 1_347_625_897 bytes

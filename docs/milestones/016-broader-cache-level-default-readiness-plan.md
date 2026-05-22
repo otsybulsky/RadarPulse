@@ -901,7 +901,180 @@ carry single-file cold warning as file-level scope
 Slice 5 completion notes:
 
 ```text
-status: pending
+status: complete
+runtime behavior changes: none
+
+Release build:
+  dotnet build RadarPulse.sln -c Release --no-restore
+
+  result:
+    succeeded, 0 warnings, 0 errors
+
+temporary direct API gate runner:
+  location during capture:
+    data\temp\m016-gate-runner
+
+  output location during capture:
+    data\temp\m016-gate-output
+
+  product posture:
+    temporary local harness, not committed as a product surface
+
+  build:
+    dotnet build data\temp\m016-gate-runner\M016GateRunner.csproj
+      -c Release --no-restore
+
+  result:
+    succeeded, 0 warnings, 0 errors
+
+runner contour:
+  candidate rows omitted provider-related direct API arguments so the
+  accepted queued-owned rollout defaults were exercised naturally
+
+  same-run oracle rows passed providerMode: BlockingBorrowed explicitly
+
+  common row settings:
+    mode RebalanceSession
+    iterations 1
+    warmup iterations 0
+    parallelism 24
+    partitions 24
+    shards 4
+    default decompressor
+    overlap consumer delay 0
+
+performance gate document:
+  docs/milestones/016-broader-cache-level-default-readiness-performance-gate.md
+
+gate status:
+  captured with primary spread warning
+
+minimum cache-level rows:
+  primary KTLX 2026-05-04, max-files 220, repeated 3 pairs:
+    borrowed avg elapsed: 17_251.92 ms
+    candidate avg elapsed: 15_207.14 ms
+    elapsed ratio: 0.881x
+    borrowed avg allocated: 1_928_004_067
+    candidate avg allocated: 1_982_023_304
+    allocation ratio: 1.028x
+    candidate spread: 12.01%
+    status: warning because spread exceeded the 7.50% threshold
+
+  KTLX 2026-05-05 named risk, max-files 220, repeated 2 pairs:
+    borrowed avg elapsed: 12_235.91 ms
+    candidate avg elapsed: 10_052.18 ms
+    elapsed ratio: 0.822x
+    borrowed avg allocated: 2_304_219_356
+    candidate avg allocated: 2_352_652_460
+    allocation ratio: 1.021x
+    candidate spread: 7.42%
+    status: pass with timing note because one individual pair was 1.001x
+      borrowed while the repeated average and larger optional row passed
+
+  KINX 2026-05-04, max-files 220:
+    elapsed ratio: 0.769x
+    allocation ratio: 1.007x
+    status: pass
+
+  mixed local cache, max-files 1000000:
+    elapsed ratio: 0.873x
+    allocation ratio: 1.006x
+    status: pass with worker-counter note
+
+optional cache-level rows:
+  KTLX 2026-05-04 full root, max-files 244:
+    elapsed ratio: 0.887x
+    allocation ratio: 1.008x
+    status: pass
+
+  KINX 2026-05-04 larger slice, max-files 440:
+    elapsed ratio: 0.782x
+    allocation ratio: 1.000x
+    status: pass
+
+  KTLX 2026-05-05 larger named-risk slice, max-files 440:
+    elapsed ratio: 0.810x
+    allocation ratio: 1.008x
+    status: pass
+
+file-level smoke:
+  representative KTLX single file:
+    elapsed ratio: 0.675x
+    allocation ratio: 1.041x
+    status: coverage-only
+
+  interpretation:
+    current run did not reproduce the milestone 015 single-file cold warning,
+    but a single-file smoke remains insufficient for a file-level default
+    readiness claim
+
+correctness, release, cleanup, and pressure:
+  validation succeeded across captured rows
+  same-run borrowed/candidate counters and checksums matched in gate output
+  retained payload failed releases: 0
+  provider overlap failed releases: 0
+  current combined retained bytes returned to 0
+  maximum observed retained high-water: 54_413_280 bytes
+  retained-byte budget: 536_870_912 bytes
+
+allocation interpretation:
+  accepted for cache-level rows
+  maximum cache-level average ratio: 1.028x
+  maximum cache-level individual measured pair ratio: 1.040x
+  threshold: <= 1.10x borrowed
+
+elapsed interpretation:
+  accepted on cache-level averages
+  all cache-level average ratios were <= 0.887x borrowed
+  primary row was faster than borrowed in every individual pair
+  the named-risk row had one individual borderline pair at 1.001x borrowed
+
+spread interpretation:
+  primary candidate spread was 12.01%, above the 7.50% threshold
+  named-risk candidate spread was 7.42%, below but near the 7.50% threshold
+  spread warning is not a correctness, allocation, release, cleanup, or
+  pressure blocker by itself, but must be decided in slice 6
+
+mixed-cache worker-counter note:
+  candidate reported worker failed batches/items as 221/881 while validation
+  succeeded and failed migrations remained 0
+  the same mixed-cache counter shape was visible in milestone 015
+  this slice 5 runner did not record borrowed worker failed counts, so slice 6
+  should decide whether the prior interpretation is sufficient or whether a
+  borrowed-counter recapture is needed before decision trace
+
+CLI spot-checks:
+  omitted-provider cache row:
+    exit code 0
+    provider mode queued-owned
+    provider mode source rollout-default
+    default rollout contour yes
+    rollout default expansion yes
+    fallback contour no
+    natural-readiness evidence visible
+    retained payload, event-array pool, byte-array pool, overlap, allocation,
+    and validation output visible
+
+  explicit --provider blocking-borrowed row:
+    exit code 0
+    provider mode blocking-borrowed
+    provider mode source explicit
+    default rollout contour no
+    rollout default expansion no
+    fallback contour yes
+    queued and retained telemetry absent as expected
+    allocation and validation output visible
+
+slice 6 input:
+  interpret the captured gate before a readiness decision
+  decide whether the primary spread warning is accepted or needs a targeted
+  rerun
+  decide whether the named-risk borderline individual elapsed pair needs more
+  evidence
+  decide whether the mixed-cache worker counter note needs borrowed counter
+  recapture
+  preserve the file-smoke result as coverage-only despite the warning not
+  reproducing in this run
 ```
 
 ### 6. Gate Interpretation And Follow-Up Fixes
