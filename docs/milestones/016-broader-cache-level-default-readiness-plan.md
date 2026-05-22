@@ -785,7 +785,44 @@ none unless earlier slices required reporting or contract fixes
 Slice 4 completion notes:
 
 ```text
-status: pending
+status: complete
+runtime behavior changes: none
+
+cache sanity:
+  data\nexrad\level2\2026\05\04\KTLX:
+    files: 244
+    bytes: 1_347_625_897
+
+  data\nexrad\level2\2026\05\04\KINX:
+    files: 462
+    bytes: 1_404_452_903
+
+  data\nexrad\level2\2026\05\05\KTLX:
+    files: 848
+    bytes: 2_232_493_336
+
+  representative file exists:
+    data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_000245_V06
+
+focused regression:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests|FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests|FullyQualifiedName~RadarProcessingRetainedBatchResourceTests"
+
+  result: 112 passed, 0 failed, 0 skipped
+
+checks covered:
+  direct omitted defaults remain queued-owned rollout contour
+  explicit BlockingBorrowed remains selectable and distinct
+  explicit queued-owned rollout equals omitted default where expected
+  CLI omitted-provider cache benchmark remains aligned with direct defaults
+  retained cleanup and release guardrails remain covered
+  allocation summary contracts remain non-negative
+  retained payload/event-array/byte-array telemetry remains covered
+
+slice 5 input:
+  build the solution in Release, build the temporary direct API gate runner in
+  Release, capture the broader cache-level Release gate, and write
+  docs/milestones/016-broader-cache-level-default-readiness-performance-gate.md
 ```
 
 ### 5. Broader Cache-Level Release Gate

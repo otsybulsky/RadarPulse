@@ -27,13 +27,14 @@ Milestone 016 current status:
 ```text
 architecture document: complete
 implementation plan: draft
-implementation: complete through slice 3 reporting and harness readiness
+implementation: complete through slice 4 focused regression and cache sanity
+  pass
 runtime behavior changes so far: none
 performance gate: not captured
 decision trace: not written
 closeout: not written
 current next slice:
-  slice 4, focused regression and cache sanity pass
+  slice 5, broader cache-level Release gate
 ```
 
 Milestone 016 keeps this accepted direct/default contour:
@@ -143,7 +144,7 @@ Milestone 016 planned slices:
 1. corpus inventory and gate matrix design complete
 2. existing contract and guardrail audit complete
 3. reporting and harness readiness complete
-4. focused regression and cache sanity pass pending
+4. focused regression and cache sanity pass complete
 5. broader cache-level Release gate pending
 6. gate interpretation and follow-up fixes pending
 7. broader cache-level readiness decision trace pending
@@ -175,9 +176,9 @@ defer, broader cache-level default readiness cannot be decided because
 Recommended current next action:
 
 ```text
-begin milestone 016 slice 4 by running the broader focused regression and
-cache sanity pass before building the temporary Release gate runner or
-capturing expensive gate rows
+begin milestone 016 slice 5 by building the solution in Release, building the
+temporary direct API gate runner in Release, capturing the broader cache-level
+Release gate, and writing the performance gate document
 ```
 
 Milestone 016 gate capture posture after slice 3:
@@ -204,6 +205,19 @@ CLI role:
 Milestone 016 latest verification:
 
 ```text
+slice 4 focused regression and cache sanity:
+  local cache selectors present:
+    KTLX 2026-05-04: 244 files, 1_347_625_897 bytes
+    KINX 2026-05-04: 462 files, 1_404_452_903 bytes
+    KTLX 2026-05-05: 848 files, 2_232_493_336 bytes
+    representative KTLX single-file smoke path exists
+
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests|FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests|FullyQualifiedName~RadarProcessingRetainedBatchResourceTests"
+
+result:
+  112 passed, 0 failed, 0 skipped
+
 slice 3 focused verification:
   dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
     --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests"
