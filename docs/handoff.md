@@ -1,6 +1,157 @@
-# Handoff: Milestone 015 Complete
+# Handoff: Milestone 016 Active
 
 ## Current State
+
+Milestone 016 is active. The milestone documents are:
+
+```text
+docs/milestones/016-broader-cache-level-default-readiness.md
+docs/milestones/016-broader-cache-level-default-readiness-plan.md
+docs/milestones/016-broader-cache-level-default-readiness-performance-gate.md
+docs/milestones/016-broader-cache-level-default-readiness-decision-trace.md
+docs/milestones/016-broader-cache-level-default-readiness-closeout.md
+```
+
+Milestone 016 is the broader cache-level default readiness milestone. It
+starts from the closed milestone 015 queued-owned allocation readiness result.
+
+Milestone 016 target:
+
+```text
+decide whether the queued-owned direct/default contour is ready as the broader
+cache-level benchmark/default posture for available cache workloads
+```
+
+Milestone 016 current status:
+
+```text
+architecture document: complete
+implementation plan: draft
+implementation: not started
+runtime behavior changes so far: none
+performance gate: not captured
+decision trace: not written
+closeout: not written
+current next slice:
+  slice 1, corpus inventory and gate matrix design
+```
+
+Milestone 016 keeps this accepted direct/default contour:
+
+```text
+surface:
+  RadarProcessingArchiveRebalanceBenchmark.MeasureFile()
+  RadarProcessingArchiveRebalanceBenchmark.MeasureCache()
+
+omitted controls:
+  providerMode
+  executionMode
+  asyncExecution
+  queueCapacity
+  providerOverlapMode
+  retentionStrategy
+  queueRetainedPayloadBytes
+  overlapConsumerDelay
+
+effective contour:
+  provider mode: queued-owned
+  provider overlap: producer-consumer
+  retention strategy: pooled-copy
+  execution: async shard transport
+  worker count: 4
+  worker queue capacity: 8
+  provider queue capacity: 8
+  retained-byte budget: 536870912
+  overlap consumer delay: 0
+```
+
+Milestone 016 starting evidence from milestone 015:
+
+```text
+cache-level allocation readiness: accepted for measured local contours
+primary KTLX 2026-05-04 allocation ratio: 1.042x borrowed
+KTLX 2026-05-05 allocation ratio: 1.0392x borrowed average
+KTLX 2026-05-05 rows: 1.0404x and 1.0381x borrowed
+KINX 2026-05-04 allocation ratio: 1.042x borrowed
+mixed-cache allocation ratio: 1.021x borrowed
+file-level warning:
+  representative KTLX single-file cold smoke allocation ratio 1.512x borrowed
+  representative KTLX single-file cold smoke elapsed ratio 1.072x borrowed
+  interpretation: file-level concern, not cache-level blocker
+```
+
+Known local cache data at milestone 016 start:
+
+```text
+data\nexrad\level2\2026\05\04\KTLX: 244 files
+data\nexrad\level2\2026\05\04\KINX: 462 files
+data\nexrad\level2\2026\05\05\KTLX: 848 files
+data\nexrad total files: 1554
+```
+
+Milestone 016 preserved guardrails:
+
+```text
+direct MeasureFile()/MeasureCache() omitted defaults remain queued-owned
+explicit BlockingBorrowed remains fallback/oracle
+same-run BlockingBorrowed rows remain required for every readiness gate
+CLI omitted-provider rebalance-archive remains aligned with direct defaults
+queued-owned failures fail closed
+no automatic borrowed fallback follows queued-owned failure
+controlled consumer delay remains mechanics-only proof
+builder-transfer remains unsupported
+live ingestion/runtime defaults remain out of scope
+durable queues, cross-process workers, and ordered concurrent rebalance remain
+  out of scope
+single-file cold retained-ownership cost remains a file-level concern
+thresholds must not be raised after gate capture
+shape-specific warnings must not be hidden behind mixed-cache aggregate success
+```
+
+Milestone 016 planned slices:
+
+```text
+1. corpus inventory and gate matrix design pending
+2. existing contract and guardrail audit pending
+3. reporting and harness readiness pending
+4. focused regression and cache sanity pass pending
+5. broader cache-level Release gate pending
+6. gate interpretation and follow-up fixes pending
+7. broader cache-level readiness decision trace pending
+8. closeout and handoff pending
+```
+
+Milestone 016 closeout question:
+
+```text
+Is the queued-owned direct/default contour ready as the broader cache-level
+benchmark/default posture for available cache workloads?
+```
+
+Valid milestone 016 closeout answers:
+
+```text
+yes, broader cache-level default readiness is accepted
+yes with warnings, broader cache-level default readiness is accepted with
+  named scoped warnings
+no, broader cache-level default readiness is rejected with a named cache
+  shape, threshold, or attribution blocker
+coverage insufficient, broader cache-level default readiness cannot be decided
+  from the available workload evidence
+defer, broader cache-level default readiness cannot be decided because
+  correctness, cleanup, release health, pressure, fail-closed behavior, timing
+  variance, or benchmark repeatability regressed
+```
+
+Recommended current next action:
+
+```text
+begin milestone 016 slice 1 by recording the cache corpus inventory and the
+proposed gate matrix in
+docs/milestones/016-broader-cache-level-default-readiness-plan.md
+```
+
+## Milestone 015 Closed Baseline
 
 Milestone 015 is complete. The milestone documents are:
 

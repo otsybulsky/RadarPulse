@@ -1,0 +1,866 @@
+# Milestone 016: Broader Cache-Level Default Readiness Implementation Plan
+
+Status: draft.
+
+This plan implements the milestone 016 architecture defined in
+`016-broader-cache-level-default-readiness.md`.
+
+The plan is intentionally scoped to broader cache-level readiness for the
+already accepted queued-owned direct/default archive rebalance contour. It
+should not implement live ingestion, durable broker integration, cross-process
+workers, ordered concurrent rebalance, builder-transfer, file-level default
+optimization, synthetic benchmark defaults, or non-benchmark archive publishing
+defaults.
+
+## Goal
+
+Milestone 016 decides whether the queued-owned direct/default contour is ready
+as the broader cache-level benchmark/default posture for available cache
+workloads.
+
+The accepted direct/default contour remains:
+
+```text
+provider mode: queued-owned
+provider overlap: producer-consumer
+retention strategy: pooled-copy
+execution: async shard transport
+worker count: 4
+async worker queue capacity: 8
+provider queue capacity: 8
+retained-byte budget: 536870912
+overlap consumer delay: 0
+```
+
+The milestone target is not to change that contour. The target is to broaden
+the cache-level evidence, classify every cache shape explicitly, and decide
+whether the readiness accepted in milestone 015 holds beyond the measured
+milestone 015 contours.
+
+The most important rules are:
+
+```text
+preserve direct MeasureFile()/MeasureCache() queued-owned omitted defaults
+preserve explicit BlockingBorrowed direct calls as fallback and oracle
+keep same-run borrowed rows in every readiness gate
+keep CLI omitted-provider cache benchmark aligned with direct defaults
+classify every cache shape individually before aggregate interpretation
+keep the single-file cold warning visible as a file-level concern
+do not silently fall back from queued-owned failure to borrowed success
+do not tune the accepted rollout contour to make a cache row pass
+do not broaden into live/runtime/durable surfaces
+do not raise thresholds after seeing gate measurements
+```
+
+The implementation target is evidence-driven:
+
+```text
+inventory available cache data before selecting gate rows
+repeat milestone 015 baseline cache shapes for drift detection
+add or improve benchmark reporting only where reviewability requires it
+prove direct and CLI omitted-provider alignment before Release gate capture
+capture same-run BlockingBorrowed and queued-owned rows for every selected
+  cache shape
+classify correctness, release, cleanup, pressure, elapsed, allocation, spread,
+  and attribution per shape
+record whether broader readiness is accepted, accepted with warnings,
+  rejected, coverage-insufficient, or deferred
+```
+
+## Starting Point
+
+Milestone 015 is complete and provides:
+
+```text
+direct MeasureFile()/MeasureCache() omitted defaults:
+  queued-owned rollout contour
+
+explicit fallback/oracle:
+  providerMode: BlockingBorrowed
+
+CLI omitted-provider rebalance-archive path:
+  aligned with the same queued-owned rollout contour
+
+cache-level allocation posture:
+  primary KTLX 2026-05-04 allocation ratio 1.042x borrowed
+  KTLX 2026-05-05 allocation ratio 1.0392x borrowed average
+  KTLX 2026-05-05 rows 1.0404x and 1.0381x borrowed
+  KINX 2026-05-04 allocation ratio 1.042x borrowed
+  mixed-cache allocation ratio 1.021x borrowed
+
+file-level warning:
+  representative KTLX single-file cold smoke allocation ratio 1.512x borrowed
+  representative KTLX single-file cold smoke elapsed ratio 1.072x borrowed
+  interpretation: file-level concern, not cache-level blocker
+```
+
+Milestone 015 gate facts to carry forward:
+
+```text
+primary KTLX 2026-05-04:
+  elapsed ratio: 0.889x borrowed
+  allocation ratio: 1.042x borrowed
+  default timing spread: 1.10%
+  retained high-water: 48257280 bytes
+
+KTLX 2026-05-05:
+  elapsed ratio: 0.943x borrowed average
+  allocation ratio: 1.0392x borrowed average
+  retained high-water: 52676640 bytes
+
+KINX 2026-05-04:
+  elapsed ratio: 0.899x borrowed
+  allocation ratio: 1.042x borrowed
+  retained high-water: 48342240 bytes
+
+mixed cache:
+  elapsed ratio: 0.871x borrowed
+  allocation ratio: 1.021x borrowed
+  retained high-water: 54413280 bytes
+
+release and cleanup:
+  release failures 0
+  current pending, active, and combined retained pressure returned to 0
+```
+
+Known local cache data at milestone start:
+
+```text
+data\nexrad\level2\2026\05\04\KTLX: 244 files
+data\nexrad\level2\2026\05\04\KINX: 462 files
+data\nexrad\level2\2026\05\05\KTLX: 848 files
+data\nexrad total files: 1554
+```
+
+Residual limits carried forward:
+
+```text
+single-file cold allocation is not a cache-level blocker but blocks any
+  file-level default readiness claim
+
+milestone 015 was a local gate over available NEXRAD cache shapes on
+  2026-05-21
+
+natural direct default rows kept queue depth at 1; queue-ahead mechanics are
+  covered by controlled tests rather than natural gate rows
+
+mixed-cache rows had matching worker failed batch/item counters in borrowed
+  and direct default rows while validation still succeeded
+```
+
+## Scope
+
+The implementation should explicitly scope milestone 016 to:
+
+```text
+local or explicitly approved NEXRAD cache inventory
+cache-shape selection before Release gate interpretation
+same-run explicit BlockingBorrowed oracle preservation
+direct MeasureCache() omitted-default readiness rows
+CLI omitted-provider cache alignment checks
+explicit queued-owned rollout drift checks where useful
+focused reporting or harness improvements needed for repeatable gate capture
+correctness, validation, cleanup, release, retained pressure, timing, spread,
+  allocation, and attribution interpretation
+per-cache-shape pass/warning/fail/coverage classification
+single-file cold warning scope preservation
+natural Release gate over broader cache-level rows
+decision trace, closeout, and handoff
+```
+
+The implementation should not change:
+
+```text
+queued-owned rollout defaults
+synthetic processing benchmark defaults
+archive download, inspection, replay-only, stream, parse, or publish defaults
+non-benchmark archive publishing APIs
+domain enum numeric values
+retained payload factory strategy semantics
+queued session ordering and rebalance commit rules
+worker topology capture timing
+automatic fallback semantics
+live ingestion/runtime provider defaults
+file-level cold behavior as the primary target
+```
+
+## Readiness Thresholds
+
+Milestone 016 starts from the milestone 015 thresholds. The plan should not
+change them after any new gate measurements are captured.
+
+Thresholds:
+
+```text
+correctness parity:
+  required, same-run borrowed reference must match
+
+topology/rebalance parity:
+  required, topology versions, accepted moves, skipped decisions, failed
+  migrations, validation checksum, and skipped reason counters must match
+
+release failures:
+  retained payload failed releases and provider overlap failed releases must
+  equal 0
+
+retained cleanup:
+  current pending, active, and combined retained batch/byte counts must return
+  to 0 at completion
+
+retained pressure:
+  combined retained payload high-water must be <= 536870912 bytes unless the
+  configured retained-byte budget is explicitly changed in a future contour
+
+allocation:
+  queued-owned direct/default allocated bytes should remain <= 1.10x same-run
+  borrowed allocated bytes for cache-level readiness rows
+
+performance:
+  queued-owned direct/default elapsed time should remain <= 1.00x same-run
+  borrowed elapsed time for cache-level readiness rows, or be classified as a
+  warning/blocker with attribution
+
+variance:
+  repeated natural direct/default spread should remain <= 7.50% of candidate
+  average, or the decision trace must explain why the spread does not block
+  the readiness conclusion
+
+natural evidence:
+  overlap consumer delay must be 0 and evidence scope must remain natural
+  readiness evidence, not controlled mechanics proof
+```
+
+Per-shape status vocabulary:
+
+```text
+pass:
+  all required thresholds pass and attribution is sufficient
+
+warning:
+  correctness, release, cleanup, and pressure pass, but elapsed, allocation,
+  spread, worker counters, or attribution needs explicit scoped acceptance
+
+fail:
+  correctness, release, cleanup, pressure, fail-closed behavior, or an
+  unaccepted elapsed/allocation threshold fails
+
+coverage-only:
+  row is useful evidence but cannot support readiness by itself because the
+  corpus, file count, selector, or repeatability is insufficient
+```
+
+Guardrail:
+
+```text
+Do not change thresholds after seeing final gate measurements. If thresholds
+need to change, record the reason before interpreting the gate.
+```
+
+## Target Implementation Shape
+
+The safest implementation shape is to start with corpus inventory, then
+verify guardrails, then capture natural Release evidence.
+
+Candidate layering:
+
+```text
+Domain:
+  owns allocation summary contracts, retained resource contracts, pressure
+  summaries, and queued provider validation vocabulary
+
+Infrastructure:
+  owns archive rebalance benchmark execution, retained payload telemetry,
+  queueing, overlap runner, direct result construction, and cache traversal
+
+Presentation:
+  owns CLI option parsing, help, output formatting, and option provenance
+
+Tests:
+  own deterministic contour assertions, fallback/oracle assertions, CLI/direct
+  alignment, retained release/cleanup guardrails, and cache result contracts
+
+Documentation:
+  owns corpus inventory, gate matrix, per-shape interpretation, decision trace,
+  closeout, and handoff posture
+```
+
+Implementation guidance:
+
+```text
+prefer documentation and reporting improvements before runtime changes
+use existing structured result fields instead of parsing output text
+keep direct defaults and CLI rollout constants pinned against drift
+avoid changing result contract shape unless gate reviewability requires it
+do not add new cache data without recording provenance and selection rules
+do not make the gate depend on controlled consumer delay
+record any rejected coverage or reporting idea before closeout
+```
+
+Primary files to inspect:
+
+```text
+src/Infrastructure/Processing/RadarProcessingArchiveRebalanceBenchmark.cs
+src/Infrastructure/Processing/RadarProcessingArchiveRebalanceRolloutDefaults.cs
+src/Infrastructure/Processing/RadarProcessingArchiveProviderMode.cs
+src/Infrastructure/Processing/RadarProcessingRetainedPayloadFactory.cs
+src/Infrastructure/Processing/RadarProcessingArchiveQueuedOverlapRunner.cs
+src/Infrastructure/Processing/RadarProcessingOwnedBatchQueue.cs
+src/Domain/Processing/RadarProcessingRebalanceAllocationSummary.cs
+src/Domain/Processing/RadarProcessingOwnedSnapshotAllocationSummary.cs
+src/Domain/Processing/RadarProcessingRetainedPayloadTelemetrySummary.cs
+src/Domain/Processing/RadarProcessingProviderQueueTelemetrySummary.cs
+src/Presentation/Program.cs
+docs/milestones/015-queued-owned-allocation-readiness-performance-gate.md
+docs/milestones/015-queued-owned-allocation-readiness-decision-trace.md
+```
+
+Primary tests to inspect or extend:
+
+```text
+tests/RadarPulse.Tests/Archive/NexradArchiveRadarEventBatchPublisherTests.cs
+tests/RadarPulse.Tests/Processing/RadarProcessingRebalanceAllocationSummaryTests.cs
+tests/RadarPulse.Tests/Processing/RadarProcessingRetainedPayloadFactoryTests.cs
+tests/RadarPulse.Tests/Processing/RadarProcessingRetainedBatchResourceTests.cs
+tests/RadarPulse.Tests/Processing/RadarProcessingArchiveQueuedOverlapRunnerTests.cs
+tests/RadarPulse.Tests/Processing/RadarProcessingQueuedProviderReadinessGateTests.cs
+tests/RadarPulse.Tests/Presentation/RadarPulseCliRebalanceBenchmarkTests.cs
+```
+
+## Implementation Slices
+
+### 1. Corpus Inventory And Gate Matrix Design
+
+Capture the available workload surface before changing code or interpreting
+new measurements.
+
+Questions to answer:
+
+```text
+which local NEXRAD cache roots are available now?
+which radar/date/file-count selectors reproduce the milestone 015 rows?
+which additional cache-level size variations are feasible without turning the
+  gate into file-level readiness?
+which rows need repetition for spread interpretation?
+which workload classes remain absent after local inventory?
+```
+
+Files and data to inspect:
+
+```text
+data/nexrad
+docs/milestones/015-queued-owned-allocation-readiness-performance-gate.md
+docs/milestones/015-queued-owned-allocation-readiness-closeout.md
+docs/milestones/016-broader-cache-level-default-readiness.md
+```
+
+Expected gate matrix draft:
+
+```text
+primary KTLX 2026-05-04 bounded cache, repeated
+KTLX 2026-05-05 named risk bounded cache, repeated
+KINX 2026-05-04 cross-radar bounded cache
+mixed local cache over available roots
+larger local cache slice where runtime cost is acceptable
+smaller cache-level slice that still amortizes retained cold cost
+representative single-file smoke only for warning visibility
+```
+
+Runtime behavior changes:
+
+```text
+none
+```
+
+Documentation updates:
+
+```text
+record corpus inventory and proposed gate matrix in this plan under the slice
+1 completion notes
+```
+
+Focused verification:
+
+```powershell
+Get-ChildItem data\nexrad -Recurse -File | Measure-Object
+```
+
+Slice 1 completion notes:
+
+```text
+status: pending
+```
+
+### 2. Existing Contract And Guardrail Audit
+
+Confirm that the existing result contracts and tests can support a broader
+cache-level decision without new runtime behavior.
+
+Questions to answer:
+
+```text
+do direct MeasureCache() omitted controls still resolve to queued-owned rollout
+  contour?
+does explicit BlockingBorrowed remain visibly separate in direct and CLI
+  output?
+does explicit queued-owned still match omitted defaults where drift is likely?
+are retained payload, event-array, and byte-array telemetry visible enough for
+  gate attribution?
+do existing tests cover failure, cleanup, release, and drift guardrails?
+```
+
+Files to inspect:
+
+```text
+src/Infrastructure/Processing/RadarProcessingArchiveRebalanceBenchmark.cs
+src/Infrastructure/Processing/RadarProcessingArchiveRebalanceRolloutDefaults.cs
+src/Presentation/Program.cs
+tests/RadarPulse.Tests/Archive/NexradArchiveRadarEventBatchPublisherTests.cs
+tests/RadarPulse.Tests/Presentation/RadarPulseCliRebalanceBenchmarkTests.cs
+tests/RadarPulse.Tests/Processing/RadarProcessingQueuedProviderReadinessGateTests.cs
+```
+
+Expected result:
+
+```text
+no product behavior change is needed before the first broader gate unless
+contract drift or missing observability is found
+```
+
+Runtime behavior changes:
+
+```text
+none unless drift or missing observability is found
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests"
+```
+
+Slice 2 completion notes:
+
+```text
+status: pending
+```
+
+### 3. Reporting And Harness Readiness
+
+Make the broader gate repeatable and reviewable. Prefer temporary local harness
+or documentation-driven capture when production code already reports enough.
+
+Questions to answer:
+
+```text
+can direct MeasureCache() gate rows be captured without manual result
+transcription errors?
+does CLI output show enough option provenance and fallback/oracle separation?
+does the result output include retained payload pool, event-array pool, and
+byte-array pool telemetry needed for attribution?
+does the gate need a committed test helper, a temporary harness, or only a
+documented command matrix?
+```
+
+Implementation targets, only if needed:
+
+```text
+add small reporting helpers for existing structured fields
+add tests for any newly printed line or result contract field
+add a narrow test helper for contour comparison if current tests duplicate
+fragile assertions
+```
+
+Guardrails:
+
+```text
+do not change benchmark semantics to simplify reporting
+do not move allocation outside the measured window
+do not add noisy output that is not used by the gate
+do not make the product depend on a local-only temporary harness
+```
+
+Focused verification:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests"
+```
+
+Slice 3 completion notes:
+
+```text
+status: pending
+```
+
+### 4. Focused Regression And Cache Sanity Pass
+
+Run focused tests before expensive Release gate capture and record whether the
+implementation is still safe to measure.
+
+Required focused regression:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests|FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests|FullyQualifiedName~RadarProcessingRetainedBatchResourceTests"
+```
+
+Expected checks:
+
+```text
+direct omitted defaults remain queued-owned rollout contour
+explicit BlockingBorrowed remains selectable and distinct
+explicit queued-owned rollout equals omitted default where expected
+CLI omitted-provider cache benchmark remains aligned with direct defaults
+retained cleanup and release guardrails remain covered
+allocation summary contracts remain non-negative
+```
+
+Runtime behavior changes:
+
+```text
+none unless earlier slices required reporting or contract fixes
+```
+
+Slice 4 completion notes:
+
+```text
+status: pending
+```
+
+### 5. Broader Cache-Level Release Gate
+
+Capture the natural Release evidence for broader cache-level readiness.
+
+Preconditions:
+
+```text
+corpus inventory completed
+gate matrix selected before measurement interpretation
+focused regression passed
+Release build passed
+thresholds recorded
+controlled consumer delay disabled
+same-run BlockingBorrowed oracle rows included for every readiness row
+```
+
+Release build:
+
+```powershell
+dotnet build RadarPulse.sln -c Release --no-restore
+```
+
+Required gate rows:
+
+```text
+primary KTLX 2026-05-04 direct MeasureCache() omitted-default row
+primary KTLX 2026-05-04 same-run explicit BlockingBorrowed row
+KTLX 2026-05-05 direct MeasureCache() omitted-default row
+KTLX 2026-05-05 same-run explicit BlockingBorrowed row
+KINX 2026-05-04 direct MeasureCache() omitted-default row
+KINX 2026-05-04 same-run explicit BlockingBorrowed row
+mixed-cache direct MeasureCache() omitted-default row
+mixed-cache same-run explicit BlockingBorrowed row
+additional selected size/coverage rows
+CLI omitted-provider cache spot-check
+representative single-file smoke for warning visibility only
+```
+
+Each row should report:
+
+```text
+cache root, radar/date selector, max-files selector, and effective file count
+effective direct configuration
+borrowed elapsed and allocated bytes
+queued-owned elapsed and allocated bytes
+queued-owned-to-borrowed elapsed ratio
+queued-owned-to-borrowed allocation ratio
+published/skipped/examined file counts
+payload values and raw checksum
+validation checksum and validation status
+topology versions and rebalance counters
+skipped reason counters
+worker failed batch/item counters
+queue depth and overlap indicators
+retained pending, active, and combined high-water values
+current retained pressure at completion
+release attempts and failed releases
+retained payload pool rent/return/miss telemetry
+event-array pool rent/return/miss telemetry
+byte-array pool rent/return/miss telemetry
+dominant allocation attribution categories
+per-shape status: pass, warning, fail, or coverage-only
+```
+
+Documentation updates:
+
+```text
+create docs/milestones/016-broader-cache-level-default-readiness-performance-gate.md
+record raw command matrix or harness description
+record per-shape interpretation before aggregate interpretation
+carry single-file cold warning as file-level scope
+```
+
+Slice 5 completion notes:
+
+```text
+status: pending
+```
+
+### 6. Gate Interpretation And Follow-Up Fixes
+
+Interpret the Release gate before deciding the milestone. Only implement
+follow-up fixes if the gate exposes a narrow, clearly attributable problem.
+
+Questions to answer:
+
+```text
+which cache shapes pass cleanly?
+which cache shapes have warnings and why?
+does any row fail correctness, release, cleanup, pressure, allocation, elapsed,
+  spread, or attribution thresholds?
+does any warning belong to cache-level readiness, file-level readiness, or
+  workload coverage?
+does the mixed-cache row hide a shape-specific warning?
+does broader evidence materially add to milestone 015 or merely repeat it?
+```
+
+Allowed follow-up work:
+
+```text
+small reporting or test fixes for reviewability
+small deterministic guardrail fixes if a drift or cleanup issue is found
+documentation-only classification if the warning is real but acceptable
+rerun of a noisy row when the original row is not interpretable
+```
+
+Not allowed without replanning:
+
+```text
+new rollout contour
+allocation optimization campaign
+file-level cold optimization campaign
+runtime/live default migration
+durable transport design
+threshold changes after gate capture
+```
+
+Slice 6 completion notes:
+
+```text
+status: pending
+```
+
+### 7. Broader Cache-Level Readiness Decision Trace
+
+Record the durable decision and the reasoning behind it.
+
+Create:
+
+```text
+docs/milestones/016-broader-cache-level-default-readiness-decision-trace.md
+```
+
+The decision trace must include:
+
+```text
+decision date
+top-level readiness answer
+corpus coverage summary
+per-shape pass/warning/fail/coverage classification
+same-run BlockingBorrowed oracle posture
+direct default and CLI omitted-provider alignment posture
+correctness, release, cleanup, pressure, elapsed, spread, allocation, and
+  attribution interpretation
+single-file cold warning scope
+whether broader readiness is accepted, accepted with scoped warnings,
+  rejected, coverage-insufficient, or deferred
+what future milestone input follows from the decision
+```
+
+Decision options:
+
+```text
+accept broader cache-level default readiness
+accept broader cache-level default readiness with named warnings
+reject broader cache-level default readiness with named blocker
+declare workload coverage insufficient with named missing evidence
+defer because safety, correctness, lifecycle, timing, variance, or
+  repeatability regressed
+```
+
+Slice 7 completion notes:
+
+```text
+status: pending
+```
+
+### 8. Closeout And Handoff
+
+Finalize milestone documentation and project handoff.
+
+Create:
+
+```text
+docs/milestones/016-broader-cache-level-default-readiness-closeout.md
+```
+
+Update:
+
+```text
+docs/handoff.md
+```
+
+Closeout must include:
+
+```text
+final status
+implemented changes
+not implemented
+final readiness posture
+gate summary
+decision trace pointer
+preserved invariants
+residual risks and limits
+recommended next milestone input
+final verification
+```
+
+Handoff must include:
+
+```text
+current milestone status
+current direct/default contour
+broader cache-level readiness answer
+same-run BlockingBorrowed oracle posture
+single-file cold warning posture
+live/runtime/durable out-of-scope posture
+final verification
+recommended next milestone input
+```
+
+Slice 8 completion notes:
+
+```text
+status: pending
+```
+
+## Verification Strategy
+
+Use focused tests before gate capture, then Release build and natural Release
+benchmarks for the readiness decision.
+
+Focused regression:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests|FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests|FullyQualifiedName~RadarProcessingRetainedBatchResourceTests"
+```
+
+Release build:
+
+```powershell
+dotnet build RadarPulse.sln -c Release --no-restore
+```
+
+Full test project before closeout:
+
+```powershell
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+```
+
+Release gate:
+
+```text
+run direct MeasureCache() omitted-default rows and same-run explicit
+BlockingBorrowed rows for the selected cache matrix
+
+run CLI omitted-provider cache spot-check for direct/CLI alignment
+
+run representative MeasureFile() single-file smoke only to keep the file-level
+cold warning visible
+```
+
+## Completion Checklist
+
+Milestone 016 is complete when:
+
+```text
+[ ] cache corpus inventory is captured with radar/date/file-count/selection
+    details
+[ ] selected cache-level shapes are broad enough for a readiness decision, or
+    coverage insufficiency is explicitly recorded
+[ ] same-run explicit BlockingBorrowed oracle rows remain available,
+    documented, and visibly separate
+[ ] direct MeasureCache() omitted defaults still resolve to the accepted
+    queued-owned rollout contour
+[ ] CLI omitted-provider cache benchmark remains aligned with direct API
+    defaults
+[ ] correctness parity against borrowed rows is preserved for every readiness
+    row
+[ ] retained cleanup returns current pressure to zero in natural direct/default
+    rows
+[ ] release failures remain 0
+[ ] retained pressure stays within the configured 536870912 byte budget
+[ ] allocation overhead is classified per cache shape against the recorded
+    threshold
+[ ] elapsed timing and variance are classified per cache shape against the
+    recorded thresholds
+[ ] single-file cold retained-ownership cost remains explicitly scoped as a
+    file-level concern, not cache-level blocker
+[ ] queued-owned failures remain fail-closed with no automatic borrowed
+    fallback
+[ ] performance gate is captured
+[ ] decision trace records the broader cache-level default-readiness decision
+[ ] closeout records verification, gate results, residual risks, and carry
+    forward items
+[ ] handoff states the current broader cache-level readiness posture and
+    recommended next milestone unambiguously
+```
+
+## Non-Goals
+
+Milestone 016 does not implement:
+
+```text
+new default rollout contour
+file-level default latency/allocation optimization
+synthetic processing benchmark default migration
+non-benchmark archive publishing API default migration
+live ingestion/runtime provider defaults
+durable queue or broker integration
+cross-process provider or worker transport
+ordered concurrent rebalance commit barrier
+multiple active rebalance-enabled processing batches
+builder-transfer retained payload execution
+source-level migration or partition splitting
+physical worker-local state transfer
+complex radar algorithms
+visualization or product-facing radar analysis features
+automatic silent fallback from queued-owned failure to borrowed success
+threshold changes after gate capture
+```
+
+## Closeout Question
+
+The milestone closes by answering:
+
+```text
+Is the queued-owned direct/default contour ready as the broader cache-level
+benchmark/default posture for available cache workloads?
+```
+
+Valid answers:
+
+```text
+yes, broader cache-level default readiness is accepted
+
+yes with warnings, broader cache-level default readiness is accepted with
+named scoped warnings
+
+no, broader cache-level default readiness is rejected with a named cache
+shape, threshold, or attribution blocker
+
+coverage insufficient, broader cache-level default readiness cannot be decided
+from the available workload evidence
+
+defer, broader cache-level default readiness cannot be decided because
+correctness, cleanup, release health, pressure, fail-closed behavior, timing
+variance, or benchmark repeatability regressed
+```
