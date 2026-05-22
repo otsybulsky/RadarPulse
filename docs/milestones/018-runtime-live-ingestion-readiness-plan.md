@@ -529,8 +529,50 @@ decision on whether existing runtime surfaces are enough for gate capture or
 Slice 1 status:
 
 ```text
-status: pending
-runtime behavior changes: none expected
+status: complete
+runtime behavior changes: none
+audit document:
+  docs/milestones/018-runtime-live-ingestion-readiness-lifecycle-audit.md
+```
+
+Slice 1 completion notes:
+
+```text
+audited primary surfaces:
+  IArchiveRadarEventBatchPublisher
+  NexradArchiveRadarEventBatchPublisher
+  ArchiveOwnedRadarEventBatchQueueingPublisher
+  RadarProcessingArchiveQueuedOverlapRunner
+  RadarProcessingOwnedBatchQueue
+  RadarProcessingQueuedProcessingSession
+  RadarProcessingQueuedRebalanceSession
+  RadarProcessingRetainedPayloadFactory
+  direct archive rebalance benchmark/result/CLI surfaces
+
+surface classification:
+  direct benchmark surface is implemented and accepted by milestone 017
+  runtime archive provider surface is partially implemented as in-process
+    archive provider decoupling
+  true live ingestion adapter surface was not found and remains coverage gap
+  durable/cross-process surfaces remain out of scope
+
+current runtime-shaped foundation:
+  archive provider can retain leased input and enqueue owned batches
+  owned queue is bounded and retained-byte-budget aware
+  queued processing/rebalance sessions drain sequence-ordered owned batches
+  producer and consumer results are separate
+  retained cleanup and pressure telemetry exist
+  worker and processing failure vocabulary exists
+  direct benchmark prewarm and processing completeness are visible
+
+main gaps carried to slice 2:
+  no runtime default selection decision
+  no runtime prewarm lifecycle policy
+  shutdownMode CancelQueued is contractual but not wired into audited runtime
+    drain behavior
+  no single runtime readiness result/operator surface
+  no true live ingestion adapter evidence
+  integrated runtime-shaped gates still need to be designed
 ```
 
 ### 2. Runtime Readiness Contract And Gate Matrix Design

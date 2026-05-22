@@ -23,7 +23,7 @@ implementation plan:
   drafted in docs/milestones/018-runtime-live-ingestion-readiness-plan.md
 
 implementation:
-  not started
+  slice 1 complete; no runtime behavior changes
 
 runtime behavior changes:
   none yet
@@ -57,7 +57,7 @@ queued-owned runtime outcomes remain open:
 Milestone 018 planned slices:
 
 ```text
-1. Runtime surface inventory and lifecycle audit
+1. Runtime surface inventory and lifecycle audit (complete)
 2. Runtime readiness contract and gate matrix design
 3. Reporting, contract, and harness gap closure
 4. Runtime prewarm lifecycle decision and guardrails
@@ -107,9 +107,35 @@ automatic silent borrowed fallback
 Milestone 018 current recommended next action:
 
 ```text
-begin slice 1: runtime surface inventory and lifecycle audit over archive
-provider, owned queue, queued processing/rebalance session, retained payload,
-pressure, worker, CLI/reporting, and focused test surfaces
+begin slice 2: runtime readiness contract and gate matrix design
+```
+
+Milestone 018 slice 1 completion:
+
+```text
+audit document:
+  docs/milestones/018-runtime-live-ingestion-readiness-lifecycle-audit.md
+
+runtime behavior changes:
+  none
+
+audited foundation:
+  archive provider can retain leased input and enqueue owned batches
+  owned queue is bounded and retained-byte-budget aware
+  queued processing/rebalance sessions drain sequence-ordered owned batches
+  producer and consumer results are separate
+  retained cleanup and pressure telemetry exist
+  worker and processing failure vocabulary exists
+  direct benchmark prewarm and processing completeness are visible
+
+main gaps carried to slice 2:
+  no runtime default selection decision
+  no runtime prewarm lifecycle policy
+  shutdownMode CancelQueued is contractual but not wired into audited runtime
+    drain behavior
+  no single runtime readiness result/operator surface
+  no true live ingestion adapter evidence
+  integrated runtime-shaped gates still need to be designed
 ```
 
 ## Milestone 017 Baseline
