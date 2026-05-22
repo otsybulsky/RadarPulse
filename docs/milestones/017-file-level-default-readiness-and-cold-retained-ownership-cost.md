@@ -1,6 +1,9 @@
 # Milestone 017: File-Level Default Readiness And Cold Retained-Ownership Cost Architecture
 
-Status: draft.
+Status: complete.
+
+Closed by
+`017-file-level-default-readiness-and-cold-retained-ownership-cost-closeout.md`.
 
 RadarPulse milestone 017 starts from the closed milestone 016 broader
 cache-level default readiness result. Milestone 016 accepted broader

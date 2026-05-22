@@ -1,7 +1,6 @@
 # RadarPulse Project Progress
 
-Status: current during milestone 017 after mixed-cache source-universe
-follow-up.
+Status: current after milestone 017 closeout.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -12,19 +11,24 @@ production-ready result.
 ## Current Position
 
 RadarPulse has completed the direct archive benchmark default-readiness path
-through broader cache-level evidence.
+through broader cache-level, file-level, and small-file evidence.
 
 Current state:
 
 ```text
-completed milestones: 001-016
-active milestone: 017
+completed milestones: 001-017
+active milestone: none selected
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive
-  rebalance benchmark workloads, accepted with named scoped warnings
+  rebalance benchmark workloads, file-level MeasureFile workloads, and
+  small-file MeasureCache workloads, accepted with named scoped warnings
+  retained payload prewarm is enabled for the direct benchmark
+  default-equivalent contour and is explicitly attributed outside measured row
+  allocation
 
 current recommended next milestone:
-  017 File-Level Default Readiness And Cold Retained-Ownership Cost
+  runtime/live ingestion readiness, scoped separately from direct benchmark
+  defaults
 ```
 
 The current accepted direct/default contour is:
@@ -54,38 +58,57 @@ effective contour:
   provider queue capacity: 8
   retained-byte budget: 536870912
   overlap consumer delay: 0
+  retained payload prewarm: enabled for the direct benchmark
+    default-equivalent contour
+  retained payload prewarm sizing: 65_536 events, 67_108_864 payload bytes,
+    1 retained batch
 ```
 
 The current accepted readiness answer is:
 
 ```text
-yes with warnings, broader cache-level default readiness is accepted with
-named scoped warnings
+yes with warnings, broader cache-level, file-level, and small-file direct
+benchmark default readiness is accepted with named scoped warnings
 ```
 
 The named warnings carried forward are:
 
 ```text
-primary spread warning:
+cache-level primary spread warning:
   KTLX 2026-05-04 max-files 220 candidate spread was 12.01%, above the 7.50%
   threshold, while all individual candidate rows remained faster than same-run
   borrowed and safety/allocation guardrails passed
 
-named-risk timing note:
+cache-level named-risk timing note:
   KTLX 2026-05-05 max-files 220 had one individual elapsed pair at 1.001x
   borrowed, while the repeated average passed at 0.822x and the larger
   same-shape row passed at 0.810x
 
-mixed-cache worker-counter note:
+file/small-cache prewarm cost:
+  retained payload prewarm is a real up-front direct benchmark default cost;
+  it is not folded into measured row allocation and remains visible in result
+  contracts and CLI output
+
+natural cold allocation note:
+  natural unprewarmed MeasureFile and low-count MeasureCache rows remain
+  allocation-blocked; the accepted readiness contour is queued-owned rollout
+  default plus retained payload prewarm
+
+file-level filesystem timing note:
+  fail-level prewarmed elapsed outliers did not reproduce in targeted timing
+  repeats, but local file I/O timing variance remains visible
+
+mixed-cache worker-counter follow-up:
   milestone 017 follow-up diagnosed the 221/881 worker failed
   batches/items as SourceOrderViolation from running mixed KINX/KTLX cache
   rows through DefaultSingleRadar; MeasureCache now self-sizes mixed-radar
   source universes and archive rebalance reporting treats processing-invalid
-  batches and worker failures as processing-completeness blockers
+  batches and worker failures as processing-completeness blockers; post-fix
+  mixed-cache-all passes with worker failed batches/items 0/0
 
-file-smoke coverage-only scope:
-  the milestone 016 single-file smoke did not reproduce the milestone 015 cold
-  warning, but it does not certify file-level default readiness
+runtime scope:
+  direct benchmark readiness does not approve live ingestion/runtime defaults,
+  durable queues, cross-process workers, or ordered concurrent rebalance
 ```
 
 ## Completed Arc
@@ -205,7 +228,7 @@ benchmark default candidate, while live/runtime/durable surfaces remained
 explicitly out of scope
 ```
 
-### 5. Direct Archive Benchmark Default Migration
+### 5. Direct Archive Benchmark Default Migration And Readiness
 
 Milestones:
 
@@ -213,6 +236,7 @@ Milestones:
 014 Direct Archive Rebalance API Default Migration
 015 Queued-Owned Allocation Readiness
 016 Broader Cache-Level Default Readiness
+017 File-Level Default Readiness And Cold Retained-Ownership Cost
 ```
 
 Achieved:
@@ -222,19 +246,28 @@ MeasureFile()/MeasureCache() omitted defaults migrated to queued-owned
 explicit BlockingBorrowed preserved as fallback and same-run oracle
 cache-level allocation warning reduced and bounded
 broader cache-level default readiness accepted with named scoped warnings
+file-level and small-file default readiness accepted with scoped retained
+payload prewarm and named warnings
+natural unprewarmed file/small-file allocation blocker recorded and scoped
+mixed-cache worker counters diagnosed and fixed as source-universe sizing
+processing completeness made a gate/reporting requirement
 CLI omitted-provider cache path aligned with direct defaults
 full test project passed before milestone 016 closeout:
   768 passed, 0 failed, 3 skipped
+full test project passed before milestone 017 closeout:
+  771 passed, 0 failed, 3 skipped
 ```
 
 Prepared:
 
 ```text
-the direct benchmark/cache-level path is ready enough to stop treating
-cache-level readiness as the main blocker
+the direct benchmark path is ready enough across cache-level, file-level, and
+small-file workloads to stop treating direct archive benchmark defaults as the
+main blocker
 
-the next concrete risk is file-level and small-file behavior, especially cold
-retained-ownership cost and lack of file-level corpus evidence
+the next concrete risk is runtime/live ingestion behavior, where prewarm
+lifecycle, backpressure, cleanup, fallback, and operator-visible failure
+policy must be designed explicitly
 ```
 
 ## Remaining Arc
@@ -242,55 +275,13 @@ retained-ownership cost and lack of file-level corpus evidence
 The following stages are not complete. They are the recommended route from the
 current state to the intended production-ready result.
 
-### 6. File-Level Default Readiness
+### 6. Runtime And Live Ingestion Readiness
 
 Recommended next milestone:
 
 ```text
-017 File-Level Default Readiness And Cold Retained-Ownership Cost
+runtime/live ingestion readiness
 ```
-
-Goal:
-
-```text
-decide whether the queued-owned direct/default contour is ready for
-MeasureFile() and small-file workloads, or whether file-level needs a scoped
-optimization/default decision before runtime expansion
-```
-
-Why this is next:
-
-```text
-milestone 015 exposed a single-file cold retained-ownership warning
-milestone 016 did not reproduce that warning, but only with one file-smoke row
-broader cache-level readiness does not certify file-level default readiness
-runtime expansion should not inherit an unresolved file-level/small-file risk
-```
-
-Expected evidence:
-
-```text
-cold file-level rows
-repeated/warm file-level rows
-small-file cache slices where retained cold cost is only partially amortized
-same-run BlockingBorrowed oracle rows
-explicit file-level thresholds recorded before measurement interpretation
-clear decision: accept, accept with warnings, optimize, change file-level
-default posture, defer, or reject
-```
-
-Prepared by current state:
-
-```text
-direct default contour is stable
-BlockingBorrowed oracle posture is preserved
-cache-level readiness no longer blocks file-level investigation
-file-level warning is scoped and named
-```
-
-### 7. Runtime And Live Ingestion Readiness
-
-Future milestone after file-level decision.
 
 Goal:
 
@@ -299,12 +290,22 @@ decide whether queued-owned can move beyond direct archive benchmark surfaces
 into live ingestion/runtime defaults
 ```
 
-Likely required work:
+Why this is next:
+
+```text
+milestone 017 closed the file-level and small-file direct benchmark readiness
+question with scoped retained payload prewarm
+direct benchmark readiness is evidence, not automatic runtime approval
+runtime surfaces need explicit lifecycle, startup/prewarm timing,
+backpressure, fallback, cleanup, cancellation, and observability contracts
+```
+
+Expected evidence:
 
 ```text
 runtime input and lifecycle contract audit
 live ingestion provider selection rules
-runtime backpressure and pressure-budget policy
+runtime pressure and backpressure policy
 operator-visible fallback and failure behavior
 runtime cleanup, cancellation, release, and validation guardrails
 Release gates over runtime-shaped workloads
@@ -314,10 +315,44 @@ explicit statement that direct benchmark readiness is only one input
 Prepared by current state:
 
 ```text
-cache-level benchmark/default readiness is accepted
+cache-level, file-level, and small-file benchmark/default readiness are
+accepted with named scoped warnings
+BlockingBorrowed oracle posture and fail-closed behavior are preserved
+prewarm attribution exists in result contracts and CLI output
+processing completeness is now visible and gateable
+```
+
+### 7. Durable And Cross-Process Runtime
+
+Future milestone after runtime/live ingestion readiness.
+
+Goal:
+
+```text
+decide whether queued-owned should move into durable queues, brokers,
+cross-process providers/workers, or ordered concurrent runtime rebalance
+```
+
+Likely required work:
+
+```text
+durable queue or broker contract
+cross-process retained payload ownership model
+worker-local state and transfer boundaries
+ordered concurrent rebalance commit policy
+failure, retry, cancellation, and cleanup semantics across process boundaries
+operator-visible recovery and fallback policy
+Release gates over durable/cross-process workloads
+```
+
+Prepared by current state:
+
+```text
+direct benchmark readiness is accepted across cache, file, and small-file
+workloads
 direct API fallback/oracle semantics are clear
-retained pressure, cleanup, release, telemetry, and validation guardrails
-already exist and can inform runtime readiness
+retained pressure, cleanup, release, telemetry, validation, prewarm
+attribution, and processing-completeness guardrails can inform durable design
 ```
 
 Still not approved:
@@ -441,8 +476,8 @@ the main milestone target
 [done] direct archive benchmark default migration
 [done] cache-level allocation readiness
 [done] broader cache-level default readiness
-[next] file-level/small-file default readiness
-[later] runtime/live ingestion readiness
+[done] file-level/small-file default readiness
+[next] runtime/live ingestion readiness
 [later] durable/cross-process runtime
 [later] production pipeline integration
 [later] product-facing completion

@@ -1,8 +1,8 @@
-# Handoff: Milestone 017 In Progress
+# Handoff: Milestone 017 Complete
 
 ## Current State
 
-Milestone 017 is in progress. The milestone documents created so far are:
+Milestone 017 is complete. The milestone documents are:
 
 ```text
 docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost.md
@@ -11,30 +11,31 @@ docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cos
 docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-prewarmed-measurefile-gate.md
 docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-small-cache-gate.md
 docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-interpretation.md
+docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-decision-trace.md
+docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-closeout.md
 ```
 
 Milestone 017 is the file-level default readiness and cold
 retained-ownership cost milestone. It starts from the closed milestone 016
 broader cache-level default readiness result.
 
-Milestone 017 target:
+Milestone 017 closeout answer:
 
 ```text
-decide whether the queued-owned direct/default contour is ready for
-file-level MeasureFile() and small-file workloads, or whether file-level
-needs a scoped optimization/default decision before runtime expansion
+yes with warnings, file-level and small-file default readiness is accepted for
+the queued-owned direct benchmark default-equivalent contour with retained
+payload prewarm
 ```
 
 Milestone 017 current status:
 
 ```text
-architecture document: drafted in
+architecture document: complete in
   docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost.md
-implementation plan: drafted in
+implementation plan: complete in
   docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-plan.md
-implementation: slice 8 mixed-cache source-universe and processing-completeness
-  follow-up complete
-runtime behavior changes so far:
+implementation: complete through decision trace and closeout
+runtime behavior changes:
   direct MeasureFile()/MeasureCache() default-equivalent queued-owned contour
     now prewarms retained payload resources before measured rows
   direct MeasureCache() auto-sizes its source universe to the selected
@@ -62,6 +63,15 @@ prewarm follow-up:
   allocation blocker for file and selected small-cache rows, with up-front
   prewarm allocation cost kept explicit; slice 7 promoted this to the scoped
   direct benchmark default-equivalent posture with result and CLI attribution
+file-level readiness:
+  natural unprewarmed MeasureFile and low-count MeasureCache rows remain
+    allocation-blocked
+  accepted readiness contour is queued-owned rollout default plus retained
+    payload prewarm
+  prewarm cost is explicit and not folded into measured row allocation
+  fail-level prewarmed elapsed outliers did not reproduce in targeted timing
+    repeats; remaining elapsed variance is a non-blocking filesystem timing
+    note
 mixed-cache follow-up:
   mixed-cache-all worker failures were diagnosed as SourceOrderViolation from
   running KINX and KTLX through DefaultSingleRadar; MeasureCache now
@@ -73,14 +83,18 @@ mixed-cache follow-up:
     omitted default candidate mixed-cache-all: source count 46080, published
       files 828, processing validation failed batches 0, worker failed
       batches/items 0/0, retained pool misses 0, release failures 0
-decision trace: not written
-closeout: not written
+decision trace: written in
+  docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-decision-trace.md
+closeout: written in
+  docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-closeout.md
 project progress ledger:
-  docs/project-progress.md remains current after milestone 016 closeout until
-  milestone 017 closes
+  docs/project-progress.md is current after milestone 017 closeout
+recommended next milestone:
+  runtime/live ingestion readiness, scoped separately from direct benchmark
+  defaults
 ```
 
-Milestone 017 keeps this starting direct/default contour:
+Milestone 017 final direct/default contour:
 
 ```text
 surface:
@@ -668,14 +682,15 @@ verification:
   focused regression passed:
     89 passed, 0 failed, 0 skipped
   post-default cache regression matrix:
-    data\temp\m017-cache-regression-runner\output\m017-cache-regression-20260522-101200.jsonl
-    data\temp\m017-cache-regression-runner\output\m017-cache-regression-20260522-101200.md
+    data\temp\m017-cache-regression-runner\output\m017-cache-regression-20260522-110241.jsonl
+    data\temp\m017-cache-regression-runner\output\m017-cache-regression-20260522-110241.md
     16 group rows passed, 0 warning, 0 optimize, 0 failed
     28 borrowed/candidate pairs passed safety, 0 failed
-    worst measured allocation ratio 1.008x on mixed-cache-all
-    worst elapsed ratio 0.994x on KTLX 2026-05-04 4-file small-cache row
-    worst candidate spread 3.68%
-    pool misses 0, validation failures 0, release failures 0, current
+    worst measured allocation ratio 1.009x on mixed-cache-all
+    worst elapsed ratio 0.988x on KTLX 2026-05-05 2-file small-cache row
+    worst candidate spread 4.60%
+    pool misses 0, validation failures 0, processing completeness failures
+      0, worker failed batches/items 0/0, release failures 0, current
       retained bytes 0
 
 decision-trace input:
@@ -686,8 +701,8 @@ decision-trace input:
   prewarm allocation is accepted as a named up-front default cost for this
     direct benchmark surface, not hidden inside measured allocation
   post-default cache regression matrix found no cache-level performance
-    regression; mixed-cache-all retains the known worker-counter note while
-    validation, migration, release, and cleanup guardrails remain clean
+    regression after the mixed-cache source-universe fix; mixed-cache-all
+    worker failed batches/items are 0/0
   broader cache-level milestone 016 readiness remains accepted
 ```
 
@@ -701,8 +716,8 @@ Milestone 017 planned slices:
 5. cold and warm MeasureFile Release gate complete
 6. small-file cache transition gate complete
 7. gate interpretation and follow-up fixes complete
-8. file-level readiness decision trace pending
-9. closeout, handoff, and project progress pending
+8. file-level readiness decision trace complete
+9. closeout, handoff, and project progress complete
 ```
 
 Milestone 017 closeout question:
@@ -746,7 +761,7 @@ contour
 explicit BlockingBorrowed remains fallback/oracle
 same-run BlockingBorrowed rows remain required for readiness gates
 CLI omitted-provider rebalance-archive remains aligned with direct defaults
-unless a scoped file-level decision changes that posture
+including scoped retained-payload prewarm attribution
 queued-owned failures fail closed
 no automatic borrowed fallback follows queued-owned failure
 controlled consumer delay remains mechanics-only proof
@@ -763,14 +778,14 @@ success; scoped prewarm cost must remain explicit in result and CLI
 Recommended current next action:
 
 ```text
-continue milestone 017 slice 8:
-  write the formal file-level readiness decision trace
-  record current direct file/small-cache default posture as queued-owned
-    rollout default plus retained payload prewarm
-  keep broader cache-level default readiness separate from runtime expansion
-  preserve explicit BlockingBorrowed oracle posture
-  carry the named prewarm cost and filesystem timing note into the decision
-    trace
+start the next milestone:
+  design runtime/live ingestion readiness separately from direct benchmark
+  defaults
+  treat accepted cache/file/small-cache direct benchmark readiness as evidence,
+    not automatic runtime approval
+  define runtime lifecycle, startup/prewarm timing, backpressure, cleanup,
+    fallback, failure, cancellation, and observability contracts before any
+    runtime default migration
 ```
 
 ## Milestone 016 Baseline

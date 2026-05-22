@@ -1,6 +1,9 @@
 # Milestone 017: File-Level Default Readiness And Cold Retained-Ownership Cost Implementation Plan
 
-Status: in progress.
+Status: complete.
+
+Closed by
+`017-file-level-default-readiness-and-cold-retained-ownership-cost-closeout.md`.
 
 This plan implements the milestone 017 architecture defined in
 `017-file-level-default-readiness-and-cold-retained-ownership-cost.md`.
@@ -1557,14 +1560,15 @@ verification:
   focused regression passed:
     89 passed, 0 failed, 0 skipped
   post-default cache regression matrix:
-    data\temp\m017-cache-regression-runner\output\m017-cache-regression-20260522-101200.jsonl
-    data\temp\m017-cache-regression-runner\output\m017-cache-regression-20260522-101200.md
+    data\temp\m017-cache-regression-runner\output\m017-cache-regression-20260522-110241.jsonl
+    data\temp\m017-cache-regression-runner\output\m017-cache-regression-20260522-110241.md
     16 group rows passed, 0 warning, 0 optimize, 0 failed
     28 borrowed/candidate pairs passed safety, 0 failed
-    worst measured allocation ratio 1.008x on mixed-cache-all
-    worst elapsed ratio 0.994x on KTLX 2026-05-04 4-file small-cache row
-    worst candidate spread 3.68%
-    pool misses 0, validation failures 0, release failures 0, current
+    worst measured allocation ratio 1.009x on mixed-cache-all
+    worst elapsed ratio 0.988x on KTLX 2026-05-05 2-file small-cache row
+    worst candidate spread 4.60%
+    pool misses 0, validation failures 0, processing completeness failures
+      0, worker failed batches/items 0/0, release failures 0, current
       retained bytes 0
 
 interpretation:
@@ -1575,17 +1579,17 @@ interpretation:
   prewarm allocation is accepted as a named up-front default cost for this
     direct benchmark surface, not hidden inside measured allocation
   post-default cache regression matrix found no cache-level performance
-    regression; mixed-cache-all retains the known worker-counter note while
-    validation, migration, release, and cleanup guardrails remain clean
+    regression after the mixed-cache source-universe fix; mixed-cache-all
+    worker failed batches/items are 0/0
   broader cache-level milestone 016 readiness remains accepted and runtime
     expansion remains out of scope
 ```
 
 ### 8. File-Level Readiness Decision Trace
 
-Write the formal decision trace.
+Write the formal decision trace. This slice is complete.
 
-Create:
+Created:
 
 ```text
 docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-decision-trace.md
@@ -1627,21 +1631,21 @@ defer because gate health or repeatability regressed
 Slice 8 status:
 
 ```text
-status: pending
+status: complete
 runtime behavior changes: none expected
 ```
 
 ### 9. Closeout, Handoff, And Project Progress
 
-Finalize milestone documentation and project handoff.
+Finalize milestone documentation and project handoff. This slice is complete.
 
-Create:
+Created:
 
 ```text
 docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-closeout.md
 ```
 
-Update:
+Updated:
 
 ```text
 docs/handoff.md
@@ -1693,7 +1697,7 @@ whether the project chain changed
 Slice 9 status:
 
 ```text
-status: pending
+status: complete
 runtime behavior changes: none expected
 ```
 
@@ -1800,10 +1804,10 @@ Milestone 017 is complete when:
 [x] queued-owned failures remain fail-closed with no automatic borrowed
     fallback
 [x] performance gate is captured
-[ ] decision trace records the file-level default-readiness decision
-[ ] closeout records verification, gate results, residual risks, and carry
+[x] decision trace records the file-level default-readiness decision
+[x] closeout records verification, gate results, residual risks, and carry
     forward items
-[ ] handoff and project-progress state the current file-level readiness posture
+[x] handoff and project-progress state the current file-level readiness posture
     and recommended next milestone unambiguously
 ```
 

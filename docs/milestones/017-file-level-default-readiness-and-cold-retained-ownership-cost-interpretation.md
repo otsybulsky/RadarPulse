@@ -312,13 +312,13 @@ current file/small-file default contour:
   queued-owned rollout-default contour with retained payload prewarm
 
 file/small-file readiness posture:
-  ready for decision trace if the up-front prewarm cost is accepted as named
-  default cost and the filesystem timing note remains non-blocking
+  accepted in the decision trace with named scoped warnings; the up-front
+  prewarm cost is a named default cost and the filesystem timing note remains
+  non-blocking
 
 broader cache-level readiness:
   milestone 016 accepted posture remains intact
 
-next step:
-  write the formal decision trace and closeout using the prewarmed default
-  posture
+closeout:
+  decision trace and closeout are written using the prewarmed default posture
 ```
