@@ -65,12 +65,12 @@ public sealed record RadarProcessingProviderQueueTelemetrySummary
                 "Enqueued count cannot exceed enqueue attempt count.");
         }
 
-        if (completedBatchCount + failedBatchCount + canceledBatchCount > dequeuedBatchCount)
+        if (completedBatchCount + failedBatchCount + skippedAfterFaultCount > dequeuedBatchCount)
         {
             throw new ArgumentOutOfRangeException(
                 nameof(completedBatchCount),
                 completedBatchCount,
-                "Completed, failed, and canceled counts cannot exceed dequeued count.");
+                "Completed, failed, and skipped-after-fault counts cannot exceed dequeued count.");
         }
 
         OwnedSnapshotCount = ownedSnapshotCount;

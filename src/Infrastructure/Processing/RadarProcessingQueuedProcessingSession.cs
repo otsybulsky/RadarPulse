@@ -127,7 +127,7 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
                         return CreateSessionResult(RadarProcessingQueuedSessionStatus.Faulted, dequeue.Message);
 
                     case RadarProcessingOwnedBatchDequeueStatus.Canceled:
-                        MarkCanceled();
+                        MarkCanceledAndRecordQueued();
                         AddDrainTime(started);
                         return CreateSessionResult(RadarProcessingQueuedSessionStatus.Canceled, "Queued processing drain was canceled.");
 
@@ -143,7 +143,7 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            MarkCanceled();
+            MarkCanceledAndRecordQueued();
             AddDrainTime(started);
             return CreateSessionResult(RadarProcessingQueuedSessionStatus.Canceled, "Queued processing drain was canceled.");
         }
@@ -229,11 +229,11 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            MarkCanceled();
             RecordProcessingResult(
                 RadarProcessingQueuedBatchProcessingResult.Canceled(
                     queuedBatch.Sequence,
                     "Queued processing batch was canceled."));
+            MarkCanceledAndRecordQueued();
         }
         catch (Exception exception)
         {
@@ -285,14 +285,34 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
         queue.Fault(message);
     }
 
-    private void MarkCanceled()
+    private void MarkCanceledAndRecordQueued()
+    {
+        var canceledQueued = MarkCanceled();
+        foreach (var queuedBatch in canceledQueued)
+        {
+            RecordProcessingResult(
+                RadarProcessingQueuedBatchProcessingResult.Canceled(
+                    queuedBatch.Sequence,
+                    "Queued processing batch was canceled before dequeue."));
+        }
+    }
+
+    private IReadOnlyList<RadarProcessingQueuedBatch> MarkCanceled()
     {
         lock (sync)
         {
             canceled = true;
         }
 
+        return queue.Options.ShutdownMode == RadarProcessingProviderQueueShutdownMode.CancelQueued
+            ? queue.CancelQueued()
+            : CloseAndReturnNoCanceledBatches();
+    }
+
+    private IReadOnlyList<RadarProcessingQueuedBatch> CloseAndReturnNoCanceledBatches()
+    {
         queue.Close();
+        return Array.Empty<RadarProcessingQueuedBatch>();
     }
 
     private void AddDrainTime(long started)

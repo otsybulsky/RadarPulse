@@ -116,7 +116,7 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            publisher.Queue.Close();
+            ApplyCancellationShutdown(publisher.Queue);
             return RadarProcessingArchiveQueuedOverlapProducerResult.Canceled(
                 publisher.CreateResult(),
                 Stopwatch.GetElapsedTime(started),
@@ -150,7 +150,7 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            queue.Close();
+            ApplyCancellationShutdown(queue);
             publisher.ReleasePendingResources();
             return CreateConsumerResult(
                 queue,
@@ -190,6 +190,18 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
                 queue.CreateTelemetrySummary(),
                 message: message),
             elapsed);
+
+    private static void ApplyCancellationShutdown(
+        RadarProcessingOwnedBatchQueue queue)
+    {
+        if (queue.Options.ShutdownMode == RadarProcessingProviderQueueShutdownMode.CancelQueued)
+        {
+            queue.CancelQueued();
+            return;
+        }
+
+        queue.Close();
+    }
 
     private static RadarProcessingArchiveQueuedOverlapProducerResult CreateProducerResultWithFinalProviderTelemetry(
         RadarProcessingArchiveQueuedOverlapProducerResult producer,

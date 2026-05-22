@@ -239,6 +239,32 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
         }
     }
 
+    public IReadOnlyList<RadarProcessingQueuedBatch> CancelQueued()
+    {
+        lock (sync)
+        {
+            if (disposed)
+            {
+                return Array.Empty<RadarProcessingQueuedBatch>();
+            }
+
+            closed = true;
+            channel.Writer.TryComplete();
+            SignalRetainedByteBudgetChangedUnsafe();
+        }
+
+        var canceled = new List<RadarProcessingQueuedBatch>();
+        while (channel.Reader.TryRead(out var batch))
+        {
+            RemovePending(batch, countDequeued: false);
+            canceled.Add(batch);
+        }
+
+        return canceled.Count == 0
+            ? Array.Empty<RadarProcessingQueuedBatch>()
+            : Array.AsReadOnly(canceled.ToArray());
+    }
+
     public void Fault(string message = "")
     {
         ArgumentNullException.ThrowIfNull(message);

@@ -978,8 +978,57 @@ no known lifecycle blocker before Release gate, or a named blocker
 Slice 5 status:
 
 ```text
-status: pending
-runtime behavior changes: possible guardrail fixes only
+status: complete
+runtime behavior changes:
+  scoped guardrail fix for explicit ShutdownMode.CancelQueued cancellation
+    shutdown
+lifecycle guardrails document:
+  docs/milestones/018-runtime-live-ingestion-readiness-lifecycle-guardrails.md
+```
+
+Slice 5 completion notes:
+
+```text
+implemented:
+  RadarProcessingOwnedBatchQueue.CancelQueued() closes intake, wakes waiters,
+    clears accepted pending batches before dequeue, returns canceled sequence
+    ids, and leaves later enqueue attempts closed
+  queued processing and rebalance sessions apply ShutdownMode.CancelQueued on
+    cancellation and record canceled processing results for accepted pending
+    batches canceled before dequeue
+  archive queued overlap runner applies the same cancellation shutdown policy
+    on producer or consumer cancellation
+  provider queue telemetry now permits canceled accepted work before dequeue
+    while preserving completed/failed/skipped-after-fault <= dequeued
+
+verified:
+  queue full, wait, timeout, retained-byte pressure, enqueue cancellation,
+    close, fault, dispose cleanup, validation failure, release failure,
+    no hidden fallback, and provider enqueue versus processing completion
+    guardrails are covered by focused tests
+  CancelQueued cancellation clears pending queue pressure and archive retained
+    resources return to zero terminal pending/active/combined pressure
+
+focused verification:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~RadarProcessingOwnedBatchQueueTests|FullyQualifiedName~RadarProcessingQueuedProcessingSessionTests|FullyQualifiedName~RadarProcessingQueuedRebalanceSessionTests|FullyQualifiedName~RadarProcessingProviderQueueContractTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests"
+  passed: 54
+  failed: 0
+
+full-project verification note:
+  full test project was attempted twice and both runs had one allocation
+    threshold failure in
+    RadarProcessingSyntheticRebalanceBenchmarkTests.
+      AcceptedMovePressureAggregationDoesNotCopyPreviousIterations
+  isolated rerun of that failing test passed
+  treated as full-suite allocation sensitivity outside the slice 5
+    queue/session/overlap guardrail surface
+
+carried to gates:
+  startup-prewarmed candidate rows, natural first-use control rows,
+    borrowed/reference rows, release-failure runtime replay evidence, and true
+    live-ingestion coverage remain for slice 6/7 gate capture and decision
+    trace interpretation
 ```
 
 ### 6. Runtime Steady Intake Gate

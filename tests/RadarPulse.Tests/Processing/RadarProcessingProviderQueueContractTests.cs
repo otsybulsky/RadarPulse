@@ -337,6 +337,12 @@ public sealed class RadarProcessingProviderQueueContractTests
                 dequeuedBatchCount: 1,
                 completedBatchCount: 1,
                 failedBatchCount: 1));
+        var canceledBeforeDequeue = new RadarProcessingProviderQueueTelemetrySummary(
+            enqueueAttemptCount: 1,
+            enqueuedBatchCount: 1,
+            canceledBatchCount: 1);
+        Assert.Equal(1, canceledBeforeDequeue.CanceledBatchCount);
+        Assert.Equal(0, canceledBeforeDequeue.DequeuedBatchCount);
         Assert.Throws<ArgumentNullException>(() =>
             new RadarProcessingProviderQueueTelemetrySummary(
                 recentDetails: new RadarProcessingProviderQueueRecentDetail[] { null! }));

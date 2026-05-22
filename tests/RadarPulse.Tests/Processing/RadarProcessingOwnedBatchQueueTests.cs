@@ -389,6 +389,33 @@ public sealed class RadarProcessingOwnedBatchQueueTests
     }
 
     [Fact]
+    public async Task CancelQueuedRejectsNewEnqueueAndClearsAcceptedBatches()
+    {
+        using var queue = new RadarProcessingOwnedBatchQueue(
+            new RadarProcessingProviderQueueOptions(capacity: 2));
+
+        Assert.True((await queue.EnqueueAsync(CreateOwnedBatch(1))).IsAccepted);
+        Assert.True((await queue.EnqueueAsync(CreateOwnedBatch(3))).IsAccepted);
+
+        var canceled = queue.CancelQueued();
+        var rejected = await queue.EnqueueAsync(CreateOwnedBatch(5));
+        var closed = await queue.DequeueAsync();
+        var summary = queue.CreateTelemetrySummary();
+
+        Assert.True(queue.IsClosed);
+        Assert.Equal([0L, 1L], canceled.Select(static batch => batch.Sequence.Value).ToArray());
+        Assert.Equal(RadarProcessingQueuedBatchEnqueueStatus.Closed, rejected.Status);
+        Assert.Equal(RadarProcessingOwnedBatchDequeueStatus.Closed, closed.Status);
+        Assert.Equal(0, queue.PendingCount);
+        Assert.Equal(0, queue.PendingPayloadBytes);
+        Assert.Equal(2, summary.EnqueuedBatchCount);
+        Assert.Equal(0, summary.DequeuedBatchCount);
+        Assert.Equal(1, summary.EnqueueClosedCount);
+        Assert.Equal(0, summary.CurrentPendingRetainedBatchCount);
+        Assert.Equal(0, summary.CurrentPendingRetainedPayloadBytes);
+    }
+
+    [Fact]
     public async Task FaultRejectsLaterEnqueueAndReportsFaultAfterDrain()
     {
         using var queue = new RadarProcessingOwnedBatchQueue(

@@ -11,6 +11,7 @@ docs/milestones/018-runtime-live-ingestion-readiness-lifecycle-audit.md
 docs/milestones/018-runtime-live-ingestion-readiness-gate-matrix.md
 docs/milestones/018-runtime-live-ingestion-readiness-reporting-harness.md
 docs/milestones/018-runtime-live-ingestion-readiness-prewarm-posture.md
+docs/milestones/018-runtime-live-ingestion-readiness-lifecycle-guardrails.md
 ```
 
 Milestone 018 is the runtime and live ingestion readiness milestone. It starts
@@ -27,10 +28,11 @@ implementation plan:
   drafted in docs/milestones/018-runtime-live-ingestion-readiness-plan.md
 
 implementation:
-  slices 1-4 complete; no runtime behavior changes
+  slices 1-5 complete
 
 runtime behavior changes:
-  none
+  explicit ShutdownMode.CancelQueued cancellation shutdown now clears accepted
+  pending queued work before dequeue and records canceled sequence ids
 
 current closeout question:
   Is the queued-owned contour ready for runtime/live ingestion defaults?
@@ -68,7 +70,7 @@ Milestone 018 planned slices:
 2. Runtime readiness contract and gate matrix design (complete)
 3. Reporting, contract, and harness gap closure (complete)
 4. Runtime prewarm lifecycle decision and guardrails (complete)
-5. Backpressure, failure, cancellation, and cleanup guardrails
+5. Backpressure, failure, cancellation, and cleanup guardrails (complete)
 6. Runtime steady intake gate
 7. Runtime pressure, backpressure, cancellation, and failure gate
 8. Gate interpretation and follow-up fixes
@@ -114,7 +116,7 @@ automatic silent borrowed fallback
 Milestone 018 current recommended next action:
 
 ```text
-begin slice 5 backpressure, failure, cancellation, and cleanup guardrails
+begin slice 6 runtime steady intake gate capture
 ```
 
 Milestone 018 slice 1 completion:
@@ -257,6 +259,44 @@ slice 5 carry-forward:
     cancellation and fault with a prewarmed factory, borrowed/reference
     unprewarmed separation, natural first-use separation, prewarm failure
     policy, and the existing ShutdownMode.CancelQueued gap
+```
+
+Milestone 018 slice 5 completion:
+
+```text
+lifecycle guardrails document:
+  docs/milestones/018-runtime-live-ingestion-readiness-lifecycle-guardrails.md
+
+runtime behavior changes:
+  scoped guardrail fix for explicit ShutdownMode.CancelQueued cancellation
+    shutdown
+
+implemented:
+  RadarProcessingOwnedBatchQueue.CancelQueued() closes intake, wakes waiters,
+    clears accepted pending batches before dequeue, returns canceled sequence
+    ids, and leaves later enqueue attempts closed
+  queued processing and rebalance sessions apply ShutdownMode.CancelQueued on
+    cancellation and record canceled processing results for accepted pending
+    batches canceled before dequeue
+  archive queued overlap runner applies the same cancellation shutdown policy
+    on producer or consumer cancellation
+  provider queue telemetry allows canceled accepted work before dequeue while
+    preserving completed/failed/skipped-after-fault <= dequeued
+
+verified:
+  focused queue, session, rebalance, telemetry, and archive-overlap guardrail
+    tests pass: 54 passed, 0 failed
+  full test project was attempted twice; both runs had the same single
+    allocation threshold failure in
+    RadarProcessingSyntheticRebalanceBenchmarkTests.
+      AcceptedMovePressureAggregationDoesNotCopyPreviousIterations
+  isolated rerun of that failing test passed
+
+carried to gates:
+  startup-prewarmed candidate rows, natural first-use control rows,
+    borrowed/reference rows, release-failure runtime replay evidence, and true
+    live-ingestion coverage remain for slice 6/7 gate capture and decision
+    trace interpretation
 ```
 
 ## Milestone 017 Baseline
