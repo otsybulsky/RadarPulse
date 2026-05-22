@@ -663,7 +663,95 @@ dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore --filter
 Slice 3 completion notes:
 
 ```text
-status: pending
+status: complete
+runtime behavior changes: none
+
+reporting decision:
+  use a temporary local direct API gate runner for the milestone 016 Release
+  gate matrix, following the milestone 015 pattern
+
+  the temporary runner must not be committed as a product surface
+
+  CLI output remains required for the omitted-provider alignment spot-check
+  and for operator-visible reporting contract coverage
+
+why a temporary direct API runner is needed:
+  the broader gate needs repeated same-run borrowed/default pairs, per-shape
+  ratios, spread calculations, and aggregate table rows across several cache
+  selectors
+
+  existing CLI output contains the required fields, but CLI-only capture would
+  require too much manual transcription and ratio calculation for the primary
+  Release gate
+
+  direct MeasureCache() calls let the runner omit provider-related arguments
+  for default rows and pass providerMode: BlockingBorrowed explicitly for
+  oracle rows without ambiguity
+
+why no committed helper is needed:
+  existing product CLI output already exposes the gate fields needed by
+  operators and tests
+
+  existing direct API result contracts already expose the structured fields
+  needed by a temporary runner
+
+  adding a committed benchmark report surface would widen the milestone beyond
+  readiness evidence and would need its own compatibility contract
+
+required temporary runner posture:
+  build the runner in Release before measurement capture
+  call RadarProcessingArchiveRebalanceBenchmark.MeasureCache() for paired
+  direct omitted-default and explicit BlockingBorrowed rows
+  call RadarProcessingArchiveRebalanceBenchmark.MeasureFile() only for the
+  representative single-file warning smoke
+  keep mode RebalanceSession, iterations 1, warmup iterations 0, parallelism
+  24, partitions 24, shards 4, Diagnostic validation, default decompressor,
+  overlap consumer delay 0, and retained-byte budget from rollout defaults
+  print or export one row per measurement with cache selector, effective
+  contour, elapsed ms, allocated bytes, validation checksum, file counts,
+  rebalance counters, worker counters, retained pressure, release failures,
+  retained pool telemetry, event-array pool telemetry, and byte-array pool
+  telemetry
+  compute same-run elapsed and allocation ratios from the paired rows
+  compute repeated-row spread for the primary and named-risk contours
+  mark the runner as temporary in the performance gate document
+
+CLI spot-check posture:
+  run processing benchmark rebalance-archive --cache with omitted provider for
+  one selected cache row after focused regression and before closeout
+  confirm provider source rollout-default, default rollout contour yes,
+  rollout default expansion yes, fallback contour no, natural-readiness scope,
+  retained payload telemetry, event-array pool telemetry, byte-array pool
+  telemetry, overlap telemetry, retained pressure, allocation attribution, and
+  validation output remain visible
+  run or inspect explicit --provider blocking-borrowed output where fallback
+  separation needs operator-visible confirmation
+
+reporting field sufficiency:
+  Program prints provider provenance, default rollout contour, rollout default
+  expansion, fallback contour, natural readiness scope, cache selector, file
+  counts, validation checksum, topology/rebalance counters, skipped reason
+  counters, queue telemetry, retained pressure, retained payload telemetry,
+  event-array pool telemetry, byte-array pool telemetry, overlap telemetry,
+  worker failed counters, elapsed time, allocation totals, and allocation
+  attribution
+
+  RadarProcessingArchiveRebalanceBenchmark result contracts expose the same
+  structured data for temporary direct API gate rows
+
+identified gaps:
+  no committed reporting or result-contract gap found
+  no product behavior change needed before slice 4 focused regression
+
+focused verification:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests"
+
+  result: 35 passed, 0 failed, 0 skipped
+
+slice 4 input:
+  run the broader focused regression and cache sanity pass before building the
+  temporary Release gate runner or capturing expensive gate rows
 ```
 
 ### 4. Focused Regression And Cache Sanity Pass

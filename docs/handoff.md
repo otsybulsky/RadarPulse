@@ -27,13 +27,13 @@ Milestone 016 current status:
 ```text
 architecture document: complete
 implementation plan: draft
-implementation: complete through slice 2 existing contract and guardrail audit
+implementation: complete through slice 3 reporting and harness readiness
 runtime behavior changes so far: none
 performance gate: not captured
 decision trace: not written
 closeout: not written
 current next slice:
-  slice 3, reporting and harness readiness
+  slice 4, focused regression and cache sanity pass
 ```
 
 Milestone 016 keeps this accepted direct/default contour:
@@ -142,7 +142,7 @@ Milestone 016 planned slices:
 ```text
 1. corpus inventory and gate matrix design complete
 2. existing contract and guardrail audit complete
-3. reporting and harness readiness pending
+3. reporting and harness readiness complete
 4. focused regression and cache sanity pass pending
 5. broader cache-level Release gate pending
 6. gate interpretation and follow-up fixes pending
@@ -175,14 +175,42 @@ defer, broader cache-level default readiness cannot be decided because
 Recommended current next action:
 
 ```text
-begin milestone 016 slice 3 by deciding whether existing CLI/direct output
-plus documented commands are enough for repeatable Release gate capture, or
-whether a temporary direct API gate runner/reporting helper is needed
+begin milestone 016 slice 4 by running the broader focused regression and
+cache sanity pass before building the temporary Release gate runner or
+capturing expensive gate rows
+```
+
+Milestone 016 gate capture posture after slice 3:
+
+```text
+primary Release gate capture:
+  use a temporary local direct API gate runner, built in Release and not
+  committed as a product surface
+
+direct gate rows:
+  paired MeasureCache() rows with omitted provider-related arguments for
+  queued-owned default rows and explicit providerMode: BlockingBorrowed for
+  oracle rows
+
+file-level warning row:
+  MeasureFile() single-file smoke only for retained-ownership warning
+  visibility
+
+CLI role:
+  omitted-provider cache spot-check and explicit borrowed fallback visibility,
+  not the primary paired-row aggregation mechanism
 ```
 
 Milestone 016 latest verification:
 
 ```text
+slice 3 focused verification:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingRebalanceAllocationSummaryTests"
+
+result:
+  35 passed, 0 failed, 0 skipped
+
 slice 2 focused verification:
   dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
     --filter "FullyQualifiedName~NexradArchiveRadarEventBatchPublisherTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProviderReadinessGateTests"
