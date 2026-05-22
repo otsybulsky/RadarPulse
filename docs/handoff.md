@@ -29,7 +29,7 @@ architecture document: drafted in
   docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost.md
 implementation plan: drafted in
   docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-plan.md
-implementation: not started beyond planning documents
+implementation: slice 1 file corpus inventory and gate matrix design complete
 runtime behavior changes so far: none
 performance gate: not captured
 decision trace: not written
@@ -132,10 +132,65 @@ KTLX 2026-05-05 larger non-MDM candidates:
   KTLX20260505_034226_V06, 8_633_851 bytes
 ```
 
+Milestone 017 slice 1 completion:
+
+```text
+status:
+  complete
+
+runtime behavior changes:
+  none
+
+local corpus inventory:
+  data\nexrad\level2\2026\05\04\KTLX:
+    total files 244, base-data 220, MDM 24, metadata 0
+  data\nexrad\level2\2026\05\04\KINX:
+    total files 462, base-data 207, MDM 24, metadata 231
+  data\nexrad\level2\2026\05\05\KTLX:
+    total files 848, base-data 401, MDM 23, metadata 424
+
+file selection rule:
+  primary MeasureFile() readiness rows use non-MDM Archive Two base-data files
+  only; _MDM and .metadata.json files are excluded from primary MeasureFile()
+  readiness
+
+base-data signature spot-check:
+  selected MeasureFile() candidates exist locally and start with AR2V
+
+selected file-level gate matrix:
+  prior representative KTLX 2026-05-04:
+    KTLX20260504_000245_V06, 5_406_854 bytes
+  KTLX 2026-05-04 small/representative/large:
+    KTLX20260504_220338_V06, 4_403_971 bytes
+    KTLX20260504_144229_V06, 6_087_636 bytes
+    KTLX20260504_034117_V06, 7_757_670 bytes
+  KINX 2026-05-04 small/representative/large:
+    KINX20260504_124819_V06, 5_012_884 bytes
+    KINX20260504_093652_V06, 6_775_011 bytes
+    KINX20260504_035026_V06, 8_453_655 bytes
+  KTLX 2026-05-05 small/representative/large:
+    KTLX20260505_220542_V06, 2_120_538 bytes
+    KTLX20260505_154040_V06, 5_094_087 bytes
+    KTLX20260505_034612_V06, 8_656_438 bytes
+
+small-file cache transition matrix:
+  KTLX 2026-05-04 max-files 2/4/8 publishes expected base-data 2/4/8
+  KINX 2026-05-04 max-files 4/8/16 publishes expected base-data 2/4/8
+    because metadata interleaves in sorted order
+  KTLX 2026-05-05 max-files 4/8/16 publishes expected base-data 2/4/8
+    because metadata interleaves in sorted order
+  optional KTLX 2026-05-04 max-files 16 skip-visibility row examines 16 and
+    publishes expected base-data 15 because one MDM file appears in the window
+
+coverage posture:
+  broad enough to start file-level readiness work over available local data;
+  still local-corpus-only and not a certification of absent radar/date shapes
+```
+
 Milestone 017 planned slices:
 
 ```text
-1. file corpus inventory and gate matrix design pending
+1. file corpus inventory and gate matrix design complete
 2. existing contract, reporting, and guardrail audit pending
 3. threshold and runner design pending
 4. focused regression and file sanity pass pending
@@ -202,16 +257,17 @@ small-cache success
 Recommended current next action:
 
 ```text
-begin milestone 017 slice 1:
-  file corpus inventory and gate matrix design
+begin milestone 017 slice 2:
+  existing contract, reporting, and guardrail audit
 
-slice 1 should validate:
-  which local files are valid base-data MeasureFile() candidates
-  whether the prior KTLX representative file is publishable and still useful
-  which files cover small, representative, large, KTLX, KINX, and KTLX
-    2026-05-05 named-risk shapes
-  whether _MDM files are excluded, coverage-only, or a separate class
-  which low-count MeasureCache() selectors represent small-file amortization
+slice 2 should audit:
+  direct MeasureFile()/MeasureCache() result contracts for file-level gate
+  fields
+  CLI rebalance-archive --file omitted-provider and explicit borrowed output
+  retained payload, retained resource, provider queue, overlap, readiness, and
+    allocation tests for file-level relevance
+  whether a temporary direct API gate runner is enough or whether a committed
+    reporting/test change is required before Release capture
 ```
 
 ## Milestone 016 Baseline

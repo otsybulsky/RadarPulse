@@ -1,6 +1,6 @@
 # Milestone 017: File-Level Default Readiness And Cold Retained-Ownership Cost Implementation Plan
 
-Status: draft.
+Status: in progress.
 
 This plan implements the milestone 017 architecture defined in
 `017-file-level-default-readiness-and-cold-retained-ownership-cost.md`.
@@ -453,8 +453,155 @@ missing evidence statement, if any
 Slice 1 status:
 
 ```text
-status: pending
-runtime behavior changes: none expected
+status: complete
+runtime behavior changes: none
+```
+
+Slice 1 completion notes:
+
+```text
+local corpus inventory:
+  data\nexrad\level2\2026\05\04\KTLX:
+    total files: 244
+    Archive Two base-data candidates by name/signature class: 220
+    MDM/compressed-stream candidates: 24
+    metadata files: 0
+    total bytes: 1_347_625_897
+    base-data bytes: 1_330_687_937
+    MDM bytes: 16_937_960
+
+  data\nexrad\level2\2026\05\04\KINX:
+    total files: 462
+    Archive Two base-data candidates by name/signature class: 207
+    MDM/compressed-stream candidates: 24
+    metadata files: 231
+    total bytes: 1_404_452_903
+    base-data bytes: 1_387_499_247
+    MDM bytes: 16_909_951
+    metadata bytes: 43_705
+
+  data\nexrad\level2\2026\05\05\KTLX:
+    total files: 848
+    Archive Two base-data candidates by name/signature class: 401
+    MDM/compressed-stream candidates: 23
+    metadata files: 424
+    total bytes: 2_232_493_336
+    base-data bytes: 2_215_239_828
+    MDM bytes: 17_173_345
+    metadata bytes: 80_163
+
+file selection rule:
+  primary MeasureFile() readiness rows use non-MDM Archive Two base-data files
+  only; `_MDM` and `.metadata.json` files are excluded from primary
+  MeasureFile() readiness because they are not Archive Two base-data volumes
+
+base-data signature spot-check:
+  selected MeasureFile() candidates start with AR2V and exist locally
+
+prior representative file:
+  data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_000245_V06
+  size: 5_406_854 bytes
+  signature: AR2V
+  role: prior milestone 016 coverage-only file smoke; retained as primary
+  drift/prior-warning visibility row
+
+primary KTLX 2026-05-04 file rows:
+  small:
+    data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_220338_V06
+    size: 4_403_971 bytes
+  representative:
+    data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_144229_V06
+    size: 6_087_636 bytes
+  large:
+    data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_034117_V06
+    size: 7_757_670 bytes
+
+cross-radar KINX 2026-05-04 file rows:
+  small:
+    data\nexrad\level2\2026\05\04\KINX\KINX20260504_124819_V06
+    size: 5_012_884 bytes
+  representative:
+    data\nexrad\level2\2026\05\04\KINX\KINX20260504_093652_V06
+    size: 6_775_011 bytes
+  large:
+    data\nexrad\level2\2026\05\04\KINX\KINX20260504_035026_V06
+    size: 8_453_655 bytes
+
+named-risk KTLX 2026-05-05 file rows:
+  small:
+    data\nexrad\level2\2026\05\05\KTLX\KTLX20260505_220542_V06
+    size: 2_120_538 bytes
+  representative:
+    data\nexrad\level2\2026\05\05\KTLX\KTLX20260505_154040_V06
+    size: 5_094_087 bytes
+  large:
+    data\nexrad\level2\2026\05\05\KTLX\KTLX20260505_034612_V06
+    size: 8_656_438 bytes
+
+primary cold/repeated gate shape:
+  use the prior representative KTLX 2026-05-04 file as the cold and
+  repeated/warm drift row
+  include KTLX small/representative/large rows for file-size variation
+  include KINX small/representative/large rows for cross-radar variation
+  include KTLX 2026-05-05 small/representative/large rows for named-risk date
+  coverage
+
+small-file cache transition selectors:
+  KTLX 2026-05-04:
+    --date 2026-05-04 --radar KTLX --max-files 2
+      examined 2, expected base-data 2, MDM 0, metadata 0
+    --date 2026-05-04 --radar KTLX --max-files 4
+      examined 4, expected base-data 4, MDM 0, metadata 0
+    --date 2026-05-04 --radar KTLX --max-files 8
+      examined 8, expected base-data 8, MDM 0, metadata 0
+    optional skip-visibility row:
+      --date 2026-05-04 --radar KTLX --max-files 16
+      examined 16, expected base-data 15, MDM 1, metadata 0
+
+  KINX 2026-05-04:
+    --date 2026-05-04 --radar KINX --max-files 4
+      examined 4, expected base-data 2, MDM 0, metadata 2
+    --date 2026-05-04 --radar KINX --max-files 8
+      examined 8, expected base-data 4, MDM 0, metadata 4
+    --date 2026-05-04 --radar KINX --max-files 16
+      examined 16, expected base-data 8, MDM 0, metadata 8
+
+  KTLX 2026-05-05:
+    --date 2026-05-05 --radar KTLX --max-files 4
+      examined 4, expected base-data 2, MDM 0, metadata 2
+    --date 2026-05-05 --radar KTLX --max-files 8
+      examined 8, expected base-data 4, MDM 0, metadata 4
+    --date 2026-05-05 --radar KTLX --max-files 16
+      examined 16, expected base-data 8, MDM 0, metadata 8
+
+MeasureCache selection caveat:
+  SelectCacheArchiveFiles stops after examined file count reaches max-files
+  and skips non-base-data after date/radar matching; therefore KINX 2026-05-04
+  and KTLX 2026-05-05 low-count rows need max-files 4/8/16 to publish roughly
+  2/4/8 base-data files because metadata files interleave in sorted order
+
+coverage statement:
+  selected local corpus is broad enough to start milestone 017 file-level
+  readiness work over available data: it covers prior representative KTLX,
+  KTLX size variation, KINX cross-radar variation, KTLX 2026-05-05 named-risk
+  date variation, and small-file cache transition slices
+
+coverage limits:
+  local corpus only; no absent radar/date certification
+  `_MDM` files are excluded from primary readiness and may be coverage-only if
+  explicitly reprioritized
+  metadata skip behavior affects low-count cache slices and must remain
+  visible in gate interpretation
+  publishability beyond AR2V signature spot-check remains a slice 4 sanity
+  check before Release gate capture
+```
+
+Slice 2 input:
+
+```text
+audit existing direct/CLI result contracts and tests against the selected file
+matrix, with special attention to cold/warm reporting, retained
+event-array/byte-array attribution, and low-count cache skip visibility
 ```
 
 ### 2. Existing Contract, Reporting, And Guardrail Audit
@@ -968,11 +1115,11 @@ per-row status
 Milestone 017 is complete when:
 
 ```text
-[ ] file-level corpus inventory is captured with file path, radar/date,
+[x] file-level corpus inventory is captured with file path, radar/date,
     size/count, and selection details
-[ ] small-file cache slices are selected with max-files and selection rules
+[x] small-file cache slices are selected with max-files and selection rules
     before interpretation
-[ ] selected file-level and small-file shapes are broad enough for a readiness
+[x] selected file-level and small-file shapes are broad enough for a readiness
     decision, or coverage insufficiency is explicitly recorded
 [ ] file-level thresholds are recorded before Release gate interpretation
 [ ] same-run explicit BlockingBorrowed oracle rows remain available,
