@@ -23,7 +23,7 @@ implementation plan:
   drafted in docs/milestones/018-runtime-live-ingestion-readiness-plan.md
 
 implementation:
-  slice 1 complete; no runtime behavior changes
+  slices 1-2 complete; no runtime behavior changes
 
 runtime behavior changes:
   none yet
@@ -58,7 +58,7 @@ Milestone 018 planned slices:
 
 ```text
 1. Runtime surface inventory and lifecycle audit (complete)
-2. Runtime readiness contract and gate matrix design
+2. Runtime readiness contract and gate matrix design (complete)
 3. Reporting, contract, and harness gap closure
 4. Runtime prewarm lifecycle decision and guardrails
 5. Backpressure, failure, cancellation, and cleanup guardrails
@@ -107,7 +107,7 @@ automatic silent borrowed fallback
 Milestone 018 current recommended next action:
 
 ```text
-begin slice 2: runtime readiness contract and gate matrix design
+begin slice 3: reporting, contract, and harness gap closure
 ```
 
 Milestone 018 slice 1 completion:
@@ -136,6 +136,44 @@ main gaps carried to slice 2:
   no single runtime readiness result/operator surface
   no true live ingestion adapter evidence
   integrated runtime-shaped gates still need to be designed
+```
+
+Milestone 018 slice 2 completion:
+
+```text
+gate matrix document:
+  docs/milestones/018-runtime-live-ingestion-readiness-gate-matrix.md
+
+runtime behavior changes:
+  none
+
+decision boundary:
+  queued-owned is a runtime candidate selected explicitly for gates
+  runtime default posture remains undecided
+  runtime prewarm posture remains undecided until slice 4
+
+gate groups:
+  A. contract and provenance
+  B. steady intake
+  C. first-use and prewarm-sensitive rows
+  D. queue pressure and retained-byte pressure
+  E. cancellation
+  F. fault and failure
+  G. drain, stop, and dispose
+
+thresholds recorded before gate capture:
+  steady allocation pass <= 1.10x reference, warning <= 1.20x, optimize
+    <= 1.35x, fail > 1.35x
+  steady elapsed pass <= 1.00x reference, warning <= 1.10x, optimize
+    <= 1.20x, fail > 1.20x
+  repeated session spread pass <= 7.50%, warning <= 12.50%, optimize
+    <= 20.00%, fail > 20.00%
+
+carried gaps:
+  CancelQueued shutdown behavior must be implemented/tested or explicitly
+    carried as blocker/coverage gap
+  true live ingestion remains a coverage gap unless new scope is added
+  runtime-shaped gates need reviewable JSONL/Markdown output
 ```
 
 ## Milestone 017 Baseline

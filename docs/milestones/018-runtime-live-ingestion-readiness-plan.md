@@ -654,8 +654,57 @@ coverage statement for true live ingestion if no live adapter is implemented
 Slice 2 status:
 
 ```text
-status: pending
-runtime behavior changes: none expected
+status: complete
+runtime behavior changes: none
+gate matrix document:
+  docs/milestones/018-runtime-live-ingestion-readiness-gate-matrix.md
+```
+
+Slice 2 completion notes:
+
+```text
+decision boundary:
+  slice 2 does not migrate runtime defaults
+  queued-owned is a runtime candidate selected explicitly for gates
+  runtime default posture remains undecided
+  runtime prewarm posture remains undecided until slice 4
+
+included gate surfaces:
+  in-process archive provider decoupling
+  ArchiveOwnedRadarEventBatchQueueingPublisher
+  RadarProcessingArchiveQueuedOverlapRunner
+  RadarProcessingOwnedBatchQueue
+  RadarProcessingQueuedProcessingSession
+  RadarProcessingQueuedRebalanceSession
+  deterministic local archive replay as runtime-shaped input stand-in
+  direct benchmark milestone 017 evidence as baseline context
+
+gate groups:
+  A. contract and provenance
+  B. steady intake
+  C. first-use and prewarm-sensitive rows
+  D. queue pressure and retained-byte pressure
+  E. cancellation
+  F. fault and failure
+  G. drain, stop, and dispose
+
+threshold posture:
+  non-negotiable fail thresholds cover provenance, processing completeness,
+    worker failures, validation, migration, release, retained cleanup,
+    pressure budget, provider enqueue/processing separation, topology
+    ordering, and required observability
+  steady allocation pass <= 1.10x reference, warning <= 1.20x, optimize
+    <= 1.35x, fail > 1.35x
+  steady elapsed pass <= 1.00x reference, warning <= 1.10x, optimize
+    <= 1.20x, fail > 1.20x
+  repeated session spread pass <= 7.50%, warning <= 12.50%, optimize
+    <= 20.00%, fail > 20.00%
+
+carried gaps:
+  CancelQueued shutdown behavior must be implemented/tested or explicitly
+    carried as blocker/coverage gap
+  true live ingestion remains a coverage gap unless new scope is added
+  runtime-shaped gates need reviewable JSONL/Markdown output
 ```
 
 ### 3. Reporting, Contract, And Harness Gap Closure
