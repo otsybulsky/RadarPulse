@@ -1076,8 +1076,53 @@ processing completeness and worker failure summary
 Slice 6 status:
 
 ```text
-status: pending
-runtime behavior changes: none expected during capture
+status: complete
+runtime behavior changes: none
+steady intake gate document:
+  docs/milestones/018-runtime-live-ingestion-readiness-steady-intake-gate.md
+```
+
+Slice 6 completion notes:
+
+```text
+temporary runner:
+  data\temp\m018-runtime-gate-runner
+
+raw output:
+  data\temp\m018-runtime-gate-runner\output\m018-runtime-20260522-134534.jsonl
+  data\temp\m018-runtime-gate-runner\output\m018-runtime-20260522-134534.md
+
+rows:
+  12 total
+  12 pass safety guardrails
+  0 processing completeness failures
+  0 worker failure rows
+  0 release failure rows
+  0 terminal pressure failure rows
+
+startup-prewarmed queued-owned candidate:
+  elapsed ratios versus borrowed/reference: 0.910x, 0.980x, 0.955x, 0.997x
+  allocation ratios versus borrowed/reference: 1.000x, 1.001x, 1.000x,
+    1.002x
+  passes bounded steady intake elapsed/allocation bands
+
+natural first-use queued-owned control:
+  allocation ratios versus borrowed/reference: 1.196x, 2.040x, 1.284x,
+    1.373x
+  remains allocation warning/optimize/fail control evidence and does not
+    support runtime default readiness by itself
+
+prewarm attribution:
+  65_536 events
+  67_108_864 payload bytes
+  1 retained batch
+  71_303_392 allocated bytes
+  71_303_168 retained bytes
+  explicit lifecycle cost outside measured steady row allocation
+
+carried to slice 7:
+  pressure, backpressure, cancellation, failure, drain, cleanup, release
+    failure replay evidence, and true live-ingestion coverage remain open
 ```
 
 ### 7. Runtime Pressure, Backpressure, Cancellation, And Failure Gate

@@ -12,6 +12,7 @@ docs/milestones/018-runtime-live-ingestion-readiness-gate-matrix.md
 docs/milestones/018-runtime-live-ingestion-readiness-reporting-harness.md
 docs/milestones/018-runtime-live-ingestion-readiness-prewarm-posture.md
 docs/milestones/018-runtime-live-ingestion-readiness-lifecycle-guardrails.md
+docs/milestones/018-runtime-live-ingestion-readiness-steady-intake-gate.md
 ```
 
 Milestone 018 is the runtime and live ingestion readiness milestone. It starts
@@ -28,7 +29,7 @@ implementation plan:
   drafted in docs/milestones/018-runtime-live-ingestion-readiness-plan.md
 
 implementation:
-  slices 1-5 complete
+  slices 1-6 complete
 
 runtime behavior changes:
   explicit ShutdownMode.CancelQueued cancellation shutdown now clears accepted
@@ -71,7 +72,7 @@ Milestone 018 planned slices:
 3. Reporting, contract, and harness gap closure (complete)
 4. Runtime prewarm lifecycle decision and guardrails (complete)
 5. Backpressure, failure, cancellation, and cleanup guardrails (complete)
-6. Runtime steady intake gate
+6. Runtime steady intake gate (complete)
 7. Runtime pressure, backpressure, cancellation, and failure gate
 8. Gate interpretation and follow-up fixes
 9. Runtime readiness decision trace
@@ -116,7 +117,8 @@ automatic silent borrowed fallback
 Milestone 018 current recommended next action:
 
 ```text
-begin slice 6 runtime steady intake gate capture
+begin slice 7 runtime pressure, backpressure, cancellation, and failure gate
+capture
 ```
 
 Milestone 018 slice 1 completion:
@@ -297,6 +299,45 @@ carried to gates:
     borrowed/reference rows, release-failure runtime replay evidence, and true
     live-ingestion coverage remain for slice 6/7 gate capture and decision
     trace interpretation
+```
+
+Milestone 018 slice 6 completion:
+
+```text
+steady intake gate document:
+  docs/milestones/018-runtime-live-ingestion-readiness-steady-intake-gate.md
+
+runtime behavior changes:
+  none
+
+temporary runner:
+  data\temp\m018-runtime-gate-runner
+
+raw output:
+  data\temp\m018-runtime-gate-runner\output\m018-runtime-20260522-134534.jsonl
+  data\temp\m018-runtime-gate-runner\output\m018-runtime-20260522-134534.md
+
+safety result:
+  12 rows passed
+  processing completeness failures 0
+  worker failure rows 0
+  release failure rows 0
+  terminal pressure failure rows 0
+
+startup-prewarmed queued-owned candidate:
+  passed bounded steady elapsed and allocation bands in B1-B4
+  allocation ratios versus borrowed/reference: 1.000x, 1.001x, 1.000x,
+    1.002x
+
+natural first-use queued-owned control:
+  allocation ratios versus borrowed/reference: 1.196x, 2.040x, 1.284x,
+    1.373x
+  remains allocation warning/optimize/fail evidence and does not support
+    runtime default readiness by itself
+
+carried to slice 7:
+  pressure, backpressure, cancellation, failure, drain, cleanup, release
+    failure replay evidence, and true live-ingestion coverage remain open
 ```
 
 ## Milestone 017 Baseline
