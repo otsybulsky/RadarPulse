@@ -1118,7 +1118,104 @@ threshold changes after gate capture
 Slice 6 completion notes:
 
 ```text
-status: pending
+status: complete
+runtime behavior changes: none
+follow-up fixes implemented: none
+targeted reruns required before decision trace: no
+borrowed worker-counter recapture required before decision trace: no
+
+interpretation result:
+  the captured broader cache-level evidence is positive but not clean-green
+
+  the slice 7 decision trace should use this posture:
+    accept broader cache-level default readiness with named scoped warnings
+
+  this slice does not write the final decision trace and does not close the
+  milestone
+
+clean pass rows:
+  KINX 2026-05-04 max-files 220:
+    elapsed ratio: 0.769x
+    allocation ratio: 1.007x
+
+  KTLX 2026-05-04 full root max-files 244:
+    elapsed ratio: 0.887x
+    allocation ratio: 1.008x
+
+  KINX 2026-05-04 larger slice max-files 440:
+    elapsed ratio: 0.782x
+    allocation ratio: 1.000x
+
+  KTLX 2026-05-05 larger named-risk slice max-files 440:
+    elapsed ratio: 0.810x
+    allocation ratio: 1.008x
+
+named scoped warnings and notes:
+  primary KTLX 2026-05-04 max-files 220:
+    candidate spread was 12.01%, above the 7.50% threshold
+    accepted as a scoped spread warning for decision trace input
+    not treated as a blocker because every individual primary candidate run
+    remained faster than same-run borrowed, allocation stayed below threshold,
+    validation matched, release failures stayed 0, cleanup returned to 0, and
+    pressure stayed far below budget
+    no targeted rerun is required before decision trace
+
+  KTLX 2026-05-05 named-risk max-files 220:
+    one individual elapsed pair was 1.001x borrowed
+    accepted as a timing note, not a blocker, because the repeated average
+    passed at 0.822x and the larger risk-440 row passed at 0.810x
+    allocation stayed below threshold and lifecycle/correctness guardrails
+    passed
+    no additional evidence is required before decision trace
+
+  mixed local cache:
+    candidate worker failed batches/items were 221/881 while validation
+    succeeded and failed migrations remained 0
+    accepted as a named mixed-cache worker-counter note for decision trace
+    input because the same counter shape was already visible in milestone 015
+    and this gate preserved output parity, validation success, release health,
+    cleanup, pressure, elapsed, and allocation thresholds
+    borrowed worker-counter recapture is not required before decision trace
+    the decision trace must still state that slice 5 did not recapture
+    borrowed worker counters for this row
+
+  representative single-file smoke:
+    current row did not reproduce the milestone 015 single-file cold warning
+    remains coverage-only and must not be used to claim file-level default
+    readiness
+    file-level cold behavior remains out of scope for this cache-level
+    readiness decision
+
+threshold interpretation:
+  correctness parity: accepted
+  topology/rebalance parity: accepted for captured counters and checksums
+  release failures: accepted, failed releases 0
+  retained cleanup: accepted, current retained pressure returned to 0
+  retained pressure: accepted, max high-water 54_413_280 bytes of
+    536_870_912 byte budget
+  allocation: accepted, max cache-level average 1.028x and max individual
+    measured pair 1.040x against the <= 1.10x threshold
+  elapsed timing: accepted on cache-level averages; only the named-risk
+    individual 1.001x pair remains a timing note
+  variance: accepted with primary scoped warning
+  attribution: sufficient for decision trace, with the mixed-cache worker
+    counter note carried explicitly
+
+why no runtime or reporting follow-up is needed:
+  no correctness, validation, release, cleanup, pressure, fail-closed,
+  allocation, direct/CLI alignment, or attribution blocker was found
+  no threshold change is needed
+  no product behavior change is justified before the decision trace
+
+slice 7 input:
+  write the durable decision trace using the posture:
+    accept broader cache-level default readiness with named scoped warnings
+
+  carry these named warnings:
+    primary spread warning
+    named-risk borderline individual elapsed pair timing note
+    mixed-cache worker-counter note with no slice 5 borrowed counter recapture
+    file-smoke coverage-only scope
 ```
 
 ### 7. Broader Cache-Level Readiness Decision Trace

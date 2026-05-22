@@ -27,15 +27,19 @@ Milestone 016 current status:
 ```text
 architecture document: complete
 implementation plan: draft
-implementation: complete through slice 5 broader cache-level Release gate
+implementation: complete through slice 6 gate interpretation and follow-up
+  decision
 runtime behavior changes so far: none
 performance gate: captured in
   docs/milestones/016-broader-cache-level-default-readiness-performance-gate.md
 gate posture: captured with primary spread warning
+interpretation posture:
+  proceed to decision trace with broader cache-level default readiness accepted
+  with named scoped warnings
 decision trace: not written
 closeout: not written
 current next slice:
-  slice 6, gate interpretation and follow-up fixes
+  slice 7, broader cache-level readiness decision trace
 ```
 
 Milestone 016 keeps this accepted direct/default contour:
@@ -127,6 +131,54 @@ file-level warning visibility:
   remains coverage-only, not a file-level default readiness claim
 ```
 
+Milestone 016 slice 6 interpretation:
+
+```text
+result:
+  broader cache-level evidence is positive but not clean-green
+
+decision-trace input:
+  accept broader cache-level default readiness with named scoped warnings
+
+runtime behavior changes:
+  none
+
+follow-up fixes:
+  none
+
+targeted rerun before decision trace:
+  not required
+
+borrowed worker-counter recapture before decision trace:
+  not required
+
+accepted clean pass rows:
+  KINX 2026-05-04 max-files 220
+  KTLX 2026-05-04 max-files 244
+  KINX 2026-05-04 max-files 440
+  KTLX 2026-05-05 max-files 440
+
+named warnings/notes to carry:
+  primary KTLX 2026-05-04 max-files 220 spread warning:
+    candidate spread 12.01%, above 7.50%, accepted as scoped warning because
+    every individual candidate run remained faster than same-run borrowed and
+    correctness, allocation, release, cleanup, and pressure all passed
+
+  KTLX 2026-05-05 named-risk timing note:
+    one individual pair was 1.001x borrowed, accepted because the repeated
+    average passed at 0.822x and the larger risk-440 row passed at 0.810x
+
+  mixed-cache worker-counter note:
+    candidate worker failed batches/items were 221/881 while validation
+    succeeded and failed migrations remained 0; accepted without borrowed
+    counter recapture before decision trace, but the decision trace must state
+    that slice 5 did not recapture borrowed worker counters for this row
+
+  file-smoke coverage-only note:
+    current single-file smoke did not reproduce the milestone 015 cold warning,
+    but it remains insufficient for a file-level default readiness claim
+```
+
 Milestone 016 preserved guardrails:
 
 ```text
@@ -154,7 +206,7 @@ Milestone 016 planned slices:
 3. reporting and harness readiness complete
 4. focused regression and cache sanity pass complete
 5. broader cache-level Release gate complete
-6. gate interpretation and follow-up fixes pending
+6. gate interpretation and follow-up fixes complete
 7. broader cache-level readiness decision trace pending
 8. closeout and handoff pending
 ```
@@ -184,15 +236,17 @@ defer, broader cache-level default readiness cannot be decided because
 Recommended current next action:
 
 ```text
-begin milestone 016 slice 6 by interpreting the captured Release gate:
-  decide whether the primary 12.01% spread warning is accepted or needs a
-  targeted rerun
-  decide whether the named-risk 1.001x individual elapsed pair needs more
-  evidence
-  decide whether the mixed-cache worker-counter note needs borrowed counter
-  recapture
-  keep the file-smoke row coverage-only despite the milestone 015 warning not
-  reproducing in this run
+begin milestone 016 slice 7 by writing the durable decision trace:
+  docs/milestones/016-broader-cache-level-default-readiness-decision-trace.md
+
+use the slice 6 posture:
+  accept broader cache-level default readiness with named scoped warnings
+
+carry the named warnings/notes:
+  primary spread warning
+  named-risk borderline individual elapsed timing note
+  mixed-cache worker-counter note with no slice 5 borrowed counter recapture
+  file-smoke coverage-only scope
 ```
 
 Milestone 016 gate capture posture after slice 5:
@@ -219,6 +273,14 @@ CLI role:
 Milestone 016 latest verification:
 
 ```text
+slice 6 gate interpretation:
+  runtime behavior changes: none
+  follow-up fixes: none
+  targeted rerun before decision trace: not required
+  borrowed worker-counter recapture before decision trace: not required
+  decision-trace posture:
+    accept broader cache-level default readiness with named scoped warnings
+
 slice 5 Release build:
   dotnet build RadarPulse.sln -c Release --no-restore
 
