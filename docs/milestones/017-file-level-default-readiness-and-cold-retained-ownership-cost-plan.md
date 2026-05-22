@@ -647,8 +647,78 @@ decision on temporary runner versus existing CLI/direct capture
 Slice 2 status:
 
 ```text
-status: pending
-runtime behavior changes: none expected
+status: complete
+runtime behavior changes: none
+code/reporting fixes required before measurement: none
+```
+
+Slice 2 completion notes:
+
+```text
+direct API contract:
+  MeasureFile() and MeasureCache() omitted provider/execution/retention
+  controls still resolve through the accepted queued-owned rollout default
+  contour
+  explicit BlockingBorrowed remains available as a same-run fallback/oracle
+  contour
+  queued-only controls remain guarded so borrowed mode cannot accidentally
+  inherit queued provider settings
+  queued-owned failure paths remain fail-closed rather than silently falling
+  back to borrowed success
+
+direct result fields:
+  MeasureFile() exposes file identity, effective contour, validation,
+  topology/rebalance counters, skipped reasons, worker telemetry, elapsed
+  time, allocation attribution, queue telemetry, retained payload telemetry,
+  retained pressure, and provider overlap telemetry
+  MeasureCache() exposes the same readiness fields plus cache/date/radar
+  identity and examined/skipped/published file counts for low-count slice
+  interpretation
+  low-count cache selection stops at examined max-files and skips non-base
+  Archive Two data using the AR2V base-data signature check, which keeps
+  metadata/MDM skip visibility reviewable
+
+CLI reporting:
+  rebalance-archive output prints provider mode, overlap mode, retention
+  strategy, queue capacity, retained-byte budget, option provenance,
+  default-candidate contour, rollout-default expansion, fallback contour,
+  evidence contour/scope, validation, rebalance counters, allocation
+  attribution, provider queue telemetry, retained payload telemetry,
+  retained pressure, and provider overlap telemetry
+  CLI --file omitted-provider output is sufficient for slice 4 spot-checks
+  and direct/CLI alignment evidence
+  CLI output is intentionally verbose and text-oriented, so it is not the
+  preferred source for the full Release gate table
+
+retained ownership attribution:
+  existing allocation attribution separates measured allocation, processing
+  callback allocation, replay/batch construction allocation, owned snapshot
+  allocation, and processing callback non-owned snapshot allocation
+  retained payload telemetry exposes total retained allocated bytes plus
+  pool rent/return/miss counts split across event arrays and byte arrays
+  exact event-array versus byte-array allocated bytes are not split today;
+  this is acceptable for milestone 017 readiness unless slice 3 defines a
+  threshold that requires exact per-pool allocated-byte attribution
+
+guardrail test coverage:
+  CLI tests cover help/default messaging, omitted-provider rollout expansion,
+  explicit BlockingBorrowed fallback provenance, explicit queued-owned
+  provenance, default-candidate contour, fallback contour, retained pressure
+  output, allocation attribution output, and telemetry visibility
+  queued overlap tests cover stable statuses, consumer fault behavior,
+  producer failure releasing pending resources, cancellation after accepted
+  enqueue releasing pending resources, validation failure releasing active
+  resources, and fail-closed behavior without borrowed fallback
+  retained payload factory/resource tests cover pooled-copy rent/return/miss
+  behavior, cold/warm large-payload pool reuse, empty/owned-input behavior,
+  builder-transfer unsupported status, and cleanup on copy failure
+
+runner/reporting decision:
+  use a temporary direct API gate runner for the full Release gate because
+  structured result properties reduce manual capture error in paired
+  borrowed/default rows
+  keep CLI output as a spot-check and user-facing alignment surface
+  do not commit a new product reporting surface before measurement
 ```
 
 ### 3. Threshold And Runner Design

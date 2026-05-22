@@ -29,7 +29,8 @@ architecture document: drafted in
   docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost.md
 implementation plan: drafted in
   docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-plan.md
-implementation: slice 1 file corpus inventory and gate matrix design complete
+implementation: slice 2 existing contract, reporting, and guardrail audit
+  complete
 runtime behavior changes so far: none
 performance gate: not captured
 decision trace: not written
@@ -187,11 +188,61 @@ coverage posture:
   still local-corpus-only and not a certification of absent radar/date shapes
 ```
 
+Milestone 017 slice 2 completion:
+
+```text
+status:
+  complete
+
+runtime behavior changes:
+  none
+
+direct API contract:
+  MeasureFile() and MeasureCache() omitted controls still resolve to the
+  accepted queued-owned rollout contour
+  explicit BlockingBorrowed remains available as the same-run fallback/oracle
+  contour
+  queued-only controls remain guarded and queued-owned failures remain
+  fail-closed without automatic borrowed fallback
+
+result/reporting posture:
+  direct MeasureFile() and MeasureCache() result contracts expose the fields
+  needed for file-level gate capture: effective contour, validation,
+  rebalance counters, skipped reasons, worker telemetry, elapsed time,
+  allocation attribution, queue telemetry, retained payload telemetry,
+  retained pressure, and provider overlap telemetry
+  MeasureCache() additionally exposes examined/skipped/published file counts
+  needed for low-count small-file slice interpretation
+  CLI rebalance-archive output exposes omitted-provider provenance,
+  default-candidate contour, rollout-default expansion, fallback contour,
+  evidence contour/scope, allocation attribution, retained payload telemetry,
+  retained pressure, and overlap/queue telemetry
+
+attribution limit:
+  retained telemetry splits event-array and byte-array pool rent/return/miss
+  counts, but does not split exact allocated bytes by event-array versus
+  byte-array pool
+  this is acceptable unless slice 3 defines a threshold that requires exact
+  per-pool allocated-byte attribution
+
+guardrail tests:
+  existing CLI, queued overlap, retained payload, and retained resource tests
+  cover default/fallback provenance, telemetry visibility, cleanup, release,
+  cold/warm pooled-copy behavior, builder-transfer unsupported behavior, and
+  fail-closed queued-owned failure behavior
+
+measurement posture:
+  no committed code or product-reporting fix is required before measurement
+  use a temporary direct API gate runner for the full Release gate so paired
+  borrowed/default rows can be captured from structured result fields
+  keep CLI output for slice 4 direct/CLI alignment spot-checks
+```
+
 Milestone 017 planned slices:
 
 ```text
 1. file corpus inventory and gate matrix design complete
-2. existing contract, reporting, and guardrail audit pending
+2. existing contract, reporting, and guardrail audit complete
 3. threshold and runner design pending
 4. focused regression and file sanity pass pending
 5. cold and warm MeasureFile Release gate pending
@@ -257,17 +308,17 @@ small-cache success
 Recommended current next action:
 
 ```text
-begin milestone 017 slice 2:
-  existing contract, reporting, and guardrail audit
+begin milestone 017 slice 3:
+  threshold and runner design
 
-slice 2 should audit:
-  direct MeasureFile()/MeasureCache() result contracts for file-level gate
-  fields
-  CLI rebalance-archive --file omitted-provider and explicit borrowed output
-  retained payload, retained resource, provider queue, overlap, readiness, and
-    allocation tests for file-level relevance
-  whether a temporary direct API gate runner is enough or whether a committed
-    reporting/test change is required before Release capture
+slice 3 should define before Release gate interpretation:
+  cold MeasureFile() allocation and elapsed pass/warning/optimize/fail bands
+  repeated/warm MeasureFile() allocation and elapsed bands
+  low-count MeasureCache() transition thresholds
+  candidate spread threshold and repeat policy
+  same-run borrowed/default pair ordering, including any candidate-first cold
+    row needed to preserve first-use queued-owned evidence
+  temporary direct API gate runner output schema and invocation notes
 ```
 
 ## Milestone 016 Baseline
