@@ -23,7 +23,7 @@ implementation plan:
   drafted in docs/milestones/018-runtime-live-ingestion-readiness-plan.md
 
 implementation:
-  slices 1-2 complete; no runtime behavior changes
+  slices 1-3 complete; no runtime behavior changes
 
 runtime behavior changes:
   none yet
@@ -59,7 +59,7 @@ Milestone 018 planned slices:
 ```text
 1. Runtime surface inventory and lifecycle audit (complete)
 2. Runtime readiness contract and gate matrix design (complete)
-3. Reporting, contract, and harness gap closure
+3. Reporting, contract, and harness gap closure (complete)
 4. Runtime prewarm lifecycle decision and guardrails
 5. Backpressure, failure, cancellation, and cleanup guardrails
 6. Runtime steady intake gate
@@ -107,7 +107,7 @@ automatic silent borrowed fallback
 Milestone 018 current recommended next action:
 
 ```text
-begin slice 3: reporting, contract, and harness gap closure
+stop for prewarm lifecycle decision before slice 4
 ```
 
 Milestone 018 slice 1 completion:
@@ -174,6 +174,55 @@ carried gaps:
     carried as blocker/coverage gap
   true live ingestion remains a coverage gap unless new scope is added
   runtime-shaped gates need reviewable JSONL/Markdown output
+```
+
+Milestone 018 slice 3 completion:
+
+```text
+reporting/harness document:
+  docs/milestones/018-runtime-live-ingestion-readiness-reporting-harness.md
+
+runtime behavior changes:
+  none
+
+production code changes:
+  none
+
+contract mapping:
+  existing lower-level contracts expose enough provider, consumer, queue,
+    retained payload, pressure, worker, processing-completeness, release,
+    and lifecycle data to proceed to runtime gate capture
+
+temporary harness schema:
+  JSONL record types and Markdown summary requirements are defined for the
+    runtime gate harness
+
+product reporting decision:
+  no production runtime API or CLI reporting change is required before gate
+    capture; temporary local harness output is sufficient unless slice 6/7
+    gates reveal attribution gaps
+
+carried gaps:
+  actual temporary runner implementation/capture remains for slice 6/7
+  runtime prewarm policy remains for slice 4
+  CancelQueued behavior remains for slice 5
+  true live ingestion remains a coverage gap unless new scope is added
+  durable operator/runtime reporting surface remains future work unless gates
+    show product reporting is required before decision trace
+```
+
+Milestone 018 decision checkpoint:
+
+```text
+slice 4 requires choosing the runtime prewarm lifecycle candidate:
+  no runtime prewarm
+  startup prewarm
+  operator-triggered prewarm
+  lazy first-use prewarm
+  explicit opt-in prewarm only
+
+This is a runtime posture decision and should be reviewed before implementation
+continues.
 ```
 
 ## Milestone 017 Baseline

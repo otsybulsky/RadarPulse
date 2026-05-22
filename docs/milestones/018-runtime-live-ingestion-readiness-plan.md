@@ -770,8 +770,44 @@ no unresolved observability blocker before gate capture, or an explicit
 Slice 3 status:
 
 ```text
-status: pending
-runtime behavior changes: possible reporting/contract only
+status: complete
+runtime behavior changes: none
+production code changes: none
+reporting/harness document:
+  docs/milestones/018-runtime-live-ingestion-readiness-reporting-harness.md
+```
+
+Slice 3 completion notes:
+
+```text
+contract mapping:
+  existing lower-level contracts expose enough provider, consumer, queue,
+    retained payload, pressure, worker, processing-completeness, release,
+    and lifecycle data to proceed to runtime gate capture
+
+temporary harness schema:
+  defined JSONL record types:
+    header
+    scenario
+    measurement
+    terminal-cleanup
+    group-summary
+    run-summary
+  defined Markdown summary requirements
+
+product reporting decision:
+  no production runtime API or CLI reporting change is required before gate
+    capture
+  temporary local harness output is sufficient for slice 6/7 evidence unless
+    those gates reveal attribution gaps
+
+carried gaps:
+  actual temporary runner implementation/capture remains for slice 6/7
+  runtime prewarm policy remains for slice 4
+  CancelQueued behavior remains for slice 5
+  true live ingestion remains a coverage gap unless new scope is added
+  durable operator/runtime reporting surface remains future work unless gates
+    show product reporting is required before decision trace
 ```
 
 ### 4. Runtime Prewarm Lifecycle Decision And Guardrails
