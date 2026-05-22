@@ -1285,8 +1285,39 @@ residual warnings and blockers
 Slice 8 status:
 
 ```text
-status: pending
-runtime behavior changes: possible scoped fixes only after gate evidence
+status: complete
+runtime behavior changes: none
+gate interpretation document:
+  docs/milestones/018-runtime-live-ingestion-readiness-gate-interpretation.md
+```
+
+Slice 8 completion notes:
+
+```text
+recommended decision-trace posture:
+  explicit opt-in only
+
+runtime default:
+  keep omitted runtime defaults unchanged
+
+queued-owned explicit candidate:
+  runtime-safe for scoped in-process runtime/archive replay surfaces when
+    selected explicitly with startup prewarm and existing guardrails
+
+follow-up fix posture:
+  no production follow-up fix required before decision trace
+
+reason:
+  slice 6 startup-prewarmed candidate passes bounded steady evidence
+  natural first-use remains allocation warning/optimize/fail control evidence
+  slice 7 pressure, cancellation, failure, drain, release, and cleanup gates
+    pass with terminal retained pressure clean in all rows
+  release failure remains visible and readiness-blocking
+  no automatic borrowed fallback was introduced or observed
+
+carried to slice 9:
+  formal decision trace, accepted warnings, residual coverage gaps, and next
+    milestone input
 ```
 
 ### 9. Runtime Readiness Decision Trace
