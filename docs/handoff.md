@@ -27,13 +27,14 @@ Milestone 016 current status:
 ```text
 architecture document: complete
 implementation plan: draft
-implementation: not started
+implementation: complete through slice 1 corpus inventory and gate matrix
+  design
 runtime behavior changes so far: none
 performance gate: not captured
 decision trace: not written
 closeout: not written
 current next slice:
-  slice 1, corpus inventory and gate matrix design
+  slice 2, existing contract and guardrail audit
 ```
 
 Milestone 016 keeps this accepted direct/default contour:
@@ -83,10 +84,39 @@ file-level warning:
 Known local cache data at milestone 016 start:
 
 ```text
-data\nexrad\level2\2026\05\04\KTLX: 244 files
-data\nexrad\level2\2026\05\04\KINX: 462 files
-data\nexrad\level2\2026\05\05\KTLX: 848 files
-data\nexrad total files: 1554
+data\nexrad\level2\2026\05\04\KTLX:
+  244 files, 1_347_625_897 bytes
+data\nexrad\level2\2026\05\04\KINX:
+  462 files, 1_404_452_903 bytes
+data\nexrad\level2\2026\05\05\KTLX:
+  848 files, 2_232_493_336 bytes
+data\nexrad total:
+  1_554 files, 4_984_572_136 bytes
+```
+
+Milestone 016 proposed minimum gate matrix:
+
+```text
+primary drift/spread row:
+  data\nexrad --date 2026-05-04 --radar KTLX --max-files 220,
+  repeated 3 pairs
+
+named allocation-risk row:
+  data\nexrad --date 2026-05-05 --radar KTLX --max-files 220,
+  repeated 2 pairs, with a third pair if noisy
+
+cross-radar row:
+  data\nexrad --date 2026-05-04 --radar KINX --max-files 220
+
+mixed-cache row:
+  data\nexrad --max-files 1000000
+
+CLI/direct alignment spot-check:
+  processing benchmark rebalance-archive --cache with omitted provider
+
+file-level warning visibility:
+  representative KTLX MeasureFile() single-file smoke, interpreted only as
+  file-level cold retained-ownership cost
 ```
 
 Milestone 016 preserved guardrails:
@@ -111,7 +141,7 @@ shape-specific warnings must not be hidden behind mixed-cache aggregate success
 Milestone 016 planned slices:
 
 ```text
-1. corpus inventory and gate matrix design pending
+1. corpus inventory and gate matrix design complete
 2. existing contract and guardrail audit pending
 3. reporting and harness readiness pending
 4. focused regression and cache sanity pass pending
@@ -146,9 +176,9 @@ defer, broader cache-level default readiness cannot be decided because
 Recommended current next action:
 
 ```text
-begin milestone 016 slice 1 by recording the cache corpus inventory and the
-proposed gate matrix in
-docs/milestones/016-broader-cache-level-default-readiness-plan.md
+begin milestone 016 slice 2 by auditing existing direct/CLI contracts,
+fallback/oracle separation, retained telemetry visibility, and guardrail test
+coverage before any Release gate capture
 ```
 
 ## Milestone 015 Closed Baseline

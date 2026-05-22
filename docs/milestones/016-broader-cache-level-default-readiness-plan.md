@@ -387,7 +387,107 @@ Get-ChildItem data\nexrad -Recurse -File | Measure-Object
 Slice 1 completion notes:
 
 ```text
-status: pending
+status: complete
+runtime behavior changes: none
+
+inventory command:
+  Get-ChildItem data\nexrad -Recurse -File | Measure-Object -Property Length
+  -Sum
+
+local cache roots:
+  data\nexrad\level2\2026\05\04\KTLX:
+    files: 244
+    bytes: 1_347_625_897
+
+  data\nexrad\level2\2026\05\04\KINX:
+    files: 462
+    bytes: 1_404_452_903
+
+  data\nexrad\level2\2026\05\05\KTLX:
+    files: 848
+    bytes: 2_232_493_336
+
+  data\nexrad total:
+    files: 1_554
+    bytes: 4_984_572_136
+
+available workload breadth:
+  two radar sites: KTLX and KINX
+  two dates: 2026-05-04 and 2026-05-05
+  three radar/date roots
+  one mixed local cache spanning all available roots
+
+milestone 015 reproduction selectors:
+  primary repeated contour:
+    data\nexrad --date 2026-05-04 --radar KTLX --max-files 220
+
+  named risk repeated contour:
+    data\nexrad --date 2026-05-05 --radar KTLX --max-files 220
+
+  cross-radar contour:
+    data\nexrad --date 2026-05-04 --radar KINX --max-files 220
+
+  mixed-cache contour:
+    data\nexrad --max-files 1000000
+
+  file-level smoke contour:
+    data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_000245_V06
+
+proposed minimum milestone 016 gate matrix:
+  primary drift/spread row:
+    direct MeasureCache() and same-run explicit BlockingBorrowed over
+    data\nexrad --date 2026-05-04 --radar KTLX --max-files 220,
+    repeated 3 pairs
+
+  named allocation-risk row:
+    direct MeasureCache() and same-run explicit BlockingBorrowed over
+    data\nexrad --date 2026-05-05 --radar KTLX --max-files 220,
+    repeated 2 pairs, with a third pair if the first two are noisy
+
+  cross-radar row:
+    direct MeasureCache() and same-run explicit BlockingBorrowed over
+    data\nexrad --date 2026-05-04 --radar KINX --max-files 220
+
+  mixed-cache row:
+    direct MeasureCache() and same-run explicit BlockingBorrowed over
+    data\nexrad --max-files 1000000
+
+  CLI/direct alignment spot-check:
+    processing benchmark rebalance-archive --cache using an omitted provider
+    selector that matches one direct cache row
+
+  file-level warning visibility:
+    representative MeasureFile() single-file smoke over
+    data\nexrad\level2\2026\05\04\KTLX\KTLX20260504_000245_V06,
+    interpreted only as file-level cold retained-ownership cost
+
+proposed size-extension rows if Release runtime budget allows:
+  KTLX 2026-05-04 full available root:
+    data\nexrad --date 2026-05-04 --radar KTLX --max-files 244
+
+  KINX 2026-05-04 larger cross-radar slice:
+    data\nexrad --date 2026-05-04 --radar KINX --max-files 440
+
+  KTLX 2026-05-05 larger named-risk slice:
+    data\nexrad --date 2026-05-05 --radar KTLX --max-files 440
+
+repetition decision:
+  repeat the primary KTLX 2026-05-04 row for spread and drift comparison
+  repeat the KTLX 2026-05-05 named-risk row because it carried the milestone
+  014 allocation warning and milestone 015 reduction claim
+  do not repeat every broader row unless a row is near threshold or noisy
+
+workload classes still absent:
+  additional radar sites beyond KTLX and KINX
+  additional dates beyond 2026-05-04 and 2026-05-05
+  multi-day cache roots outside the current local corpus
+  live ingestion or durable queue workloads
+  natural queue-ahead rows with provider queue depth above 1
+  file-level default readiness workloads
+
+slice 2 input:
+  audit existing contracts and guardrails before any Release gate capture;
+  no runtime or benchmark behavior change is justified by slice 1 alone
 ```
 
 ### 2. Existing Contract And Guardrail Audit
