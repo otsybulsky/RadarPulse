@@ -1,6 +1,6 @@
 # Milestone 016: Broader Cache-Level Default Readiness Implementation Plan
 
-Status: draft.
+Status: complete.
 
 This plan implements the milestone 016 architecture defined in
 `016-broader-cache-level-default-readiness.md`.
@@ -1353,7 +1353,42 @@ recommended next milestone input
 Slice 8 completion notes:
 
 ```text
-status: pending
+status: complete
+runtime behavior changes: none
+
+closeout:
+  docs/milestones/016-broader-cache-level-default-readiness-closeout.md
+
+handoff:
+  docs/handoff.md
+
+final closeout answer:
+  yes with warnings, broader cache-level default readiness is accepted with
+  named scoped warnings
+
+decision trace:
+  docs/milestones/016-broader-cache-level-default-readiness-decision-trace.md
+
+final verification:
+  focused regression before gate:
+    112 passed, 0 failed, 0 skipped
+
+  Release build before gate:
+    succeeded, 0 warnings, 0 errors
+
+  temporary direct API gate runner build:
+    succeeded, 0 warnings, 0 errors
+
+  full test project before closeout:
+    768 passed, 0 failed, 3 skipped
+
+recommended next milestone input:
+  File-Level Default Readiness And Cold Retained-Ownership Cost
+
+next milestone scope:
+  decide whether queued-owned direct/default contour is ready for file-level
+  MeasureFile() and small-file workloads, or whether file-level needs a scoped
+  optimization/default decision before runtime expansion
 ```
 
 ## Verification Strategy
@@ -1396,35 +1431,35 @@ cold warning visible
 Milestone 016 is complete when:
 
 ```text
-[ ] cache corpus inventory is captured with radar/date/file-count/selection
+[x] cache corpus inventory is captured with radar/date/file-count/selection
     details
-[ ] selected cache-level shapes are broad enough for a readiness decision, or
+[x] selected cache-level shapes are broad enough for a readiness decision, or
     coverage insufficiency is explicitly recorded
-[ ] same-run explicit BlockingBorrowed oracle rows remain available,
+[x] same-run explicit BlockingBorrowed oracle rows remain available,
     documented, and visibly separate
-[ ] direct MeasureCache() omitted defaults still resolve to the accepted
+[x] direct MeasureCache() omitted defaults still resolve to the accepted
     queued-owned rollout contour
-[ ] CLI omitted-provider cache benchmark remains aligned with direct API
+[x] CLI omitted-provider cache benchmark remains aligned with direct API
     defaults
-[ ] correctness parity against borrowed rows is preserved for every readiness
+[x] correctness parity against borrowed rows is preserved for every readiness
     row
-[ ] retained cleanup returns current pressure to zero in natural direct/default
+[x] retained cleanup returns current pressure to zero in natural direct/default
     rows
-[ ] release failures remain 0
-[ ] retained pressure stays within the configured 536870912 byte budget
-[ ] allocation overhead is classified per cache shape against the recorded
+[x] release failures remain 0
+[x] retained pressure stays within the configured 536870912 byte budget
+[x] allocation overhead is classified per cache shape against the recorded
     threshold
-[ ] elapsed timing and variance are classified per cache shape against the
+[x] elapsed timing and variance are classified per cache shape against the
     recorded thresholds
-[ ] single-file cold retained-ownership cost remains explicitly scoped as a
+[x] single-file cold retained-ownership cost remains explicitly scoped as a
     file-level concern, not cache-level blocker
-[ ] queued-owned failures remain fail-closed with no automatic borrowed
+[x] queued-owned failures remain fail-closed with no automatic borrowed
     fallback
-[ ] performance gate is captured
-[ ] decision trace records the broader cache-level default-readiness decision
-[ ] closeout records verification, gate results, residual risks, and carry
+[x] performance gate is captured
+[x] decision trace records the broader cache-level default-readiness decision
+[x] closeout records verification, gate results, residual risks, and carry
     forward items
-[ ] handoff states the current broader cache-level readiness posture and
+[x] handoff states the current broader cache-level readiness posture and
     recommended next milestone unambiguously
 ```
 

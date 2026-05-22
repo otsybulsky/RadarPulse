@@ -1,8 +1,8 @@
-# Handoff: Milestone 016 Active
+# Handoff: Milestone 016 Complete
 
 ## Current State
 
-Milestone 016 is active. The milestone documents are:
+Milestone 016 is complete. The milestone documents are:
 
 ```text
 docs/milestones/016-broader-cache-level-default-readiness.md
@@ -26,23 +26,23 @@ Milestone 016 current status:
 
 ```text
 architecture document: complete
-implementation plan: draft
-implementation: complete through slice 7 broader cache-level readiness
-  decision trace
+implementation plan: complete
+implementation: complete through slice 8 closeout and handoff
 runtime behavior changes so far: none
 performance gate: captured in
   docs/milestones/016-broader-cache-level-default-readiness-performance-gate.md
 gate posture: captured with primary spread warning
-interpretation posture:
-  proceed to decision trace with broader cache-level default readiness accepted
-  with named scoped warnings
 decision trace: written in
   docs/milestones/016-broader-cache-level-default-readiness-decision-trace.md
+closeout: written in
+  docs/milestones/016-broader-cache-level-default-readiness-closeout.md
 decision:
   accept broader cache-level default readiness with named scoped warnings
-closeout: not written
-current next slice:
-  slice 8, closeout and handoff
+final closeout answer:
+  yes with warnings, broader cache-level default readiness is accepted with
+  named scoped warnings
+recommended next milestone:
+  File-Level Default Readiness And Cold Retained-Ownership Cost
 ```
 
 Milestone 016 keeps this accepted direct/default contour:
@@ -250,7 +250,7 @@ Milestone 016 planned slices:
 5. broader cache-level Release gate complete
 6. gate interpretation and follow-up fixes complete
 7. broader cache-level readiness decision trace complete
-8. closeout and handoff pending
+8. closeout and handoff complete
 ```
 
 Milestone 016 closeout question:
@@ -278,22 +278,16 @@ defer, broader cache-level default readiness cannot be decided because
 Recommended current next action:
 
 ```text
-begin milestone 016 slice 8 by writing closeout and updating handoff:
-  docs/milestones/016-broader-cache-level-default-readiness-closeout.md
-  docs/handoff.md
+begin milestone 017 architecture:
+  File-Level Default Readiness And Cold Retained-Ownership Cost
 
-use the slice 7 decision:
-  accept broader cache-level default readiness with named scoped warnings
+recommended first document:
+  docs/milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost.md
 
-closeout must carry:
-  gate summary and decision trace pointer
-  preserved direct/default contour and explicit BlockingBorrowed oracle
-  primary spread warning
-  named-risk borderline individual elapsed timing note
-  mixed-cache worker-counter note with no slice 5 borrowed counter recapture
-  file-smoke coverage-only scope
-  live/runtime/durable out-of-scope posture
-  final verification and recommended next milestone input
+target question:
+  decide whether the queued-owned direct/default contour is ready for
+  file-level MeasureFile() and small-file workloads, or whether file-level
+  needs a scoped optimization/default decision before runtime expansion
 ```
 
 Milestone 016 gate capture posture after slice 5:
@@ -320,6 +314,25 @@ CLI role:
 Milestone 016 latest verification:
 
 ```text
+slice 8 closeout:
+  document:
+    docs/milestones/016-broader-cache-level-default-readiness-closeout.md
+
+  final closeout answer:
+    yes with warnings, broader cache-level default readiness is accepted with
+    named scoped warnings
+
+  full test project before closeout:
+    dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+
+  result:
+    768 passed, 0 failed, 3 skipped
+
+  skipped tests:
+    AwsNexradArchiveClientIntegrationTests.BuildManifestAsyncListsPublicAwsArchive
+    AwsNexradArchiveClientIntegrationTests.DownloadFileAsyncDownloadsSmallPublicAwsObject
+    NexradArchiveDecompressionValidatorCorpusTests.ValidateCachedArchiveCorpusAgainstSharpZipLib
+
 slice 7 decision trace:
   document:
     docs/milestones/016-broader-cache-level-default-readiness-decision-trace.md
