@@ -1,8 +1,8 @@
-# Handoff: Milestone 021 Active
+# Handoff: Milestone 021 Complete
 
 ## Current State
 
-Milestone 021 is active. The milestone documents are:
+Milestone 021 is complete. The milestone documents are:
 
 ```text
 docs/milestones/021-ordered-concurrent-runtime-archive-processing.md
@@ -13,6 +13,7 @@ docs/milestones/021-ordered-concurrent-runtime-archive-processing-gate.md
 docs/milestones/021-ordered-concurrent-runtime-archive-processing-full-cache-performance-matrix.md
 docs/milestones/021-ordered-concurrent-runtime-archive-processing-ordered-full-cache-performance-matrix.md
 docs/milestones/021-ordered-concurrent-runtime-archive-processing-decision-trace.md
+docs/milestones/021-ordered-concurrent-runtime-archive-processing-closeout.md
 ```
 
 Milestone 021 purpose:
@@ -52,7 +53,7 @@ preserve processing completeness, checksum parity, topology safety, failure
   cleanup, and retained pressure cleanup
 ```
 
-Milestone 021 planned slices:
+Milestone 021 completed slices:
 
 ```text
 1. Ordered concurrency contract
@@ -68,16 +69,16 @@ Current implementation status:
 ```text
 architecture document: complete
 implementation plan: complete
-implementation: complete through decision trace
+implementation: complete through closeout
 blocker: resolved by snapshot/delta/ordered commit decision
 gate: written
 post-gate full-cache performance matrix: written
 post-gate ordered processing full-cache performance matrix: written
 decision trace: written
-closeout: not written
+closeout: written
 ```
 
-Implemented in milestone 021 so far:
+Implemented in milestone 021:
 
 ```text
 RadarProcessingOrderedConcurrencyOptions:
@@ -178,7 +179,7 @@ performance constraints:
   measure allocation/performance before gate
 ```
 
-Verification so far:
+Final milestone 021 verification:
 
 ```text
 slice 1 focused baseline tests:
@@ -396,11 +397,22 @@ warnings:
     isolated
 ```
 
-Remaining before milestone 021 closeout:
+Milestone 021 closeout:
 
 ```text
-write closeout
-update project progress if closeout scope requires it
+docs/milestones/021-ordered-concurrent-runtime-archive-processing-closeout.md
+
+final answer:
+  accepted with scoped warnings, the scoped in-process runtime/archive
+  processing-core path is ready to keep multiple accepted batches active,
+  compute them concurrently, and publish externally visible processing
+  results in deterministic provider sequence order over the accepted
+  milestone 020 baseline
+
+recommended next milestone input:
+  implement ordered rebalance/topology commit over the ordered processing
+  foundation, and collect processing-bottleneck performance evidence before
+  broader default promotion
 ```
 
 ## Milestone 020 Closeout Baseline

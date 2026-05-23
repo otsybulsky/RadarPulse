@@ -1,6 +1,7 @@
 # Milestone 021: Ordered Processing Full-Cache Performance Matrix
 
-Status: captured after direct CLI benchmark addition; decision trace written.
+Status: captured after direct CLI benchmark addition; decision trace and
+closeout written.
 
 This document records the Release CLI full-cache matrix for the new
 `RunProcessingAsync` ordered-processing runtime/archive path.

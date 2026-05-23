@@ -1,6 +1,6 @@
 # Milestone 021: Full-Cache Performance Matrix
 
-Status: captured after gate; decision trace written.
+Status: captured after gate; decision trace and closeout written.
 
 This document records the requested Release CLI full-cache performance matrix
 after milestone 021 implementation.

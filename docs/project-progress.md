@@ -1,6 +1,6 @@
 # RadarPulse Project Progress
 
-Status: current after milestone 020 closeout.
+Status: current after milestone 021 closeout.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -12,13 +12,14 @@ production-ready result.
 
 RadarPulse has completed the direct archive benchmark default-readiness path,
 the first runtime/live ingestion readiness decision, the prewarmed queued-owned
-runtime/archive default-baseline promotion, and the default-baseline
-runtime/archive owned-construction integration milestone.
+runtime/archive default-baseline promotion, the default-baseline
+runtime/archive owned-construction integration milestone, and the scoped
+ordered concurrent runtime/archive processing milestone.
 
 Current state:
 
 ```text
-completed milestones: 001-020
+completed milestones: 001-021
 active milestone: none selected
 
 current accepted benchmark/default posture:
@@ -38,14 +39,24 @@ current runtime/live posture:
   defaults with async shard transport execution defaults
   owned construction can use async shard transport with worker count 4 and
   worker queue capacity 8
+  scoped processing-core runtime/archive path can keep multiple accepted
+  batches active, compute them concurrently, and publish externally visible
+  processing results in deterministic provider sequence order
+  ordered active batch capacity defaults to 4 and is separate from provider
+  queue capacity 8 and worker queue capacity 8
+  non-mutating per-batch delta compute plus provider-sequence ordered commit
+  is accepted as the safe architecture for overlapping processing-core
+  batches
   caller-supplied processing cores and rebalance sessions remain explicit and
   are not silently rewritten
   true live network ingestion, durable queues, cross-process runtime, and
-  ordered concurrent multi-batch processing are not implemented yet, but they
-  inherit this default baseline unless a concrete incompatibility is proven
+  ordered concurrent rebalance/topology commit are not implemented yet, but
+  they inherit this default baseline unless a concrete incompatibility is
+  proven
 
 current recommended next milestone:
-  ordered concurrent runtime/archive processing
+  ordered rebalance/topology commit and processing-bottleneck performance
+  evidence
 ```
 
 The current accepted direct benchmark contour is:
@@ -95,6 +106,33 @@ ownership note:
   explicit
 ```
 
+The current accepted ordered runtime/archive processing contour is:
+
+```text
+surface:
+  RadarProcessingArchiveQueuedOverlapRunner.RunProcessingAsync
+  RadarProcessingQueuedProcessingSession.DrainOrderedConcurrentAsync
+  RadarProcessingCore.ComputeProcessingDelta
+  RadarProcessingCore.CommitProcessingDelta
+  processing benchmark ordered-archive-processing
+
+effective contour:
+  provider mode: queued-owned
+  provider overlap: producer-consumer
+  retention strategy: pooled-copy
+  provider queue capacity: 8
+  retained-byte budget: 536870912
+  startup retained payload prewarm: enabled and visible
+  execution: async shard transport
+  worker count: 4
+  worker queue capacity: 8
+  ordered active batch capacity: 4
+
+commit note:
+  active batches may compute concurrently, but shared RadarProcessingCore
+  state mutates only through provider-sequence ordered commit
+```
+
 The current accepted readiness answers are:
 
 ```text
@@ -108,6 +146,13 @@ runtime/archive readiness:
   provider path, and scoped owned-construction runtime/archive surfaces can
   consume the accepted provider plus async execution baseline through
   RadarProcessingRuntimeArchiveBaseline
+
+ordered runtime/archive processing readiness:
+  yes with scoped warnings, the scoped in-process runtime/archive
+  processing-core path can keep multiple accepted batches active, compute them
+  concurrently, and publish externally visible processing results in
+  deterministic provider sequence order over the accepted milestone 020
+  baseline
 ```
 
 The named warnings carried forward are:
@@ -129,10 +174,15 @@ runtime startup prewarm:
 
 runtime coverage:
   true live ingestion, durable queues, cross-process workers, production
-  runtime selection/reporting, ordered concurrent multi-batch processing, and
-  repeated variance gates remain future implementation work that should
-  inherit the accepted default baseline unless a concrete surface
-  incompatibility is proven
+  runtime selection/reporting, ordered concurrent rebalance/topology commit,
+  handler-state delta/merge, and repeated variance gates remain future
+  implementation work that should inherit the accepted default baseline unless
+  a concrete surface incompatibility is proven
+
+ordered processing performance breadth:
+  direct full-cache ordered-processing evidence is clean, but the measured
+  full-cache workload is archive-producer dominated; processing-bottleneck
+  matrices remain useful before broad default promotion
 
 callback attribution:
   full-cache milestone 020 rows did not regress end-to-end, but queued-owned
@@ -481,50 +531,132 @@ runtime/archive processing over this baseline, while preserving deterministic
 ordering, topology safety, failure cleanup, and no silent borrowed fallback.
 ```
 
+### 9. Ordered Concurrent Runtime/Archive Processing
+
+Milestone:
+
+```text
+021 Ordered Concurrent Runtime/Archive Processing
+```
+
+Achieved:
+
+```text
+added explicit ordered active batch capacity with default 4
+kept active batch capacity separate from provider queue capacity 8 and worker
+  queue capacity 8
+added RadarProcessingOrderedResultCoordinator for out-of-order completion and
+  deterministic provider-sequence publication
+implemented handler-free non-mutating per-batch processing deltas
+implemented provider-sequence ordered RadarProcessingCore delta commit
+kept shared RadarProcessingCore mutation out of concurrent compute
+added ordered concurrent processing session drain
+preserved async shard transport worker telemetry through non-mutating delta
+  compute
+added RadarProcessingArchiveQueuedOverlapRunner.RunProcessingAsync as the
+  explicit ordered runtime/archive processing path
+added processing benchmark ordered-archive-processing as the direct
+  RunProcessingAsync full-cache CLI benchmark
+recorded gate evidence, full-cache matrices, decision trace, and closeout
+```
+
+Final answer:
+
+```text
+accepted with scoped warnings, the scoped in-process runtime/archive
+processing-core path is ready to keep multiple accepted batches active,
+compute them concurrently, and publish externally visible processing results
+in deterministic provider sequence order over the accepted milestone 020
+baseline
+```
+
+Verification summary:
+
+```text
+Release build:
+  succeeded, 0 warnings, 0 errors
+
+focused milestone 021 Release gate suite:
+  46 passed, 0 failed, 0 skipped
+
+full Release test project:
+  805 passed, 1 failed, 3 skipped
+  known allocation-sensitive synthetic benchmark test failed in full suite
+  isolated rerun of the same test passed
+
+rebalance-archive full-cache matrix:
+  no end-to-end full-cache regression versus explicit BlockingBorrowed oracle
+  default elapsed ratios: 0.965x static, 0.878x sampling,
+    0.884x rebalance-session
+  default allocation ratios: 1.003x static, 1.001x sampling,
+    1.000x rebalance-session
+
+ordered-archive-processing direct full-cache matrix:
+  active=4 elapsed ratio versus active=1: 0.994x
+  active=4 steady allocation ratio versus active=1: 1.006x
+  final processing checksum matched
+  processing completeness passed
+  worker failed batches/items 0/0
+  retained payload pool misses 0
+  release failures 0
+  terminal combined retained pressure 0
+```
+
+Prepared:
+
+```text
+the processing-core runtime/archive path now has a proven ordered active-batch
+compute and ordered commit foundation. Future work can build ordered
+rebalance/topology commit on top of this foundation instead of first solving
+shared processing-state mutation.
+```
+
 ## Remaining Arc
 
 The following stages are not complete. They are the recommended route from the
 current state to the intended production-ready result.
 
-### 9. Ordered Concurrent Runtime/Archive Processing
+### 10. Ordered Rebalance/Topology Commit And Processing-Bottleneck Evidence
 
 Recommended next milestone:
 
 ```text
-ordered concurrent runtime/archive processing
+ordered rebalance/topology commit and processing-bottleneck performance
+evidence
 ```
 
 Goal:
 
 ```text
-process multiple runtime/archive batches concurrently while preserving
-deterministic result order, topology/rebalance safety, cleanup guarantees, and
-the accepted provider plus execution default baseline
+extend the ordered processing foundation toward rebalance/topology safety and
+collect workload evidence where processing, not archive replay, is the
+dominant bottleneck before broader default promotion
 ```
 
 Likely required work:
 
 ```text
-ordered concurrent consumer/session design
-multiple active processing batches with deterministic result publication
-topology and rebalance safety across overlapping batches
-failure, cancellation, drain, release, and cleanup semantics with concurrent
-  active work
-bounded pressure accounting across provider queue and active batch set
-focused gates proving no silent borrowed fallback and no retained pressure
-  leaks
-Release performance matrix versus the milestone 020 accepted baseline
+rebalance pressure, policy, quarantine, telemetry, decision, and topology
+  ordered commit design
+handler-state delta/merge decision if handler cores need ordered concurrency
+accepted-move evidence preservation across ordered active batches
+topology-version validation under overlapping compute
+failure, cancellation, release, and retained pressure cleanup with
+  rebalance/topology work in flight
+processing-bottleneck synthetic or representative archive-shaped matrices
+repeated variance evidence if the ordered path is considered for broader
+default promotion
 ```
 
 Prepared by current state:
 
 ```text
-RadarProcessingRuntimeArchiveBaseline composes the accepted provider and
-execution baseline
+non-mutating processing delta compute is implemented
+provider-sequence ordered processing commit is implemented
+ordered result publication is implemented
+RunProcessingAsync is available as the explicit ordered runtime/archive path
 startup prewarm, worker telemetry, release health, processing completeness,
-and retained pressure cleanup are already visible
-live-adapter-shaped steady and failure evidence exists for the scoped
-in-process integration boundary
+and retained pressure cleanup are visible
 ```
 
 Still not implemented:
@@ -532,21 +664,20 @@ Still not implemented:
 ```text
 durable queues or brokers
 cross-process providers/workers
-ordered concurrent rebalance/commit semantics
 production operator/deployment/rollback surfaces
+true live network ingestion
 ```
 
-### 10. Durable And Cross-Process Runtime
+### 11. Durable And Cross-Process Runtime
 
-Future milestone after ordered concurrent runtime/archive processing.
+Future milestone after ordered rebalance/topology commit readiness.
 
 Goal:
 
 ```text
-implement durable queues, brokers, cross-process providers/workers, or
-ordered concurrent runtime rebalance using the accepted prewarmed
-queued-owned default baseline unless a concrete ownership-boundary
-incompatibility is proven
+implement durable queues, brokers, or cross-process providers/workers using
+the accepted prewarmed queued-owned default baseline unless a concrete
+ownership-boundary incompatibility is proven
 ```
 
 Likely required work:
@@ -555,7 +686,7 @@ Likely required work:
 durable queue or broker contract
 cross-process retained payload ownership model
 worker-local state and transfer boundaries
-ordered concurrent rebalance commit policy
+durable-safe ordered commit and recovery policy
 failure, retry, cancellation, and cleanup semantics across process boundaries
 operator-visible recovery and fallback policy
 Release gates over durable/cross-process workloads
@@ -571,7 +702,7 @@ retained pressure, cleanup, release, telemetry, validation, prewarm
 attribution, and processing-completeness guardrails can inform durable design
 ```
 
-### 11. Production Pipeline Integration
+### 12. Production Pipeline Integration
 
 Future milestone after durable/runtime readiness.
 
@@ -602,7 +733,7 @@ for runtime integration, but production integration still needs separate
 surface evidence
 ```
 
-### 12. Product-Facing Completion
+### 13. Product-Facing Completion
 
 Future milestone after production pipeline integration.
 
@@ -647,7 +778,8 @@ product-facing scope has not yet been the main milestone target
 [done] runtime/live ingestion readiness decision
 [done] prewarmed queued-owned runtime default baseline promotion
 [done] default-baseline runtime/archive integration
-[next] ordered concurrent runtime/archive processing
+[done] ordered concurrent runtime/archive processing
+[next] ordered rebalance/topology commit and processing-bottleneck evidence
 [later] durable/cross-process runtime
 [later] production pipeline integration
 [later] product-facing completion

@@ -1,6 +1,6 @@
 # Milestone 021: Ordered Concurrent Runtime/Archive Processing Implementation Plan
 
-Status: complete through decision trace; closeout not written.
+Status: complete; closeout written.
 
 This plan implements the milestone 021 architecture defined in
 `021-ordered-concurrent-runtime-archive-processing.md`.
@@ -431,20 +431,29 @@ result:
     default promotion
 ```
 
-## Stop Conditions
-
-Decision trace is now written. Stop before closeout only if a new blocker is
-proven.
-
-Revisit before closeout only if one of these blockers is newly proven:
+Closeout:
 
 ```text
-shared RadarProcessingCore mutation cannot safely support overlapping batch
-  processing without a snapshot/merge/commit design
-rebalance topology publication cannot be kept deterministic without a larger
-  ordered commit layer
-retained resource cleanup cannot be made deterministic for concurrent active
+docs/milestones/021-ordered-concurrent-runtime-archive-processing-closeout.md
+
+result:
+  milestone 021 is complete
+  accepted with scoped warnings for processing-core runtime/archive ordered
+    concurrency
+```
+
+## Stop Conditions
+
+Milestone 021 is closed. These stop conditions are retained as historical
+implementation guardrails:
+
+```text
+shared RadarProcessingCore mutation could not safely support overlapping
+  batch processing without a snapshot/merge/commit design
+rebalance topology publication could not be kept deterministic without a
+  larger ordered commit layer
+retained resource cleanup had to remain deterministic for concurrent active
   work
-focused gates reveal correctness, ordering, fail-closed, or pressure cleanup
-  regressions that need architecture review
+focused gates could not reveal correctness, ordering, fail-closed, or
+  pressure cleanup regressions without architecture review
 ```
