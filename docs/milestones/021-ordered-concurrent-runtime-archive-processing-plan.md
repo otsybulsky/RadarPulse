@@ -1,6 +1,6 @@
 # Milestone 021: Ordered Concurrent Runtime/Archive Processing Implementation Plan
 
-Status: planned.
+Status: active after architecture decision.
 
 This plan implements the milestone 021 architecture defined in
 `021-ordered-concurrent-runtime-archive-processing.md`.
@@ -44,6 +44,12 @@ explicit runtime/archive path and must stop if mutable core, topology, or
 rebalance commit semantics cannot be made deterministic with the current
 architecture.
 ```
+
+The slice 3 shared-mutation blocker is resolved by the architecture decision
+recorded in
+`021-ordered-concurrent-runtime-archive-processing-architecture-decision.md`.
+The implementation direction is a per-batch non-mutating processing delta
+pipeline with ordered commit, not full `RadarProcessingCore` cloning.
 
 ## Slice 1: Ordered Concurrency Contract
 
@@ -128,7 +134,7 @@ result:
 
 ## Slice 3: Processing Session Ordered Concurrency
 
-Status: blocked pending architecture decision.
+Status: active after architecture decision.
 
 Implementation:
 
@@ -169,10 +175,11 @@ proof, or a concrete core-state blocker is recorded before any unsafe default
 is exposed
 ```
 
-Blocker:
+Resolved blocker:
 
 ```text
 docs/milestones/021-ordered-concurrent-runtime-archive-processing-slice-3-blocker.md
+docs/milestones/021-ordered-concurrent-runtime-archive-processing-architecture-decision.md
 ```
 
 Summary:
@@ -183,6 +190,15 @@ is processing, and RadarProcessingRebalanceSession mutates pressure, policy,
 telemetry, decision, and topology state during completion. Ordered result
 buffering can preserve publication order, but it cannot isolate or undo
 shared state mutations from overlapping active batches.
+```
+
+Resolution:
+
+```text
+implement non-mutating per-batch processing deltas and commit shared
+RadarProcessingCore state strictly by provider sequence. The initial
+implementation may reject custom handler cores until a handler-delta contract
+exists.
 ```
 
 ## Slice 4: Runtime/Archive Integration

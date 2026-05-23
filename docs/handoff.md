@@ -62,9 +62,8 @@ Current implementation status:
 ```text
 architecture document: complete
 implementation plan: complete
-implementation: stopped at slice 3 processing-session ordered concurrency
-blocker: shared core/rebalance mutation requires architecture decision before
-  active batch capacity greater than 1 can be exposed safely
+implementation: continuing slice 3 with accepted ordered commit architecture
+blocker: resolved by snapshot/delta/ordered commit decision
 decision trace: not written
 closeout: not written
 ```
@@ -115,14 +114,27 @@ isolate per-batch state, prevent cumulative metrics from seeing partial
 concurrent mutation, or undo a later batch mutation after an earlier failure.
 ```
 
-Architecture decision needed:
+Accepted architecture decision:
 
 ```text
-choose one before continuing slice 3:
-  snapshot/merge/commit layer
-  per-batch isolated cores with ordered delta commit
-  narrow milestone scope to non-mutating pre-processing concurrency
-  source-disjoint limited concurrency with separate metric isolation
+docs/milestones/021-ordered-concurrent-runtime-archive-processing-architecture-decision.md
+
+implement snapshot/delta/ordered commit as a per-batch non-mutating delta
+pipeline:
+  concurrent compute validates immutable batch shape, routes work, and
+    computes per-batch source deltas without mutating shared core state
+  ordered commit validates source-local ordering against current committed
+    state, applies deltas, increments processed batch count, and creates the
+    cumulative result strictly by provider sequence
+  rebalance pressure/topology decisions run only after ordered processing
+    commit permits them
+
+performance constraints:
+  avoid per-event heap allocation
+  avoid LINQ in hot paths
+  use dense source-indexed arrays or pooled buffers
+  keep startup prewarm outside steady allocation
+  measure allocation/performance before gate
 ```
 
 Verification so far:
