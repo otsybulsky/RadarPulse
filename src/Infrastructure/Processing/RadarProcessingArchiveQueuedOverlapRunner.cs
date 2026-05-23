@@ -24,6 +24,28 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
             cancellationToken);
     }
 
+    public ValueTask<RadarProcessingArchiveQueuedOverlapResult> RunProcessingAsync(
+        Func<IArchiveRadarEventBatchPublisher, CancellationToken, ArchiveRadarEventBatchPublishResult> produce,
+        RadarProcessingCore core,
+        RadarProcessingOrderedConcurrencyOptions? orderedConcurrencyOptions = null,
+        RadarProcessingArchiveQueuedOverlapOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(produce);
+        ArgumentNullException.ThrowIfNull(core);
+
+        return RunAsync(
+            produce,
+            (queue, publisher, token) => DrainProcessingAsync(
+                core,
+                queue,
+                publisher,
+                orderedConcurrencyOptions ?? RadarProcessingRuntimeArchiveBaseline.OrderedConcurrencyOptions,
+                token),
+            options,
+            cancellationToken);
+    }
+
     public async ValueTask<RadarProcessingArchiveQueuedOverlapResult> RunAsync(
         Func<IArchiveRadarEventBatchPublisher, CancellationToken, ArchiveRadarEventBatchPublishResult> produce,
         Func<RadarProcessingOwnedBatchQueue, CancellationToken, ValueTask<RadarProcessingQueuedSessionResult>> consume,
@@ -313,6 +335,35 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
             ownsAsyncRebalanceSession: ownsAsyncRebalanceSession,
             consumerResourceLeaseFactory: publisher.AcquireConsumerResourceLease);
         var result = await queuedSession.DrainAsync(cancellationToken).ConfigureAwait(false);
+        publisher.ReleasePendingResources();
+        return result;
+    }
+
+    private static async ValueTask<RadarProcessingQueuedSessionResult> DrainProcessingAsync(
+        RadarProcessingCore core,
+        RadarProcessingOwnedBatchQueue queue,
+        ArchiveOwnedRadarEventBatchQueueingPublisher publisher,
+        RadarProcessingOrderedConcurrencyOptions orderedConcurrencyOptions,
+        CancellationToken cancellationToken)
+    {
+        RadarProcessingAsyncCoreSession? asyncCoreSession = null;
+        var ownsAsyncCoreSession = core.Options.ExecutionMode ==
+            RadarProcessingExecutionMode.AsyncShardTransport;
+        if (ownsAsyncCoreSession)
+        {
+            asyncCoreSession = new RadarProcessingAsyncCoreSession(core);
+        }
+
+        await using var queuedSession = new RadarProcessingQueuedProcessingSession(
+            core,
+            queue,
+            asyncCoreSession,
+            ownsQueue: false,
+            ownsAsyncCoreSession: ownsAsyncCoreSession,
+            consumerResourceLeaseFactory: publisher.AcquireConsumerResourceLease);
+        var result = await queuedSession
+            .DrainOrderedConcurrentAsync(orderedConcurrencyOptions, cancellationToken)
+            .ConfigureAwait(false);
         publisher.ReleasePendingResources();
         return result;
     }

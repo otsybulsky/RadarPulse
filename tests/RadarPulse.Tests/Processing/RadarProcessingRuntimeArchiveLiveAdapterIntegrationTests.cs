@@ -70,6 +70,57 @@ public sealed class RadarProcessingRuntimeArchiveLiveAdapterIntegrationTests
     }
 
     [Fact]
+    public async Task LiveAdapterShapeCompletesThroughOrderedConcurrentProcessingDefaultBaseline()
+    {
+        var universe = CreateUniverse(sourceCount: 8);
+        var core = RadarProcessingRuntimeArchiveBaseline.CreateCore(
+            universe,
+            partitionCount: 8,
+            shardCount: 4);
+        var adapter = new DeterministicArchiveLiveAdapter(
+            universe,
+            [
+                CreateEightBitBatch(universe.Version, [0, 1, 2, 3], messageTimestampBase: 100),
+                CreateEightBitBatch(universe.Version, [4, 5, 6, 7], messageTimestampBase: 200),
+                CreateEightBitBatch(universe.Version, [0, 2, 4, 6], messageTimestampBase: 300)
+            ]);
+        var runner = new RadarProcessingArchiveQueuedOverlapRunner();
+
+        var result = await runner.RunProcessingAsync(adapter.PublishTo, core);
+
+        Assert.True(result.IsCompleted);
+        Assert.True(result.HasRetainedPayloadPrewarm);
+        Assert.Equal(RadarProcessingRetainedPayloadStrategy.PooledCopy, result.OverlapTelemetry.RetentionStrategy);
+        Assert.Equal(3, result.ProviderResult.AcceptedPublishCount);
+        Assert.Equal(3, result.QueueTelemetry.EnqueuedBatchCount);
+        Assert.Equal(3, result.QueueTelemetry.DequeuedBatchCount);
+        Assert.Equal(3, result.QueueTelemetry.CompletedBatchCount);
+        Assert.Equal(0, result.QueueTelemetry.FailedBatchCount);
+        Assert.Equal(0, result.ProviderResult.RetentionTelemetry.ReleaseFailedCount);
+        Assert.Equal(0, result.QueueTelemetry.CurrentCombinedRetainedBatchCount);
+        Assert.Equal(0, result.QueueTelemetry.CurrentCombinedRetainedPayloadBytes);
+
+        Assert.Equal(3, result.Consumer.SessionResult.ProcessingResults.Count);
+        Assert.Equal([0L, 1L, 2L], result.Consumer.SessionResult.ProcessingResults
+            .Select(static processing => processing.Sequence.Value)
+            .ToArray());
+        Assert.All(result.Consumer.SessionResult.ProcessingResults, static processing =>
+        {
+            Assert.True(processing.IsSuccessful);
+            Assert.Equal(RadarProcessingExecutionMode.AsyncShardTransport, processing.ProcessingResult?.ExecutionMode);
+            Assert.NotNull(processing.ProcessingResult?.WorkerTelemetry);
+            Assert.Equal(
+                RadarProcessingArchiveRebalanceRolloutDefaults.WorkerCount,
+                processing.ProcessingResult?.WorkerTelemetry?.WorkerCount);
+            Assert.Equal(
+                RadarProcessingArchiveRebalanceRolloutDefaults.WorkerQueueCapacity,
+                processing.ProcessingResult?.WorkerTelemetry?.QueueCapacity);
+            Assert.Equal(0, processing.ProcessingResult?.WorkerTelemetry?.Counters.RejectedDispatchCount);
+        });
+        Assert.Equal(3, result.Consumer.SessionResult.ProcessingResults[^1].ProcessingResult?.Metrics.ProcessedBatchCount);
+    }
+
+    [Fact]
     public async Task LiveAdapterShapeValidationFailureCleansRetainedPressureWithoutBorrowedFallback()
     {
         var universe = CreateUniverse(sourceCount: 4);
@@ -116,6 +167,49 @@ public sealed class RadarProcessingRuntimeArchiveLiveAdapterIntegrationTests
             result.Consumer.SessionResult.ProcessingResults[1].ProcessingResult?.Validation.Error);
         Assert.Equal(RadarProcessingRetainedPayloadStrategy.PooledCopy, result.OverlapTelemetry.RetentionStrategy);
     }
+
+    [Fact]
+    public async Task OrderedConcurrentProcessingValidationFailureCleansRetainedPressureWithoutBorrowedFallback()
+    {
+        var universe = CreateUniverse(sourceCount: 4);
+        var core = RadarProcessingRuntimeArchiveBaseline.CreateCore(
+            universe,
+            partitionCount: 4,
+            shardCount: 2);
+        var adapter = new DeterministicArchiveLiveAdapter(
+            universe,
+            [
+                CreateInvalidSourceBatch(universe.Version),
+                CreateEightBitBatch(universe.Version, [0, 1], messageTimestampBase: 100)
+            ]);
+        var runner = new RadarProcessingArchiveQueuedOverlapRunner();
+
+        var result = await runner.RunProcessingAsync(
+            adapter.PublishTo,
+            core,
+            new RadarProcessingOrderedConcurrencyOptions(activeBatchCapacity: 2));
+
+        Assert.Equal(RadarProcessingArchiveQueuedOverlapStatus.ConsumerFaulted, result.Status);
+        Assert.True(result.IsFaulted);
+        Assert.True(result.Producer.IsCompleted);
+        Assert.True(result.Consumer.IsFaulted);
+        Assert.Equal(2, result.ProviderResult.AcceptedPublishCount);
+        Assert.Equal(0, result.ProviderResult.RejectedPublishCount);
+        Assert.Equal(0, result.ProviderResult.RetentionTelemetry.ReleaseFailedCount);
+        Assert.Equal(0, result.QueueTelemetry.CurrentCombinedRetainedBatchCount);
+        Assert.Equal(0, result.QueueTelemetry.CurrentCombinedRetainedPayloadBytes);
+        Assert.Equal(
+            [
+                RadarProcessingQueuedBatchProcessingStatus.FailedValidation,
+                RadarProcessingQueuedBatchProcessingStatus.SkippedAfterFault
+            ],
+            result.Consumer.SessionResult.ProcessingResults
+                .Select(static processing => processing.Status)
+                .ToArray());
+        Assert.Equal(0, core.CreateMetrics().ProcessedBatchCount);
+        Assert.Equal(RadarProcessingRetainedPayloadStrategy.PooledCopy, result.OverlapTelemetry.RetentionStrategy);
+    }
+
 
     private sealed class DeterministicArchiveLiveAdapter
     {

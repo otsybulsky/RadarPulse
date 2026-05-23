@@ -10,6 +10,7 @@ public sealed class RadarProcessingAsyncCoreSession : IAsyncDisposable
     private readonly RadarProcessingAsyncWorkerGroup workerGroup;
     private readonly RadarProcessingWorkerTelemetryRecorder workerTelemetryRecorder;
     private readonly RadarProcessingAsyncCompletionAggregator completionAggregator = new();
+    private readonly object workerTelemetrySync = new();
     private readonly bool ownsWorkerGroup;
     private int started;
     private int disposed;
@@ -95,8 +96,10 @@ public sealed class RadarProcessingAsyncCoreSession : IAsyncDisposable
         var aggregationStarted = Stopwatch.GetTimestamp();
         var aggregation = completionAggregator.Aggregate(dispatchResult);
         var aggregationTime = Stopwatch.GetElapsedTime(aggregationStarted);
-        workerTelemetryRecorder.RecordDispatch(dispatchResult, dispatchTime, aggregationTime);
-        var workerTelemetry = workerTelemetryRecorder.CreateSummary();
+        var workerTelemetry = RecordDispatchAndCreateSummary(
+            dispatchResult,
+            dispatchTime,
+            aggregationTime);
 
         if (firstInvalidWorkResult is not null)
         {
@@ -154,8 +157,10 @@ public sealed class RadarProcessingAsyncCoreSession : IAsyncDisposable
             var aggregationStarted = Stopwatch.GetTimestamp();
             var aggregation = completionAggregator.Aggregate(dispatchResult);
             var aggregationTime = Stopwatch.GetElapsedTime(aggregationStarted);
-            workerTelemetryRecorder.RecordDispatch(dispatchResult, dispatchTime, aggregationTime);
-            var workerTelemetry = workerTelemetryRecorder.CreateSummary();
+            var workerTelemetry = RecordDispatchAndCreateSummary(
+                dispatchResult,
+                dispatchTime,
+                aggregationTime);
 
             if (!aggregation.IsSuccess)
             {
@@ -211,6 +216,18 @@ public sealed class RadarProcessingAsyncCoreSession : IAsyncDisposable
         if (!workerGroup.Status.CanAcceptDispatch)
         {
             throw new InvalidOperationException("Async worker group cannot accept dispatch.");
+        }
+    }
+
+    private RadarProcessingWorkerTelemetrySummary RecordDispatchAndCreateSummary(
+        RadarProcessingAsyncDispatchResult dispatchResult,
+        TimeSpan dispatchTime,
+        TimeSpan aggregationTime)
+    {
+        lock (workerTelemetrySync)
+        {
+            workerTelemetryRecorder.RecordDispatch(dispatchResult, dispatchTime, aggregationTime);
+            return workerTelemetryRecorder.CreateSummary();
         }
     }
 

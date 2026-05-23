@@ -114,6 +114,13 @@ Async ordered delta support:
     dispatch only for non-mutating delta compute
   ordered concurrent processing sessions preserve async worker telemetry when
     the core uses AsyncShardTransport
+
+RadarProcessingArchiveQueuedOverlapRunner.RunProcessingAsync:
+  explicit runtime/archive queued-overlap path for processing cores
+  consumes ordered concurrent processing drain with provider defaults omitted
+  keeps milestone 020 queued-owned pooled-copy startup prewarm visible
+  preserves AsyncShardTransport worker telemetry through async delta compute
+  does not enable rebalance/topology ordered commit yet
 ```
 
 Milestone 021 blocker:
@@ -189,6 +196,11 @@ async ordered delta focused suite:
   dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
     --filter "FullyQualifiedName~RadarProcessingQueuedProcessingSessionOrderedConcurrentTests|FullyQualifiedName~RadarProcessingAsyncWorkerGroupTests"
   result: 21 passed, 0 failed, 0 skipped
+
+runtime/archive ordered processing focused suite:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~RadarProcessingRuntimeArchiveLiveAdapterIntegrationTests|FullyQualifiedName~RadarProcessingQueuedProcessingSessionOrderedConcurrentTests|FullyQualifiedName~RadarProcessingAsyncWorkerGroupTests|FullyQualifiedName~RadarProcessingBatchDeltaTests"
+  result: 29 passed, 0 failed, 0 skipped
 ```
 
 Stop conditions before decision trace:

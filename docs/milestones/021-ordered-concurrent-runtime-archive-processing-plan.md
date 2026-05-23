@@ -134,7 +134,7 @@ result:
 
 ## Slice 3: Processing Session Ordered Concurrency
 
-Status: active after architecture decision.
+Status: complete for handler-free processing cores.
 
 Implementation:
 
@@ -253,7 +253,8 @@ result:
 
 ## Slice 4: Runtime/Archive Integration
 
-Status: planned.
+Status: complete for processing-core runtime/archive path; rebalance ordered
+commit remains deferred to a later slice.
 
 Implementation:
 
@@ -294,6 +295,30 @@ Exit criteria:
 the scoped runtime/archive surface either consumes the ordered-concurrent
 path safely, or the milestone stops with a concrete topology/rebalance
 blocker
+```
+
+Progress:
+
+```text
+RadarProcessingArchiveQueuedOverlapRunner.RunProcessingAsync adds an explicit
+  runtime/archive queued-overlap path for processing cores
+omitted provider options still apply the milestone 020 queued-owned
+  pooled-copy startup prewarm default
+ordered concurrency defaults to RadarProcessingRuntimeArchiveBaseline
+  ordered active batch capacity
+AsyncShardTransport processing cores preserve worker telemetry through
+  non-mutating async delta compute
+rebalance/topology ordered commit is not enabled by this slice
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingRuntimeArchiveLiveAdapterIntegrationTests|FullyQualifiedName~RadarProcessingQueuedProcessingSessionOrderedConcurrentTests|FullyQualifiedName~RadarProcessingAsyncWorkerGroupTests|FullyQualifiedName~RadarProcessingBatchDeltaTests"
+
+result:
+  29 passed, 0 failed, 0 skipped
 ```
 
 ## Slice 5: Failure, Cancellation, And Cleanup Hardening
