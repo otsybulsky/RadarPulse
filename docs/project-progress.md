@@ -1,6 +1,6 @@
 # RadarPulse Project Progress
 
-Status: current after milestone 019 closeout.
+Status: current after milestone 020 closeout.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -11,13 +11,14 @@ production-ready result.
 ## Current Position
 
 RadarPulse has completed the direct archive benchmark default-readiness path,
-the first runtime/live ingestion readiness decision, and the prewarmed
-queued-owned runtime/archive default-baseline promotion.
+the first runtime/live ingestion readiness decision, the prewarmed queued-owned
+runtime/archive default-baseline promotion, and the default-baseline
+runtime/archive owned-construction integration milestone.
 
 Current state:
 
 ```text
-completed milestones: 001-019
+completed milestones: 001-020
 active milestone: none selected
 
 current accepted benchmark/default posture:
@@ -32,17 +33,19 @@ current runtime/live posture:
   prewarmed queued-owned default baseline accepted with warnings
   startup-prewarmed queued-owned is accepted as the omitted default for the
   scoped in-process runtime/archive queued-overlap provider path
-  future runtime/archive work should start from this accepted default contour
-  and prove only its surface-specific integration boundary
+  RadarProcessingRuntimeArchiveBaseline is accepted as the named
+  runtime/archive construction profile for composing queued-owned provider
+  defaults with async shard transport execution defaults
+  owned construction can use async shard transport with worker count 4 and
+  worker queue capacity 8
+  caller-supplied processing cores and rebalance sessions remain explicit and
+  are not silently rewritten
   true live network ingestion, durable queues, cross-process runtime, and
-  ordered concurrent rebalance are not implemented yet, but they inherit this
-  default baseline unless a concrete incompatibility is proven
-  milestone 019 does not automatically rewrite processing core execution mode
-  or async worker sizing; future processing-core default work should adopt the
-  baseline explicitly
+  ordered concurrent multi-batch processing are not implemented yet, but they
+  inherit this default baseline unless a concrete incompatibility is proven
 
 current recommended next milestone:
-  default-baseline runtime/archive integration
+  ordered concurrent runtime/archive processing
 ```
 
 The current accepted direct benchmark contour is:
@@ -73,7 +76,7 @@ The current runtime accepted default-baseline contour is:
 ```text
 surface:
   scoped in-process runtime/archive queued-overlap provider path
-  default baseline for remaining runtime/archive integration work
+  RadarProcessingRuntimeArchiveBaseline owned-construction profile
 
 effective contour:
   provider mode: queued-owned
@@ -82,11 +85,14 @@ effective contour:
   provider queue capacity: 8
   retained-byte budget: 536870912
   startup retained payload prewarm: accepted default lifecycle
+  execution: async shard transport
+  worker count: 4
+  worker queue capacity: 8
 
-execution note:
-  processing execution mode and async worker sizing remain owned by the
-  processing core/rebalance session until a dedicated defaulting surface
-  adopts the baseline explicitly
+ownership note:
+  execution defaulting applies only through surfaces that own processing core
+  or rebalance session construction; caller-owned cores and sessions remain
+  explicit
 ```
 
 The current accepted readiness answers are:
@@ -99,8 +105,9 @@ direct benchmark readiness:
 runtime/archive readiness:
   yes with scoped warnings, startup-prewarmed queued-owned is accepted as the
   omitted default for the scoped in-process runtime/archive queued-overlap
-  provider path and as the default baseline for remaining runtime/archive
-  integration work
+  provider path, and scoped owned-construction runtime/archive surfaces can
+  consume the accepted provider plus async execution baseline through
+  RadarProcessingRuntimeArchiveBaseline
 ```
 
 The named warnings carried forward are:
@@ -122,9 +129,15 @@ runtime startup prewarm:
 
 runtime coverage:
   true live ingestion, durable queues, cross-process workers, production
-  runtime selection/reporting, and repeated variance gates remain future
-  implementation work that should inherit the accepted default baseline unless
-  a concrete surface incompatibility is proven
+  runtime selection/reporting, ordered concurrent multi-batch processing, and
+  repeated variance gates remain future implementation work that should
+  inherit the accepted default baseline unless a concrete surface
+  incompatibility is proven
+
+callback attribution:
+  full-cache milestone 020 rows did not regress end-to-end, but queued-owned
+  processing callback allocation and elapsed attribution remain heavier than
+  borrowed and must stay visible in future performance reviews
 
 full-suite allocation sensitivity:
   one synthetic benchmark allocation-threshold test remains sensitive in the
@@ -403,49 +416,115 @@ remaining runtime/archive work should now use the accepted prewarmed
 queued-owned default contour and prove only its own integration boundary
 ```
 
+### 8. Runtime Default Baseline Integration
+
+Milestone:
+
+```text
+020 Default-Baseline Runtime/Archive Integration
+```
+
+Achieved:
+
+```text
+added RadarProcessingRuntimeArchiveBaseline as the named runtime/archive
+owned-construction baseline profile
+composed the milestone 019 queued-overlap provider default with async shard
+transport execution defaults
+created owned-construction helpers for async execution options, core options,
+processing cores, and rebalance sessions
+kept provider defaulting and execution defaulting separately assertable
+preserved caller-supplied processing cores and rebalance sessions as explicit
+added deterministic live-adapter-shaped steady intake evidence
+added deterministic live-adapter-shaped validation failure cleanup evidence
+recorded provenance audit, gate evidence, full-cache performance matrix,
+decision trace, and closeout
+```
+
+Final answer:
+
+```text
+accepted with scoped warnings, the scoped in-process runtime/archive
+integration boundary is ready to consume the accepted prewarmed queued-owned
+plus async execution default baseline without reopening the provider default
+decision
+```
+
+Verification summary:
+
+```text
+Release build:
+  succeeded, 0 warnings, 0 errors
+
+focused milestone 020 gate suite:
+  24 passed, 0 failed, 0 skipped
+
+full test project:
+  787 passed, 1 failed, 3 skipped
+  known allocation-sensitive synthetic benchmark test failed in full suite
+  isolated rerun of the same test passed
+
+full-cache performance matrix:
+  no end-to-end full-cache regression versus explicit BlockingBorrowed oracle
+  default elapsed ratios: 0.793x static, 0.890x sampling,
+    0.881x rebalance-session
+  default allocation ratios: 1.000x static, 1.002x sampling,
+    1.003x rebalance-session
+```
+
+Prepared:
+
+```text
+runtime/archive owned construction now has a named accepted default baseline.
+The next performance/architecture lever is ordered concurrent multi-batch
+runtime/archive processing over this baseline, while preserving deterministic
+ordering, topology safety, failure cleanup, and no silent borrowed fallback.
+```
+
 ## Remaining Arc
 
 The following stages are not complete. They are the recommended route from the
 current state to the intended production-ready result.
 
-### 8. Runtime Default Baseline Integration
+### 9. Ordered Concurrent Runtime/Archive Processing
 
 Recommended next milestone:
 
 ```text
-default-baseline runtime/archive integration
+ordered concurrent runtime/archive processing
 ```
 
 Goal:
 
 ```text
-stand on the accepted defaults and integrate them into the remaining
-runtime/archive path surfaces without re-proving queued-owned as the default
+process multiple runtime/archive batches concurrently while preserving
+deterministic result order, topology/rebalance safety, cleanup guarantees, and
+the accepted provider plus execution default baseline
 ```
 
 Likely required work:
 
 ```text
-make new runtime/archive surfaces consume the accepted default contour by
-default
-add processing-core execution defaulting only in the surface that owns core
-construction
-add live adapter evidence as integration evidence, not as a new provider
-default decision
-keep prewarm, pressure, cancellation, failure, release, and cleanup visible
-preserve BlockingBorrowed as explicit fallback/oracle, not automatic silent
-fallback
+ordered concurrent consumer/session design
+multiple active processing batches with deterministic result publication
+topology and rebalance safety across overlapping batches
+failure, cancellation, drain, release, and cleanup semantics with concurrent
+  active work
+bounded pressure accounting across provider queue and active batch set
+focused gates proving no silent borrowed fallback and no retained pressure
+  leaks
+Release performance matrix versus the milestone 020 accepted baseline
 ```
 
 Prepared by current state:
 
 ```text
-direct benchmark default readiness is accepted
-scoped queued-overlap runtime default promotion is accepted
-startup prewarm is wired and reported separately from steady allocation
-runtime lifecycle and pressure/failure guardrails are documented and gated
-the decision trace defines future work as integration of the accepted default
-baseline
+RadarProcessingRuntimeArchiveBaseline composes the accepted provider and
+execution baseline
+startup prewarm, worker telemetry, release health, processing completeness,
+and retained pressure cleanup are already visible
+live-adapter-shaped steady and failure evidence exists for the scoped
+in-process integration boundary
 ```
 
 Still not implemented:
@@ -453,14 +532,13 @@ Still not implemented:
 ```text
 durable queues or brokers
 cross-process providers/workers
-ordered concurrent rebalance
-processing-core execution defaulting from construction sites that own the core
+ordered concurrent rebalance/commit semantics
 production operator/deployment/rollback surfaces
 ```
 
-### 9. Durable And Cross-Process Runtime
+### 10. Durable And Cross-Process Runtime
 
-Future milestone after default-baseline runtime/archive integration.
+Future milestone after ordered concurrent runtime/archive processing.
 
 Goal:
 
@@ -493,7 +571,7 @@ retained pressure, cleanup, release, telemetry, validation, prewarm
 attribution, and processing-completeness guardrails can inform durable design
 ```
 
-### 10. Production Pipeline Integration
+### 11. Production Pipeline Integration
 
 Future milestone after durable/runtime readiness.
 
@@ -524,7 +602,7 @@ for runtime integration, but production integration still needs separate
 surface evidence
 ```
 
-### 11. Product-Facing Completion
+### 12. Product-Facing Completion
 
 Future milestone after production pipeline integration.
 
@@ -568,7 +646,8 @@ product-facing scope has not yet been the main milestone target
 [done] file-level/small-file default readiness
 [done] runtime/live ingestion readiness decision
 [done] prewarmed queued-owned runtime default baseline promotion
-[next] default-baseline runtime/archive integration
+[done] default-baseline runtime/archive integration
+[next] ordered concurrent runtime/archive processing
 [later] durable/cross-process runtime
 [later] production pipeline integration
 [later] product-facing completion

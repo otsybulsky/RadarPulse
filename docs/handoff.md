@@ -1,8 +1,8 @@
-# Handoff: Milestone 020 Active
+# Handoff: Milestone 020 Closed
 
 ## Current State
 
-Milestone 020 has started. The milestone documents are:
+Milestone 020 is complete. The milestone documents are:
 
 ```text
 docs/milestones/020-default-baseline-runtime-archive-integration.md
@@ -11,6 +11,7 @@ docs/milestones/020-default-baseline-runtime-archive-integration-provenance-audi
 docs/milestones/020-default-baseline-runtime-archive-integration-gate.md
 docs/milestones/020-default-baseline-runtime-archive-integration-full-cache-performance-matrix.md
 docs/milestones/020-default-baseline-runtime-archive-integration-decision-trace.md
+docs/milestones/020-default-baseline-runtime-archive-integration-closeout.md
 ```
 
 Milestone 020 purpose:
@@ -55,19 +56,20 @@ Milestone 020 planned slices:
 3. Live-adapter-shaped integration evidence
 4. Reporting and provenance pass
 5. Gate capture and documentation checkpoint
+6. Decision trace and closeout
 ```
 
 Current implementation status:
 
 ```text
-architecture document: decision trace written; awaiting closeout
-implementation plan: decision trace written; awaiting closeout
+architecture document: complete
+implementation plan: complete
 implementation: complete through slice 5 gate capture
 decision trace: written
-closeout: not started
+closeout: written
 ```
 
-Implemented in milestone 020 so far:
+Implemented in milestone 020:
 
 ```text
 RadarProcessingRuntimeArchiveBaseline:
@@ -89,21 +91,7 @@ focused integration evidence:
     pressure without borrowed fallback
 ```
 
-Milestone 020 gate result:
-
-```text
-recommended decision-trace input:
-  accepted with scoped warnings
-
-reason:
-  the scoped in-process runtime/archive integration boundary now has a named
-  baseline profile, owned construction evidence, live-adapter-shaped steady
-  and failure evidence, visible provider/execution provenance, visible startup
-  prewarm cost, clean retained pressure, release health, and no silent
-  borrowed fallback
-```
-
-Milestone 020 decision trace result:
+Milestone 020 closeout result:
 
 ```text
 decision:
@@ -132,9 +120,12 @@ not implemented here:
   true live network ingestion
   durable queues, brokers, cross-process workers
   production operator/deployment/rollback surfaces
+
+closeout:
+  complete
 ```
 
-Final verification before decision-trace stop:
+Final verification used for milestone 020 closeout:
 
 ```text
 Release build:
@@ -203,7 +194,7 @@ carry-forward note:
   end-to-end rows remain faster with flat total allocation
 ```
 
-Warnings to carry into decision trace:
+Warnings carried after closeout:
 
 ```text
 startup retained payload prewarm remains a visible lifecycle cost
@@ -214,14 +205,23 @@ production operator/deployment/rollback surfaces are not implemented
 full-suite allocation sensitivity remains for one synthetic benchmark test
 ```
 
-Stop conditions:
+Milestone 020 final closeout answer:
 
 ```text
-decision trace is written; next step is closeout
-stop earlier only for a blocker or important architecture decision
-do not silently rewrite caller-owned processing cores or rebalance sessions
-do not add automatic silent borrowed fallback
-do not hide startup prewarm cost inside steady allocation
+accepted with scoped warnings, the scoped in-process runtime/archive
+integration boundary is ready to consume the accepted prewarmed queued-owned
+plus async execution default baseline without reopening the provider default
+decision
+```
+
+Recommended next milestone input:
+
+```text
+implement ordered concurrent runtime/archive processing over the accepted
+default baseline. Preserve deterministic result ordering, topology and
+rebalance safety, fail-closed queued-owned behavior, no silent borrowed
+fallback, visible startup prewarm, release/cleanup pressure invariants, and
+separate provider/execution provenance.
 ```
 
 ## Milestone 019 Closeout Baseline

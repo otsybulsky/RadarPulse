@@ -1,6 +1,9 @@
 # Milestone 020: Default-Baseline Runtime/Archive Integration Architecture
 
-Status: decision trace written; awaiting closeout.
+Status: complete.
+
+The milestone closeout is recorded in
+`020-default-baseline-runtime-archive-integration-closeout.md`.
 
 RadarPulse milestone 020 starts from the closed milestone 019 runtime default
 baseline promotion.

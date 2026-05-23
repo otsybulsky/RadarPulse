@@ -2,6 +2,8 @@
 
 Date: 2026-05-23
 
+Closeout: `020-default-baseline-runtime-archive-integration-closeout.md`.
+
 Decision: accept the default-baseline runtime/archive integration milestone
 with named scoped warnings.
 

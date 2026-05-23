@@ -1,6 +1,9 @@
 # Milestone 020: Default-Baseline Runtime/Archive Integration Implementation Plan
 
-Status: decision trace written; awaiting closeout.
+Status: complete.
+
+The milestone closeout is recorded in
+`020-default-baseline-runtime-archive-integration-closeout.md`.
 
 This plan implements the milestone 020 architecture defined in
 `020-default-baseline-runtime-archive-integration.md`.
@@ -297,6 +300,40 @@ isolated rerun of full-suite failure:
   result: 1 passed, 0 failed, 0 skipped
 ```
 
+## Slice 6: Decision Trace, Closeout, Handoff, And Project Progress
+
+Status: complete.
+
+Implementation:
+
+```text
+record the milestone 020 decision trace in the standard milestone format
+record the milestone 020 closeout in the standard milestone format
+update architecture, plan, gate, and performance matrix status markers
+update handoff with the closed milestone posture
+update project progress with milestone 020 as completed and ordered
+  concurrent runtime/archive processing as the recommended next milestone
+```
+
+Decision trace:
+
+```text
+docs/milestones/020-default-baseline-runtime-archive-integration-decision-trace.md
+```
+
+Closeout:
+
+```text
+docs/milestones/020-default-baseline-runtime-archive-integration-closeout.md
+```
+
+Verification:
+
+```text
+documentation-only closeout slice; no additional test run required after
+closeout text updates
+```
+
 ## Verification Plan
 
 Focused verification after early slices:
@@ -327,9 +364,9 @@ suite execution but has passed in isolated rerun
 
 ## Stop Conditions
 
-Stop and discuss before decision trace.
+Complete. Decision trace and closeout are written.
 
-Stop earlier only if:
+The planned stop conditions did not trigger:
 
 ```text
 the baseline profile requires changing the accepted direct benchmark contour

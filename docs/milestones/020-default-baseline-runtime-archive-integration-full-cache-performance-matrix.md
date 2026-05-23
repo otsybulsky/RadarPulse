@@ -1,6 +1,6 @@
 # Milestone 020: Full-Cache Performance Matrix
 
-Status: captured after gate, before decision trace.
+Status: captured; milestone closed.
 
 This document records the Release CLI full-cache performance matrix requested
 after the milestone 020 gate capture.

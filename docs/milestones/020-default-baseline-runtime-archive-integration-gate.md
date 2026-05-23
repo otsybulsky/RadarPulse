@@ -1,6 +1,6 @@
 # Milestone 020: Default-Baseline Runtime/Archive Integration Gate
 
-Status: complete; decision trace written.
+Status: complete; milestone closed.
 
 This document records the milestone 020 gate evidence before decision trace.
 It is not the decision trace.
@@ -252,8 +252,8 @@ production operator/deployment/rollback surfaces are not implemented
 full-suite allocation sensitivity remains for one synthetic benchmark test
 ```
 
-Stop point:
+Closeout:
 
 ```text
-decision trace is written; next step is closeout
+decision trace and closeout are written
 ```
