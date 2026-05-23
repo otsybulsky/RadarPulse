@@ -62,9 +62,34 @@ Current implementation status:
 ```text
 architecture document: complete
 implementation plan: complete
-implementation: not started
+implementation: complete through slice 1 ordered concurrency contract
 decision trace: not written
 closeout: not written
+```
+
+Implemented in milestone 021 so far:
+
+```text
+RadarProcessingOrderedConcurrencyOptions:
+  explicit active batch capacity contract
+  default active batch capacity 4
+  sequential capacity helper for explicit non-concurrent behavior
+
+RadarProcessingRuntimeArchiveBaseline:
+  exposes OrderedConcurrencyOptions separately from queued-overlap provider
+    options and async execution options
+  exposes OrderedActiveBatchCapacity
+  can assert ordered-concurrency baseline matches independently from provider
+    queue capacity and worker queue capacity
+```
+
+Verification so far:
+
+```text
+slice 1 focused baseline tests:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~RadarProcessingRuntimeArchiveBaselineTests"
+  result: 11 passed, 0 failed, 0 skipped
 ```
 
 Stop conditions before decision trace:

@@ -47,7 +47,7 @@ architecture.
 
 ## Slice 1: Ordered Concurrency Contract
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -74,6 +74,16 @@ Exit criteria:
 ```text
 ordered concurrency is explicit and bounded before any runtime/archive drain
 logic changes
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingRuntimeArchiveBaselineTests"
+
+result:
+  11 passed, 0 failed, 0 skipped
 ```
 
 ## Slice 2: Ordered Result Coordinator

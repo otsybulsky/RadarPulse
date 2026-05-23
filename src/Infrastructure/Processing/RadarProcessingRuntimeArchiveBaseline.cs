@@ -9,9 +9,14 @@ public static class RadarProcessingRuntimeArchiveBaseline
         RadarProcessingArchiveRebalanceRolloutDefaults.ExecutionMode;
     public const int WorkerCount = RadarProcessingArchiveRebalanceRolloutDefaults.WorkerCount;
     public const int WorkerQueueCapacity = RadarProcessingArchiveRebalanceRolloutDefaults.WorkerQueueCapacity;
+    public const int OrderedActiveBatchCapacity =
+        RadarProcessingOrderedConcurrencyOptions.DefaultActiveBatchCapacity;
 
     public static RadarProcessingArchiveQueuedOverlapOptions QueuedOverlapOptions =>
         RadarProcessingArchiveQueuedOverlapOptions.Default;
+
+    public static RadarProcessingOrderedConcurrencyOptions OrderedConcurrencyOptions =>
+        RadarProcessingOrderedConcurrencyOptions.Default;
 
     public static RadarProcessingAsyncExecutionOptions CreateAsyncExecution() =>
         RadarProcessingArchiveRebalanceRolloutDefaults.CreateAsyncExecution();
@@ -96,5 +101,13 @@ public static class RadarProcessingRuntimeArchiveBaseline
         ArgumentNullException.ThrowIfNull(options);
 
         return options.IsRuntimeDefaultContour;
+    }
+
+    public static bool MatchesOrderedConcurrencyOptions(
+        RadarProcessingOrderedConcurrencyOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        return options.ActiveBatchCapacity == OrderedActiveBatchCapacity;
     }
 }
