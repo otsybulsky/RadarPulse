@@ -1,6 +1,88 @@
-# Handoff: Milestone 020 Closed
+# Handoff: Milestone 021 Active
 
 ## Current State
+
+Milestone 021 is active. The milestone documents are:
+
+```text
+docs/milestones/021-ordered-concurrent-runtime-archive-processing.md
+docs/milestones/021-ordered-concurrent-runtime-archive-processing-plan.md
+```
+
+Milestone 021 purpose:
+
+```text
+implement ordered concurrent runtime/archive processing over the accepted
+milestone 020 default baseline while preserving deterministic publication,
+topology and rebalance safety, fail-closed queued-owned behavior, no silent
+borrowed fallback, visible startup prewarm, release/cleanup pressure
+invariants, and separate provider/execution provenance
+```
+
+Milestone 021 starts from the milestone 020 accepted baseline:
+
+```text
+provider mode: queued-owned
+provider overlap: producer-consumer
+retention strategy: pooled-copy
+provider queue capacity: 8
+retained-byte budget: 536870912
+startup retained payload prewarm: enabled
+execution: async shard transport
+worker count: 4
+worker queue capacity: 8
+```
+
+Milestone 021 concurrency target:
+
+```text
+accept provider batches in input order
+bound active concurrent processing batches separately from provider queue and
+  async worker queue capacity
+allow processing completion to occur out of order where the surface is safe
+publish externally visible processing results in deterministic provider
+  sequence order
+preserve processing completeness, checksum parity, topology safety, failure
+  cleanup, and retained pressure cleanup
+```
+
+Milestone 021 planned slices:
+
+```text
+1. Ordered concurrency contract
+2. Ordered result coordinator
+3. Processing session ordered concurrency
+4. Runtime/archive integration
+5. Failure, cancellation, and cleanup hardening
+6. Gate capture and documentation checkpoint
+```
+
+Current implementation status:
+
+```text
+architecture document: complete
+implementation plan: complete
+implementation: not started
+decision trace: not written
+closeout: not written
+```
+
+Stop conditions before decision trace:
+
+```text
+shared RadarProcessingCore mutation cannot safely support overlapping batch
+  processing without a snapshot/merge/commit design
+rebalance topology publication cannot be kept deterministic without a larger
+  ordered commit layer
+retained resource cleanup cannot be made deterministic for concurrent active
+  work
+focused gates reveal correctness, ordering, fail-closed, or pressure cleanup
+  regressions that need architecture review
+```
+
+## Milestone 020 Closeout Baseline
+
+### Current State
 
 Milestone 020 is complete. The milestone documents are:
 
