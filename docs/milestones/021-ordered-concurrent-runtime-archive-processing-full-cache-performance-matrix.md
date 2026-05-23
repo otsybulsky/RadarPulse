@@ -64,10 +64,9 @@ this matrix exercises the existing rebalance-archive CLI benchmark contour
 after milestone 021 changes. It verifies that the accepted full-cache
 default contour did not regress versus the explicit BlockingBorrowed oracle.
 
-it does not directly benchmark the new
-RadarProcessingArchiveQueuedOverlapRunner.RunProcessingAsync ordered
-processing entry point, because that ordered-processing runtime/archive
-surface is not currently exposed as a full-cache CLI benchmark row.
+the direct RunProcessingAsync ordered-processing CLI matrix is captured
+separately in:
+docs/milestones/021-ordered-concurrent-runtime-archive-processing-ordered-full-cache-performance-matrix.md
 ```
 
 ## Commands
@@ -238,8 +237,7 @@ pressure cleanup, and checksum parity all passed
 Carry-forward note:
 
 ```text
-a separate full-cache benchmark row is still needed if the team wants direct
-performance evidence for the new ordered processing runtime/archive
-RunProcessingAsync path, because the current CLI matrix exercises the
-rebalance-archive benchmark contour
+direct full-cache evidence for the new ordered processing runtime/archive
+RunProcessingAsync path is captured separately; this document remains the
+rebalance-archive default-vs-borrowed regression matrix
 ```

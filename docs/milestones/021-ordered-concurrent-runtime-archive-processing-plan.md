@@ -402,6 +402,21 @@ Gate:
 docs/milestones/021-ordered-concurrent-runtime-archive-processing-gate.md
 ```
 
+Post-gate direct ordered processing performance matrix:
+
+```text
+docs/milestones/021-ordered-concurrent-runtime-archive-processing-ordered-full-cache-performance-matrix.md
+
+result:
+  the new ordered-archive-processing CLI row exercises RunProcessingAsync
+  directly over the full cache
+  active=4 completed with processing completeness, matching final processing
+    checksum against active=1, clean retained pressure, zero worker failures,
+    zero release failures, and zero retained pool misses
+  steady measured allocation excludes startup retained payload prewarm, which
+    remains separately visible
+```
+
 ## Stop Conditions
 
 Stop before decision trace in all cases.

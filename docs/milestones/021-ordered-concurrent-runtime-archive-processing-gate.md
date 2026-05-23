@@ -217,6 +217,31 @@ performance matrix for representative archive workloads is still needed
 before broad default promotion beyond the scoped processing-core path
 ```
 
+## Post-Gate Performance Matrix Update
+
+After the gate was captured, direct full-cache CLI evidence was added for the
+`RunProcessingAsync` ordered-processing path:
+
+```text
+docs/milestones/021-ordered-concurrent-runtime-archive-processing-ordered-full-cache-performance-matrix.md
+```
+
+Result:
+
+```text
+ordered active=4 completed the full cache with processing completeness,
+checksum parity against active=1, clean retained pressure, zero worker
+failures, zero release failures, and zero retained pool misses
+```
+
+Carry-forward warning now narrows to:
+
+```text
+the full-cache shape is archive-producer dominated, so additional workload
+matrices where processing is the bottleneck are still useful before broad
+default promotion beyond the scoped processing-core path
+```
+
 Closeout:
 
 ```text

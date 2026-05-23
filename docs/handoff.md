@@ -66,6 +66,7 @@ implementation: complete through slice 6 gate capture
 blocker: resolved by snapshot/delta/ordered commit decision
 gate: written
 post-gate full-cache performance matrix: written
+post-gate ordered processing full-cache performance matrix: written
 decision trace: not written
 closeout: not written
 ```
@@ -280,10 +281,80 @@ post-gate full-cache performance matrix:
 
   scope note:
     this matrix exercises the existing rebalance-archive CLI benchmark
-    contour after milestone 021 changes. It does not directly benchmark
-    RadarProcessingArchiveQueuedOverlapRunner.RunProcessingAsync because that
-    ordered-processing runtime/archive path is not currently exposed as a
-    full-cache CLI benchmark row.
+    contour after milestone 021 changes.
+
+post-gate ordered processing full-cache performance matrix:
+  docs/milestones/021-ordered-concurrent-runtime-archive-processing-ordered-full-cache-performance-matrix.md
+
+  implementation:
+    added processing benchmark ordered-archive-processing
+    command exercises RadarProcessingArchiveQueuedOverlapRunner.RunProcessingAsync
+    command exposes --active-batches for active batch capacity comparison
+    ordered path scales startup retained payload prewarm to active capacity
+    ordered path uses a retained payload factory sized to avoid active-batch
+      large-array pool misses
+
+  focused Debug suite:
+    dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+      --filter "FullyQualifiedName~RadarProcessingRuntimeArchiveLiveAdapterIntegrationTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProcessingSessionOrderedConcurrentTests"
+    result: 38 passed, 0 failed, 0 skipped
+
+  Release build:
+    dotnet build RadarPulse.sln -c Release --no-restore
+    result: succeeded, 0 warnings, 0 errors
+
+  focused Release suite:
+    dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+      --no-restore --no-build
+      --filter "FullyQualifiedName~RadarProcessingRuntimeArchiveLiveAdapterIntegrationTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingQueuedProcessingSessionOrderedConcurrentTests"
+    result: 38 passed, 0 failed, 0 skipped
+
+  ordered concurrent default:
+    dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll
+      processing benchmark ordered-archive-processing --cache data\nexrad
+      --max-files 1000000 --iterations 1 --warmup-iterations 0
+      --parallelism 24 --partitions 24 --shards 4
+
+  sequential same-path baseline:
+    dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll
+      processing benchmark ordered-archive-processing --cache data\nexrad
+      --max-files 1000000 --iterations 1 --warmup-iterations 0
+      --parallelism 24 --partitions 24 --shards 4 --active-batches 1
+
+  cache shape:
+    examined files 1_554
+    skipped files 726
+    published base-data files 828
+    stream events 27_254_760
+    payload values 32_306_203_200
+
+  ordered active=4 versus same-path active=1:
+    elapsed ratio: 0.994x
+    steady allocation ratio: 1.006x
+    final processing checksum matched:
+      2_294_439_733_285_583_699
+    processing completeness passed
+    worker failed batches/items 0/0
+    retained payload pool misses 0
+    event array pool misses 0
+    byte array pool misses 0
+    release failures 0
+    current combined retained pressure 0
+
+  active=4 lifecycle:
+    startup prewarm batch count 4
+    startup prewarm allocated bytes 285_213_112
+    startup prewarm retained bytes 285_212_672
+    active retained batches high watermark 4
+    active retained payload bytes high watermark 213_402_240
+    steady measured allocation excludes startup prewarm
+
+  interpretation:
+    direct RunProcessingAsync full-cache CLI evidence is now captured.
+    This cache shape remains archive-producer dominated, so active-batch
+    concurrency has little end-to-end elapsed leverage here, but the ordered
+    active=4 path completes deterministically with clean retained pressure and
+    zero retained pool misses.
 ```
 
 Stop conditions before decision trace:
