@@ -65,6 +65,7 @@ implementation plan: complete
 implementation: complete through slice 6 gate capture
 blocker: resolved by snapshot/delta/ordered commit decision
 gate: written
+post-gate full-cache performance matrix: written
 decision trace: not written
 closeout: not written
 ```
@@ -231,6 +232,58 @@ isolated rerun of full-suite failure:
     --no-restore --no-build
     --filter "FullyQualifiedName=RadarPulse.Tests.Processing.RadarProcessingSyntheticRebalanceBenchmarkTests.AcceptedMovePressureAggregationDoesNotCopyPreviousIterations"
   result: 1 passed, 0 failed, 0 skipped
+
+post-gate full-cache performance matrix:
+  docs/milestones/021-ordered-concurrent-runtime-archive-processing-full-cache-performance-matrix.md
+
+  dotnet build RadarPulse.sln -c Release --no-restore
+  result: succeeded, 0 warnings, 0 errors
+
+  borrowed oracle:
+    dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll
+      processing benchmark rebalance-archive --cache data\nexrad
+      --max-files 1000000 --mode all --provider blocking-borrowed
+      --execution async --workers 4 --iterations 1
+      --warmup-iterations 0 --parallelism 24 --partitions 24 --shards 4
+
+  omitted/default:
+    dotnet src\Presentation\bin\Release\net10.0\RadarPulse.Cli.dll
+      processing benchmark rebalance-archive --cache data\nexrad
+      --max-files 1000000 --mode all --iterations 1
+      --warmup-iterations 0 --parallelism 24 --partitions 24 --shards 4
+
+  cache shape:
+    examined files 1_554
+    skipped files 726
+    published base-data files 828
+    stream events 27_254_760
+    payload values 32_306_203_200
+
+  end-to-end default elapsed ratios versus borrowed:
+    static: 0.965x
+    sampling: 0.878x
+    rebalance-session: 0.884x
+
+  end-to-end default total allocation ratios versus borrowed:
+    static: 1.003x
+    sampling: 1.001x
+    rebalance-session: 1.000x
+
+  result:
+    no end-to-end full-cache regression observed
+    validation and processing completeness passed
+    checksum parity matched in all modes
+    accepted moves matched at 4 vs 4 for rebalance-session
+    worker failed batches/items 0/0
+    release failures 0
+    current combined retained pressure 0
+
+  scope note:
+    this matrix exercises the existing rebalance-archive CLI benchmark
+    contour after milestone 021 changes. It does not directly benchmark
+    RadarProcessingArchiveQueuedOverlapRunner.RunProcessingAsync because that
+    ordered-processing runtime/archive path is not currently exposed as a
+    full-cache CLI benchmark row.
 ```
 
 Stop conditions before decision trace:
