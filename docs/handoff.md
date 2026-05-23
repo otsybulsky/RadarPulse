@@ -1,10 +1,9 @@
-# Handoff: Milestone 019 Decision-Trace Checkpoint
+# Handoff: Milestone 019 Decision Trace
 
 ## Current State
 
-Milestone 019 is active and complete through the decision-trace checkpoint.
-The decision trace has not been written yet because the milestone requires a
-review stop before the decision.
+Milestone 019 is active and complete through decision trace. Closeout has not
+been written yet.
 
 Milestone 019 documents are:
 
@@ -12,6 +11,7 @@ Milestone 019 documents are:
 docs/milestones/019-prewarmed-queued-owned-runtime-default-promotion.md
 docs/milestones/019-prewarmed-queued-owned-runtime-default-promotion-plan.md
 docs/milestones/019-prewarmed-queued-owned-runtime-default-promotion-gate.md
+docs/milestones/019-prewarmed-queued-owned-runtime-default-promotion-decision-trace.md
 ```
 
 Milestone 019 purpose:
@@ -59,13 +59,15 @@ terminal combined retained pressure returns to 0
 explicit no-prewarm options remain snapshot-copy/no-prewarm
 ```
 
-Scoped warning for review:
+Scoped warning carried forward:
 
 ```text
 milestone 019 promotes queued-overlap provider/retention/prewarm defaults.
 It does not automatically rewrite an already constructed processing core or
 rebalance session into async shard transport. Execution mode and async worker
 sizing remain owned by the supplied processing core/rebalance session.
+Future processing-core default work should adopt the accepted baseline
+explicitly rather than reopen the provider default decision.
 ```
 
 Verification at the checkpoint:
@@ -99,18 +101,54 @@ isolated rerun of failing test:
   result: 1 passed, 0 failed
 ```
 
-Current review question before decision trace:
+Milestone 019 decision-trace answer:
 
 ```text
-Should milestone 019 accept the promoted default for the scoped in-process
-runtime/archive queued-overlap surface, with explicit warnings that true live
-network ingestion, durable queues/brokers, cross-process workers, ordered
-concurrent rebalance, and automatic processing-core execution defaulting remain
-out of scope?
+accepted with scoped warnings, startup-prewarmed queued-owned is accepted as
+the omitted default for the scoped in-process runtime/archive queued-overlap
+provider path and as the default baseline for remaining runtime/archive work
 ```
 
-Do not write the milestone 019 decision trace until this review question is
-discussed.
+Accepted by decision trace:
+
+```text
+omitted RadarProcessingArchiveQueuedOverlapOptions now use provider queue
+capacity 8, retained-byte budget 536870912, pooled-copy retention, and rollout
+startup retained payload prewarm
+
+startup retained payload prewarm is visible on
+RadarProcessingArchiveQueuedOverlapResult and remains separate from steady
+overlap allocation
+
+explicit constructed options remain snapshot-copy/no-prewarm unless prewarm
+is requested explicitly
+```
+
+Not implemented by decision trace, but inheriting the accepted baseline:
+
+```text
+automatic processing-core execution mode or async worker sizing defaulting
+true live network ingestion implementation
+durable queues or brokers
+cross-process provider or worker transport
+ordered concurrent rebalance
+builder-transfer retained payload execution
+production operator/deployment/rollback surfaces
+```
+
+Still rejected:
+
+```text
+automatic silent borrowed fallback
+```
+
+Recommended current next action:
+
+```text
+write milestone 019 closeout and update project-progress/handoff to the final
+milestone 019 closeout state, carrying prewarmed queued-owned as the default
+rail for remaining runtime/archive work
+```
 
 ## Milestone 018 Closeout Baseline
 

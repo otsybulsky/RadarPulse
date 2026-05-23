@@ -1,6 +1,6 @@
 # RadarPulse Project Progress
 
-Status: current during milestone 019 decision-trace checkpoint.
+Status: current after milestone 019 decision trace; closeout pending.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -19,8 +19,8 @@ Current state:
 completed milestones: 001-018
 active milestone:
   019 prewarmed queued-owned runtime default promotion
-  complete through implementation and gate
-  decision trace pending review
+  complete through decision trace
+  closeout pending
 
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive
@@ -31,18 +31,20 @@ current accepted benchmark/default posture:
   allocation
 
 current runtime/live posture:
-  explicit opt-in only
-  queued-owned is runtime-safe when selected explicitly for scoped in-process
-  runtime/archive replay surfaces with startup prewarm and existing guardrails
-  queued-owned is not accepted as the omitted runtime/live ingestion default
-  milestone 019 has implemented and gated scoped queued-overlap omitted-default
-  provider/retention/prewarm promotion, but the decision trace has not been
-  written yet
+  prewarmed queued-owned default baseline accepted with warnings
+  startup-prewarmed queued-owned is accepted as the omitted default for the
+  scoped in-process runtime/archive queued-overlap provider path
+  future runtime/archive work should start from this accepted default contour
+  and prove only its surface-specific integration boundary
+  true live network ingestion, durable queues, cross-process runtime, and
+  ordered concurrent rebalance are not implemented yet, but they inherit this
+  default baseline unless a concrete incompatibility is proven
   milestone 019 does not automatically rewrite processing core execution mode
-  or async worker sizing
+  or async worker sizing; future processing-core default work should adopt the
+  baseline explicitly
 
 current recommended next milestone:
-  finish milestone 019 review and decision trace
+  finish milestone 019 closeout
 ```
 
 The current accepted direct benchmark contour is:
@@ -68,22 +70,25 @@ effective contour:
     1 retained batch
 ```
 
-The current runtime explicit candidate contour is:
+The current runtime accepted default-baseline contour is:
 
 ```text
 surface:
-  scoped in-process runtime/archive replay surfaces
+  scoped in-process runtime/archive queued-overlap provider path
+  default baseline for remaining runtime/archive integration work
 
 effective contour:
   provider mode: queued-owned
   provider overlap: producer-consumer
   retention strategy: pooled-copy
-  execution: async shard transport
-  worker count: 4
-  worker queue capacity: 8
   provider queue capacity: 8
   retained-byte budget: 536870912
-  startup retained payload prewarm: explicit candidate lifecycle only
+  startup retained payload prewarm: accepted default lifecycle
+
+execution note:
+  processing execution mode and async worker sizing remain owned by the
+  processing core/rebalance session until a dedicated defaulting surface
+  adopts the baseline explicitly
 ```
 
 The current accepted readiness answers are:
@@ -93,10 +98,11 @@ direct benchmark readiness:
   yes with warnings, broader cache-level, file-level, and small-file direct
   benchmark default readiness is accepted with named scoped warnings
 
-runtime/live readiness:
-  explicit opt-in only, queued-owned is runtime-safe when selected explicitly
-  for scoped in-process runtime/archive replay surfaces, but it is not
-  accepted as the omitted runtime/live ingestion default
+runtime/archive readiness:
+  yes with scoped warnings, startup-prewarmed queued-owned is accepted as the
+  omitted default for the scoped in-process runtime/archive queued-overlap
+  provider path and as the default baseline for remaining runtime/archive
+  integration work
 ```
 
 The named warnings carried forward are:
@@ -113,12 +119,14 @@ natural cold/default allocation:
   interpretation
 
 runtime startup prewarm:
-  accepted only as explicit lifecycle cost; not accepted as hidden omitted
-  runtime default behavior
+  accepted as visible default lifecycle cost for the runtime/archive default
+  baseline; it must not be hidden inside steady measured allocation
 
 runtime coverage:
   true live ingestion, durable queues, cross-process workers, production
-  runtime selection/reporting, and repeated variance gates remain future work
+  runtime selection/reporting, and repeated variance gates remain future
+  implementation work that should inherit the accepted default baseline unless
+  a concrete surface incompatibility is proven
 
 full-suite allocation sensitivity:
   one synthetic benchmark allocation-threshold test remains sensitive in the
@@ -311,6 +319,14 @@ existing guardrails, but it is not accepted as the omitted runtime/live
 ingestion default
 ```
 
+Superseded by milestone 019 for the scoped queued-overlap provider path:
+
+```text
+milestone 019 accepts startup-prewarmed queued-owned as the omitted default
+for scoped runtime/archive queued-overlap and as the default baseline for
+remaining runtime/archive integration work
+```
+
 Verification summary:
 
 ```text
@@ -329,10 +345,9 @@ full test project:
 Prepared:
 
 ```text
-the project now has an explicit runtime rollout boundary. Queued-owned can be
-used deliberately under runtime guardrails, while default promotion waits for
-production runtime selection, operator reporting, repeatability, and true live
-or narrower archive-runtime rollout evidence
+the project now has an accepted prewarmed queued-owned runtime/archive default
+baseline. Future runtime/archive work should integrate this contour and prove
+only the new surface boundary, not reopen the provider default decision.
 ```
 
 ## Remaining Arc
@@ -340,64 +355,69 @@ or narrower archive-runtime rollout evidence
 The following stages are not complete. They are the recommended route from the
 current state to the intended production-ready result.
 
-### 7. Gradual Runtime Explicit Opt-In Rollout
+### 7. Runtime Default Baseline Integration
 
 Recommended next milestone:
 
 ```text
-gradual runtime rollout for queued-owned explicit opt-in
+finish milestone 019 closeout, then use the accepted prewarmed queued-owned
+runtime/archive default baseline for remaining integration work
 ```
 
 Goal:
 
 ```text
-turn the milestone 018 explicit-opt-in decision into a production-shaped
-runtime rollout path without promoting queued-owned to omitted runtime/live
-default
+stand on the accepted defaults and integrate them into the remaining
+runtime/archive path surfaces without re-proving queued-owned as the default
 ```
 
 Likely required work:
 
 ```text
-production runtime provider selection surface
-operator-visible provider, prewarm, pressure, cancellation, failure, and
-cleanup reporting
-explicit startup prewarm lifecycle wiring where selected
-repeatability gates for startup-prewarmed runtime rows
-true live ingestion evidence or a narrower named archive-runtime rollout
-target
-BlockingBorrowed preserved as explicit fallback/oracle, not automatic silent
+close milestone 019
+make new runtime/archive surfaces consume the accepted default contour by
+default
+add processing-core execution defaulting only in the surface that owns core
+construction
+add live adapter evidence as integration evidence, not as a new provider
+default decision
+keep prewarm, pressure, cancellation, failure, release, and cleanup visible
+preserve BlockingBorrowed as explicit fallback/oracle, not automatic silent
 fallback
 ```
 
 Prepared by current state:
 
 ```text
+direct benchmark default readiness is accepted
+scoped queued-overlap runtime default promotion is accepted
+startup prewarm is wired and reported separately from steady allocation
 runtime lifecycle and pressure/failure guardrails are documented and gated
-steady startup-prewarmed candidate rows passed bounded evidence
-natural first-use default-readiness blocker is explicit
-decision trace already defines the rollout boundary
+the decision trace defines future work as integration of the accepted default
+baseline
 ```
 
-Still not approved:
+Still not implemented:
 
 ```text
-omitted runtime/live queued-owned default
-hidden runtime prewarm
 durable queues or brokers
 cross-process providers/workers
 ordered concurrent rebalance
+processing-core execution defaulting from construction sites that own the core
+production operator/deployment/rollback surfaces
 ```
 
 ### 8. Durable And Cross-Process Runtime
 
-Future milestone after runtime explicit opt-in rollout.
+Future milestone after default-baseline runtime/archive integration.
 
 Goal:
 
 ```text
-decide whether queued-owned should move into durable queues, brokers,
-cross-process providers/workers, or ordered concurrent runtime rebalance
+implement durable queues, brokers, cross-process providers/workers, or
+ordered concurrent runtime rebalance using the accepted prewarmed
+queued-owned default baseline unless a concrete ownership-boundary
+incompatibility is proven
 ```
 
 Likely required work:
@@ -417,7 +437,7 @@ Prepared by current state:
 ```text
 direct benchmark readiness is accepted across cache, file, and small-file
 workloads
-in-process runtime explicit-opt-in behavior is bounded and gated
+in-process queued-overlap runtime default promotion is accepted
 retained pressure, cleanup, release, telemetry, validation, prewarm
 attribution, and processing-completeness guardrails can inform durable design
 ```
@@ -448,9 +468,9 @@ performance budget and capacity planning
 Prepared by current state:
 
 ```text
-benchmark and runtime explicit-opt-in evidence provide baseline expectations
+benchmark and runtime default-baseline evidence provide default expectations
 for runtime integration, but production integration still needs separate
-evidence
+surface evidence
 ```
 
 ### 10. Product-Facing Completion
@@ -479,7 +499,7 @@ Prepared by current state:
 
 ```text
 the backend data, replay, processing, rebalance, direct benchmark, and
-runtime explicit-opt-in foundations are increasingly stable, but
+runtime default-baseline foundations are increasingly stable, but
 product-facing scope has not yet been the main milestone target
 ```
 
@@ -496,7 +516,8 @@ product-facing scope has not yet been the main milestone target
 [done] broader cache-level default readiness
 [done] file-level/small-file default readiness
 [done] runtime/live ingestion readiness decision
-[next] gradual runtime explicit opt-in rollout
+[active] prewarmed queued-owned runtime default baseline promotion
+[next] default-baseline runtime/archive integration
 [later] durable/cross-process runtime
 [later] production pipeline integration
 [later] product-facing completion

@@ -15,7 +15,8 @@ or product-facing surfaces.
 
 Promote the benchmark-proven and runtime-explicit startup-prewarmed
 queued-owned contour to the omitted default for scoped in-process
-runtime/archive queued-overlap surfaces.
+runtime/archive queued-overlap surfaces, and establish it as the default
+baseline for remaining runtime/archive integration work.
 
 The milestone must prove these concrete outcomes:
 
@@ -39,6 +40,8 @@ this plan promotes queued-overlap provider/retention/prewarm defaults.
 Processing execution mode and async worker sizing remain supplied by the
 processing core/rebalance session and are not automatically rewritten by
 RadarProcessingArchiveQueuedOverlapOptions.Default.
+Future runtime/archive surfaces should inherit this accepted baseline unless
+they prove a concrete surface incompatibility.
 ```
 
 ## Slice 1: Runtime Default Contract

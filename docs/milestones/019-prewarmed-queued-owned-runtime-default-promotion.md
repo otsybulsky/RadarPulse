@@ -5,7 +5,8 @@ Status: draft.
 RadarPulse milestone 019 starts from the closed milestone 018 runtime/live
 ingestion readiness decision.
 
-Milestone 018 closed with this answer:
+Milestone 018 closed with this answer, which milestone 019 is explicitly
+designed to supersede for the scoped queued-overlap provider path:
 
 ```text
 explicit opt-in only, queued-owned is runtime-safe when selected explicitly
@@ -21,7 +22,7 @@ prewarm for broader cache-level, file-level, and small-file workloads.
 Milestone 018 then proved that the same contour is runtime-safe when selected
 explicitly for scoped in-process runtime/archive replay surfaces.
 
-Milestone 019 closes the remaining integration gap:
+Milestone 019 closes the remaining default-selection integration gap:
 
 ```text
 make the benchmark-proven startup-prewarmed queued-owned contour the omitted
@@ -29,6 +30,11 @@ default for the scoped in-process runtime/archive queued-overlap path, and
 gate that the default path actually uses the same contour without hiding
 startup prewarm cost or weakening lifecycle guardrails
 ```
+
+If accepted, this default becomes the baseline rail for remaining
+runtime/archive work. Future milestones should integrate this default into
+new surfaces and prove only the new surface boundary, not reopen whether
+prewarmed queued-owned is the default contour.
 
 This document is intentionally not an implementation plan. It records the
 milestone 019 concept, default-promotion boundary, runtime startup prewarm
@@ -71,9 +77,10 @@ a caller supplies the rollout async core contour, the queued-overlap runtime
 default composes with it.
 
 The implementation should make the omitted runtime queued-overlap options use
-the rollout queue/retention/prewarm contour. It should not claim broader live
-network ingestion, durable queues, brokers, cross-process workers, or ordered
-concurrent rebalance.
+the rollout queue/retention/prewarm contour. Broader live network ingestion,
+durable queues, brokers, cross-process workers, or ordered concurrent
+rebalance remain future implementation surfaces that should inherit the
+accepted baseline unless their boundary proves a concrete incompatibility.
 
 ## Architecture Boundary
 

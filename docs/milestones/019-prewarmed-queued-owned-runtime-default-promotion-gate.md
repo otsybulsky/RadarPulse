@@ -19,9 +19,10 @@ runtime rollout contour:
   startup retained payload prewarm: enabled and visible
 ```
 
-This gate does not claim true live network ingestion, durable queues, brokers,
-cross-process workers, ordered concurrent rebalance, or product-facing
-readiness.
+This gate does not implement true live network ingestion, durable queues,
+brokers, cross-process workers, ordered concurrent rebalance, or
+product-facing readiness. Those future surfaces should inherit the accepted
+default baseline unless their boundary proves a concrete incompatibility.
 
 ## Implemented Contract
 
@@ -218,9 +219,9 @@ Open review question before decision trace:
 
 ```text
 Should milestone 019 accept the promoted default for the scoped in-process
-runtime/archive queued-overlap surface with the remaining warning that true
-live network ingestion and durable/cross-process surfaces are still out of
-scope?
+runtime/archive queued-overlap surface and carry it as the default baseline
+for remaining runtime/archive work, while treating true live ingestion and
+durable/cross-process surfaces as future implementation boundaries?
 ```
 
 Scoped warning to carry into review:
