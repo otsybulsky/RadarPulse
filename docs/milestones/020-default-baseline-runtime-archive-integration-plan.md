@@ -92,7 +92,7 @@ result:
 
 ## Slice 2: Runtime/Archive Owned Construction Integration
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -123,6 +123,16 @@ Exit criteria:
 ```text
 the first runtime/archive surface that owns core/session construction consumes
 the accepted default baseline without rewriting caller-owned sessions
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingRuntimeArchiveBaselineTests"
+
+result:
+  9 passed, 0 failed, 0 skipped
 ```
 
 ## Slice 3: Live-Adapter-Shaped Integration Evidence

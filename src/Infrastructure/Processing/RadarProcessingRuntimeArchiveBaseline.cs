@@ -47,6 +47,40 @@ public static class RadarProcessingRuntimeArchiveBaseline
                 handlers));
     }
 
+    public static RadarProcessingRebalanceSession CreateRebalanceSession(
+        RadarSourceUniverse sourceUniverse,
+        int partitionCount,
+        int shardCount,
+        bool enableValidation = true,
+        IReadOnlyList<IRadarSourceProcessingHandler>? handlers = null,
+        RadarProcessingPressureOptions? pressureOptions = null,
+        RadarProcessingPressureWindow? pressureWindow = null,
+        RadarProcessingRebalancePolicyState? policyState = null,
+        RadarProcessingHotPartitionClassifier? hotPartitionClassifier = null,
+        RadarProcessingDirectHotReliefPlanner? directHotReliefPlanner = null,
+        RadarProcessingColdEvacuationPlanner? coldEvacuationPlanner = null,
+        RadarProcessingQuarantineLifecycleTracker? quarantineLifecycleTracker = null,
+        RadarProcessingRebalanceTelemetryRecorder? telemetryRecorder = null,
+        RadarProcessingRebalanceHardeningOptions? hardeningOptions = null,
+        RadarProcessingPressureSkewOptions? pressureSkewOptions = null) =>
+        new(
+            CreateCore(
+                sourceUniverse,
+                partitionCount,
+                shardCount,
+                enableValidation,
+                handlers),
+            pressureOptions,
+            pressureWindow,
+            policyState,
+            hotPartitionClassifier,
+            directHotReliefPlanner,
+            coldEvacuationPlanner,
+            quarantineLifecycleTracker,
+            telemetryRecorder,
+            hardeningOptions,
+            pressureSkewOptions);
+
     public static bool MatchesCoreOptions(RadarProcessingCoreOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
