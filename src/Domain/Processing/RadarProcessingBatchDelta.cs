@@ -12,6 +12,7 @@ public sealed class RadarProcessingBatchDelta : IDisposable
     private long[] firstMessageTimestampUtcTicks;
     private long[] lastMessageTimestampUtcTicks;
     private int[] touchedSourceIds;
+    private int touchedSourceCount;
     private bool disposed;
 
     private RadarProcessingBatchDelta(
@@ -35,14 +36,14 @@ public sealed class RadarProcessingBatchDelta : IDisposable
         this.firstMessageTimestampUtcTicks = firstMessageTimestampUtcTicks;
         this.lastMessageTimestampUtcTicks = lastMessageTimestampUtcTicks;
         this.touchedSourceIds = touchedSourceIds;
-        TouchedSourceCount = touchedSourceCount;
+        this.touchedSourceCount = touchedSourceCount;
     }
 
     public RadarEventBatch Batch { get; private set; }
 
     public RadarProcessingBatchRoute Route { get; private set; }
 
-    public int TouchedSourceCount { get; private set; }
+    public int TouchedSourceCount => touchedSourceCount;
 
     internal ReadOnlySpan<int> TouchedSourceIds => touchedSourceIds.AsSpan(0, TouchedSourceCount);
 
@@ -61,6 +62,24 @@ public sealed class RadarProcessingBatchDelta : IDisposable
         RadarProcessingBatchRoute route,
         int sourceCount)
     {
+        var delta = CreateEmpty(batch, route, sourceCount);
+        try
+        {
+            delta.ApplyAll();
+            return delta;
+        }
+        catch
+        {
+            delta.Dispose();
+            throw;
+        }
+    }
+
+    internal static RadarProcessingBatchDelta CreateEmpty(
+        RadarEventBatch batch,
+        RadarProcessingBatchRoute route,
+        int sourceCount)
+    {
         ArgumentNullException.ThrowIfNull(batch);
         ArgumentNullException.ThrowIfNull(route);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(sourceCount);
@@ -71,56 +90,93 @@ public sealed class RadarProcessingBatchDelta : IDisposable
         var firstMessageTimestampUtcTicks = RentAndClearLong(sourceCount);
         var lastMessageTimestampUtcTicks = RentAndClearLong(sourceCount);
         var touchedSourceIds = ArrayPool<int>.Shared.Rent(sourceCount);
-        var touchedSourceCount = 0;
 
-        try
+        return new RadarProcessingBatchDelta(
+            batch,
+            route,
+            sourceCount,
+            eventCounts,
+            payloadValueCounts,
+            rawValueChecksums,
+            firstMessageTimestampUtcTicks,
+            lastMessageTimestampUtcTicks,
+            touchedSourceIds,
+            touchedSourceCount: 0);
+    }
+
+    internal RadarProcessingAsyncWorkCompletion ApplyShardWorkItem(
+        RadarProcessingAsyncWorkItem workItem,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(workItem);
+        if (workItem.TopologyVersion != Route.TopologyVersion)
         {
-            var events = batch.Events.Span;
-            var routedEvents = route.RoutedEvents.Span;
-            for (var i = 0; i < routedEvents.Length; i++)
-            {
-                var routed = routedEvents[i];
-                var streamEvent = events[routed.EventIndex];
-                var sourceId = routed.SourceId;
-                var existingEventCount = eventCounts[sourceId];
-                if (existingEventCount == 0)
-                {
-                    touchedSourceIds[touchedSourceCount++] = sourceId;
-                    firstMessageTimestampUtcTicks[sourceId] = streamEvent.MessageTimestampUtcTicks;
-                    lastMessageTimestampUtcTicks[sourceId] = streamEvent.MessageTimestampUtcTicks;
-                }
-                else if (streamEvent.MessageTimestampUtcTicks < lastMessageTimestampUtcTicks[sourceId])
-                {
-                    throw new RadarProcessingBatchDeltaValidationException(
-                        RadarProcessingValidationError.SourceOrderViolation,
-                        sourceId,
-                        routed.EventIndex,
-                        "Source-local events must be applied by non-decreasing message timestamp.");
-                }
-
-                eventCounts[sourceId] = checked(existingEventCount + 1);
-                payloadValueCounts[sourceId] = checked(
-                    payloadValueCounts[sourceId] + routed.PayloadMetrics.PayloadValueCount);
-                rawValueChecksums[sourceId] = checked(
-                    rawValueChecksums[sourceId] + routed.PayloadMetrics.RawValueChecksum);
-                lastMessageTimestampUtcTicks[sourceId] = streamEvent.MessageTimestampUtcTicks;
-            }
-
-            return new RadarProcessingBatchDelta(
-                batch,
-                route,
-                sourceCount,
-                eventCounts,
-                payloadValueCounts,
-                rawValueChecksums,
-                firstMessageTimestampUtcTicks,
-                lastMessageTimestampUtcTicks,
-                touchedSourceIds,
-                touchedSourceCount);
+            throw new ArgumentException("Delta work item topology version must match the route.", nameof(workItem));
         }
-        catch
+
+        var shard = Route.GetShard(workItem.ShardId);
+        var eventIndexes = shard.EventIndexes.Span;
+        var processedStreamEventCount = 0L;
+        var processedPayloadValueCount = 0L;
+        for (var i = 0; i < eventIndexes.Length; i++)
         {
-            ReturnArrays(
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var eventIndex = eventIndexes[i];
+            ApplyRoutedEvent(Route.GetRoutedEvent(eventIndex));
+            processedStreamEventCount++;
+            processedPayloadValueCount = checked(
+                processedPayloadValueCount + Route.GetRoutedEvent(eventIndex).PayloadMetrics.PayloadValueCount);
+        }
+
+        return RadarProcessingAsyncWorkCompletion.Succeeded(
+            workItem,
+            processedStreamEventCount: processedStreamEventCount,
+            processedPayloadValueCount: processedPayloadValueCount);
+    }
+
+    private void ApplyAll()
+    {
+        var routedEvents = Route.RoutedEvents.Span;
+        for (var i = 0; i < routedEvents.Length; i++)
+        {
+            ApplyRoutedEvent(routedEvents[i]);
+        }
+    }
+
+    private void ApplyRoutedEvent(
+        RadarProcessingRoutedEvent routed)
+    {
+        var streamEvent = Batch.Events.Span[routed.EventIndex];
+        var sourceId = routed.SourceId;
+        var existingEventCount = eventCounts[sourceId];
+        if (existingEventCount == 0)
+        {
+            var touchedIndex = Interlocked.Increment(ref touchedSourceCount) - 1;
+            touchedSourceIds[touchedIndex] = sourceId;
+            firstMessageTimestampUtcTicks[sourceId] = streamEvent.MessageTimestampUtcTicks;
+            lastMessageTimestampUtcTicks[sourceId] = streamEvent.MessageTimestampUtcTicks;
+        }
+        else if (streamEvent.MessageTimestampUtcTicks < lastMessageTimestampUtcTicks[sourceId])
+        {
+            throw new RadarProcessingBatchDeltaValidationException(
+                RadarProcessingValidationError.SourceOrderViolation,
+                sourceId,
+                routed.EventIndex,
+                "Source-local events must be applied by non-decreasing message timestamp.");
+        }
+
+        eventCounts[sourceId] = checked(existingEventCount + 1);
+        payloadValueCounts[sourceId] = checked(
+            payloadValueCounts[sourceId] + routed.PayloadMetrics.PayloadValueCount);
+        rawValueChecksums[sourceId] = checked(
+            rawValueChecksums[sourceId] + routed.PayloadMetrics.RawValueChecksum);
+        lastMessageTimestampUtcTicks[sourceId] = streamEvent.MessageTimestampUtcTicks;
+    }
+
+    private void Return()
+    {
+        ReturnArrays(
                 sourceCount,
                 eventCounts,
                 payloadValueCounts,
@@ -128,8 +184,6 @@ public sealed class RadarProcessingBatchDelta : IDisposable
                 firstMessageTimestampUtcTicks,
                 lastMessageTimestampUtcTicks,
                 touchedSourceIds);
-            throw;
-        }
     }
 
     public void Dispose()
@@ -140,21 +194,14 @@ public sealed class RadarProcessingBatchDelta : IDisposable
         }
 
         disposed = true;
-        ReturnArrays(
-            sourceCount,
-            eventCounts,
-            payloadValueCounts,
-            rawValueChecksums,
-            firstMessageTimestampUtcTicks,
-            lastMessageTimestampUtcTicks,
-            touchedSourceIds);
+        Return();
         eventCounts = [];
         payloadValueCounts = [];
         rawValueChecksums = [];
         firstMessageTimestampUtcTicks = [];
         lastMessageTimestampUtcTicks = [];
         touchedSourceIds = [];
-        TouchedSourceCount = 0;
+        touchedSourceCount = 0;
         Batch = null!;
         Route = null!;
     }

@@ -96,7 +96,8 @@ public sealed class RadarProcessingAsyncWorkerGroup : IDisposable, IAsyncDisposa
         RadarProcessingAsyncBatchScope scope,
         IReadOnlyList<RadarProcessingAsyncWorkItem> workItems,
         RadarProcessingAsyncWorkExecutor executor,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool allowConcurrentDispatch = false)
     {
         ArgumentNullException.ThrowIfNull(scope);
         ArgumentNullException.ThrowIfNull(workItems);
@@ -138,12 +139,18 @@ public sealed class RadarProcessingAsyncWorkerGroup : IDisposable, IAsyncDisposa
                 cancellationKind: RadarProcessingAsyncCancellationKind.BeforeDispatch);
         }
 
-        if (Interlocked.CompareExchange(ref inFlight, 1, 0) != 0)
+        var ownsInFlight = false;
+        if (!allowConcurrentDispatch)
         {
-            return RadarProcessingAsyncWorkerGroupResult.Rejected(
-                Status,
-                RadarProcessingAsyncWorkerGroupError.AlreadyInFlight,
-                drainResult: CaptureDrainResult());
+            if (Interlocked.CompareExchange(ref inFlight, 1, 0) != 0)
+            {
+                return RadarProcessingAsyncWorkerGroupResult.Rejected(
+                    Status,
+                    RadarProcessingAsyncWorkerGroupError.AlreadyInFlight,
+                    drainResult: CaptureDrainResult());
+            }
+
+            ownsInFlight = true;
         }
 
         try
@@ -240,7 +247,10 @@ public sealed class RadarProcessingAsyncWorkerGroup : IDisposable, IAsyncDisposa
         }
         finally
         {
-            Interlocked.Exchange(ref inFlight, 0);
+            if (ownsInFlight)
+            {
+                Interlocked.Exchange(ref inFlight, 0);
+            }
         }
     }
 

@@ -403,6 +403,16 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
                     lease);
             }
 
+            if (asyncCoreSession is not null)
+            {
+                var asyncDelta = asyncCoreSession
+                    .ComputeDeltaAsync(queuedBatch.Batch, cancellationToken)
+                    .AsTask()
+                    .GetAwaiter()
+                    .GetResult();
+                return OrderedConcurrentBatchCompletion.FromAsyncDelta(queuedBatch.Sequence, asyncDelta, lease);
+            }
+
             var delta = core.ComputeProcessingDelta(queuedBatch.Batch, cancellationToken);
             return OrderedConcurrentBatchCompletion.FromDelta(queuedBatch.Sequence, delta, lease);
         }
@@ -726,17 +736,23 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
     {
         private readonly IDisposable? lease;
         private RadarProcessingBatchDelta? delta;
+        private RadarProcessingAsyncBatchDeltaResult? asyncDelta;
+        private RadarProcessingWorkerTelemetrySummary? workerTelemetry;
         private RadarProcessingQueuedBatchProcessingResult? processingResult;
         private bool disposed;
 
         private OrderedConcurrentBatchCompletion(
             RadarProcessingQueuedBatchSequence sequence,
             RadarProcessingBatchDelta? delta,
+            RadarProcessingAsyncBatchDeltaResult? asyncDelta,
+            RadarProcessingWorkerTelemetrySummary? workerTelemetry,
             RadarProcessingQueuedBatchProcessingResult? processingResult,
             IDisposable? lease)
         {
             Sequence = sequence;
             this.delta = delta;
+            this.asyncDelta = asyncDelta;
+            this.workerTelemetry = workerTelemetry;
             this.processingResult = processingResult;
             this.lease = lease;
         }
@@ -749,7 +765,22 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
             IDisposable? lease)
         {
             ArgumentNullException.ThrowIfNull(delta);
-            return new OrderedConcurrentBatchCompletion(sequence, delta, null, lease);
+            return new OrderedConcurrentBatchCompletion(sequence, delta, null, null, null, lease);
+        }
+
+        public static OrderedConcurrentBatchCompletion FromAsyncDelta(
+            RadarProcessingQueuedBatchSequence sequence,
+            RadarProcessingAsyncBatchDeltaResult asyncDelta,
+            IDisposable? lease)
+        {
+            ArgumentNullException.ThrowIfNull(asyncDelta);
+            return new OrderedConcurrentBatchCompletion(
+                sequence,
+                asyncDelta.Delta,
+                asyncDelta,
+                asyncDelta.WorkerTelemetry,
+                null,
+                lease);
         }
 
         public static OrderedConcurrentBatchCompletion FromProcessingResult(
@@ -760,6 +791,8 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
             ArgumentNullException.ThrowIfNull(processingResult);
             return new OrderedConcurrentBatchCompletion(
                 processingResult.Sequence,
+                null,
+                null,
                 null,
                 processingResult,
                 leaseAlreadyDisposed ? null : lease);
@@ -780,7 +813,10 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
                 throw new InvalidOperationException("Ordered concurrent completion has no delta or result.");
             }
 
-            var result = core.CommitProcessingDelta(delta, cancellationToken: cancellationToken);
+            var result = core.CommitProcessingDelta(
+                delta,
+                workerTelemetry,
+                cancellationToken);
             processingResult = result.IsValid
                 ? RadarProcessingQueuedBatchProcessingResult.Succeeded(Sequence, result)
                 : RadarProcessingQueuedBatchProcessingResult.FailedValidation(
@@ -798,8 +834,15 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
             }
 
             disposed = true;
-            delta?.Dispose();
+            asyncDelta?.Dispose();
+            if (asyncDelta is null)
+            {
+                delta?.Dispose();
+            }
+
+            asyncDelta = null;
             delta = null;
+            workerTelemetry = null;
             lease?.Dispose();
         }
     }

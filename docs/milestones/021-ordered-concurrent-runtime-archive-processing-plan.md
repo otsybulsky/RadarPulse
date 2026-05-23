@@ -220,6 +220,13 @@ processing session ordered concurrent drain is implemented for handler-free
   ordered commit publishes processing results by provider sequence
   later active successes are skipped after an earlier failure boundary
   existing sequential DrainAsync behavior remains separate
+
+async ordered delta support:
+  RadarProcessingAsyncWorkerGroup keeps the existing one-in-flight guard for
+    mutating ProcessAsync dispatch by default
+  non-mutating delta compute can opt into concurrent worker-group dispatch
+  RadarProcessingAsyncCoreSession.ComputeDeltaAsync uses worker telemetry for
+    async shard transport delta compute without mutating shared core state
 ```
 
 Verification:
@@ -236,6 +243,12 @@ dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
 
 result:
   16 passed, 0 failed, 0 skipped
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingQueuedProcessingSessionOrderedConcurrentTests|FullyQualifiedName~RadarProcessingAsyncWorkerGroupTests"
+
+result:
+  21 passed, 0 failed, 0 skipped
 ```
 
 ## Slice 4: Runtime/Archive Integration

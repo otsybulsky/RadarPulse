@@ -113,6 +113,67 @@ public sealed class RadarProcessingAsyncCoreSession : IAsyncDisposable
         return ValidateAsyncResult(core.CompleteAsyncBatch(aggregation.Telemetry!, workerTelemetry));
     }
 
+    public async ValueTask<RadarProcessingAsyncBatchDeltaResult> ComputeDeltaAsync(
+        RadarEventBatch batch,
+        CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref disposed) != 0, this);
+        ArgumentNullException.ThrowIfNull(batch);
+
+        if (core.Options.Handlers.Count != 0)
+        {
+            throw new NotSupportedException(
+                "Ordered concurrent async processing deltas require a handler-free processing core.");
+        }
+
+        var invalid = core.ValidateBatchForProcessing(batch, cancellationToken);
+        if (invalid is not null)
+        {
+            throw new InvalidOperationException(invalid.Validation.Message);
+        }
+
+        EnsureWorkerGroupStarted();
+
+        var dispatcher = new RadarProcessingAsyncBatchDispatcher(workerGroup, () => core.Topology);
+        var plan = dispatcher.CreatePlan(core.CreateMetrics().ProcessedBatchCount + 1, batch);
+        var delta = RadarProcessingBatchDelta.CreateEmpty(batch, plan.Route, core.SourceCount);
+        try
+        {
+            var dispatchStarted = Stopwatch.GetTimestamp();
+            var workerResult = await workerGroup.DispatchAsync(
+                    plan.Scope,
+                    plan.WorkItems,
+                    (workItem, workCancellationToken) =>
+                        ValueTask.FromResult(delta.ApplyShardWorkItem(workItem, workCancellationToken)),
+                    cancellationToken,
+                    allowConcurrentDispatch: true)
+                .ConfigureAwait(false);
+            var dispatchTime = Stopwatch.GetElapsedTime(dispatchStarted);
+
+            var dispatchResult = new RadarProcessingAsyncDispatchResult(plan, workerResult);
+            var aggregationStarted = Stopwatch.GetTimestamp();
+            var aggregation = completionAggregator.Aggregate(dispatchResult);
+            var aggregationTime = Stopwatch.GetElapsedTime(aggregationStarted);
+            workerTelemetryRecorder.RecordDispatch(dispatchResult, dispatchTime, aggregationTime);
+            var workerTelemetry = workerTelemetryRecorder.CreateSummary();
+
+            if (!aggregation.IsSuccess)
+            {
+                throw new InvalidOperationException(
+                    aggregation
+                        .CreateProcessingResult(core.CreateMetrics())
+                        .Validation.Message);
+            }
+
+            return new RadarProcessingAsyncBatchDeltaResult(delta, workerTelemetry);
+        }
+        catch
+        {
+            delta.Dispose();
+            throw;
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref disposed, 1) != 0)

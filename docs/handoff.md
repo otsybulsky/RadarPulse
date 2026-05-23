@@ -106,6 +106,14 @@ RadarProcessingQueuedProcessingSession.DrainOrderedConcurrentAsync:
   commits and records results strictly by provider sequence
   skips later active successes after an earlier failure boundary
   leaves existing sequential DrainAsync behavior separate
+
+Async ordered delta support:
+  RadarProcessingAsyncWorkerGroup keeps the one-in-flight guard for normal
+    mutating dispatch unless a caller explicitly opts into concurrent dispatch
+  RadarProcessingAsyncCoreSession.ComputeDeltaAsync uses concurrent worker
+    dispatch only for non-mutating delta compute
+  ordered concurrent processing sessions preserve async worker telemetry when
+    the core uses AsyncShardTransport
 ```
 
 Milestone 021 blocker:
@@ -176,6 +184,11 @@ processing session ordered concurrency focused suite:
   dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
     --filter "FullyQualifiedName~RadarProcessingQueuedProcessingSessionTests|FullyQualifiedName~RadarProcessingQueuedProcessingSessionOrderedConcurrentTests|FullyQualifiedName~RadarProcessingBatchDeltaTests"
   result: 16 passed, 0 failed, 0 skipped
+
+async ordered delta focused suite:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~RadarProcessingQueuedProcessingSessionOrderedConcurrentTests|FullyQualifiedName~RadarProcessingAsyncWorkerGroupTests"
+  result: 21 passed, 0 failed, 0 skipped
 ```
 
 Stop conditions before decision trace:

@@ -34,6 +34,42 @@ public sealed class RadarProcessingQueuedProcessingSessionOrderedConcurrentTests
     }
 
     [Fact]
+    public async Task OrderedConcurrentDrainUsesAsyncWorkerTelemetryForAsyncCore()
+    {
+        var universe = CreateUniverse(sourceCount: 4);
+        var core = new RadarProcessingCore(
+            universe,
+            new RadarProcessingCoreOptions(
+                RadarProcessingExecutionMode.AsyncShardTransport,
+                partitionCount: 4,
+                shardCount: 2,
+                asyncExecution: new RadarProcessingAsyncExecutionOptions(workerCount: 2, queueCapacity: 4)));
+        await using var session = new RadarProcessingQueuedProcessingSession(
+            core,
+            new RadarProcessingProviderQueueOptions(capacity: 4));
+
+        await session.EnqueueAsync(CreateBatch(universe.Version, [0, 1], messageTimestampBase: 100));
+        await session.EnqueueAsync(CreateBatch(universe.Version, [2, 3], messageTimestampBase: 200));
+        session.CompleteAdding();
+
+        var result = await session.DrainOrderedConcurrentAsync(
+            new RadarProcessingOrderedConcurrencyOptions(activeBatchCapacity: 2));
+
+        Assert.True(result.IsCompleted);
+        Assert.Equal(2, result.Telemetry.CompletedBatchCount);
+        Assert.All(result.ProcessingResults, static processing =>
+        {
+            Assert.True(processing.IsSuccessful);
+            Assert.Equal(RadarProcessingExecutionMode.AsyncShardTransport, processing.ProcessingResult?.ExecutionMode);
+            Assert.NotNull(processing.ProcessingResult?.WorkerTelemetry);
+            Assert.Equal(2, processing.ProcessingResult?.WorkerTelemetry?.WorkerCount);
+            Assert.Equal(4, processing.ProcessingResult?.WorkerTelemetry?.QueueCapacity);
+            Assert.Equal(0, processing.ProcessingResult?.WorkerTelemetry?.Counters.RejectedDispatchCount);
+            Assert.Equal(0, processing.ProcessingResult?.WorkerTelemetry?.Counters.FailedBatchCount);
+        });
+    }
+
+    [Fact]
     public async Task OrderedConcurrentDrainFailsClosedAndSkipsLaterActiveSuccess()
     {
         var universe = CreateUniverse(sourceCount: 1);

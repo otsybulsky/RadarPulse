@@ -30,6 +30,8 @@ public sealed class RadarProcessingCore
 
     internal RadarProcessingTopologyManager TopologyManager => topologyManager;
 
+    internal int SourceCount => sourceUniverse.SourceCount;
+
     public RadarProcessingResult Process(
         RadarEventBatch batch,
         CancellationToken cancellationToken = default)
