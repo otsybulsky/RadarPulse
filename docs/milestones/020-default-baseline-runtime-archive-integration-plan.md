@@ -44,7 +44,7 @@ new default integration entry point.
 
 ## Slice 1: Baseline Profile Contract
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -78,6 +78,16 @@ Exit criteria:
 ```text
 the runtime/archive default baseline is reviewable as one named profile,
 while provider and execution halves remain separately assertable
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingRuntimeArchiveBaselineTests"
+
+result:
+  6 passed, 0 failed, 0 skipped
 ```
 
 ## Slice 2: Runtime/Archive Owned Construction Integration
