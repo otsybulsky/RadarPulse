@@ -1,6 +1,6 @@
 # Milestone 020: Default-Baseline Runtime/Archive Integration Implementation Plan
 
-Status: planned.
+Status: implemented through gate; awaiting decision trace review.
 
 This plan implements the milestone 020 architecture defined in
 `020-default-baseline-runtime-archive-integration.md`.
@@ -234,7 +234,7 @@ result:
 
 ## Slice 5: Gate Capture And Documentation Checkpoint
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -264,6 +264,37 @@ Exit criteria:
 ```text
 decision-trace inputs are ready, but no decision trace is written until
 review
+```
+
+Gate evidence:
+
+```text
+docs/milestones/020-default-baseline-runtime-archive-integration-gate.md
+```
+
+Verification:
+
+```text
+Release build:
+  dotnet build RadarPulse.sln -c Release --no-restore
+  result: succeeded, 0 warnings, 0 errors
+
+focused milestone 020 gate suite:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~RadarProcessingRuntimeArchiveBaselineTests|FullyQualifiedName~RadarProcessingRuntimeArchiveLiveAdapterIntegrationTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~ArchiveRebalanceBenchmarkCommandUsesRolloutDefaultsWhenProviderOmitted|FullyQualifiedName~ArchiveRebalanceBenchmarkCommandLabelsDefaultCandidateContour"
+  result: 24 passed, 0 failed, 0 skipped
+
+full test project:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  result: 787 passed, 1 failed, 3 skipped
+  known allocation-sensitive synthetic benchmark failure:
+    RadarProcessingSyntheticRebalanceBenchmarkTests.
+      AcceptedMovePressureAggregationDoesNotCopyPreviousIterations
+
+isolated rerun of full-suite failure:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName=RadarPulse.Tests.Processing.RadarProcessingSyntheticRebalanceBenchmarkTests.AcceptedMovePressureAggregationDoesNotCopyPreviousIterations"
+  result: 1 passed, 0 failed, 0 skipped
 ```
 
 ## Verification Plan

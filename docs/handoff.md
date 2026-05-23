@@ -7,6 +7,8 @@ Milestone 020 has started. The milestone documents are:
 ```text
 docs/milestones/020-default-baseline-runtime-archive-integration.md
 docs/milestones/020-default-baseline-runtime-archive-integration-plan.md
+docs/milestones/020-default-baseline-runtime-archive-integration-provenance-audit.md
+docs/milestones/020-default-baseline-runtime-archive-integration-gate.md
 ```
 
 Milestone 020 purpose:
@@ -56,10 +58,82 @@ Milestone 020 planned slices:
 Current implementation status:
 
 ```text
-architecture document: drafted
-implementation plan: drafted
-implementation: not started
+architecture document: implemented through gate; awaiting decision trace review
+implementation plan: implemented through gate; awaiting decision trace review
+implementation: complete through slice 5 gate capture
 decision trace: not started; stop before writing it
+```
+
+Implemented in milestone 020 so far:
+
+```text
+RadarProcessingRuntimeArchiveBaseline:
+  named runtime/archive baseline profile
+  default async execution options
+  default processing core options for supplied topology shape
+  default processing core construction
+  default rebalance session construction
+  provider/default and execution/default match helpers
+
+focused integration evidence:
+  baseline-created rebalance sessions use async shard transport with worker
+    count 4 and worker queue capacity 8
+  baseline-created sessions compose with omitted queued-overlap provider
+    defaults
+  caller-supplied rebalance sessions keep explicit execution mode
+  deterministic live-adapter-shaped steady intake completes
+  deterministic live-adapter-shaped validation failure cleans retained
+    pressure without borrowed fallback
+```
+
+Milestone 020 gate result:
+
+```text
+recommended decision-trace input:
+  accepted with scoped warnings
+
+reason:
+  the scoped in-process runtime/archive integration boundary now has a named
+  baseline profile, owned construction evidence, live-adapter-shaped steady
+  and failure evidence, visible provider/execution provenance, visible startup
+  prewarm cost, clean retained pressure, release health, and no silent
+  borrowed fallback
+```
+
+Final verification before decision-trace stop:
+
+```text
+Release build:
+  dotnet build RadarPulse.sln -c Release --no-restore
+  result: succeeded, 0 warnings, 0 errors
+
+focused milestone 020 gate suite:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~RadarProcessingRuntimeArchiveBaselineTests|FullyQualifiedName~RadarProcessingRuntimeArchiveLiveAdapterIntegrationTests|FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~ArchiveRebalanceBenchmarkCommandUsesRolloutDefaultsWhenProviderOmitted|FullyQualifiedName~ArchiveRebalanceBenchmarkCommandLabelsDefaultCandidateContour"
+  result: 24 passed, 0 failed, 0 skipped
+
+full test project:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  result: 787 passed, 1 failed, 3 skipped
+  known allocation-sensitive synthetic benchmark failure:
+    RadarProcessingSyntheticRebalanceBenchmarkTests.
+      AcceptedMovePressureAggregationDoesNotCopyPreviousIterations
+
+isolated rerun of full-suite failure:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName=RadarPulse.Tests.Processing.RadarProcessingSyntheticRebalanceBenchmarkTests.AcceptedMovePressureAggregationDoesNotCopyPreviousIterations"
+  result: 1 passed, 0 failed, 0 skipped
+```
+
+Warnings to carry into decision trace:
+
+```text
+startup retained payload prewarm remains a visible lifecycle cost
+true live network ingestion is not implemented
+durable queues, brokers, cross-process workers, and ordered concurrent
+  rebalance are not implemented
+production operator/deployment/rollback surfaces are not implemented
+full-suite allocation sensitivity remains for one synthetic benchmark test
 ```
 
 Stop conditions:
