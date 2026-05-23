@@ -363,7 +363,7 @@ result:
 
 ## Slice 6: Gate Capture And Documentation Checkpoint
 
-Status: planned.
+Status: complete; stop before decision trace.
 
 Implementation:
 
@@ -394,6 +394,12 @@ Exit criteria:
 
 ```text
 the milestone is ready for human review before decision trace
+```
+
+Gate:
+
+```text
+docs/milestones/021-ordered-concurrent-runtime-archive-processing-gate.md
 ```
 
 ## Stop Conditions

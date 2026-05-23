@@ -62,8 +62,9 @@ Current implementation status:
 ```text
 architecture document: complete
 implementation plan: complete
-implementation: continuing slice 3 with accepted ordered commit architecture
+implementation: complete through slice 6 gate capture
 blocker: resolved by snapshot/delta/ordered commit decision
+gate: written
 decision trace: not written
 closeout: not written
 ```
@@ -206,6 +207,30 @@ ordered processing lifecycle hardening suite:
   dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
     --filter "FullyQualifiedName~RadarProcessingRuntimeArchiveLiveAdapterIntegrationTests|FullyQualifiedName~RadarProcessingQueuedProcessingSessionOrderedConcurrentTests|FullyQualifiedName~RadarProcessingQueuedProcessingSessionTests|FullyQualifiedName~RadarProcessingBatchDeltaTests"
   result: 22 passed, 0 failed, 0 skipped
+
+Release build:
+  dotnet build RadarPulse.sln -c Release --no-restore
+  result: succeeded, 0 warnings, 0 errors
+
+focused milestone 021 Release gate suite:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+    --no-restore --no-build
+    --filter "FullyQualifiedName~RadarProcessingRuntimeArchiveBaselineTests|FullyQualifiedName~RadarProcessingBatchDeltaTests|FullyQualifiedName~RadarProcessingOrderedResultCoordinatorTests|FullyQualifiedName~RadarProcessingQueuedProcessingSessionOrderedConcurrentTests|FullyQualifiedName~RadarProcessingRuntimeArchiveLiveAdapterIntegrationTests|FullyQualifiedName~RadarProcessingAsyncWorkerGroupTests"
+  result: 46 passed, 0 failed, 0 skipped
+
+full Release test project:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+    --no-restore --no-build
+  result: 805 passed, 1 failed, 3 skipped
+  known allocation-sensitive synthetic benchmark failure:
+    RadarProcessingSyntheticRebalanceBenchmarkTests.
+      AcceptedMovePressureAggregationDoesNotCopyPreviousIterations
+
+isolated rerun of full-suite failure:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+    --no-restore --no-build
+    --filter "FullyQualifiedName=RadarPulse.Tests.Processing.RadarProcessingSyntheticRebalanceBenchmarkTests.AcceptedMovePressureAggregationDoesNotCopyPreviousIterations"
+  result: 1 passed, 0 failed, 0 skipped
 ```
 
 Stop conditions before decision trace:
