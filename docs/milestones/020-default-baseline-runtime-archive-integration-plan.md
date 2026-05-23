@@ -181,7 +181,7 @@ result:
 
 ## Slice 4: Reporting And Provenance Pass
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -206,6 +206,30 @@ Exit criteria:
 
 ```text
 the integration posture can be reviewed without inferring hidden defaults
+```
+
+Audit:
+
+```text
+docs/milestones/020-default-baseline-runtime-archive-integration-provenance-audit.md
+```
+
+Result:
+
+```text
+no production result-contract change is required before milestone 020 gate
+capture; existing result, telemetry, prewarm, worker, and CLI provenance
+contracts are sufficient for the scoped in-process integration boundary
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingRuntimeArchiveBaselineTests|FullyQualifiedName~RadarProcessingRuntimeArchiveLiveAdapterIntegrationTests|FullyQualifiedName~ArchiveRebalanceBenchmarkCommandUsesRolloutDefaultsWhenProviderOmitted|FullyQualifiedName~ArchiveRebalanceBenchmarkCommandLabelsDefaultCandidateContour"
+
+result:
+  13 passed, 0 failed, 0 skipped
 ```
 
 ## Slice 5: Gate Capture And Documentation Checkpoint
