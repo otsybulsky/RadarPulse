@@ -137,7 +137,7 @@ result:
 
 ## Slice 3: Live-Adapter-Shaped Integration Evidence
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -167,6 +167,16 @@ Exit criteria:
 ```text
 live-adapter-shaped evidence exists as integration evidence only, with no
 claim of true live network, durable queue, broker, or cross-process readiness
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingRuntimeArchiveLiveAdapterIntegrationTests"
+
+result:
+  2 passed, 0 failed, 0 skipped
 ```
 
 ## Slice 4: Reporting And Provenance Pass
