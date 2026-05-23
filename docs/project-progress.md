@@ -1,6 +1,6 @@
 # RadarPulse Project Progress
 
-Status: current after milestone 019 decision trace; closeout pending.
+Status: current after milestone 019 closeout.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -10,17 +10,15 @@ production-ready result.
 
 ## Current Position
 
-RadarPulse has completed the direct archive benchmark default-readiness path
-and the first runtime/live ingestion readiness decision.
+RadarPulse has completed the direct archive benchmark default-readiness path,
+the first runtime/live ingestion readiness decision, and the prewarmed
+queued-owned runtime/archive default-baseline promotion.
 
 Current state:
 
 ```text
-completed milestones: 001-018
-active milestone:
-  019 prewarmed queued-owned runtime default promotion
-  complete through decision trace
-  closeout pending
+completed milestones: 001-019
+active milestone: none selected
 
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive
@@ -44,7 +42,7 @@ current runtime/live posture:
   baseline explicitly
 
 current recommended next milestone:
-  finish milestone 019 closeout
+  default-baseline runtime/archive integration
 ```
 
 The current accepted direct benchmark contour is:
@@ -350,18 +348,72 @@ baseline. Future runtime/archive work should integrate this contour and prove
 only the new surface boundary, not reopen the provider default decision.
 ```
 
+### 7. Runtime Default Baseline Promotion
+
+Milestone:
+
+```text
+019 Prewarmed Queued-Owned Runtime Default Promotion
+```
+
+Achieved:
+
+```text
+promoted RadarProcessingArchiveQueuedOverlapOptions.Default to the accepted
+runtime rollout contour
+wired startup retained payload prewarm before steady overlap allocation
+capture
+surfaced retained payload prewarm result on
+RadarProcessingArchiveQueuedOverlapResult
+preserved explicit diagnostic/no-prewarm options
+recorded focused runtime default gate evidence
+recorded decision trace and closeout
+```
+
+Final answer:
+
+```text
+accepted with scoped warnings, startup-prewarmed queued-owned is accepted as
+the omitted default for the scoped in-process runtime/archive queued-overlap
+provider path and as the default baseline for remaining runtime/archive work
+```
+
+Verification summary:
+
+```text
+Release build:
+  succeeded, 0 warnings, 0 errors
+
+focused Debug runtime/prewarm suite:
+  41 passed, 0 failed
+
+focused Release runtime/prewarm suite:
+  41 passed, 0 failed
+
+full test project:
+  776 passed, 1 failed, 3 skipped
+  known allocation-sensitive synthetic benchmark test failed in full suite
+  isolated rerun of the same test passed
+```
+
+Prepared:
+
+```text
+remaining runtime/archive work should now use the accepted prewarmed
+queued-owned default contour and prove only its own integration boundary
+```
+
 ## Remaining Arc
 
 The following stages are not complete. They are the recommended route from the
 current state to the intended production-ready result.
 
-### 7. Runtime Default Baseline Integration
+### 8. Runtime Default Baseline Integration
 
 Recommended next milestone:
 
 ```text
-finish milestone 019 closeout, then use the accepted prewarmed queued-owned
-runtime/archive default baseline for remaining integration work
+default-baseline runtime/archive integration
 ```
 
 Goal:
@@ -374,7 +426,6 @@ runtime/archive path surfaces without re-proving queued-owned as the default
 Likely required work:
 
 ```text
-close milestone 019
 make new runtime/archive surfaces consume the accepted default contour by
 default
 add processing-core execution defaulting only in the surface that owns core
@@ -407,7 +458,7 @@ processing-core execution defaulting from construction sites that own the core
 production operator/deployment/rollback surfaces
 ```
 
-### 8. Durable And Cross-Process Runtime
+### 9. Durable And Cross-Process Runtime
 
 Future milestone after default-baseline runtime/archive integration.
 
@@ -442,7 +493,7 @@ retained pressure, cleanup, release, telemetry, validation, prewarm
 attribution, and processing-completeness guardrails can inform durable design
 ```
 
-### 9. Production Pipeline Integration
+### 10. Production Pipeline Integration
 
 Future milestone after durable/runtime readiness.
 
@@ -473,7 +524,7 @@ for runtime integration, but production integration still needs separate
 surface evidence
 ```
 
-### 10. Product-Facing Completion
+### 11. Product-Facing Completion
 
 Future milestone after production pipeline integration.
 
@@ -516,7 +567,7 @@ product-facing scope has not yet been the main milestone target
 [done] broader cache-level default readiness
 [done] file-level/small-file default readiness
 [done] runtime/live ingestion readiness decision
-[active] prewarmed queued-owned runtime default baseline promotion
+[done] prewarmed queued-owned runtime default baseline promotion
 [next] default-baseline runtime/archive integration
 [later] durable/cross-process runtime
 [later] production pipeline integration

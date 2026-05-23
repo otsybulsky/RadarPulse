@@ -1,17 +1,15 @@
-# Handoff: Milestone 019 Decision Trace
+# Handoff: Milestone 019 Closeout
 
 ## Current State
 
-Milestone 019 is active and complete through decision trace. Closeout has not
-been written yet.
-
-Milestone 019 documents are:
+Milestone 019 is complete. The milestone documents are:
 
 ```text
 docs/milestones/019-prewarmed-queued-owned-runtime-default-promotion.md
 docs/milestones/019-prewarmed-queued-owned-runtime-default-promotion-plan.md
 docs/milestones/019-prewarmed-queued-owned-runtime-default-promotion-gate.md
 docs/milestones/019-prewarmed-queued-owned-runtime-default-promotion-decision-trace.md
+docs/milestones/019-prewarmed-queued-owned-runtime-default-promotion-closeout.md
 ```
 
 Milestone 019 purpose:
@@ -70,7 +68,7 @@ Future processing-core default work should adopt the accepted baseline
 explicitly rather than reopen the provider default decision.
 ```
 
-Verification at the checkpoint:
+Final verification used for milestone 019 closeout:
 
 ```text
 Release build:
@@ -101,7 +99,7 @@ isolated rerun of failing test:
   result: 1 passed, 0 failed
 ```
 
-Milestone 019 decision-trace answer:
+Milestone 019 final closeout answer:
 
 ```text
 accepted with scoped warnings, startup-prewarmed queued-owned is accepted as
@@ -124,7 +122,7 @@ explicit constructed options remain snapshot-copy/no-prewarm unless prewarm
 is requested explicitly
 ```
 
-Not implemented by decision trace, but inheriting the accepted baseline:
+Not implemented by milestone 019, but inheriting the accepted baseline:
 
 ```text
 automatic processing-core execution mode or async worker sizing defaulting
@@ -145,9 +143,15 @@ automatic silent borrowed fallback
 Recommended current next action:
 
 ```text
-write milestone 019 closeout and update project-progress/handoff to the final
-milestone 019 closeout state, carrying prewarmed queued-owned as the default
-rail for remaining runtime/archive work
+begin the next milestone:
+  default-baseline runtime/archive integration
+
+use the accepted prewarmed queued-owned runtime/archive default baseline for
+remaining integration work. Add processing-core execution defaulting only in
+the surface that owns core construction, add live adapter or production
+pipeline evidence as integration evidence, and keep prewarm, pressure,
+cancellation, failure, release, cleanup, and explicit borrowed fallback/oracle
+visible without reopening the provider default decision.
 ```
 
 ## Milestone 018 Closeout Baseline

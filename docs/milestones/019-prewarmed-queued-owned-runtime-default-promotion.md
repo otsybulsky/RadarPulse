@@ -1,6 +1,6 @@
 # Milestone 019: Prewarmed Queued-Owned Runtime Default Promotion Architecture
 
-Status: draft.
+Status: complete.
 
 RadarPulse milestone 019 starts from the closed milestone 018 runtime/live
 ingestion readiness decision.

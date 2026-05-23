@@ -1,6 +1,6 @@
 # Milestone 019: Prewarmed Queued-Owned Runtime Default Promotion Implementation Plan
 
-Status: complete through decision-trace checkpoint.
+Status: complete.
 
 This plan implements the milestone 019 architecture defined in
 `019-prewarmed-queued-owned-runtime-default-promotion.md`.
@@ -177,7 +177,7 @@ gate evidence is enough to review default promotion before decision trace
 
 ## Slice 5: Documentation Checkpoint Before Decision Trace
 
-Status: complete through checkpoint.
+Status: complete.
 
 Implementation:
 

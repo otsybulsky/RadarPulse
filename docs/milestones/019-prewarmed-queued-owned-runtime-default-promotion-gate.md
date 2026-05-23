@@ -1,6 +1,6 @@
 # Milestone 019: Runtime Default Promotion Gate
 
-Status: complete through decision-trace checkpoint.
+Status: complete.
 
 This document records the milestone 019 gate evidence for promoting the
 startup-prewarmed queued-owned contour into the scoped runtime
