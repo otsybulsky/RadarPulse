@@ -1094,6 +1094,7 @@ static void PrintProcessingArchiveOrderedProcessingBenchmarkResult(
     Console.WriteLine($"End-to-end payload values/s: {FormatDecimal(result.PayloadValuesPerSecond)}");
     Console.WriteLine($"End-to-end allocated bytes: {FormatNumber(result.AllocatedBytes)}");
     Console.WriteLine("Allocation measured counter scope: global");
+    Console.WriteLine("Allocation excludes startup retained payload prewarm: yes");
     Console.WriteLine($"End-to-end allocated bytes / stream event: {FormatDecimal(result.AllocatedBytesPerStreamEvent)}");
     Console.WriteLine($"End-to-end allocated bytes / payload value: {FormatDecimal(result.AllocatedBytesPerPayloadValue)}");
     if (result.WorkerTelemetry is not null)

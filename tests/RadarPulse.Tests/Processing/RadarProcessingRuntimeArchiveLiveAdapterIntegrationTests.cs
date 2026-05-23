@@ -90,6 +90,9 @@ public sealed class RadarProcessingRuntimeArchiveLiveAdapterIntegrationTests
 
         Assert.True(result.IsCompleted);
         Assert.True(result.HasRetainedPayloadPrewarm);
+        Assert.Equal(
+            RadarProcessingRuntimeArchiveBaseline.OrderedActiveBatchCapacity,
+            result.RetainedPayloadPrewarm.RetainedBatchCount);
         Assert.Equal(RadarProcessingRetainedPayloadStrategy.PooledCopy, result.OverlapTelemetry.RetentionStrategy);
         Assert.Equal(3, result.ProviderResult.AcceptedPublishCount);
         Assert.Equal(3, result.QueueTelemetry.EnqueuedBatchCount);
@@ -191,6 +194,7 @@ public sealed class RadarProcessingRuntimeArchiveLiveAdapterIntegrationTests
 
         Assert.Equal(RadarProcessingArchiveQueuedOverlapStatus.ConsumerFaulted, result.Status);
         Assert.True(result.IsFaulted);
+        Assert.Equal(2, result.RetainedPayloadPrewarm.RetainedBatchCount);
         Assert.True(result.Producer.IsCompleted);
         Assert.True(result.Consumer.IsFaulted);
         Assert.Equal(2, result.ProviderResult.AcceptedPublishCount);

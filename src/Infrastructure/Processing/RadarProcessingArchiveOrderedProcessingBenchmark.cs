@@ -91,8 +91,10 @@ public sealed class RadarProcessingArchiveOrderedProcessingBenchmark
 
         stopwatch.Stop();
         var allocatedBytes = RadarProcessingBenchmarkAllocationSnapshot.Capture().DeltaSince(allocationBefore);
+        var measurement = expectedIteration ??
+                          throw new InvalidOperationException("Archive ordered processing benchmark did not run.");
         return CreateResult(
-            expectedIteration ?? throw new InvalidOperationException("Archive ordered processing benchmark did not run."),
+            measurement,
             fileInfo.FullName,
             cachePath: null,
             date: null,
@@ -105,7 +107,7 @@ public sealed class RadarProcessingArchiveOrderedProcessingBenchmark
             shardCount,
             activeBatchCapacity,
             stopwatch.Elapsed,
-            allocatedBytes);
+            ExcludeStartupPrewarmAllocation(allocatedBytes, measurement.RetainedPayloadPrewarm, iterations));
     }
 
     public RadarProcessingArchiveOrderedProcessingBenchmarkResult MeasureCache(
@@ -195,8 +197,10 @@ public sealed class RadarProcessingArchiveOrderedProcessingBenchmark
 
         stopwatch.Stop();
         var allocatedBytes = RadarProcessingBenchmarkAllocationSnapshot.Capture().DeltaSince(allocationBefore);
+        var measurement = expectedIteration ??
+                          throw new InvalidOperationException("Archive ordered processing cache benchmark did not run.");
         return CreateResult(
-            expectedIteration ?? throw new InvalidOperationException("Archive ordered processing cache benchmark did not run."),
+            measurement,
             filePath: null,
             directoryInfo.FullName,
             date,
@@ -209,7 +213,23 @@ public sealed class RadarProcessingArchiveOrderedProcessingBenchmark
             shardCount,
             activeBatchCapacity,
             stopwatch.Elapsed,
-            allocatedBytes);
+            ExcludeStartupPrewarmAllocation(allocatedBytes, measurement.RetainedPayloadPrewarm, iterations));
+    }
+
+    private static long ExcludeStartupPrewarmAllocation(
+        long allocatedBytes,
+        RadarProcessingRetainedPayloadPrewarmResult prewarm,
+        int iterations)
+    {
+        if (!prewarm.Applied)
+        {
+            return allocatedBytes;
+        }
+
+        var prewarmAllocatedBytes = checked(prewarm.AllocatedBytes * iterations);
+        return allocatedBytes > prewarmAllocatedBytes
+            ? allocatedBytes - prewarmAllocatedBytes
+            : 0;
     }
 
     private OrderedProcessingIterationTelemetry RunFileIteration(
