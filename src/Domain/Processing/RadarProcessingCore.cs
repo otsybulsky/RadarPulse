@@ -71,6 +71,61 @@ public sealed class RadarProcessingCore
         RadarProcessingPartitionAssignment partition) =>
         RadarProcessingPartitionStateSnapshot.Capture(partition, stateStore);
 
+    public RadarProcessingBatchDelta ComputeProcessingDelta(
+        RadarEventBatch batch,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        if (Options.Handlers.Count != 0)
+        {
+            throw new NotSupportedException(
+                "Ordered concurrent processing deltas require a handler-free processing core.");
+        }
+
+        var invalid = ValidateBatchForProcessing(batch, cancellationToken);
+        if (invalid is not null)
+        {
+            throw new InvalidOperationException(invalid.Validation.Message);
+        }
+
+        var route = new RadarProcessingBatchRouter(Topology).Route(batch);
+        return RadarProcessingBatchDelta.Create(batch, route, sourceUniverse.SourceCount);
+    }
+
+    public RadarProcessingResult CommitProcessingDelta(
+        RadarProcessingBatchDelta delta,
+        RadarProcessingWorkerTelemetrySummary? workerTelemetry = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(delta);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (delta.Route.TopologyVersion != Topology.Version)
+        {
+            throw new InvalidOperationException(
+                "Processing delta topology version must match the current processing topology.");
+        }
+
+        var invalid = stateStore.ValidateDeltaForCommit(
+            delta,
+            Options,
+            Topology.Version,
+            processedBatchCount);
+        if (invalid is not null)
+        {
+            return invalid;
+        }
+
+        stateStore.ApplyDelta(delta);
+        processedBatchCount = checked(processedBatchCount + 1);
+
+        var telemetry = Options.ExecutionMode == RadarProcessingExecutionMode.Sequential
+            ? null
+            : RadarProcessingTelemetry.FromRoute(Options.ExecutionMode, delta.Route);
+        return Valid(telemetry, workerTelemetry);
+    }
+
     internal RadarProcessingResult? ValidateBatchForProcessing(
         RadarEventBatch batch,
         CancellationToken cancellationToken)

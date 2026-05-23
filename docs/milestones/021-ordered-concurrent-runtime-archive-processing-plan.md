@@ -201,6 +201,28 @@ implementation may reject custom handler cores until a handler-delta contract
 exists.
 ```
 
+Progress:
+
+```text
+processing delta core foundation is implemented for handler-free cores:
+  RadarProcessingBatchDelta uses pooled dense source-indexed arrays
+  RadarProcessingCore.ComputeProcessingDelta computes without mutating shared
+    state
+  RadarProcessingCore.CommitProcessingDelta validates ordered source-local
+    timestamps, mutates shared state, and creates cumulative results
+  handler cores are explicitly rejected until a handler-delta contract exists
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingBatchDeltaTests"
+
+result:
+  4 passed, 0 failed, 0 skipped
+```
+
 ## Slice 4: Runtime/Archive Integration
 
 Status: planned.

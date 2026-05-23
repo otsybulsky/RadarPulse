@@ -215,6 +215,56 @@ public sealed class RadarSourceProcessingStateStore
             processingChecksum);
     }
 
+    internal RadarProcessingResult? ValidateDeltaForCommit(
+        RadarProcessingBatchDelta delta,
+        RadarProcessingCoreOptions options,
+        RadarProcessingTopologyVersion topologyVersion,
+        long processedBatchCount)
+    {
+        ArgumentNullException.ThrowIfNull(delta);
+        ArgumentNullException.ThrowIfNull(options);
+
+        foreach (var sourceId in delta.TouchedSourceIds)
+        {
+            if (activeSources[sourceId] &&
+                delta.GetFirstMessageTimestampUtcTicks(sourceId) < lastMessageTimestampUtcTicks[sourceId])
+            {
+                return CreateInvalidResult(
+                    options,
+                    topologyVersion,
+                    processedBatchCount,
+                    RadarProcessingValidationError.SourceOrderViolation,
+                    sourceId,
+                    FindFirstEventIndex(delta, sourceId),
+                    "Source-local events must be applied by non-decreasing message timestamp.");
+            }
+        }
+
+        return null;
+    }
+
+    internal void ApplyDelta(
+        RadarProcessingBatchDelta delta)
+    {
+        ArgumentNullException.ThrowIfNull(delta);
+        if (handlerSlotLayout.HasHandlers)
+        {
+            throw new InvalidOperationException(
+                "Processing handlers require a handler-delta contract before ordered commit.");
+        }
+
+        var events = delta.Batch.Events.Span;
+        var routedEvents = delta.Route.RoutedEvents.Span;
+        for (var i = 0; i < routedEvents.Length; i++)
+        {
+            var routed = routedEvents[i];
+            ApplyProcessedEvent(
+                events[routed.EventIndex],
+                routed.PayloadMetrics.PayloadValueCount,
+                routed.PayloadMetrics.RawValueChecksum);
+        }
+    }
+
     private void EnsureSourceId(int sourceId)
     {
         if ((uint)sourceId < (uint)SourceCount)
@@ -223,6 +273,46 @@ public sealed class RadarSourceProcessingStateStore
         }
 
         throw new ArgumentOutOfRangeException(nameof(sourceId));
+    }
+
+    private static int FindFirstEventIndex(
+        RadarProcessingBatchDelta delta,
+        int sourceId)
+    {
+        var routedEvents = delta.Route.RoutedEvents.Span;
+        for (var i = 0; i < routedEvents.Length; i++)
+        {
+            if (routedEvents[i].SourceId == sourceId)
+            {
+                return routedEvents[i].EventIndex;
+            }
+        }
+
+        return -1;
+    }
+
+    private RadarProcessingResult CreateInvalidResult(
+        RadarProcessingCoreOptions options,
+        RadarProcessingTopologyVersion topologyVersion,
+        long processedBatchCount,
+        RadarProcessingValidationError error,
+        int sourceId,
+        int eventIndex,
+        string message)
+    {
+        var metrics = CreateMetrics(processedBatchCount);
+        return new RadarProcessingResult(
+            options.ExecutionMode,
+            options.PartitionCount,
+            options.ShardCount,
+            metrics,
+            RadarProcessingValidationResult.Invalid(
+                error,
+                sourceId,
+                eventIndex,
+                message,
+                metrics),
+            topologyVersion: topologyVersion);
     }
 
     private void ApplyHandlers(

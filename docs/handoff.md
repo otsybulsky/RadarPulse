@@ -89,6 +89,15 @@ RadarProcessingOrderedResultCoordinator:
   blocks unpublished later successes after a terminal failure boundary
   allows explicit canceled/skipped records to publish after terminal failure
     when they are in sequence
+
+RadarProcessingBatchDelta and core ordered commit foundation:
+  computes handler-free per-batch processing deltas without mutating shared
+    RadarProcessingCore state
+  uses pooled dense source-indexed arrays for per-source event counts,
+    payload counts, raw checksums, and timestamp bounds
+  commits deltas into shared core state only after ordered source-local
+    timestamp validation
+  rejects handler cores until a handler-delta contract exists
 ```
 
 Milestone 021 blocker:
@@ -149,6 +158,11 @@ slice 2 focused coordinator tests:
   dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
     --filter "FullyQualifiedName~RadarProcessingOrderedResultCoordinatorTests"
   result: 5 passed, 0 failed, 0 skipped
+
+processing delta focused tests:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~RadarProcessingBatchDeltaTests"
+  result: 4 passed, 0 failed, 0 skipped
 ```
 
 Stop conditions before decision trace:
