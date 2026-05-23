@@ -1,6 +1,80 @@
-# Handoff: Milestone 019 Closeout
+# Handoff: Milestone 020 Active
 
 ## Current State
+
+Milestone 020 has started. The milestone documents are:
+
+```text
+docs/milestones/020-default-baseline-runtime-archive-integration.md
+docs/milestones/020-default-baseline-runtime-archive-integration-plan.md
+```
+
+Milestone 020 purpose:
+
+```text
+integrate the accepted prewarmed queued-owned runtime/archive default baseline
+into remaining scoped in-process runtime/archive construction surfaces without
+reopening the provider default decision
+```
+
+Milestone 020 starts from the milestone 019 accepted baseline:
+
+```text
+provider path: queued-owned by construction of queued-overlap runner
+provider overlap: producer-consumer
+retention strategy: pooled-copy
+provider queue capacity: 8
+retained-byte budget: 536870912
+startup retained payload prewarm: enabled
+prewarm event count: 65_536
+prewarm payload bytes: 67_108_864
+prewarm retained batch count: 1
+```
+
+Milestone 020 integration target:
+
+```text
+add a named runtime/archive baseline profile
+compose the accepted provider default with async shard transport defaults
+use worker count 4 and worker queue capacity 8 where the runtime/archive
+  surface owns processing core or session construction
+keep provider provenance and execution provenance separately visible
+keep startup retained payload prewarm cost separate from steady allocation
+preserve explicit diagnostic/no-prewarm and BlockingBorrowed/reference paths
+```
+
+Milestone 020 planned slices:
+
+```text
+1. Baseline profile contract
+2. Runtime/archive owned construction integration
+3. Live-adapter-shaped integration evidence
+4. Reporting and provenance pass
+5. Gate capture and documentation checkpoint
+```
+
+Current implementation status:
+
+```text
+architecture document: drafted
+implementation plan: drafted
+implementation: not started
+decision trace: not started; stop before writing it
+```
+
+Stop conditions:
+
+```text
+stop before decision trace for review
+stop earlier only for a blocker or important architecture decision
+do not silently rewrite caller-owned processing cores or rebalance sessions
+do not add automatic silent borrowed fallback
+do not hide startup prewarm cost inside steady allocation
+```
+
+## Milestone 019 Closeout Baseline
+
+### Current State
 
 Milestone 019 is complete. The milestone documents are:
 
