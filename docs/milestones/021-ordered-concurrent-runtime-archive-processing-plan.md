@@ -1,6 +1,6 @@
 # Milestone 021: Ordered Concurrent Runtime/Archive Processing Implementation Plan
 
-Status: active after architecture decision.
+Status: complete through decision trace; closeout not written.
 
 This plan implements the milestone 021 architecture defined in
 `021-ordered-concurrent-runtime-archive-processing.md`.
@@ -363,7 +363,7 @@ result:
 
 ## Slice 6: Gate Capture And Documentation Checkpoint
 
-Status: complete; stop before decision trace.
+Status: complete.
 
 Implementation:
 
@@ -372,7 +372,7 @@ record focused milestone 021 gate evidence in a gate document
 update this plan's slice statuses as work completes
 update handoff with implemented behavior, verification, blockers, and
   remaining warnings
-stop before writing decision trace
+stop before writing decision trace until review
 ```
 
 Gate requirements:
@@ -417,11 +417,26 @@ result:
     remains separately visible
 ```
 
+Decision trace:
+
+```text
+docs/milestones/021-ordered-concurrent-runtime-archive-processing-decision-trace.md
+
+result:
+  accepted with scoped warnings for processing-core runtime/archive ordered
+  concurrency
+  rebalance/topology ordered concurrency remains deferred
+  handler-state delta/merge remains deferred
+  processing-bottleneck performance matrices remain useful before broad
+    default promotion
+```
+
 ## Stop Conditions
 
-Stop before decision trace in all cases.
+Decision trace is now written. Stop before closeout only if a new blocker is
+proven.
 
-Stop earlier only if one of these blockers is proven:
+Revisit before closeout only if one of these blockers is newly proven:
 
 ```text
 shared RadarProcessingCore mutation cannot safely support overlapping batch

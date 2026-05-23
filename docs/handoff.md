@@ -7,6 +7,12 @@ Milestone 021 is active. The milestone documents are:
 ```text
 docs/milestones/021-ordered-concurrent-runtime-archive-processing.md
 docs/milestones/021-ordered-concurrent-runtime-archive-processing-plan.md
+docs/milestones/021-ordered-concurrent-runtime-archive-processing-slice-3-blocker.md
+docs/milestones/021-ordered-concurrent-runtime-archive-processing-architecture-decision.md
+docs/milestones/021-ordered-concurrent-runtime-archive-processing-gate.md
+docs/milestones/021-ordered-concurrent-runtime-archive-processing-full-cache-performance-matrix.md
+docs/milestones/021-ordered-concurrent-runtime-archive-processing-ordered-full-cache-performance-matrix.md
+docs/milestones/021-ordered-concurrent-runtime-archive-processing-decision-trace.md
 ```
 
 Milestone 021 purpose:
@@ -62,12 +68,12 @@ Current implementation status:
 ```text
 architecture document: complete
 implementation plan: complete
-implementation: complete through slice 6 gate capture
+implementation: complete through decision trace
 blocker: resolved by snapshot/delta/ordered commit decision
 gate: written
 post-gate full-cache performance matrix: written
 post-gate ordered processing full-cache performance matrix: written
-decision trace: not written
+decision trace: written
 closeout: not written
 ```
 
@@ -357,17 +363,44 @@ post-gate ordered processing full-cache performance matrix:
     zero retained pool misses.
 ```
 
-Stop conditions before decision trace:
+Milestone 021 decision trace:
 
 ```text
-shared RadarProcessingCore mutation cannot safely support overlapping batch
-  processing without a snapshot/merge/commit design
-rebalance topology publication cannot be kept deterministic without a larger
-  ordered commit layer
-retained resource cleanup cannot be made deterministic for concurrent active
-  work
-focused gates reveal correctness, ordering, fail-closed, or pressure cleanup
-  regressions that need architecture review
+docs/milestones/021-ordered-concurrent-runtime-archive-processing-decision-trace.md
+
+decision:
+  accepted with scoped warnings for processing-core runtime/archive ordered
+  concurrency
+
+accepted:
+  RunProcessingAsync is the explicit ordered runtime/archive processing path
+  active batch capacity defaults to 4 and remains separate from provider
+    queue capacity 8 and worker queue capacity 8
+  non-mutating per-batch delta compute plus provider-sequence ordered commit
+    is accepted as the safe architecture for overlapping processing-core
+    batches
+  ordered active=4 direct full-cache evidence completed with processing
+    completeness, checksum parity against active=1, clean retained pressure,
+    zero worker failures, zero release failures, and zero retained pool misses
+
+warnings:
+  ordered concurrent rebalance/topology commit is not implemented
+  handler-state delta/merge is not implemented
+  the measured full-cache workload is archive-producer dominated, so
+    processing-bottleneck matrices remain useful before broad default
+    promotion
+  true live network ingestion, durable queues, brokers, cross-process
+    workers, and production operator/deployment/rollback surfaces remain
+    future work
+  known full-suite allocation-sensitive synthetic benchmark caveat remains
+    isolated
+```
+
+Remaining before milestone 021 closeout:
+
+```text
+write closeout
+update project progress if closeout scope requires it
 ```
 
 ## Milestone 020 Closeout Baseline

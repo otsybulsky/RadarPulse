@@ -1,6 +1,6 @@
 # Milestone 021: Ordered Concurrent Runtime/Archive Processing Architecture
 
-Status: planned.
+Status: implemented through decision trace; closeout not written.
 
 RadarPulse milestone 021 starts from the closed milestone 020 default-baseline
 runtime/archive integration.
@@ -317,8 +317,10 @@ rejected:
   fail-closed behavior
 ```
 
-The milestone should stop before decision trace for review of implemented
-surfaces, tests, gate evidence, and any remaining warnings.
+The milestone stopped before decision trace for review of implemented
+surfaces, tests, gate evidence, and remaining warnings. The decision trace is
+now recorded in
+`021-ordered-concurrent-runtime-archive-processing-decision-trace.md`.
 
 ## Starting Implementation Surface
 

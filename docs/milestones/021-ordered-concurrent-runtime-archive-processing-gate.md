@@ -1,9 +1,10 @@
 # Milestone 021: Ordered Concurrent Runtime/Archive Processing Gate
 
-Status: gate captured; stop before decision trace.
+Status: gate captured; reviewed by decision trace.
 
-This document records milestone 021 gate evidence for review. It does not make
-the decision-trace call.
+This document records milestone 021 gate evidence for review. The
+decision-trace call is recorded separately in
+`021-ordered-concurrent-runtime-archive-processing-decision-trace.md`.
 
 ## Gate Question
 
@@ -245,5 +246,5 @@ default promotion beyond the scoped processing-core path
 Closeout:
 
 ```text
-do not write decision trace until this gate is reviewed
+decision trace is now written; closeout remains not written
 ```
