@@ -323,7 +323,7 @@ result:
 
 ## Slice 5: Failure, Cancellation, And Cleanup Hardening
 
-Status: planned.
+Status: complete for processing-core ordered runtime/archive path.
 
 Implementation:
 
@@ -349,6 +349,16 @@ Exit criteria:
 
 ```text
 ordered concurrency does not weaken milestone 020 lifecycle invariants
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingRuntimeArchiveLiveAdapterIntegrationTests|FullyQualifiedName~RadarProcessingQueuedProcessingSessionOrderedConcurrentTests|FullyQualifiedName~RadarProcessingQueuedProcessingSessionTests|FullyQualifiedName~RadarProcessingBatchDeltaTests"
+
+result:
+  22 passed, 0 failed, 0 skipped
 ```
 
 ## Slice 6: Gate Capture And Documentation Checkpoint

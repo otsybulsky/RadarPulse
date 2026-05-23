@@ -126,6 +126,28 @@ public sealed class RadarProcessingQueuedProcessingSessionOrderedConcurrentTests
         Assert.Equal(200, core.GetSourceSnapshot(0).LastMessageTimestampUtcTicks);
     }
 
+    [Fact]
+    public async Task OrderedConcurrentDrainCancellationBeforeDequeueReturnsCanceled()
+    {
+        var universe = CreateUniverse(sourceCount: 1);
+        await using var session = new RadarProcessingQueuedProcessingSession(
+            CreateCore(universe));
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        var result = await session.DrainOrderedConcurrentAsync(
+            new RadarProcessingOrderedConcurrencyOptions(activeBatchCapacity: 2),
+            cancellation.Token);
+
+        Assert.True(result.IsCanceled);
+        Assert.Equal(RadarProcessingQueuedSessionStatus.Canceled, result.Status);
+        Assert.Empty(result.ProcessingResults);
+        Assert.Equal(0, result.Telemetry.CompletedBatchCount);
+        Assert.Equal(0, result.Telemetry.FailedBatchCount);
+        Assert.Equal(0, result.Telemetry.CurrentCombinedRetainedBatchCount);
+        Assert.Equal(0, result.Telemetry.CurrentCombinedRetainedPayloadBytes);
+    }
+
     private static RadarProcessingCore CreateCore(RadarSourceUniverse universe) =>
         new(
             universe,
