@@ -98,6 +98,14 @@ RadarProcessingBatchDelta and core ordered commit foundation:
   commits deltas into shared core state only after ordered source-local
     timestamp validation
   rejects handler cores until a handler-delta contract exists
+
+RadarProcessingQueuedProcessingSession.DrainOrderedConcurrentAsync:
+  opt-in ordered concurrent drain path for handler-free processing cores
+  bounds active batch compute by RadarProcessingOrderedConcurrencyOptions
+  computes active batch deltas without shared core mutation
+  commits and records results strictly by provider sequence
+  skips later active successes after an earlier failure boundary
+  leaves existing sequential DrainAsync behavior separate
 ```
 
 Milestone 021 blocker:
@@ -163,6 +171,11 @@ processing delta focused tests:
   dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
     --filter "FullyQualifiedName~RadarProcessingBatchDeltaTests"
   result: 4 passed, 0 failed, 0 skipped
+
+processing session ordered concurrency focused suite:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~RadarProcessingQueuedProcessingSessionTests|FullyQualifiedName~RadarProcessingQueuedProcessingSessionOrderedConcurrentTests|FullyQualifiedName~RadarProcessingBatchDeltaTests"
+  result: 16 passed, 0 failed, 0 skipped
 ```
 
 Stop conditions before decision trace:

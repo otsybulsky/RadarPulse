@@ -154,6 +154,13 @@ public sealed class RadarProcessingCore
         return ValidateSources(batch.Events.Span, cancellationToken);
     }
 
+    internal RadarProcessingResult CreateInvalidProcessingResult(
+        RadarProcessingValidationError error,
+        int sourceId,
+        int eventIndex,
+        string message) =>
+        Invalid(error, sourceId, eventIndex, message);
+
     internal RadarProcessingAsyncWorkCompletion ProcessAsyncShardWorkItem(
         RadarEventBatch batch,
         RadarProcessingBatchRoute route,

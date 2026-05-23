@@ -91,7 +91,10 @@ public sealed class RadarProcessingBatchDelta : IDisposable
                 }
                 else if (streamEvent.MessageTimestampUtcTicks < lastMessageTimestampUtcTicks[sourceId])
                 {
-                    throw new InvalidOperationException(
+                    throw new RadarProcessingBatchDeltaValidationException(
+                        RadarProcessingValidationError.SourceOrderViolation,
+                        sourceId,
+                        routed.EventIndex,
                         "Source-local events must be applied by non-decreasing message timestamp.");
                 }
 

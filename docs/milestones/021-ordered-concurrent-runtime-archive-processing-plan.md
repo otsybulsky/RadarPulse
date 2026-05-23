@@ -211,6 +211,15 @@ processing delta core foundation is implemented for handler-free cores:
   RadarProcessingCore.CommitProcessingDelta validates ordered source-local
     timestamps, mutates shared state, and creates cumulative results
   handler cores are explicitly rejected until a handler-delta contract exists
+
+processing session ordered concurrent drain is implemented for handler-free
+  processing cores:
+  RadarProcessingQueuedProcessingSession.DrainOrderedConcurrentAsync bounds
+    active batch compute by RadarProcessingOrderedConcurrencyOptions
+  active batch compute creates deltas without shared core mutation
+  ordered commit publishes processing results by provider sequence
+  later active successes are skipped after an earlier failure boundary
+  existing sequential DrainAsync behavior remains separate
 ```
 
 Verification:
@@ -221,6 +230,12 @@ dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
 
 result:
   4 passed, 0 failed, 0 skipped
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingQueuedProcessingSessionTests|FullyQualifiedName~RadarProcessingQueuedProcessingSessionOrderedConcurrentTests|FullyQualifiedName~RadarProcessingBatchDeltaTests"
+
+result:
+  16 passed, 0 failed, 0 skipped
 ```
 
 ## Slice 4: Runtime/Archive Integration

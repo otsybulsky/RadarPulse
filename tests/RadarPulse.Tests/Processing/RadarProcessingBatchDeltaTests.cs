@@ -55,7 +55,7 @@ public sealed class RadarProcessingBatchDeltaTests
         var core = CreateCore(universe);
         var outOfOrder = CreateBatch(universe.Version, [0, 0], messageTimestampBase: 200, secondTimestampDelta: -100);
 
-        var exception = Assert.Throws<InvalidOperationException>(() => core.ComputeProcessingDelta(outOfOrder));
+        var exception = Assert.ThrowsAny<InvalidOperationException>(() => core.ComputeProcessingDelta(outOfOrder));
 
         Assert.Contains("non-decreasing message timestamp", exception.Message, StringComparison.Ordinal);
         Assert.Equal(RadarProcessingMetrics.Empty, core.CreateMetrics());

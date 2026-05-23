@@ -149,6 +149,115 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
         }
     }
 
+    public async ValueTask<RadarProcessingQueuedSessionResult> DrainOrderedConcurrentAsync(
+        RadarProcessingOrderedConcurrencyOptions? orderedOptions = null,
+        CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+
+        var effectiveOptions = orderedOptions ?? RadarProcessingOrderedConcurrencyOptions.Default;
+        if (effectiveOptions.IsSequential)
+        {
+            return await DrainAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        var started = Stopwatch.GetTimestamp();
+        using var activeCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var active = new List<OrderedConcurrentBatchWork>(effectiveOptions.ActiveBatchCapacity);
+        var completed = new List<OrderedConcurrentBatchCompletion>(effectiveOptions.ActiveBatchCapacity);
+        var inputClosed = false;
+        var nextPublishSequence = -1L;
+
+        try
+        {
+            while (!inputClosed || active.Count > 0 || completed.Count > 0)
+            {
+                while (!inputClosed && active.Count < effectiveOptions.ActiveBatchCapacity)
+                {
+                    var dequeue = await queue.DequeueAsync(cancellationToken).ConfigureAwait(false);
+                    switch (dequeue.Status)
+                    {
+                        case RadarProcessingOwnedBatchDequeueStatus.Item:
+                            var queuedBatch = dequeue.Batch!;
+                            if (nextPublishSequence < 0)
+                            {
+                                nextPublishSequence = queuedBatch.Sequence.Value;
+                            }
+
+                            if (IsFaulted)
+                            {
+                                completed.Add(CreateSkippedAfterFaultCompletion(queuedBatch));
+                            }
+                            else
+                            {
+                                active.Add(StartOrderedConcurrentBatch(queuedBatch, activeCancellation.Token));
+                            }
+
+                            break;
+
+                        case RadarProcessingOwnedBatchDequeueStatus.Closed:
+                            inputClosed = true;
+                            break;
+
+                        case RadarProcessingOwnedBatchDequeueStatus.Faulted:
+                            MarkFaulted(dequeue.Message);
+                            inputClosed = true;
+                            break;
+
+                        case RadarProcessingOwnedBatchDequeueStatus.Canceled:
+                            activeCancellation.Cancel();
+                            MarkCanceledAndRecordQueued();
+                            inputClosed = true;
+                            break;
+
+                        case RadarProcessingOwnedBatchDequeueStatus.Disposed:
+                            AddDrainTime(started);
+                            return CreateSessionResult(
+                                RadarProcessingQueuedSessionStatus.Disposed,
+                                "Queued processing queue was disposed.");
+
+                        default:
+                            RadarProcessingOwnedBatchDequeueResult.EnsureKnownStatus(dequeue.Status);
+                            throw new ArgumentOutOfRangeException(nameof(dequeue));
+                    }
+                }
+
+                PublishReadyOrderedCompletions(completed, ref nextPublishSequence, activeCancellation);
+                if (active.Count == 0)
+                {
+                    if (inputClosed && completed.Count == 0)
+                    {
+                        break;
+                    }
+
+                    continue;
+                }
+
+                var completedTask = await Task.WhenAny(active.Select(static item => item.Task)).ConfigureAwait(false);
+                var activeIndex = FindActiveWorkIndex(active, completedTask);
+                var activeWork = active[activeIndex];
+                active.RemoveAt(activeIndex);
+                completed.Add(await activeWork.Task.ConfigureAwait(false));
+                PublishReadyOrderedCompletions(completed, ref nextPublishSequence, activeCancellation);
+            }
+
+            AddDrainTime(started);
+            return CreateSessionResult(GetTerminalStatus(), GetTerminalMessage());
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            activeCancellation.Cancel();
+            await CompleteAndDiscardActiveWorkAsync(active).ConfigureAwait(false);
+            MarkCanceledAndRecordQueued();
+            AddDrainTime(started);
+            return CreateSessionResult(RadarProcessingQueuedSessionStatus.Canceled, "Queued processing drain was canceled.");
+        }
+        finally
+        {
+            DisposeCompleted(completed);
+        }
+    }
+
     public void Dispose()
     {
         DisposeAsync().AsTask().GetAwaiter().GetResult();
@@ -243,6 +352,197 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
                     exception.Message));
             MarkFaulted(exception.Message);
         }
+    }
+
+    private OrderedConcurrentBatchWork StartOrderedConcurrentBatch(
+        RadarProcessingQueuedBatch queuedBatch,
+        CancellationToken cancellationToken)
+    {
+        var lease = consumerResourceLeaseFactory?.Invoke(queuedBatch.Sequence);
+        var task = Task.Run(
+            () => ComputeOrderedConcurrentBatch(queuedBatch, lease, cancellationToken),
+            CancellationToken.None);
+        return new OrderedConcurrentBatchWork(task);
+    }
+
+    private OrderedConcurrentBatchCompletion CreateSkippedAfterFaultCompletion(
+        RadarProcessingQueuedBatch queuedBatch)
+    {
+        using var lease = consumerResourceLeaseFactory?.Invoke(queuedBatch.Sequence);
+        return OrderedConcurrentBatchCompletion.FromProcessingResult(
+            RadarProcessingQueuedBatchProcessingResult.SkippedAfterFault(
+                queuedBatch.Sequence,
+                faultMessage));
+    }
+
+    private OrderedConcurrentBatchCompletion ComputeOrderedConcurrentBatch(
+        RadarProcessingQueuedBatch queuedBatch,
+        IDisposable? lease,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                lease?.Dispose();
+                return OrderedConcurrentBatchCompletion.FromProcessingResult(
+                    RadarProcessingQueuedBatchProcessingResult.Canceled(
+                        queuedBatch.Sequence,
+                        "Queued processing batch was canceled."),
+                    leaseAlreadyDisposed: true);
+            }
+
+            var invalid = core.ValidateBatchForProcessing(queuedBatch.Batch, cancellationToken);
+            if (invalid is not null)
+            {
+                return OrderedConcurrentBatchCompletion.FromProcessingResult(
+                    RadarProcessingQueuedBatchProcessingResult.FailedValidation(
+                        queuedBatch.Sequence,
+                        invalid.Validation.Message,
+                        invalid),
+                    lease);
+            }
+
+            var delta = core.ComputeProcessingDelta(queuedBatch.Batch, cancellationToken);
+            return OrderedConcurrentBatchCompletion.FromDelta(queuedBatch.Sequence, delta, lease);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return OrderedConcurrentBatchCompletion.FromProcessingResult(
+                RadarProcessingQueuedBatchProcessingResult.Canceled(
+                    queuedBatch.Sequence,
+                    "Queued processing batch was canceled."),
+                lease);
+        }
+        catch (RadarProcessingBatchDeltaValidationException exception)
+        {
+            var result = core.CreateInvalidProcessingResult(
+                exception.Error,
+                exception.SourceId,
+                exception.EventIndex,
+                exception.Message);
+            return OrderedConcurrentBatchCompletion.FromProcessingResult(
+                RadarProcessingQueuedBatchProcessingResult.FailedValidation(
+                    queuedBatch.Sequence,
+                    exception.Message,
+                    result),
+                lease);
+        }
+        catch (Exception exception)
+        {
+            return OrderedConcurrentBatchCompletion.FromProcessingResult(
+                RadarProcessingQueuedBatchProcessingResult.FailedProcessing(
+                    queuedBatch.Sequence,
+                    exception.Message),
+                lease);
+        }
+    }
+
+    private void PublishReadyOrderedCompletions(
+        List<OrderedConcurrentBatchCompletion> completed,
+        ref long nextPublishSequence,
+        CancellationTokenSource activeCancellation)
+    {
+        if (nextPublishSequence < 0)
+        {
+            return;
+        }
+
+        while (true)
+        {
+            var index = FindCompletionIndex(completed, nextPublishSequence);
+            if (index < 0)
+            {
+                return;
+            }
+
+            var completion = completed[index];
+            completed.RemoveAt(index);
+            try
+            {
+                var result = IsFaulted
+                    ? RadarProcessingQueuedBatchProcessingResult.SkippedAfterFault(
+                        completion.Sequence,
+                        faultMessage)
+                    : completion.Commit(core, activeCancellation.Token);
+                RecordProcessingResult(result);
+                nextPublishSequence++;
+
+                if (IsFailedProcessingStatus(result.Status))
+                {
+                    MarkFaulted(result.Message);
+                    activeCancellation.Cancel();
+                }
+                else if (result.Status == RadarProcessingQueuedBatchProcessingStatus.Canceled)
+                {
+                    activeCancellation.Cancel();
+                    MarkCanceledAndRecordQueued();
+                }
+            }
+            finally
+            {
+                completion.Dispose();
+            }
+        }
+    }
+
+    private static int FindActiveWorkIndex(
+        List<OrderedConcurrentBatchWork> active,
+        Task<OrderedConcurrentBatchCompletion> completedTask)
+    {
+        for (var i = 0; i < active.Count; i++)
+        {
+            if (ReferenceEquals(active[i].Task, completedTask))
+            {
+                return i;
+            }
+        }
+
+        throw new InvalidOperationException("Completed ordered processing task was not found.");
+    }
+
+    private static int FindCompletionIndex(
+        List<OrderedConcurrentBatchCompletion> completed,
+        long sequence)
+    {
+        for (var i = 0; i < completed.Count; i++)
+        {
+            if (completed[i].Sequence.Value == sequence)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private static bool IsFailedProcessingStatus(
+        RadarProcessingQueuedBatchProcessingStatus status) =>
+        status is RadarProcessingQueuedBatchProcessingStatus.FailedProcessing or
+            RadarProcessingQueuedBatchProcessingStatus.FailedValidation or
+            RadarProcessingQueuedBatchProcessingStatus.FailedMigration;
+
+    private static async ValueTask CompleteAndDiscardActiveWorkAsync(
+        List<OrderedConcurrentBatchWork> active)
+    {
+        foreach (var work in active)
+        {
+            var completion = await work.Task.ConfigureAwait(false);
+            completion.Dispose();
+        }
+
+        active.Clear();
+    }
+
+    private static void DisposeCompleted(
+        List<OrderedConcurrentBatchCompletion> completed)
+    {
+        foreach (var completion in completed)
+        {
+            completion.Dispose();
+        }
+
+        completed.Clear();
     }
 
     private void RecordEnqueueResult(
@@ -409,6 +709,99 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
             queueSummary.OwnedSnapshotEventCount,
             queueSummary.TotalDequeueWaitTime,
             queueSummary.RetainedResourcePressure);
+    }
+
+    private sealed class OrderedConcurrentBatchWork
+    {
+        public OrderedConcurrentBatchWork(
+            Task<OrderedConcurrentBatchCompletion> task)
+        {
+            Task = task ?? throw new ArgumentNullException(nameof(task));
+        }
+
+        public Task<OrderedConcurrentBatchCompletion> Task { get; }
+    }
+
+    private sealed class OrderedConcurrentBatchCompletion : IDisposable
+    {
+        private readonly IDisposable? lease;
+        private RadarProcessingBatchDelta? delta;
+        private RadarProcessingQueuedBatchProcessingResult? processingResult;
+        private bool disposed;
+
+        private OrderedConcurrentBatchCompletion(
+            RadarProcessingQueuedBatchSequence sequence,
+            RadarProcessingBatchDelta? delta,
+            RadarProcessingQueuedBatchProcessingResult? processingResult,
+            IDisposable? lease)
+        {
+            Sequence = sequence;
+            this.delta = delta;
+            this.processingResult = processingResult;
+            this.lease = lease;
+        }
+
+        public RadarProcessingQueuedBatchSequence Sequence { get; }
+
+        public static OrderedConcurrentBatchCompletion FromDelta(
+            RadarProcessingQueuedBatchSequence sequence,
+            RadarProcessingBatchDelta delta,
+            IDisposable? lease)
+        {
+            ArgumentNullException.ThrowIfNull(delta);
+            return new OrderedConcurrentBatchCompletion(sequence, delta, null, lease);
+        }
+
+        public static OrderedConcurrentBatchCompletion FromProcessingResult(
+            RadarProcessingQueuedBatchProcessingResult processingResult,
+            IDisposable? lease = null,
+            bool leaseAlreadyDisposed = false)
+        {
+            ArgumentNullException.ThrowIfNull(processingResult);
+            return new OrderedConcurrentBatchCompletion(
+                processingResult.Sequence,
+                null,
+                processingResult,
+                leaseAlreadyDisposed ? null : lease);
+        }
+
+        public RadarProcessingQueuedBatchProcessingResult Commit(
+            RadarProcessingCore core,
+            CancellationToken cancellationToken)
+        {
+            ArgumentNullException.ThrowIfNull(core);
+            if (processingResult is not null)
+            {
+                return processingResult;
+            }
+
+            if (delta is null)
+            {
+                throw new InvalidOperationException("Ordered concurrent completion has no delta or result.");
+            }
+
+            var result = core.CommitProcessingDelta(delta, cancellationToken: cancellationToken);
+            processingResult = result.IsValid
+                ? RadarProcessingQueuedBatchProcessingResult.Succeeded(Sequence, result)
+                : RadarProcessingQueuedBatchProcessingResult.FailedValidation(
+                    Sequence,
+                    result.Validation.Message,
+                    result);
+            return processingResult;
+        }
+
+        public void Dispose()
+        {
+            if (disposed)
+            {
+                return;
+            }
+
+            disposed = true;
+            delta?.Dispose();
+            delta = null;
+            lease?.Dispose();
+        }
     }
 
     private static RadarProcessingAsyncCoreSession? CreateAsyncCoreSessionIfNeeded(
