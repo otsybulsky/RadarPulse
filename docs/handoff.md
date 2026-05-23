@@ -62,7 +62,7 @@ Current implementation status:
 ```text
 architecture document: complete
 implementation plan: complete
-implementation: complete through slice 1 ordered concurrency contract
+implementation: complete through slice 2 ordered result coordinator
 decision trace: not written
 closeout: not written
 ```
@@ -81,6 +81,13 @@ RadarProcessingRuntimeArchiveBaseline:
   exposes OrderedActiveBatchCapacity
   can assert ordered-concurrency baseline matches independently from provider
     queue capacity and worker queue capacity
+
+RadarProcessingOrderedResultCoordinator:
+  accepts queued batch processing completions out of provider sequence order
+  publishes only contiguous results in provider sequence order
+  blocks unpublished later successes after a terminal failure boundary
+  allows explicit canceled/skipped records to publish after terminal failure
+    when they are in sequence
 ```
 
 Verification so far:
@@ -90,6 +97,11 @@ slice 1 focused baseline tests:
   dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
     --filter "FullyQualifiedName~RadarProcessingRuntimeArchiveBaselineTests"
   result: 11 passed, 0 failed, 0 skipped
+
+slice 2 focused coordinator tests:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~RadarProcessingOrderedResultCoordinatorTests"
+  result: 5 passed, 0 failed, 0 skipped
 ```
 
 Stop conditions before decision trace:

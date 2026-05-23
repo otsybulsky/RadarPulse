@@ -1,0 +1,119 @@
+using RadarPulse.Domain.Processing;
+
+namespace RadarPulse.Infrastructure.Processing;
+
+public sealed class RadarProcessingOrderedResultCoordinator
+{
+    private readonly object sync = new();
+    private readonly SortedDictionary<long, RadarProcessingQueuedBatchProcessingResult> pending = [];
+    private long nextPublishSequence;
+    private bool terminalFailurePublished;
+
+    public long NextPublishSequence
+    {
+        get
+        {
+            lock (sync)
+            {
+                return nextPublishSequence;
+            }
+        }
+    }
+
+    public int PendingCount
+    {
+        get
+        {
+            lock (sync)
+            {
+                return pending.Count;
+            }
+        }
+    }
+
+    public bool HasPublishedTerminalFailure
+    {
+        get
+        {
+            lock (sync)
+            {
+                return terminalFailurePublished;
+            }
+        }
+    }
+
+    public bool IsBlockedByTerminalFailure
+    {
+        get
+        {
+            lock (sync)
+            {
+                return terminalFailurePublished &&
+                       pending.TryGetValue(nextPublishSequence, out var result) &&
+                       result.Status == RadarProcessingQueuedBatchProcessingStatus.Succeeded;
+            }
+        }
+    }
+
+    public IReadOnlyList<RadarProcessingQueuedBatchProcessingResult> Complete(
+        RadarProcessingQueuedBatchProcessingResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        lock (sync)
+        {
+            var sequence = result.Sequence.Value;
+            if (sequence < nextPublishSequence)
+            {
+                throw new InvalidOperationException(
+                    $"Queued processing sequence {sequence} has already been published.");
+            }
+
+            if (!pending.TryAdd(sequence, result))
+            {
+                throw new InvalidOperationException(
+                    $"Queued processing sequence {sequence} has already completed.");
+            }
+
+            return PublishAvailableUnsafe();
+        }
+    }
+
+    private IReadOnlyList<RadarProcessingQueuedBatchProcessingResult> PublishAvailableUnsafe()
+    {
+        List<RadarProcessingQueuedBatchProcessingResult>? published = null;
+        while (pending.TryGetValue(nextPublishSequence, out var result))
+        {
+            if (!CanPublishAfterTerminalFailure(result))
+            {
+                break;
+            }
+
+            pending.Remove(nextPublishSequence);
+            nextPublishSequence++;
+            published ??= [];
+            published.Add(result);
+
+            if (IsTerminalFailure(result.Status))
+            {
+                terminalFailurePublished = true;
+            }
+        }
+
+        return published is null
+            ? Array.Empty<RadarProcessingQueuedBatchProcessingResult>()
+            : Array.AsReadOnly(published.ToArray());
+    }
+
+    private bool CanPublishAfterTerminalFailure(
+        RadarProcessingQueuedBatchProcessingResult result) =>
+        !terminalFailurePublished ||
+        result.Status is RadarProcessingQueuedBatchProcessingStatus.Canceled or
+            RadarProcessingQueuedBatchProcessingStatus.SkippedAfterFault;
+
+    private static bool IsTerminalFailure(
+        RadarProcessingQueuedBatchProcessingStatus status) =>
+        status is RadarProcessingQueuedBatchProcessingStatus.FailedProcessing or
+            RadarProcessingQueuedBatchProcessingStatus.FailedValidation or
+            RadarProcessingQueuedBatchProcessingStatus.FailedMigration;
+}

@@ -88,7 +88,7 @@ result:
 
 ## Slice 2: Ordered Result Coordinator
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -114,6 +114,16 @@ Exit criteria:
 ```text
 deterministic result publication is proven independently from processing core
 or rebalance mutation
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingOrderedResultCoordinatorTests"
+
+result:
+  5 passed, 0 failed, 0 skipped
 ```
 
 ## Slice 3: Processing Session Ordered Concurrency
