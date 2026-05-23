@@ -128,7 +128,7 @@ result:
 
 ## Slice 3: Processing Session Ordered Concurrency
 
-Status: planned.
+Status: blocked pending architecture decision.
 
 Implementation:
 
@@ -167,6 +167,22 @@ Exit criteria:
 processing-session ordered concurrency is either implemented with focused
 proof, or a concrete core-state blocker is recorded before any unsafe default
 is exposed
+```
+
+Blocker:
+
+```text
+docs/milestones/021-ordered-concurrent-runtime-archive-processing-slice-3-blocker.md
+```
+
+Summary:
+
+```text
+the current shared RadarProcessingCore mutates cumulative state while a batch
+is processing, and RadarProcessingRebalanceSession mutates pressure, policy,
+telemetry, decision, and topology state during completion. Ordered result
+buffering can preserve publication order, but it cannot isolate or undo
+shared state mutations from overlapping active batches.
 ```
 
 ## Slice 4: Runtime/Archive Integration

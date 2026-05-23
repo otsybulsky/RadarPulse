@@ -62,7 +62,9 @@ Current implementation status:
 ```text
 architecture document: complete
 implementation plan: complete
-implementation: complete through slice 2 ordered result coordinator
+implementation: stopped at slice 3 processing-session ordered concurrency
+blocker: shared core/rebalance mutation requires architecture decision before
+  active batch capacity greater than 1 can be exposed safely
 decision trace: not written
 closeout: not written
 ```
@@ -88,6 +90,39 @@ RadarProcessingOrderedResultCoordinator:
   blocks unpublished later successes after a terminal failure boundary
   allows explicit canceled/skipped records to publish after terminal failure
     when they are in sequence
+```
+
+Milestone 021 blocker:
+
+```text
+docs/milestones/021-ordered-concurrent-runtime-archive-processing-slice-3-blocker.md
+```
+
+Blocker summary:
+
+```text
+RadarProcessingCore mutates cumulative state while processing a batch and
+creates RadarProcessingResult from the current cumulative metrics.
+RadarProcessingAsyncCoreSession.ProcessAsync still applies shard work into
+that same shared core before CompleteAsyncBatch creates the result.
+
+RadarProcessingRebalanceSession.ProcessCompletedResult mutates pressure
+window, policy state, quarantine lifecycle, telemetry, decision id, and
+potentially topology through migration.
+
+The ordered result coordinator can preserve publication order, but it cannot
+isolate per-batch state, prevent cumulative metrics from seeing partial
+concurrent mutation, or undo a later batch mutation after an earlier failure.
+```
+
+Architecture decision needed:
+
+```text
+choose one before continuing slice 3:
+  snapshot/merge/commit layer
+  per-batch isolated cores with ordered delta commit
+  narrow milestone scope to non-mutating pre-processing concurrency
+  source-disjoint limited concurrency with separate metric isolation
 ```
 
 Verification so far:
