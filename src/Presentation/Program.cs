@@ -88,6 +88,9 @@ static string FormatOptionalNumber(long? value) => value.HasValue ? FormatNumber
 
 static string FormatDecimal(double value) => value.ToString("N2", CultureInfo.InvariantCulture).Replace(',', '_');
 
+static double Ratio(long numerator, long denominator) =>
+    denominator <= 0 ? 0 : (double)numerator / denominator;
+
 static string FormatPercent(double value) =>
     (value * 100d).ToString("0.###", CultureInfo.InvariantCulture) + "%";
 
@@ -181,9 +184,11 @@ static int PrintUsage()
     Console.WriteLine("  radarpulse processing benchmark synthetic [--mode sequential|partitioned|async] [--sources n] [--batches n] [--events-per-batch n] [--payload-values n] [--partitions n] [--shards n] [--workers n] [--queue-capacity n] [--handlers none|counter-checksum] [--iterations n] [--warmup-iterations n]");
     Console.WriteLine("  radarpulse processing benchmark rebalance-synthetic [--workload balanced|hot-shard|intrinsic-hot|oscillating|cooldown-storm|quarantine-ttl-retry|quarantine-cooling-clear|quarantine-pressure-change-retry|quarantine-retry-reentry|quarantine-successful-relief-clear|long-no-hot-shard|long-cooldown-rejection|long-unsafe-target-rejection|long-mixed-skipped-reasons|counters-only-retention|all] [--mode static|sampling|rebalance|all] [--execution sync|async] [--workers n] [--queue-capacity n] [--validation-profile off|essential|diagnostic|benchmark] [--quarantine-ttl-evaluations n] [--quarantine-sustained-cooling-samples n] [--quarantine-material-pressure-change n] [--iterations n] [--warmup-iterations n]");
     Console.WriteLine("  radarpulse processing benchmark rebalance-archive (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--mode static|sampling|rebalance|all] [--provider blocking-borrowed|queued-owned] [--provider-overlap none|producer-consumer] [--retention-strategy snapshot-copy|pooled-copy|builder-transfer] [--execution sync|async] [--workers n] [--queue-capacity n] [--queue-timeout-ms n] [--queue-retained-bytes n] [--queue-telemetry none|summary|recent] [--overlap-telemetry none|summary|recent] [--overlap-consumer-delay-ms n] [--partitions n] [--shards n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress] [--validation-profile off|essential|diagnostic|benchmark] [--quarantine-ttl-evaluations n] [--quarantine-sustained-cooling-samples n] [--quarantine-material-pressure-change n] [--retention-mode counters|recent|diagnostic] [--max-retained-decisions n] [--max-retained-transitions n] [--max-retained-accepted-moves n] [--max-retained-validation-failures n] [--skew-profile none|hot-shard|rotating-hot-shard|hot-partition|target-starvation|budget-storm] [--skew-factor n] [--skew-period n]");
+    Console.WriteLine("  radarpulse processing benchmark ordered-archive-processing (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--active-batches n] [--partitions n] [--shards n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress] [--queue-telemetry none|summary|recent] [--overlap-telemetry none|summary|recent]");
     Console.WriteLine("    rebalance-archive omitted-provider default: queued-owned + pooled-copy + producer-consumer, async workers 4, queue capacity 8, retained-byte budget 536870912, retained-payload prewarm on.");
     Console.WriteLine("    rebalance-archive fallback/oracle: use --provider blocking-borrowed for the borrowed path and same-run comparison.");
     Console.WriteLine("    rebalance-archive direct MeasureFile()/MeasureCache() defaults use the same queued-owned rollout contour.");
+    Console.WriteLine("    ordered-archive-processing uses RunProcessingAsync with ordered active-batch commit over the runtime/archive baseline.");
     Console.WriteLine("    --overlap-consumer-delay-ms is controlled mechanics proof, not natural rollout evidence.");
     Console.WriteLine("  radarpulse archive validate decompress (--file path | --cache data/nexrad [--radar KTLX] [--max-files n])");
     Console.WriteLine("  radarpulse archive validate replay-shape (--file path | --cache data/nexrad [--radar KTLX] [--max-files n]) [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
@@ -370,6 +375,7 @@ static int ProcessingBenchmark(string[] args)
         "synthetic" => BenchmarkProcessingSynthetic(args[1..]),
         "rebalance" or "rebalance-synthetic" => BenchmarkProcessingRebalanceSynthetic(args[1..]),
         "rebalance-archive" => BenchmarkProcessingRebalanceArchive(args[1..]),
+        "ordered-archive-processing" => BenchmarkProcessingOrderedArchiveProcessing(args[1..]),
         _ => PrintUsage()
     };
 }
@@ -523,6 +529,39 @@ static int BenchmarkProcessingRebalanceArchive(string[] args)
         printedResult = true;
     }
 
+    return 0;
+}
+
+static int BenchmarkProcessingOrderedArchiveProcessing(string[] args)
+{
+    var options = ProcessingBenchmarkOrderedArchiveProcessingOptions.Parse(args);
+    var benchmark = new RadarProcessingArchiveOrderedProcessingBenchmark(
+        ArchiveBZip2Decompressors.Create(options.Decompressor));
+
+    var result = options.CachePath is not null
+        ? benchmark.MeasureCache(
+            options.CachePath,
+            options.Date,
+            options.RadarId,
+            options.MaxFiles,
+            options.Iterations,
+            options.WarmupIterations,
+            options.PartitionCount,
+            options.ShardCount,
+            options.Parallelism,
+            options.ActiveBatchCapacity,
+            CancellationToken.None)
+        : benchmark.MeasureFile(
+            options.FilePath ?? throw new InvalidOperationException("--file is required when --cache is not provided."),
+            options.Iterations,
+            options.WarmupIterations,
+            options.PartitionCount,
+            options.ShardCount,
+            options.Parallelism,
+            options.ActiveBatchCapacity,
+            CancellationToken.None);
+
+    PrintProcessingArchiveOrderedProcessingBenchmarkResult(result, options);
     return 0;
 }
 
@@ -944,6 +983,123 @@ static void PrintProcessingArchiveRebalanceCacheBenchmarkResult(
     }
 
     PrintProcessingRebalanceMovePressures(result.AcceptedMovePressures);
+}
+
+static void PrintProcessingArchiveOrderedProcessingBenchmarkResult(
+    RadarProcessingArchiveOrderedProcessingBenchmarkResult result,
+    ProcessingBenchmarkOrderedArchiveProcessingOptions options)
+{
+    Console.WriteLine(result.IsCache
+        ? "Processing benchmark: ordered-archive-processing cache"
+        : "Processing benchmark: ordered-archive-processing");
+    Console.WriteLine("Measured contour: Archive replay to RadarEventBatch through RunProcessingAsync ordered active-batch drain");
+    Console.WriteLine("Processing-only timing: provider/consumer overlap result around ordered processing drain");
+    Console.WriteLine("Batch lifetime: leased batches are converted to owned snapshots before provider queue enqueue");
+    if (result.IsCache)
+    {
+        Console.WriteLine($"Cache: {result.CachePath}");
+        if (result.Date is { } date)
+        {
+            Console.WriteLine($"Date: {date:yyyy-MM-dd}");
+        }
+
+        if (result.RadarId is not null)
+        {
+            Console.WriteLine($"Radar: {result.RadarId}");
+        }
+    }
+    else
+    {
+        Console.WriteLine($"File: {result.FilePath}");
+    }
+
+    Console.WriteLine($"Decompressor: {result.Decompressor}");
+    Console.WriteLine($"Archive parallelism: {FormatNumber(result.DegreeOfParallelism)}");
+    Console.WriteLine($"Provider mode: {FormatProcessingArchiveProviderMode(RadarProcessingArchiveProviderMode.QueuedOwned)}");
+    Console.WriteLine($"Provider queue capacity: {FormatNumber(RadarProcessingArchiveRebalanceRolloutDefaults.ProviderQueueCapacity)}");
+    Console.WriteLine($"Provider overlap mode: {FormatProcessingProviderOverlapMode(RadarProcessingQueuedProviderOverlapMode.ProducerConsumer)}");
+    Console.WriteLine($"Retention strategy: {FormatProcessingRetentionStrategy(RadarProcessingArchiveRebalanceRolloutDefaults.RetentionStrategy)}");
+    Console.WriteLine($"Provider queue retained byte capacity: {FormatNumber(RadarProcessingArchiveRebalanceRolloutDefaults.RetainedPayloadBytes)}");
+    PrintProcessingRetainedPayloadPrewarm(result.RetainedPayloadPrewarm);
+    Console.WriteLine("Provider mode source: runtime-archive-baseline");
+    Console.WriteLine("Provider overlap source: runtime-archive-baseline");
+    Console.WriteLine("Retention strategy source: runtime-archive-baseline");
+    Console.WriteLine("Provider queue capacity source: runtime-archive-baseline");
+    Console.WriteLine("Provider queue retained byte capacity source: runtime-archive-baseline");
+    Console.WriteLine("Execution mode source: runtime-archive-baseline");
+    Console.WriteLine("Worker count source: runtime-archive-baseline");
+    Console.WriteLine("Ordered active batch capacity source: explicit-or-baseline");
+    Console.WriteLine($"Execution mode: {FormatProcessingMode(RadarProcessingRuntimeArchiveBaseline.ExecutionMode)}");
+    Console.WriteLine($"Ordered active batch capacity: {FormatNumber(result.ActiveBatchCapacity)}");
+    Console.WriteLine($"Source count: {FormatNumber(result.SourceCount)}");
+    Console.WriteLine($"Partitions: {FormatNumber(result.PartitionCount)}");
+    Console.WriteLine($"Shards: {FormatNumber(result.ShardCount)}");
+    Console.WriteLine($"Iterations: {FormatNumber(result.Iterations)}");
+    Console.WriteLine($"Warmup iterations: {FormatNumber(result.WarmupIterations)}");
+    if (result.IsCache)
+    {
+        Console.WriteLine($"Examined files per iteration: {FormatNumber(result.ExaminedFilesPerIteration)}");
+        Console.WriteLine($"Skipped files per iteration: {FormatNumber(result.SkippedFilesPerIteration)}");
+        Console.WriteLine($"Published files per iteration: {FormatNumber(result.PublishedFilesPerIteration)}");
+    }
+
+    Console.WriteLine($"File size bytes per iteration: {FormatNumber(result.FileSizeBytesPerIteration)}");
+    Console.WriteLine($"Compressed records per iteration: {FormatNumber(result.CompressedRecordsPerIteration)}");
+    Console.WriteLine($"Compressed bytes per iteration: {FormatNumber(result.CompressedBytesPerIteration)}");
+    Console.WriteLine($"Decompressed bytes per iteration: {FormatNumber(result.DecompressedBytesPerIteration)}");
+    Console.WriteLine($"Batches per iteration: {FormatNumber(result.BatchesPerIteration)}");
+    Console.WriteLine($"Stream events per iteration: {FormatNumber(result.EventsPerIteration)}");
+    Console.WriteLine($"Payload bytes per iteration: {FormatNumber(result.PayloadBytesPerIteration)}");
+    Console.WriteLine($"Payload values per iteration: {FormatNumber(result.PayloadValuesPerIteration)}");
+    Console.WriteLine($"Raw value checksum per iteration: {FormatNumber(result.RawValueChecksumPerIteration)}");
+    Console.WriteLine($"Run status: {FormatProcessingArchiveQueuedOverlapStatus(result.Status)}");
+    Console.WriteLine($"Consumer status: {FormatProcessingQueuedSessionStatus(result.ConsumerStatus)}");
+    Console.WriteLine($"Processing completeness: {(result.ProcessingSucceeded ? "succeeded" : "failed")}");
+    Console.WriteLine($"Processing succeeded batches: {FormatNumber(result.SucceededBatchCount)}");
+    Console.WriteLine($"Processing failed batches: {FormatNumber(result.FailedProcessingBatchCount)}");
+    Console.WriteLine($"Processing validation failed batches: {FormatNumber(result.ProcessingValidationFailedBatchCount)}");
+    Console.WriteLine($"Processing canceled batches: {FormatNumber(result.CanceledBatchCount)}");
+    Console.WriteLine($"Processing skipped after fault batches: {FormatNumber(result.SkippedAfterFaultBatchCount)}");
+    Console.WriteLine($"Final processed batches: {FormatNumber(result.FinalProcessedBatchCount)}");
+    Console.WriteLine($"Final processed stream events: {FormatNumber(result.FinalProcessedStreamEventCount)}");
+    Console.WriteLine($"Final processed payload values: {FormatNumber(result.FinalProcessedPayloadValueCount)}");
+    Console.WriteLine($"Final raw value checksum: {FormatNumber(result.FinalRawValueChecksum)}");
+    Console.WriteLine($"Final processing checksum: {FormatUnsignedNumber(result.FinalProcessingChecksum)}");
+    Console.WriteLine($"End-to-end elapsed ms: {FormatDecimal(result.Elapsed.TotalMilliseconds)}");
+    Console.WriteLine($"Producer active ms: {FormatDecimal(result.ProducerElapsed.TotalMilliseconds)}");
+    Console.WriteLine($"Consumer active ms: {FormatDecimal(result.ConsumerElapsed.TotalMilliseconds)}");
+    Console.WriteLine($"Producer-consumer overlap ms: {FormatDecimal(result.OverlapElapsed.TotalMilliseconds)}");
+    if (options.QueueTelemetryOutput != ProcessingBenchmarkProviderQueueTelemetryOutput.None)
+    {
+        PrintProcessingProviderQueueTelemetrySummary(
+            result.QueueTelemetry,
+            Ratio(result.QueueTelemetry.OwnedSnapshotAllocatedBytes, result.TotalPayloadValues),
+            options.QueueTelemetryOutput);
+    }
+
+    PrintProcessingProviderRetentionTelemetrySummary(result.OverlapTelemetry.RetentionTelemetry);
+    if (options.OverlapTelemetryOutput != ProcessingBenchmarkProviderOverlapTelemetryOutput.None)
+    {
+        PrintProcessingProviderOverlapTelemetrySummary(result.OverlapTelemetry, options.OverlapTelemetryOutput);
+    }
+
+    Console.WriteLine($"Compressed MB/s: {FormatDecimal(result.CompressedMegabytesPerSecond)}");
+    Console.WriteLine($"Decompressed MB/s: {FormatDecimal(result.DecompressedMegabytesPerSecond)}");
+    if (result.IsCache)
+    {
+        Console.WriteLine($"Files/s: {FormatDecimal(result.FilesPerSecond)}");
+    }
+
+    Console.WriteLine($"End-to-end stream events/s: {FormatDecimal(result.EventsPerSecond)}");
+    Console.WriteLine($"End-to-end payload values/s: {FormatDecimal(result.PayloadValuesPerSecond)}");
+    Console.WriteLine($"End-to-end allocated bytes: {FormatNumber(result.AllocatedBytes)}");
+    Console.WriteLine("Allocation measured counter scope: global");
+    Console.WriteLine($"End-to-end allocated bytes / stream event: {FormatDecimal(result.AllocatedBytesPerStreamEvent)}");
+    Console.WriteLine($"End-to-end allocated bytes / payload value: {FormatDecimal(result.AllocatedBytesPerPayloadValue)}");
+    if (result.WorkerTelemetry is not null)
+    {
+        PrintProcessingWorkerTelemetry(result.WorkerTelemetry);
+    }
 }
 
 static void PrintProcessingProviderQueueTelemetryForArchiveFile(
@@ -1483,6 +1639,31 @@ static string FormatProcessingProviderQueueProcessingStatus(RadarProcessingQueue
         RadarProcessingQueuedBatchProcessingStatus.SkippedAfterFault => "skipped-after-fault",
         null => "n/a",
         _ => status.Value.ToString()
+    };
+
+static string FormatProcessingArchiveQueuedOverlapStatus(RadarProcessingArchiveQueuedOverlapStatus status) =>
+    status switch
+    {
+        RadarProcessingArchiveQueuedOverlapStatus.NotStarted => "not-started",
+        RadarProcessingArchiveQueuedOverlapStatus.Completed => "completed",
+        RadarProcessingArchiveQueuedOverlapStatus.ProducerFailed => "producer-failed",
+        RadarProcessingArchiveQueuedOverlapStatus.ConsumerFaulted => "consumer-faulted",
+        RadarProcessingArchiveQueuedOverlapStatus.Canceled => "canceled",
+        RadarProcessingArchiveQueuedOverlapStatus.Disposed => "disposed",
+        _ => status.ToString()
+    };
+
+static string FormatProcessingQueuedSessionStatus(RadarProcessingQueuedSessionStatus status) =>
+    status switch
+    {
+        RadarProcessingQueuedSessionStatus.NotStarted => "not-started",
+        RadarProcessingQueuedSessionStatus.Running => "running",
+        RadarProcessingQueuedSessionStatus.Draining => "draining",
+        RadarProcessingQueuedSessionStatus.Completed => "completed",
+        RadarProcessingQueuedSessionStatus.Faulted => "faulted",
+        RadarProcessingQueuedSessionStatus.Canceled => "canceled",
+        RadarProcessingQueuedSessionStatus.Disposed => "disposed",
+        _ => status.ToString()
     };
 
 static string FormatBoolean(bool value) =>
@@ -3722,6 +3903,197 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
         };
 
     private static IReadOnlyList<T> Single<T>(T value) => Array.AsReadOnly([value]);
+
+    private static string RequireValue(string[] args, ref int index, string option)
+    {
+        if (index + 1 >= args.Length)
+        {
+            throw new ArgumentException($"{option} requires a value.");
+        }
+
+        index++;
+        return args[index];
+    }
+}
+
+public sealed record ProcessingBenchmarkOrderedArchiveProcessingOptions(
+    string? FilePath,
+    string? CachePath,
+    DateOnly? Date,
+    string? RadarId,
+    int MaxFiles,
+    int PartitionCount,
+    int ShardCount,
+    int ActiveBatchCapacity,
+    int Iterations,
+    int WarmupIterations,
+    int Parallelism,
+    string Decompressor,
+    ProcessingBenchmarkProviderQueueTelemetryOutput QueueTelemetryOutput =
+        ProcessingBenchmarkProviderQueueTelemetryOutput.Summary,
+    ProcessingBenchmarkProviderOverlapTelemetryOutput OverlapTelemetryOutput =
+        ProcessingBenchmarkProviderOverlapTelemetryOutput.Summary)
+{
+    public static ProcessingBenchmarkOrderedArchiveProcessingOptions Parse(string[] args)
+    {
+        string? filePath = null;
+        string? cachePath = null;
+        DateOnly? date = null;
+        string? radarId = null;
+        var maxFiles = 20;
+        var maxFilesWasProvided = false;
+        var partitionCount = 24;
+        var shardCount = 4;
+        var activeBatchCapacity = RadarProcessingRuntimeArchiveBaseline.OrderedActiveBatchCapacity;
+        var iterations = 1;
+        var warmupIterations = 0;
+        var parallelism = 1;
+        var decompressor = ArchiveBZip2Decompressors.DefaultName;
+        var queueTelemetryOutput = ProcessingBenchmarkProviderQueueTelemetryOutput.Summary;
+        var overlapTelemetryOutput = ProcessingBenchmarkProviderOverlapTelemetryOutput.Summary;
+
+        for (var i = 0; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--file":
+                    filePath = RequireValue(args, ref i, "--file");
+                    break;
+                case "--cache":
+                    cachePath = RequireValue(args, ref i, "--cache");
+                    break;
+                case "--date":
+                    date = DateOnly.Parse(RequireValue(args, ref i, "--date"));
+                    break;
+                case "--radar":
+                    radarId = HistoricalArchiveRequest.NormalizeRadarId(RequireValue(args, ref i, "--radar"));
+                    break;
+                case "--max-files":
+                    maxFiles = int.Parse(RequireValue(args, ref i, "--max-files"));
+                    maxFilesWasProvided = true;
+                    break;
+                case "--partitions":
+                    partitionCount = int.Parse(RequireValue(args, ref i, "--partitions"));
+                    break;
+                case "--shards":
+                    shardCount = int.Parse(RequireValue(args, ref i, "--shards"));
+                    break;
+                case "--active-batches":
+                case "--active-batch-capacity":
+                    activeBatchCapacity = int.Parse(RequireValue(args, ref i, args[i]));
+                    break;
+                case "--iterations":
+                    iterations = int.Parse(RequireValue(args, ref i, "--iterations"));
+                    break;
+                case "--warmup-iterations":
+                    warmupIterations = int.Parse(RequireValue(args, ref i, "--warmup-iterations"));
+                    break;
+                case "--parallelism":
+                    parallelism = int.Parse(RequireValue(args, ref i, "--parallelism"));
+                    break;
+                case "--decompressor":
+                    decompressor = RequireValue(args, ref i, "--decompressor");
+                    break;
+                case "--queue-telemetry":
+                    queueTelemetryOutput = ParseQueueTelemetryOutput(RequireValue(args, ref i, "--queue-telemetry"));
+                    break;
+                case "--overlap-telemetry":
+                    overlapTelemetryOutput = ParseOverlapTelemetryOutput(
+                        RequireValue(args, ref i, "--overlap-telemetry"));
+                    break;
+                default:
+                    throw new ArgumentException($"Unknown option: {args[i]}");
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(filePath) == string.IsNullOrWhiteSpace(cachePath))
+        {
+            throw new InvalidOperationException("Provide exactly one of --file or --cache.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(filePath) &&
+            (date is not null || radarId is not null || maxFilesWasProvided))
+        {
+            throw new InvalidOperationException("--date, --radar, and --max-files can only be used with --cache.");
+        }
+
+        if (maxFiles <= 0)
+        {
+            throw new InvalidOperationException("--max-files must be greater than zero.");
+        }
+
+        if (partitionCount <= 0)
+        {
+            throw new InvalidOperationException("--partitions must be greater than zero.");
+        }
+
+        if (shardCount <= 0)
+        {
+            throw new InvalidOperationException("--shards must be greater than zero.");
+        }
+
+        if (partitionCount < shardCount)
+        {
+            throw new InvalidOperationException("--partitions must be greater than or equal to --shards.");
+        }
+
+        if (activeBatchCapacity <= 0)
+        {
+            throw new InvalidOperationException("--active-batches must be greater than zero.");
+        }
+
+        if (iterations <= 0)
+        {
+            throw new InvalidOperationException("--iterations must be greater than zero.");
+        }
+
+        if (warmupIterations < 0)
+        {
+            throw new InvalidOperationException("--warmup-iterations cannot be negative.");
+        }
+
+        if (parallelism <= 0)
+        {
+            throw new InvalidOperationException("--parallelism must be greater than zero.");
+        }
+
+        ArchiveBZip2Decompressors.Create(decompressor);
+        _ = new RadarProcessingOrderedConcurrencyOptions(activeBatchCapacity);
+
+        return new ProcessingBenchmarkOrderedArchiveProcessingOptions(
+            filePath,
+            cachePath,
+            date,
+            radarId,
+            maxFiles,
+            partitionCount,
+            shardCount,
+            activeBatchCapacity,
+            iterations,
+            warmupIterations,
+            parallelism,
+            decompressor,
+            queueTelemetryOutput,
+            overlapTelemetryOutput);
+    }
+
+    private static ProcessingBenchmarkProviderQueueTelemetryOutput ParseQueueTelemetryOutput(string value) =>
+        value.ToLowerInvariant() switch
+        {
+            "none" or "off" => ProcessingBenchmarkProviderQueueTelemetryOutput.None,
+            "summary" => ProcessingBenchmarkProviderQueueTelemetryOutput.Summary,
+            "recent" or "details" => ProcessingBenchmarkProviderQueueTelemetryOutput.Recent,
+            _ => throw new ArgumentException($"Unknown ordered archive processing queue telemetry mode: {value}")
+        };
+
+    private static ProcessingBenchmarkProviderOverlapTelemetryOutput ParseOverlapTelemetryOutput(string value) =>
+        value.ToLowerInvariant() switch
+        {
+            "none" or "off" => ProcessingBenchmarkProviderOverlapTelemetryOutput.None,
+            "summary" => ProcessingBenchmarkProviderOverlapTelemetryOutput.Summary,
+            "recent" or "details" => ProcessingBenchmarkProviderOverlapTelemetryOutput.Recent,
+            _ => throw new ArgumentException($"Unknown ordered archive processing overlap telemetry mode: {value}")
+        };
 
     private static string RequireValue(string[] args, ref int index, string option)
     {
