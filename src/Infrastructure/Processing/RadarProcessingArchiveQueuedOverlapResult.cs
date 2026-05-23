@@ -12,7 +12,8 @@ public sealed class RadarProcessingArchiveQueuedOverlapResult
         RadarProcessingProviderQueueTelemetrySummary? queueTelemetry = null,
         RadarProcessingArchiveOverlapTelemetrySummary? overlapTelemetry = null,
         TimeSpan elapsed = default,
-        string message = "")
+        string message = "",
+        RadarProcessingRetainedPayloadPrewarmResult? retainedPayloadPrewarm = null)
     {
         EnsureKnownStatus(status);
         ArgumentNullException.ThrowIfNull(producer);
@@ -31,6 +32,7 @@ public sealed class RadarProcessingArchiveQueuedOverlapResult
         OverlapTelemetry = overlapTelemetry ?? RadarProcessingArchiveOverlapTelemetrySummary.Empty;
         Elapsed = elapsed;
         Message = message;
+        RetainedPayloadPrewarm = retainedPayloadPrewarm ?? RadarProcessingRetainedPayloadPrewarmResult.None;
     }
 
     public RadarProcessingArchiveQueuedOverlapStatus Status { get; }
@@ -48,6 +50,10 @@ public sealed class RadarProcessingArchiveQueuedOverlapResult
     public TimeSpan Elapsed { get; }
 
     public string Message { get; }
+
+    public RadarProcessingRetainedPayloadPrewarmResult RetainedPayloadPrewarm { get; }
+
+    public bool HasRetainedPayloadPrewarm => RetainedPayloadPrewarm.Applied;
 
     public RadarProcessingArchiveQueuedProviderResult ProviderResult => Producer.ProviderResult;
 

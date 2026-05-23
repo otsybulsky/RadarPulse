@@ -1,6 +1,6 @@
 # RadarPulse Project Progress
 
-Status: current after milestone 018 closeout.
+Status: current during milestone 019 decision-trace checkpoint.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -17,7 +17,10 @@ Current state:
 
 ```text
 completed milestones: 001-018
-active milestone: none selected
+active milestone:
+  019 prewarmed queued-owned runtime default promotion
+  complete through implementation and gate
+  decision trace pending review
 
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive
@@ -32,9 +35,14 @@ current runtime/live posture:
   queued-owned is runtime-safe when selected explicitly for scoped in-process
   runtime/archive replay surfaces with startup prewarm and existing guardrails
   queued-owned is not accepted as the omitted runtime/live ingestion default
+  milestone 019 has implemented and gated scoped queued-overlap omitted-default
+  provider/retention/prewarm promotion, but the decision trace has not been
+  written yet
+  milestone 019 does not automatically rewrite processing core execution mode
+  or async worker sizing
 
 current recommended next milestone:
-  gradual runtime rollout for queued-owned explicit opt-in
+  finish milestone 019 review and decision trace
 ```
 
 The current accepted direct benchmark contour is:

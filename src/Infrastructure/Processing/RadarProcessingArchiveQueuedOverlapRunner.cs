@@ -46,13 +46,14 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
         ArgumentNullException.ThrowIfNull(consume);
 
         var effectiveOptions = options ?? RadarProcessingArchiveQueuedOverlapOptions.Default;
+        var prewarm = ApplyStartupRetainedPayloadPrewarm(effectiveOptions);
         var allocationBefore = RadarProcessingBenchmarkAllocationSnapshot.Capture();
         var started = Stopwatch.GetTimestamp();
         using var queue = new RadarProcessingOwnedBatchQueue(effectiveOptions.QueueOptions);
         using var publisher = new ArchiveOwnedRadarEventBatchQueueingPublisher(
             queue,
             retainedPayloadOptions: effectiveOptions.RetainedPayloadOptions,
-            retainedPayloadFactory: effectiveOptions.RetainedPayloadFactory);
+            retainedPayloadFactory: prewarm.Factory);
 
         var consumerTask = RunConsumerAsync(queue, publisher, consume, cancellationToken).AsTask();
         var producerTask = RunProducerAsync(publisher, produce, cancellationToken).AsTask();
@@ -92,7 +93,26 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
             telemetry,
             overlapTelemetry,
             elapsed,
-            message);
+            message,
+            prewarm.Result);
+    }
+
+    private static RetainedPayloadPrewarmLifecycle ApplyStartupRetainedPayloadPrewarm(
+        RadarProcessingArchiveQueuedOverlapOptions options)
+    {
+        if (!options.RetainedPayloadPrewarmOptions.Enabled)
+        {
+            return new RetainedPayloadPrewarmLifecycle(
+                options.RetainedPayloadFactory,
+                RadarProcessingRetainedPayloadPrewarmResult.None);
+        }
+
+        var factory = options.RetainedPayloadFactory ?? new RadarProcessingRetainedPayloadFactory();
+        var prewarm = factory.Prewarm(
+            options.RetainedPayloadPrewarmOptions.EventCount,
+            options.RetainedPayloadPrewarmOptions.PayloadBytes,
+            options.RetainedPayloadPrewarmOptions.RetainedBatchCount);
+        return new RetainedPayloadPrewarmLifecycle(factory, prewarm);
     }
 
     private static async ValueTask<RadarProcessingArchiveQueuedOverlapProducerResult> RunProducerAsync(
@@ -296,4 +316,8 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
         publisher.ReleasePendingResources();
         return result;
     }
+
+    private sealed record RetainedPayloadPrewarmLifecycle(
+        RadarProcessingRetainedPayloadFactory? Factory,
+        RadarProcessingRetainedPayloadPrewarmResult Result);
 }

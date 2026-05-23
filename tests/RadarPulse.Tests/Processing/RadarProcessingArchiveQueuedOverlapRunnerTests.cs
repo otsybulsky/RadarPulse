@@ -24,10 +24,29 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunnerTests
         Assert.Equal(2, (int)RadarProcessingArchiveQueuedOverlapProducerStatus.Failed);
         Assert.Equal(3, (int)RadarProcessingArchiveQueuedOverlapProducerStatus.Canceled);
 
-        Assert.Same(
-            RadarProcessingProviderQueueOptions.Default,
-            RadarProcessingArchiveQueuedOverlapOptions.Default.QueueOptions);
+        Assert.Equal(
+            RadarProcessingArchiveRebalanceRolloutDefaults.ProviderQueueCapacity,
+            RadarProcessingArchiveQueuedOverlapOptions.Default.QueueOptions.Capacity);
+        Assert.Equal(
+            RadarProcessingArchiveRebalanceRolloutDefaults.RetainedPayloadBytes,
+            RadarProcessingArchiveQueuedOverlapOptions.Default.QueueOptions.MaxRetainedPayloadBytes);
+        Assert.Equal(
+            RadarProcessingArchiveRebalanceRolloutDefaults.RetentionStrategy,
+            RadarProcessingArchiveQueuedOverlapOptions.Default.RetainedPayloadOptions.Strategy);
+        Assert.Equal(
+            RadarProcessingArchiveRebalanceRolloutDefaults.RetainedPayloadBytes,
+            RadarProcessingArchiveQueuedOverlapOptions.Default.RetainedPayloadOptions.MaxRetainedPayloadBytes);
+        Assert.Equal(
+            RadarProcessingRetainedPayloadPrewarmOptions.RolloutDefault,
+            RadarProcessingArchiveQueuedOverlapOptions.Default.RetainedPayloadPrewarmOptions);
+        Assert.True(RadarProcessingArchiveQueuedOverlapOptions.Default.IsRuntimeDefaultContour);
         Assert.Null(RadarProcessingArchiveQueuedOverlapOptions.Default.RetainedPayloadFactory);
+
+        var explicitDiagnosticOptions = new RadarProcessingArchiveQueuedOverlapOptions();
+        Assert.Same(RadarProcessingProviderQueueOptions.Default, explicitDiagnosticOptions.QueueOptions);
+        Assert.Same(RadarProcessingRetainedPayloadOptions.Default, explicitDiagnosticOptions.RetainedPayloadOptions);
+        Assert.Equal(RadarProcessingRetainedPayloadPrewarmOptions.None, explicitDiagnosticOptions.RetainedPayloadPrewarmOptions);
+        Assert.False(explicitDiagnosticOptions.IsRuntimeDefaultContour);
 
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new RadarProcessingArchiveQueuedOverlapResult(
@@ -111,9 +130,16 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunnerTests
 
         Assert.Same(RadarProcessingArchiveOverlapTelemetrySummary.Empty, completed.OverlapTelemetry);
         Assert.Same(completed.OverlapTelemetry, completed.Telemetry);
+        Assert.False(completed.HasRetainedPayloadPrewarm);
         Assert.Equal(TimeSpan.Zero, RadarProcessingArchiveOverlapTelemetrySummary.Empty.OverlapElapsed);
         Assert.Equal(0, RadarProcessingArchiveOverlapTelemetrySummary.Empty.RetainedBatchCount);
         Assert.Equal(0, RadarProcessingArchiveOverlapTelemetrySummary.Empty.UnattributedAllocatedBytes);
+
+        Assert.Throws<InvalidOperationException>(() =>
+            new RadarProcessingArchiveQueuedOverlapOptions(
+                retainedPayloadPrewarmOptions: RadarProcessingRetainedPayloadPrewarmOptions.RolloutDefault));
+        Assert.Throws<ArgumentException>(() =>
+            new RadarProcessingRetainedPayloadPrewarmOptions(eventCount: 1, payloadBytes: 0, retainedBatchCount: 1));
 
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new RadarProcessingArchiveOverlapTelemetrySummary(
@@ -122,6 +148,75 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunnerTests
                 overlapElapsed: TimeSpan.FromMilliseconds(2)));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             new RadarProcessingArchiveOverlapTelemetrySummary(elapsed: TimeSpan.FromTicks(-1)));
+    }
+
+    [Fact]
+    public async Task OmittedOptionsApplyRuntimeDefaultStartupPrewarm()
+    {
+        var runner = new RadarProcessingArchiveQueuedOverlapRunner();
+
+        var result = await runner.RunAsync(
+            (publisher, cancellationToken) =>
+            {
+                PublishLeased(publisher, [1, 2, 3], cancellationToken);
+                return CreatePublishResult(batchCount: 1);
+            },
+            async (queue, publisher, cancellationToken) =>
+            {
+                var dequeue = await queue.DequeueAsync(cancellationToken);
+                Assert.Equal(RadarProcessingOwnedBatchDequeueStatus.Item, dequeue.Status);
+                using var lease = publisher.AcquireConsumerResourceLease(dequeue.Batch!.Sequence);
+
+                return CreateSessionResult(
+                    queue,
+                    [
+                        RadarProcessingQueuedBatchProcessingResult.Succeeded(
+                            dequeue.Batch.Sequence,
+                            CreateProcessingResult())
+                    ]);
+            });
+
+        Assert.True(result.IsCompleted);
+        Assert.True(result.HasRetainedPayloadPrewarm);
+        Assert.Equal(
+            RadarProcessingArchiveRebalanceRolloutDefaults.RetainedPayloadPrewarmEventCount,
+            result.RetainedPayloadPrewarm.EventCount);
+        Assert.Equal(
+            RadarProcessingArchiveRebalanceRolloutDefaults.RetainedPayloadPrewarmPayloadBytes,
+            result.RetainedPayloadPrewarm.PayloadBytes);
+        Assert.Equal(
+            RadarProcessingArchiveRebalanceRolloutDefaults.RetainedPayloadPrewarmBatchCount,
+            result.RetainedPayloadPrewarm.RetainedBatchCount);
+        Assert.True(result.RetainedPayloadPrewarm.AllocatedBytes > 0);
+        Assert.True(result.RetainedPayloadPrewarm.RetainedBytes > 0);
+        Assert.True(result.OverlapTelemetry.MeasuredAllocatedBytes < result.RetainedPayloadPrewarm.AllocatedBytes);
+        Assert.Equal(RadarProcessingRetainedPayloadStrategy.PooledCopy, result.OverlapTelemetry.RetentionStrategy);
+        Assert.Equal(1, result.ProviderResult.RetentionTelemetry.ReleaseAttemptCount);
+        Assert.Equal(1, result.ProviderResult.RetentionTelemetry.ReleasedBatchCount);
+        Assert.Equal(0, result.ProviderResult.RetentionTelemetry.ReleaseFailedCount);
+        Assert.Equal(0, result.QueueTelemetry.CurrentCombinedRetainedBatchCount);
+        Assert.Equal(0, result.QueueTelemetry.CurrentCombinedRetainedPayloadBytes);
+    }
+
+    [Fact]
+    public async Task ExplicitOptionsDoNotApplyStartupPrewarmUnlessRequested()
+    {
+        var runner = new RadarProcessingArchiveQueuedOverlapRunner();
+        var options = new RadarProcessingArchiveQueuedOverlapOptions(
+            new RadarProcessingProviderQueueOptions(capacity: 2, recentDetailCapacity: 16));
+
+        var result = await runner.RunAsync(
+            (publisher, cancellationToken) =>
+            {
+                publisher.Publish(CreateOwnedBatch(1), cancellationToken);
+                return CreatePublishResult(batchCount: 1);
+            },
+            DrainAllAsync,
+            options);
+
+        Assert.True(result.IsCompleted);
+        Assert.False(result.HasRetainedPayloadPrewarm);
+        Assert.Equal(RadarProcessingRetainedPayloadStrategy.SnapshotCopy, result.OverlapTelemetry.RetentionStrategy);
     }
 
     [Fact]

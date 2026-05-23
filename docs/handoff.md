@@ -1,6 +1,120 @@
-# Handoff: Milestone 018 Closeout
+# Handoff: Milestone 019 Decision-Trace Checkpoint
 
 ## Current State
+
+Milestone 019 is active and complete through the decision-trace checkpoint.
+The decision trace has not been written yet because the milestone requires a
+review stop before the decision.
+
+Milestone 019 documents are:
+
+```text
+docs/milestones/019-prewarmed-queued-owned-runtime-default-promotion.md
+docs/milestones/019-prewarmed-queued-owned-runtime-default-promotion-plan.md
+docs/milestones/019-prewarmed-queued-owned-runtime-default-promotion-gate.md
+```
+
+Milestone 019 purpose:
+
+```text
+promote the benchmark-proven and runtime-explicit startup-prewarmed
+queued-owned contour into the scoped runtime/archive queued-overlap
+omitted-default path
+```
+
+Implemented in milestone 019 so far:
+
+```text
+RadarProcessingArchiveQueuedOverlapOptions.Default now represents the runtime
+  rollout contour:
+    provider queue capacity 8
+    retained-byte budget 536870912
+    retained payload strategy pooled-copy
+    retained payload prewarm options rollout default
+
+RadarProcessingArchiveQueuedOverlapRunner now applies startup retained payload
+  prewarm before steady overlap allocation capture when options request it
+
+RadarProcessingArchiveQueuedOverlapResult now surfaces
+  RadarProcessingRetainedPayloadPrewarmResult separately from steady overlap
+  telemetry
+
+explicit constructed options remain diagnostic/no-prewarm unless the caller
+  explicitly requests prewarm
+```
+
+Milestone 019 focused gate result:
+
+```text
+omitted runtime queued-overlap path reports retained payload prewarm applied
+prewarm sizing matches rollout defaults:
+  event count 65_536
+  payload bytes 67_108_864
+  retained batch count 1
+prewarm allocation and retained bytes are visible
+steady measured allocation is separate from startup prewarm allocation
+retention strategy is pooled-copy
+release attempts/releases/failures are 1/1/0 in the focused default row
+terminal combined retained pressure returns to 0
+explicit no-prewarm options remain snapshot-copy/no-prewarm
+```
+
+Scoped warning for review:
+
+```text
+milestone 019 promotes queued-overlap provider/retention/prewarm defaults.
+It does not automatically rewrite an already constructed processing core or
+rebalance session into async shard transport. Execution mode and async worker
+sizing remain owned by the supplied processing core/rebalance session.
+```
+
+Verification at the checkpoint:
+
+```text
+Release build:
+  dotnet build RadarPulse.sln -c Release --no-restore
+  result: succeeded, 0 warnings, 0 errors
+
+focused Debug runtime/prewarm suite:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests|FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests"
+  result: 41 passed, 0 failed
+
+focused Release runtime/prewarm suite:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release --no-restore
+    --filter "FullyQualifiedName~RadarProcessingArchiveQueuedOverlapRunnerTests|FullyQualifiedName~ArchiveOwnedRadarEventBatchQueueingPublisherTests|FullyQualifiedName~RadarProcessingRetainedPayloadFactoryTests"
+  result: 41 passed, 0 failed
+
+full test project:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  result: 776 passed, 1 failed, 3 skipped
+  failure:
+    RadarProcessingSyntheticRebalanceBenchmarkTests.
+      AcceptedMovePressureAggregationDoesNotCopyPreviousIterations
+    expected bounded allocation, got 469_019_824 bytes
+
+isolated rerun of failing test:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName=RadarPulse.Tests.Processing.RadarProcessingSyntheticRebalanceBenchmarkTests.AcceptedMovePressureAggregationDoesNotCopyPreviousIterations"
+  result: 1 passed, 0 failed
+```
+
+Current review question before decision trace:
+
+```text
+Should milestone 019 accept the promoted default for the scoped in-process
+runtime/archive queued-overlap surface, with explicit warnings that true live
+network ingestion, durable queues/brokers, cross-process workers, ordered
+concurrent rebalance, and automatic processing-core execution defaulting remain
+out of scope?
+```
+
+Do not write the milestone 019 decision trace until this review question is
+discussed.
+
+## Milestone 018 Closeout Baseline
+
+Milestone 018 is complete and remains the baseline for milestone 019.
 
 Milestone 018 is complete. The milestone documents are:
 
