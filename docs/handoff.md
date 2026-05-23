@@ -9,6 +9,7 @@ docs/milestones/020-default-baseline-runtime-archive-integration.md
 docs/milestones/020-default-baseline-runtime-archive-integration-plan.md
 docs/milestones/020-default-baseline-runtime-archive-integration-provenance-audit.md
 docs/milestones/020-default-baseline-runtime-archive-integration-gate.md
+docs/milestones/020-default-baseline-runtime-archive-integration-full-cache-performance-matrix.md
 ```
 
 Milestone 020 purpose:
@@ -123,6 +124,50 @@ isolated rerun of full-suite failure:
   dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
     --filter "FullyQualifiedName=RadarPulse.Tests.Processing.RadarProcessingSyntheticRebalanceBenchmarkTests.AcceptedMovePressureAggregationDoesNotCopyPreviousIterations"
   result: 1 passed, 0 failed, 0 skipped
+```
+
+Post-gate full-cache performance matrix:
+
+```text
+Release CLI matrix:
+  processing benchmark rebalance-archive --cache data\nexrad
+  --max-files 1000000 --mode all
+
+compared:
+  explicit BlockingBorrowed oracle with async workers 4
+  omitted-provider queued-owned rollout default
+
+cache shape:
+  examined files 1_554
+  skipped files 726
+  published base-data files 828
+  stream events 27_254_760
+  payload values 32_306_203_200
+
+end-to-end default elapsed ratios versus borrowed:
+  static: 0.793x
+  sampling: 0.890x
+  rebalance-session: 0.881x
+
+end-to-end default total allocation ratios versus borrowed:
+  static: 1.000x
+  sampling: 1.002x
+  rebalance-session: 1.003x
+
+result:
+  no end-to-end full-cache regression observed
+  validation and processing completeness passed
+  rebalance-session checksum parity matched
+  accepted moves matched at 4 vs 4
+  failed migrations 0
+  worker failed batches/items 0/0
+  release failures 0
+  current combined retained pressure 0
+
+carry-forward note:
+  queued-owned processing callback attribution is heavier, about 3.25x-3.28x
+  callback allocation and 1.30x-1.34x callback elapsed versus borrowed, while
+  end-to-end rows remain faster with flat total allocation
 ```
 
 Warnings to carry into decision trace:

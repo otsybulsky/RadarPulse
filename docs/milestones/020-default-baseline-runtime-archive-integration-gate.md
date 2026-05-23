@@ -176,6 +176,25 @@ result:
   24 passed, 0 failed, 0 skipped
 ```
 
+Post-gate full-cache performance matrix:
+
+```text
+docs/milestones/020-default-baseline-runtime-archive-integration-full-cache-performance-matrix.md
+
+result:
+  no end-to-end full-cache performance regression observed
+  default queued-owned elapsed ratios versus borrowed:
+    static: 0.793x
+    sampling: 0.890x
+    rebalance-session: 0.881x
+  default total allocation ratios versus borrowed:
+    static: 1.000x
+    sampling: 1.002x
+    rebalance-session: 1.003x
+  validation, processing completeness, worker health, release health,
+  retained pressure cleanup, and checksum parity passed
+```
+
 Full test project:
 
 ```text
