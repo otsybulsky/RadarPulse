@@ -1,6 +1,6 @@
 # Milestone 020: Default-Baseline Runtime/Archive Integration Gate
 
-Status: complete.
+Status: complete; decision trace written.
 
 This document records the milestone 020 gate evidence before decision trace.
 It is not the decision trace.
@@ -255,5 +255,5 @@ full-suite allocation sensitivity remains for one synthetic benchmark test
 Stop point:
 
 ```text
-stop before decision trace for review
+decision trace is written; next step is closeout
 ```

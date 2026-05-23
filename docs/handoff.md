@@ -10,6 +10,7 @@ docs/milestones/020-default-baseline-runtime-archive-integration-plan.md
 docs/milestones/020-default-baseline-runtime-archive-integration-provenance-audit.md
 docs/milestones/020-default-baseline-runtime-archive-integration-gate.md
 docs/milestones/020-default-baseline-runtime-archive-integration-full-cache-performance-matrix.md
+docs/milestones/020-default-baseline-runtime-archive-integration-decision-trace.md
 ```
 
 Milestone 020 purpose:
@@ -59,10 +60,11 @@ Milestone 020 planned slices:
 Current implementation status:
 
 ```text
-architecture document: implemented through gate; awaiting decision trace review
-implementation plan: implemented through gate; awaiting decision trace review
+architecture document: decision trace written; awaiting closeout
+implementation plan: decision trace written; awaiting closeout
 implementation: complete through slice 5 gate capture
-decision trace: not started; stop before writing it
+decision trace: written
+closeout: not started
 ```
 
 Implemented in milestone 020 so far:
@@ -99,6 +101,37 @@ reason:
   and failure evidence, visible provider/execution provenance, visible startup
   prewarm cost, clean retained pressure, release health, and no silent
   borrowed fallback
+```
+
+Milestone 020 decision trace result:
+
+```text
+decision:
+  accepted with scoped warnings
+
+accepted:
+  the scoped in-process runtime/archive integration boundary is ready to
+  consume the accepted prewarmed queued-owned plus async execution default
+  baseline without reopening the provider default decision
+
+accepted construction profile:
+  RadarProcessingRuntimeArchiveBaseline is accepted as the named construction
+  profile for composing queued-owned provider defaults with async shard
+  transport execution defaults
+
+accepted owned-construction execution defaulting:
+  surfaces that own processing core or rebalance session construction can use
+  async shard transport with worker count 4 and worker queue capacity 8
+
+preserved explicit ownership:
+  caller-supplied processing cores and rebalance sessions are not silently
+  rewritten into async shard transport
+
+not implemented here:
+  ordered concurrent multi-batch processing
+  true live network ingestion
+  durable queues, brokers, cross-process workers
+  production operator/deployment/rollback surfaces
 ```
 
 Final verification before decision-trace stop:
@@ -184,7 +217,7 @@ full-suite allocation sensitivity remains for one synthetic benchmark test
 Stop conditions:
 
 ```text
-stop before decision trace for review
+decision trace is written; next step is closeout
 stop earlier only for a blocker or important architecture decision
 do not silently rewrite caller-owned processing cores or rebalance sessions
 do not add automatic silent borrowed fallback

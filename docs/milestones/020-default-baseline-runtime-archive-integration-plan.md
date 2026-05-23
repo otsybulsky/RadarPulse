@@ -1,6 +1,6 @@
 # Milestone 020: Default-Baseline Runtime/Archive Integration Implementation Plan
 
-Status: implemented through gate; awaiting decision trace review.
+Status: decision trace written; awaiting closeout.
 
 This plan implements the milestone 020 architecture defined in
 `020-default-baseline-runtime-archive-integration.md`.
