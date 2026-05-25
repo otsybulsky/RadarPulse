@@ -49,11 +49,11 @@ Current implementation status:
 architecture document: written
 architecture decision: written
 implementation plan: written
-implementation: slice 3 complete
+implementation: slice 4 complete
 durable envelope contract and queue harness: complete
 durable ordered processing runtime: complete
 retry, recovery, cancellation, and cleanup: complete
-durable ordered rebalance runtime: pending
+durable ordered rebalance runtime: complete
 operator summary and gate evidence: pending
 gate: not written
 decision trace: not written
@@ -95,6 +95,20 @@ slice 1-3 durable-focused suites:
   dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
     --filter "FullyQualifiedName~RadarProcessingDurableEnvelopeQueueTests|FullyQualifiedName~RadarProcessingDurableProcessingSessionTests|FullyQualifiedName~RadarProcessingDurableRecoveryTests"
   result: 18 passed, 0 failed, 0 skipped
+
+latest Release build:
+  dotnet build RadarPulse.sln -c Release --no-restore
+  result: succeeded, 0 warnings, 0 errors
+
+slice 4 focused durable rebalance suite:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~RadarProcessingDurableRebalanceSessionTests"
+  result: 4 passed, 0 failed, 0 skipped
+
+slice 1-4 durable-focused suites:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~RadarProcessingDurableEnvelopeQueueTests|FullyQualifiedName~RadarProcessingDurableProcessingSessionTests|FullyQualifiedName~RadarProcessingDurableRecoveryTests|FullyQualifiedName~RadarProcessingDurableRebalanceSessionTests"
+  result: 22 passed, 0 failed, 0 skipped
 
 latest Release build:
   dotnet build RadarPulse.sln -c Release --no-restore

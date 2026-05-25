@@ -211,7 +211,7 @@ result:
 
 ## Slice 4: Durable Ordered Rebalance Runtime
 
-Status: pending.
+Status: complete.
 
 Implementation:
 
@@ -241,6 +241,27 @@ Exit criteria:
 ```text
 durable processing and durable rebalance share the same envelope/recovery
 contract without weakening milestone 022 topology safety
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingDurableRebalanceSessionTests"
+
+result:
+  4 passed, 0 failed, 0 skipped
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingDurableEnvelopeQueueTests|FullyQualifiedName~RadarProcessingDurableProcessingSessionTests|FullyQualifiedName~RadarProcessingDurableRecoveryTests|FullyQualifiedName~RadarProcessingDurableRebalanceSessionTests"
+
+result:
+  22 passed, 0 failed, 0 skipped
+
+dotnet build RadarPulse.sln -c Release --no-restore
+
+result:
+  succeeded, 0 warnings, 0 errors
 ```
 
 ## Slice 5: Operator Summary And Gate Evidence
