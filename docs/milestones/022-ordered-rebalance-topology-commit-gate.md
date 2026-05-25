@@ -190,6 +190,62 @@ processing/rebalance-shaped workload, but topology churn causes stale delta
 recompute, increasing worker dispatches and allocation
 ```
 
+### Full-Cache Regression Matrix
+
+Result:
+
+```text
+passed
+```
+
+Evidence:
+
+```text
+docs/milestones/022-ordered-rebalance-topology-commit-full-cache-performance-matrix.md
+
+rebalance-archive default elapsed ratios versus explicit BlockingBorrowed:
+  0.883x static
+  0.891x sampling
+  0.871x rebalance-session
+
+rebalance-archive default allocation ratios versus explicit BlockingBorrowed:
+  1.002x static
+  1.001x sampling
+  1.002x rebalance-session
+
+ordered-archive-processing active=4 elapsed ratio versus active=1:
+  0.999x
+
+ordered-archive-processing active=4 steady allocation ratio versus active=1:
+  1.007x
+
+validation and processing completeness:
+  succeeded
+
+worker failed batches/items:
+  0/0
+
+retained payload pool misses:
+  0
+
+release failures:
+  0
+
+terminal combined retained pressure:
+  0
+```
+
+Interpretation:
+
+```text
+no full-cache performance regression was observed after milestone 022 ordered
+rebalance/topology commit work
+
+the full-cache workload remains archive-producer dominated, so the synthetic
+processing-bottleneck matrix remains the stronger evidence for ordered
+rebalance compute overlap
+```
+
 ## Verification
 
 Release build:

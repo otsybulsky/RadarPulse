@@ -74,6 +74,7 @@ Milestone 022 gate evidence:
 ```text
 docs/milestones/022-ordered-rebalance-topology-commit-gate.md
 docs/milestones/022-ordered-rebalance-topology-commit-processing-bottleneck-performance-matrix.md
+docs/milestones/022-ordered-rebalance-topology-commit-full-cache-performance-matrix.md
 ```
 
 Current verification:
@@ -93,6 +94,23 @@ full Release test project:
   known allocation-sensitive synthetic benchmark caveat:
     RadarProcessingSyntheticRebalanceBenchmarkTests.
       AcceptedMovePressureAggregationDoesNotCopyPreviousIterations
+
+post-gate full-cache performance matrix:
+  no full-cache performance regression observed
+  rebalance-archive default elapsed ratios:
+    0.883x static, 0.891x sampling, 0.871x rebalance-session
+  rebalance-archive default allocation ratios:
+    1.002x static, 1.001x sampling, 1.002x rebalance-session
+  ordered-archive-processing active=4 elapsed ratio versus active=1:
+    0.999x
+  ordered-archive-processing active=4 steady allocation ratio versus
+    active=1:
+    1.007x
+  validation and processing completeness passed
+  worker failed batches/items 0/0
+  retained payload pool misses 0
+  release failures 0
+  terminal combined retained pressure 0
 ```
 
 Decision-trace discussion input:
@@ -106,6 +124,8 @@ important warnings:
   handler-state delta/merge is not implemented
   topology churn can increase stale-delta recompute, worker dispatches, and
     allocation under active-batch overlap
+  full-cache rows remain archive-producer dominated, so they are regression
+    evidence rather than processing-bottleneck proof
   durable queues, brokers, cross-process workers, true live network
     ingestion, production operator/deployment/rollback surfaces, and
     product-facing workflows remain future work

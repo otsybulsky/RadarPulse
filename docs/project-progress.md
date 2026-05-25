@@ -625,7 +625,31 @@ Status:
 active as milestone 022
 architecture and implementation plan written
 implementation complete through gate capture
+post-gate full-cache performance matrix captured
 decision trace intentionally pending until gate review and discussion
+```
+
+Latest full-cache regression evidence:
+
+```text
+docs/milestones/022-ordered-rebalance-topology-commit-full-cache-performance-matrix.md
+
+rebalance-archive full-cache matrix:
+  no full-cache performance regression observed
+  default elapsed ratios versus explicit BlockingBorrowed:
+    0.883x static, 0.891x sampling, 0.871x rebalance-session
+  default allocation ratios versus explicit BlockingBorrowed:
+    1.002x static, 1.001x sampling, 1.002x rebalance-session
+
+ordered-archive-processing direct full-cache matrix:
+  active=4 elapsed ratio versus active=1: 0.999x
+  active=4 steady allocation ratio versus active=1: 1.007x
+  final processing checksum matched
+  processing completeness passed
+  worker failed batches/items 0/0
+  retained payload pool misses 0
+  release failures 0
+  terminal combined retained pressure 0
 ```
 
 Recommended next milestone:
@@ -665,6 +689,9 @@ non-mutating processing delta compute is implemented
 provider-sequence ordered processing commit is implemented
 ordered result publication is implemented
 RunProcessingAsync is available as the explicit ordered runtime/archive path
+processing-bottleneck synthetic evidence is captured
+full-cache regression evidence is captured after ordered rebalance/topology
+  commit
 startup prewarm, worker telemetry, release health, processing completeness,
 and retained pressure cleanup are visible
 ```
