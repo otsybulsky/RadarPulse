@@ -49,9 +49,9 @@ Current implementation status:
 architecture document: written
 architecture decision: written
 implementation plan: written
-implementation: slice 1 complete
+implementation: slice 2 complete
 durable envelope contract and queue harness: complete
-durable ordered processing runtime: pending
+durable ordered processing runtime: complete
 retry, recovery, cancellation, and cleanup: pending
 durable ordered rebalance runtime: pending
 operator summary and gate evidence: pending
@@ -69,6 +69,20 @@ slice 1 focused durable queue contract suite:
   result: 8 passed, 0 failed, 0 skipped
 
 Release build:
+  dotnet build RadarPulse.sln -c Release --no-restore
+  result: succeeded, 0 warnings, 0 errors
+
+slice 2 focused durable processing suite:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~RadarProcessingDurableProcessingSessionTests"
+  result: 6 passed, 0 failed, 0 skipped
+
+slice 1+2 durable-focused suites:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~RadarProcessingDurableEnvelopeQueueTests|FullyQualifiedName~RadarProcessingDurableProcessingSessionTests"
+  result: 14 passed, 0 failed, 0 skipped
+
+latest Release build:
   dotnet build RadarPulse.sln -c Release --no-restore
   result: succeeded, 0 warnings, 0 errors
 ```

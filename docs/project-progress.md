@@ -772,6 +772,7 @@ architecture document written
 architecture decision written
 implementation plan written
 slice 1 durable envelope contract and queue harness complete
+slice 2 durable ordered processing runtime complete
 remaining implementation pending
 ```
 

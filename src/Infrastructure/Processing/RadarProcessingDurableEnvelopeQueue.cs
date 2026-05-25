@@ -131,7 +131,8 @@ public sealed class RadarProcessingDurableEnvelopeQueue
                 ? RadarProcessingDurableEnvelopeState.Poison
                 : RadarProcessingDurableEnvelopeState.Failed,
             message,
-            static entry => entry.State == RadarProcessingDurableEnvelopeState.Claimed,
+            static entry => entry.State is RadarProcessingDurableEnvelopeState.Claimed or
+                RadarProcessingDurableEnvelopeState.Completed,
             static entry => entry.CompletedTimestamp = Stopwatch.GetTimestamp());
     }
 

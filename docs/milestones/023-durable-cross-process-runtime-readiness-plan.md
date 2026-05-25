@@ -97,7 +97,7 @@ result:
 
 ## Slice 2: Durable Ordered Processing Runtime
 
-Status: pending.
+Status: complete.
 
 Implementation:
 
@@ -130,6 +130,27 @@ Exit criteria:
 ```text
 durable processing proves that worker completion and ordered commit are
 separate contracts
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingDurableProcessingSessionTests"
+
+result:
+  6 passed, 0 failed, 0 skipped
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingDurableEnvelopeQueueTests|FullyQualifiedName~RadarProcessingDurableProcessingSessionTests"
+
+result:
+  14 passed, 0 failed, 0 skipped
+
+dotnet build RadarPulse.sln -c Release --no-restore
+
+result:
+  succeeded, 0 warnings, 0 errors
 ```
 
 ## Slice 3: Retry, Recovery, Cancellation, And Cleanup
