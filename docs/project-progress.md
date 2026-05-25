@@ -1,6 +1,6 @@
 # RadarPulse Project Progress
 
-Status: current after milestone 021 closeout.
+Status: current after milestone 022 start.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -20,7 +20,8 @@ Current state:
 
 ```text
 completed milestones: 001-021
-active milestone: none selected
+active milestone: 022 ordered rebalance/topology commit and
+  processing-bottleneck evidence
 
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive
@@ -54,7 +55,7 @@ current runtime/live posture:
   they inherit this default baseline unless a concrete incompatibility is
   proven
 
-current recommended next milestone:
+current active milestone:
   ordered rebalance/topology commit and processing-bottleneck performance
   evidence
 ```
@@ -618,6 +619,14 @@ current state to the intended production-ready result.
 
 ### 10. Ordered Rebalance/Topology Commit And Processing-Bottleneck Evidence
 
+Status:
+
+```text
+active as milestone 022
+architecture and implementation plan written
+decision trace intentionally pending until implementation and gate review
+```
+
 Recommended next milestone:
 
 ```text
@@ -779,7 +788,7 @@ product-facing scope has not yet been the main milestone target
 [done] prewarmed queued-owned runtime default baseline promotion
 [done] default-baseline runtime/archive integration
 [done] ordered concurrent runtime/archive processing
-[next] ordered rebalance/topology commit and processing-bottleneck evidence
+[active] ordered rebalance/topology commit and processing-bottleneck evidence
 [later] durable/cross-process runtime
 [later] production pipeline integration
 [later] product-facing completion

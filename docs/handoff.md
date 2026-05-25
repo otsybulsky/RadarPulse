@@ -1,6 +1,74 @@
-# Handoff: Milestone 021 Complete
+# Handoff: Milestone 022 Active
 
 ## Current State
+
+Milestone 022 has started. The first architecture documents are:
+
+```text
+docs/milestones/022-ordered-rebalance-topology-commit.md
+docs/milestones/022-ordered-rebalance-topology-commit-architecture-decision.md
+docs/milestones/022-ordered-rebalance-topology-commit-plan.md
+```
+
+Milestone 022 purpose:
+
+```text
+implement ordered rebalance/topology commit over the milestone 021 ordered
+processing foundation, and collect processing-bottleneck performance evidence
+before any broader default-promotion decision
+```
+
+Accepted implementation direction:
+
+```text
+compute handler-free processing deltas for multiple active rebalance batches
+without mutating shared processing or rebalance state
+commit processing deltas strictly by provider sequence
+run pressure, policy, quarantine, telemetry, decision, migration, validation,
+and topology mutation only after ordered processing commit
+validate active delta topology version at commit
+recompute stale active deltas when an earlier ordered rebalance migration
+changed topology
+preserve fail-closed queued-owned behavior, visible startup prewarm, no
+silent borrowed fallback, worker telemetry, release health, and terminal
+retained pressure cleanup
+```
+
+Milestone 022 planned slices:
+
+```text
+1. Ordered rebalance commit contract
+2. Queued rebalance ordered concurrent drain
+3. Stale topology recompute
+4. Runtime/archive integration
+5. Processing-bottleneck evidence
+6. Gate documentation
+```
+
+Current implementation status:
+
+```text
+architecture document: written
+architecture decision: written
+implementation plan: written
+implementation: not started
+decision trace: intentionally not written; stop before decision trace for
+  review
+```
+
+Carry-forward boundaries:
+
+```text
+milestone 020 provider/execution baseline remains closed
+milestone 021 non-mutating processing delta plus ordered commit remains the
+  foundation
+handler-state delta/merge is not implemented
+durable queues, brokers, cross-process workers, true live network ingestion,
+production operator/deployment/rollback surfaces, and product-facing
+workflows remain future work
+```
+
+## Milestone 021 Complete Baseline
 
 Milestone 021 is complete. The milestone documents are:
 
