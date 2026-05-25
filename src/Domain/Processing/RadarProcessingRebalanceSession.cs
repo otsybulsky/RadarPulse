@@ -98,6 +98,20 @@ public sealed class RadarProcessingRebalanceSession
         return ProcessCompletedResult(processingResult, cancellationToken);
     }
 
+    public RadarProcessingRebalanceSessionResult CommitProcessingDelta(
+        RadarProcessingBatchDelta delta,
+        RadarProcessingWorkerTelemetrySummary? workerTelemetry = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(delta);
+
+        var processingResult = core.CommitProcessingDelta(
+            delta,
+            workerTelemetry,
+            cancellationToken);
+        return ProcessCompletedResult(processingResult, cancellationToken);
+    }
+
     internal RadarProcessingRebalanceSessionResult ProcessCompletedResult(
         RadarProcessingResult processingResult,
         CancellationToken cancellationToken = default)

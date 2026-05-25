@@ -211,6 +211,57 @@ public sealed class RadarProcessingRebalanceSessionTests
     }
 
     [Fact]
+    public void OrderedDeltaCommitPreservesAcceptedMoveAgainstDirectProcess()
+    {
+        var universe = CreateUniverse(sourceCount: 4);
+        var direct = CreateSession(universe);
+        var ordered = CreateSession(universe);
+        var batch = CreateEightBitBatch(universe.Version, [0, 0, 0, 0, 1, 1]);
+
+        var directResult = direct.Process(batch);
+        using var delta = ordered.Core.ComputeProcessingDelta(batch);
+        var orderedResult = ordered.CommitProcessingDelta(delta);
+
+        Assert.True(orderedResult.ProcessingResult.IsValid);
+        Assert.True(orderedResult.Validation.IsValid);
+        Assert.Equal(directResult.PublishedMigration, orderedResult.PublishedMigration);
+        Assert.Equal(direct.CurrentTopology.Version, ordered.CurrentTopology.Version);
+        Assert.Equal(directResult.RebalanceDecision?.Kind, orderedResult.RebalanceDecision?.Kind);
+        Assert.Equal(directResult.RebalanceDecision?.MoveKind, orderedResult.RebalanceDecision?.MoveKind);
+        Assert.Equal(
+            directResult.TelemetrySummary.Counters.AcceptedMoveCount,
+            orderedResult.TelemetrySummary.Counters.AcceptedMoveCount);
+    }
+
+    [Fact]
+    public void OrderedDeltaCommitValidationFailureDoesNotEvaluateRebalance()
+    {
+        var universe = CreateUniverse(sourceCount: 1);
+        var session = CreateSession(universe, shardCount: 1);
+        var first = session.Process(CreateEightBitBatch(
+            universe.Version,
+            [0],
+            messageTimestampBase: 200));
+        using var staleTimestampDelta = session.Core.ComputeProcessingDelta(
+            CreateEightBitBatch(
+                universe.Version,
+                [0],
+                messageTimestampBase: 100));
+
+        var result = session.CommitProcessingDelta(staleTimestampDelta);
+
+        Assert.True(first.Validation.IsValid);
+        Assert.False(result.ProcessingResult.IsValid);
+        Assert.Equal(RadarProcessingValidationError.SourceOrderViolation, result.ProcessingResult.Validation.Error);
+        Assert.Null(result.PressureSample);
+        Assert.Null(result.DirectHotReliefDecision);
+        Assert.Null(result.ColdEvacuationDecision);
+        Assert.False(result.PublishedMigration);
+        Assert.Equal(1, session.PressureWindow.SampleCount);
+        Assert.Equal(1, session.PolicyState.EvaluationSequence);
+    }
+
+    [Fact]
     public void SequentialCoreIsRejectedForRebalanceSession()
     {
         var core = new RadarProcessingCore(CreateUniverse(sourceCount: 1));
@@ -220,6 +271,7 @@ public sealed class RadarProcessingRebalanceSessionTests
 
     private static RadarProcessingRebalanceSession CreateSession(
         RadarSourceUniverse universe,
+        int shardCount = 2,
         RadarProcessingQuarantineLifecycleTracker? quarantineLifecycleTracker = null,
         RadarProcessingRebalanceHardeningOptions? hardeningOptions = null)
     {
@@ -228,7 +280,7 @@ public sealed class RadarProcessingRebalanceSessionTests
             new RadarProcessingCoreOptions(
                 RadarProcessingExecutionMode.PartitionedBarrier,
                 partitionCount: universe.SourceCount,
-                shardCount: 2));
+                shardCount: shardCount));
 
         return new RadarProcessingRebalanceSession(
             core,
@@ -249,7 +301,7 @@ public sealed class RadarProcessingRebalanceSessionTests
                     superHotEnterThreshold: 10.0)),
             new RadarProcessingRebalancePolicyState(
                 universe.SourceCount,
-                shardCount: 2,
+                shardCount: shardCount,
                 new RadarProcessingRebalanceOptions(
                     budgetWindowEvaluationCount: 4,
                     globalMoveBudgetPerWindow: 4,
@@ -299,7 +351,8 @@ public sealed class RadarProcessingRebalanceSessionTests
 
     private static RadarEventBatch CreateEightBitBatch(
         SourceUniverseVersion sourceUniverseVersion,
-        int[] sourceIds)
+        int[] sourceIds,
+        long messageTimestampBase = 100)
     {
         var events = new RadarStreamEvent[sourceIds.Length];
         var payload = new byte[sourceIds.Length];
@@ -308,7 +361,7 @@ public sealed class RadarProcessingRebalanceSessionTests
         {
             events[i] = CreateEvent(
                 sourceIds[i],
-                messageTimestampUtcTicks: 100 + i,
+                messageTimestampUtcTicks: messageTimestampBase + i,
                 payloadOffset: i);
             payload[i] = (byte)(i + 1);
         }

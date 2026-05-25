@@ -45,7 +45,7 @@ rebalance/topology state in provider sequence.
 
 ## Slice 1: Ordered Rebalance Commit Contract
 
-Status: pending.
+Status: complete.
 
 Implementation:
 
@@ -74,6 +74,16 @@ Exit criteria:
 ```text
 ordered rebalance commit has a narrow domain-level helper before queued
 session concurrency is added
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingRebalanceSessionTests"
+
+result:
+  10 passed, 0 failed, 0 skipped
 ```
 
 ## Slice 2: Queued Rebalance Ordered Concurrent Drain
