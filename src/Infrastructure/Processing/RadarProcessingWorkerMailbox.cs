@@ -48,8 +48,10 @@ public sealed class RadarProcessingWorkerMailbox<TWork> : IDisposable
                 RadarProcessingWorkerMailboxEnqueueStatus.Closed);
         }
 
+        Interlocked.Increment(ref pendingCount);
         if (!channel.Writer.TryWrite(work))
         {
+            Interlocked.Decrement(ref pendingCount);
             return new RadarProcessingWorkerMailboxEnqueueResult(
                 IsDisposed
                     ? RadarProcessingWorkerMailboxEnqueueStatus.Disposed
@@ -58,7 +60,6 @@ public sealed class RadarProcessingWorkerMailbox<TWork> : IDisposable
                         : RadarProcessingWorkerMailboxEnqueueStatus.Full);
         }
 
-        Interlocked.Increment(ref pendingCount);
         return new RadarProcessingWorkerMailboxEnqueueResult(
             RadarProcessingWorkerMailboxEnqueueStatus.Accepted);
     }

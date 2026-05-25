@@ -34,7 +34,8 @@ public sealed record RadarProcessingSyntheticRebalanceBenchmarkResult(
     double QuarantineMaterialPressureChangeThreshold = 0.25,
     RadarProcessingRebalanceAllocationSummary AllocationSummary = default,
     RadarProcessingExecutionMode ExecutionMode = RadarProcessingExecutionMode.PartitionedBarrier,
-    RadarProcessingWorkerTelemetrySummary? WorkerTelemetry = null)
+    RadarProcessingWorkerTelemetrySummary? WorkerTelemetry = null,
+    int OrderedActiveBatchCapacity = 1)
 {
     public bool HasWorkerTelemetry => WorkerTelemetry is not null;
 

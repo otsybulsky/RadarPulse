@@ -4,5 +4,6 @@ public enum RadarProcessingSyntheticRebalanceBenchmarkMode
 {
     StaticNoRebalance = 0,
     PressureSamplingOnly,
-    RebalanceSession
+    RebalanceSession,
+    OrderedRebalanceSession
 }

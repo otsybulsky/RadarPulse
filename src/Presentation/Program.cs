@@ -182,7 +182,7 @@ static int PrintUsage()
     Console.WriteLine("  radarpulse archive benchmark replay-publish --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse archive benchmark stream (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse processing benchmark synthetic [--mode sequential|partitioned|async] [--sources n] [--batches n] [--events-per-batch n] [--payload-values n] [--partitions n] [--shards n] [--workers n] [--queue-capacity n] [--handlers none|counter-checksum] [--iterations n] [--warmup-iterations n]");
-    Console.WriteLine("  radarpulse processing benchmark rebalance-synthetic [--workload balanced|hot-shard|intrinsic-hot|oscillating|cooldown-storm|quarantine-ttl-retry|quarantine-cooling-clear|quarantine-pressure-change-retry|quarantine-retry-reentry|quarantine-successful-relief-clear|long-no-hot-shard|long-cooldown-rejection|long-unsafe-target-rejection|long-mixed-skipped-reasons|counters-only-retention|all] [--mode static|sampling|rebalance|all] [--execution sync|async] [--workers n] [--queue-capacity n] [--validation-profile off|essential|diagnostic|benchmark] [--quarantine-ttl-evaluations n] [--quarantine-sustained-cooling-samples n] [--quarantine-material-pressure-change n] [--iterations n] [--warmup-iterations n]");
+    Console.WriteLine("  radarpulse processing benchmark rebalance-synthetic [--workload balanced|hot-shard|intrinsic-hot|oscillating|cooldown-storm|quarantine-ttl-retry|quarantine-cooling-clear|quarantine-pressure-change-retry|quarantine-retry-reentry|quarantine-successful-relief-clear|long-no-hot-shard|long-cooldown-rejection|long-unsafe-target-rejection|long-mixed-skipped-reasons|counters-only-retention|all] [--mode static|sampling|rebalance|ordered-rebalance|all] [--active-batches n] [--execution sync|async] [--workers n] [--queue-capacity n] [--validation-profile off|essential|diagnostic|benchmark] [--quarantine-ttl-evaluations n] [--quarantine-sustained-cooling-samples n] [--quarantine-material-pressure-change n] [--iterations n] [--warmup-iterations n]");
     Console.WriteLine("  radarpulse processing benchmark rebalance-archive (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--mode static|sampling|rebalance|all] [--provider blocking-borrowed|queued-owned] [--provider-overlap none|producer-consumer] [--retention-strategy snapshot-copy|pooled-copy|builder-transfer] [--execution sync|async] [--workers n] [--queue-capacity n] [--queue-timeout-ms n] [--queue-retained-bytes n] [--queue-telemetry none|summary|recent] [--overlap-telemetry none|summary|recent] [--overlap-consumer-delay-ms n] [--partitions n] [--shards n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress] [--validation-profile off|essential|diagnostic|benchmark] [--quarantine-ttl-evaluations n] [--quarantine-sustained-cooling-samples n] [--quarantine-material-pressure-change n] [--retention-mode counters|recent|diagnostic] [--max-retained-decisions n] [--max-retained-transitions n] [--max-retained-accepted-moves n] [--max-retained-validation-failures n] [--skew-profile none|hot-shard|rotating-hot-shard|hot-partition|target-starvation|budget-storm] [--skew-factor n] [--skew-period n]");
     Console.WriteLine("  radarpulse processing benchmark ordered-archive-processing (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--active-batches n] [--partitions n] [--shards n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress] [--queue-telemetry none|summary|recent] [--overlap-telemetry none|summary|recent]");
     Console.WriteLine("    rebalance-archive omitted-provider default: queued-owned + pooled-copy + producer-consumer, async workers 4, queue capacity 8, retained-byte budget 536870912, retained-payload prewarm on.");
@@ -432,7 +432,8 @@ static int BenchmarkProcessingRebalanceSynthetic(string[] args)
                 CancellationToken.None,
                 hardeningOptions,
                 options.ExecutionMode,
-                options.AsyncExecution);
+                options.AsyncExecution,
+                options.OrderedActiveBatchCapacity);
 
             PrintProcessingRebalanceBenchmarkResult(result);
             printedResult = true;
@@ -642,6 +643,7 @@ static void PrintProcessingRebalanceBenchmarkResult(RadarProcessingSyntheticReba
     Console.WriteLine($"Execution mode: {FormatProcessingMode(result.ExecutionMode)}");
     Console.WriteLine($"Workload: {FormatProcessingRebalanceWorkload(result.WorkloadKind)}");
     Console.WriteLine($"Benchmark mode: {FormatProcessingRebalanceMode(result.Mode)}");
+    Console.WriteLine($"Ordered active batch capacity: {FormatNumber(result.OrderedActiveBatchCapacity)}");
     Console.WriteLine($"Validation profile: {FormatProcessingValidationProfile(result.ValidationProfile)}");
     Console.WriteLine($"Telemetry retention mode: {FormatProcessingRetentionMode(result.RetentionMode)}");
     PrintProcessingQuarantineLifecycle(
@@ -1509,6 +1511,7 @@ static string FormatProcessingRebalanceMode(RadarProcessingSyntheticRebalanceBen
         RadarProcessingSyntheticRebalanceBenchmarkMode.StaticNoRebalance => "static",
         RadarProcessingSyntheticRebalanceBenchmarkMode.PressureSamplingOnly => "sampling",
         RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession => "rebalance-session",
+        RadarProcessingSyntheticRebalanceBenchmarkMode.OrderedRebalanceSession => "ordered-rebalance-session",
         _ => mode.ToString()
     };
 
@@ -2945,7 +2948,8 @@ public sealed record ProcessingBenchmarkRebalanceSyntheticOptions(
     int Iterations,
     int WarmupIterations,
     RadarProcessingExecutionMode ExecutionMode = RadarProcessingExecutionMode.PartitionedBarrier,
-    RadarProcessingAsyncExecutionOptions? AsyncExecution = null)
+    RadarProcessingAsyncExecutionOptions? AsyncExecution = null,
+    int OrderedActiveBatchCapacity = RadarProcessingRuntimeArchiveBaseline.OrderedActiveBatchCapacity)
 {
     private const int DefaultAsyncWorkerCount = 2;
     private const int DefaultAsyncQueueCapacity = 1;
@@ -2975,7 +2979,8 @@ public sealed record ProcessingBenchmarkRebalanceSyntheticOptions(
         [
             RadarProcessingSyntheticRebalanceBenchmarkMode.StaticNoRebalance,
             RadarProcessingSyntheticRebalanceBenchmarkMode.PressureSamplingOnly,
-            RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession
+            RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession,
+            RadarProcessingSyntheticRebalanceBenchmarkMode.OrderedRebalanceSession
         ]);
 
     public static ProcessingBenchmarkRebalanceSyntheticOptions Parse(string[] args)
@@ -2994,6 +2999,7 @@ public sealed record ProcessingBenchmarkRebalanceSyntheticOptions(
         var executionMode = RadarProcessingExecutionMode.PartitionedBarrier;
         int? workerCount = null;
         int? queueCapacity = null;
+        var orderedActiveBatchCapacity = RadarProcessingRuntimeArchiveBaseline.OrderedActiveBatchCapacity;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -3013,6 +3019,10 @@ public sealed record ProcessingBenchmarkRebalanceSyntheticOptions(
                     break;
                 case "--queue-capacity":
                     queueCapacity = int.Parse(RequireValue(args, ref i, "--queue-capacity"));
+                    break;
+                case "--active-batches":
+                case "--ordered-active-batches":
+                    orderedActiveBatchCapacity = int.Parse(RequireValue(args, ref i, args[i]));
                     break;
                 case "--validation-profile":
                     validationProfile = ParseValidationProfile(RequireValue(args, ref i, "--validation-profile"));
@@ -3062,6 +3072,11 @@ public sealed record ProcessingBenchmarkRebalanceSyntheticOptions(
             throw new InvalidOperationException("--queue-capacity must be greater than zero.");
         }
 
+        if (orderedActiveBatchCapacity <= 0)
+        {
+            throw new InvalidOperationException("--active-batches must be greater than zero.");
+        }
+
         RadarProcessingAsyncExecutionOptions? asyncExecution = null;
         if (executionMode == RadarProcessingExecutionMode.AsyncShardTransport)
         {
@@ -3088,7 +3103,8 @@ public sealed record ProcessingBenchmarkRebalanceSyntheticOptions(
             iterations,
             warmupIterations,
             executionMode,
-            asyncExecution);
+            asyncExecution,
+            orderedActiveBatchCapacity);
     }
 
     private static IReadOnlyList<RadarProcessingSyntheticRebalanceWorkloadKind> ParseWorkload(string value) =>
@@ -3138,6 +3154,8 @@ public sealed record ProcessingBenchmarkRebalanceSyntheticOptions(
                 Single(RadarProcessingSyntheticRebalanceBenchmarkMode.PressureSamplingOnly),
             "rebalance" or "session" or "rebalance-session" =>
                 Single(RadarProcessingSyntheticRebalanceBenchmarkMode.RebalanceSession),
+            "ordered" or "ordered-rebalance" or "ordered-rebalance-session" =>
+                Single(RadarProcessingSyntheticRebalanceBenchmarkMode.OrderedRebalanceSession),
             _ => throw new ArgumentException($"Unknown synthetic rebalance benchmark mode: {value}")
         };
 

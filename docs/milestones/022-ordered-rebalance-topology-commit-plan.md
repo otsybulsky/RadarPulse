@@ -225,7 +225,7 @@ result:
 
 ## Slice 5: Processing-Bottleneck Evidence
 
-Status: pending.
+Status: complete.
 
 Implementation:
 
@@ -252,6 +252,42 @@ Exit criteria:
 ```text
 the milestone has evidence where processing/rebalance is the meaningful
 bottleneck before any broader promotion discussion
+```
+
+Verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore
+
+result:
+  succeeded, 0 warnings, 0 errors
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingSyntheticRebalanceBenchmarkTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+
+result:
+  48 passed, 0 failed, 0 skipped
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+  --no-restore --no-build
+  --filter "FullyQualifiedName~RadarProcessingSyntheticRebalanceBenchmarkTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+
+result:
+  48 passed, 0 failed, 0 skipped
+```
+
+Performance matrix:
+
+```text
+docs/milestones/022-ordered-rebalance-topology-commit-processing-bottleneck-performance-matrix.md
+
+ordered-rebalance synthetic processing/rebalance workload:
+  active=4 elapsed ratio versus active=1: 0.891x
+  active=4 allocation ratio versus active=1: 1.137x
+  validation checksum matched
+  accepted moves matched at 2_000 vs 2_000
+  failed migrations 0
+  worker failed batches/items 0/0
 ```
 
 ## Slice 6: Gate Documentation

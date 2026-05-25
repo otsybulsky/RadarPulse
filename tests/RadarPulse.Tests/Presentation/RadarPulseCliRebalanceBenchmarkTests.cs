@@ -29,6 +29,8 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
             "2",
             "--queue-capacity",
             "1",
+            "--active-batches",
+            "3",
             "--iterations",
             "2",
             "--warmup-iterations",
@@ -53,6 +55,24 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
         Assert.NotNull(options.AsyncExecution);
         Assert.Equal(2, options.AsyncExecution.WorkerCount);
         Assert.Equal(1, options.AsyncExecution.QueueCapacity);
+        Assert.Equal(3, options.OrderedActiveBatchCapacity);
+    }
+
+    [Fact]
+    public void RebalanceBenchmarkOptionsParseOrderedRebalanceMode()
+    {
+        var options = global::ProcessingBenchmarkRebalanceSyntheticOptions.Parse(
+        [
+            "--mode",
+            "ordered-rebalance",
+            "--active-batches",
+            "4"
+        ]);
+
+        Assert.Equal(
+            [RadarProcessingSyntheticRebalanceBenchmarkMode.OrderedRebalanceSession],
+            options.Modes);
+        Assert.Equal(4, options.OrderedActiveBatchCapacity);
     }
 
     [Fact]
@@ -116,6 +136,15 @@ public sealed class RadarPulseCliRebalanceBenchmarkTests
                 "--quarantine-ttl-evaluations",
                 "0"
             ]));
+
+        var activeBatchException = Assert.Throws<InvalidOperationException>(
+            () => global::ProcessingBenchmarkRebalanceSyntheticOptions.Parse(
+            [
+                "--active-batches",
+                "0"
+            ]));
+
+        Assert.Contains("--active-batches must be greater than zero", activeBatchException.Message);
     }
 
     [Fact]
