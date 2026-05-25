@@ -626,7 +626,8 @@ active as milestone 022
 architecture and implementation plan written
 implementation complete through gate capture
 post-gate full-cache performance matrix captured
-decision trace intentionally pending until gate review and discussion
+decision trace written
+closeout pending
 ```
 
 Latest full-cache regression evidence:
@@ -655,31 +656,29 @@ ordered-archive-processing direct full-cache matrix:
 Recommended next milestone:
 
 ```text
-ordered rebalance/topology commit and processing-bottleneck performance
-evidence
+close out milestone 022, then move to durable/cross-process runtime readiness
 ```
 
 Goal:
 
 ```text
-extend the ordered processing foundation toward rebalance/topology safety and
-collect workload evidence where processing, not archive replay, is the
-dominant bottleneck before broader default promotion
+implemented ordered rebalance/topology commit over the ordered processing
+foundation and captured processing-bottleneck plus full-cache regression
+evidence before broader default promotion
 ```
 
-Likely required work:
+Completed work:
 
 ```text
 rebalance pressure, policy, quarantine, telemetry, decision, and topology
-  ordered commit design
-handler-state delta/merge decision if handler cores need ordered concurrency
+  ordered commit design implemented for handler-free processing deltas
 accepted-move evidence preservation across ordered active batches
 topology-version validation under overlapping compute
 failure, cancellation, release, and retained pressure cleanup with
   rebalance/topology work in flight
-processing-bottleneck synthetic or representative archive-shaped matrices
-repeated variance evidence if the ordered path is considered for broader
-default promotion
+processing-bottleneck synthetic matrix captured
+full-cache regression matrix captured
+decision trace written
 ```
 
 Prepared by current state:
@@ -689,6 +688,8 @@ non-mutating processing delta compute is implemented
 provider-sequence ordered processing commit is implemented
 ordered result publication is implemented
 RunProcessingAsync is available as the explicit ordered runtime/archive path
+RunOrderedRebalanceAsync is accepted as the explicit ordered
+  runtime/archive rebalance path
 processing-bottleneck synthetic evidence is captured
 full-cache regression evidence is captured after ordered rebalance/topology
   commit
@@ -707,7 +708,7 @@ true live network ingestion
 
 ### 11. Durable And Cross-Process Runtime
 
-Future milestone after ordered rebalance/topology commit readiness.
+Future milestone after milestone 022 closeout.
 
 Goal:
 

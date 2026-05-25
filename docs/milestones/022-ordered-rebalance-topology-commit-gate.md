@@ -1,9 +1,8 @@
 # Milestone 022: Ordered Rebalance/Topology Commit Gate
 
-Status: gate captured; decision trace intentionally not written.
+Status: gate captured; decision trace written.
 
-This document records milestone 022 gate evidence for review before the
-decision trace discussion.
+This document records milestone 022 gate evidence used by the decision trace.
 
 ## Gate Question
 
@@ -67,7 +66,7 @@ true live network ingestion
 production deployment/operator/rollback surfaces
 product-facing radar workflows
 automatic silent borrowed fallback
-decision trace or closeout
+closeout
 ```
 
 ## Gate Results
@@ -337,4 +336,11 @@ full-suite allocation sensitivity remains for one synthetic benchmark test
 
 ## Decision Trace
 
-Do not write the decision trace yet. Stop here for review and discussion.
+```text
+written:
+  docs/milestones/022-ordered-rebalance-topology-commit-decision-trace.md
+
+decision:
+  accepted with scoped warnings for ordered rebalance/topology commit over the
+  scoped in-process runtime/archive queued-overlap path
+```

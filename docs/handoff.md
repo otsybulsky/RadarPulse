@@ -1,13 +1,18 @@
-# Handoff: Milestone 022 Active
+# Handoff: Milestone 022 Decision Accepted
 
 ## Current State
 
-Milestone 022 has started. The first architecture documents are:
+Milestone 022 implementation and decision trace are complete. Closeout is
+pending. The primary milestone documents are:
 
 ```text
 docs/milestones/022-ordered-rebalance-topology-commit.md
 docs/milestones/022-ordered-rebalance-topology-commit-architecture-decision.md
 docs/milestones/022-ordered-rebalance-topology-commit-plan.md
+docs/milestones/022-ordered-rebalance-topology-commit-gate.md
+docs/milestones/022-ordered-rebalance-topology-commit-processing-bottleneck-performance-matrix.md
+docs/milestones/022-ordered-rebalance-topology-commit-full-cache-performance-matrix.md
+docs/milestones/022-ordered-rebalance-topology-commit-decision-trace.md
 ```
 
 Milestone 022 purpose:
@@ -53,8 +58,8 @@ architecture decision: written
 implementation plan: written
 implementation: complete through gate capture
 gate: written
-decision trace: intentionally not written; stopped before decision trace for
-  review and discussion
+decision trace: written
+closeout: not written
 ```
 
 Carry-forward boundaries:
@@ -75,6 +80,7 @@ Milestone 022 gate evidence:
 docs/milestones/022-ordered-rebalance-topology-commit-gate.md
 docs/milestones/022-ordered-rebalance-topology-commit-processing-bottleneck-performance-matrix.md
 docs/milestones/022-ordered-rebalance-topology-commit-full-cache-performance-matrix.md
+docs/milestones/022-ordered-rebalance-topology-commit-decision-trace.md
 ```
 
 Current verification:
@@ -113,10 +119,33 @@ post-gate full-cache performance matrix:
   terminal combined retained pressure 0
 ```
 
-Decision-trace discussion input:
+Decision trace:
 
 ```text
-recommended posture is accepted with scoped warnings for ordered
+accepted with scoped warnings for ordered rebalance/topology commit over the
+scoped in-process runtime/archive queued-overlap path
+
+the accepted surface can keep multiple accepted rebalance batches active for
+handler-free processing-delta compute while committing processing,
+rebalance decisions, validation, and topology mutation deterministically in
+provider sequence
+
+important warnings:
+  handler-state delta/merge is not implemented
+  topology churn can increase stale-delta recompute, worker dispatches, and
+    allocation under active-batch overlap
+  full-cache rows remain archive-producer dominated, so they are regression
+    evidence rather than processing-bottleneck proof
+  durable queues, brokers, cross-process workers, true live network
+    ingestion, production operator/deployment/rollback surfaces, and
+    product-facing workflows remain future work
+  one full-suite allocation-sensitive synthetic benchmark caveat remains
+```
+
+Closeout input:
+
+```text
+recommended closeout posture remains accepted with scoped warnings for
 rebalance/topology commit over the scoped in-process runtime/archive
 queued-overlap path
 

@@ -1,6 +1,6 @@
 # Milestone 022: Ordered Rebalance/Topology Commit Implementation Plan
 
-Status: active plan.
+Status: complete through decision trace; closeout pending.
 
 This plan implements the milestone 022 architecture defined in
 `022-ordered-rebalance-topology-commit.md` and the accepted implementation
@@ -292,7 +292,7 @@ ordered-rebalance synthetic processing/rebalance workload:
 
 ## Slice 6: Gate Documentation
 
-Status: complete; stopped before decision trace.
+Status: complete; decision trace written.
 
 Implementation:
 
@@ -302,7 +302,7 @@ record focused test commands and results
 record full Release test result and any known caveats
 record performance matrix result
 update handoff and project-progress after gate capture
-stop before decision trace for review and discussion
+write decision trace after gate review and discussion
 ```
 
 Exit criteria:
@@ -319,7 +319,7 @@ gate written:
   docs/milestones/022-ordered-rebalance-topology-commit-gate.md
 
 decision trace:
-  intentionally not written
+  docs/milestones/022-ordered-rebalance-topology-commit-decision-trace.md
 ```
 
 ## Verification Targets

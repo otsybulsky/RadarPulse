@@ -1,6 +1,6 @@
 # Milestone 022: Ordered Rebalance/Topology Commit Architecture
 
-Status: active concept.
+Status: accepted by decision trace; closeout pending.
 
 RadarPulse milestone 022 starts from the closed milestone 021 ordered
 runtime/archive processing foundation.
