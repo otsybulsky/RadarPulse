@@ -1,6 +1,6 @@
 # RadarPulse Project Progress
 
-Status: current after milestone 022 start.
+Status: current after milestone 023 plan start.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -13,15 +13,15 @@ production-ready result.
 RadarPulse has completed the direct archive benchmark default-readiness path,
 the first runtime/live ingestion readiness decision, the prewarmed queued-owned
 runtime/archive default-baseline promotion, the default-baseline
-runtime/archive owned-construction integration milestone, and the scoped
-ordered concurrent runtime/archive processing milestone.
+runtime/archive owned-construction integration milestone, the scoped ordered
+concurrent runtime/archive processing milestone, and the ordered
+rebalance/topology commit milestone.
 
 Current state:
 
 ```text
-completed milestones: 001-021
-active milestone: 022 ordered rebalance/topology commit and
-  processing-bottleneck evidence
+completed milestones: 001-022
+active milestone: 023 durable/cross-process runtime readiness
 
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive
@@ -48,16 +48,20 @@ current runtime/live posture:
   non-mutating per-batch delta compute plus provider-sequence ordered commit
   is accepted as the safe architecture for overlapping processing-core
   batches
+  scoped runtime/archive rebalance can keep multiple accepted batches active
+  for handler-free processing-delta compute while committing processing,
+  rebalance decisions, validation, and topology mutation deterministically in
+  provider sequence
   caller-supplied processing cores and rebalance sessions remain explicit and
   are not silently rewritten
-  true live network ingestion, durable queues, cross-process runtime, and
-  ordered concurrent rebalance/topology commit are not implemented yet, but
-  they inherit this default baseline unless a concrete incompatibility is
-  proven
+  durable/cross-process runtime readiness is now active and should inherit
+  this default baseline unless a concrete ownership-boundary incompatibility
+  is proven
+  true live network ingestion and production deployment/rollback/operator
+  surfaces are not implemented yet
 
 current active milestone:
-  ordered rebalance/topology commit and processing-bottleneck performance
-  evidence
+  durable/cross-process runtime readiness
 ```
 
 The current accepted direct benchmark contour is:
@@ -134,6 +138,34 @@ commit note:
   state mutates only through provider-sequence ordered commit
 ```
 
+The current accepted ordered runtime/archive rebalance contour is:
+
+```text
+surface:
+  RadarProcessingArchiveQueuedOverlapRunner.RunOrderedRebalanceAsync
+  RadarProcessingQueuedRebalanceSession.DrainOrderedConcurrentAsync
+  RadarProcessingRebalanceSession ordered-delta commit path
+  rebalance benchmark ordered active-batch evidence
+
+effective contour:
+  provider mode: queued-owned
+  provider overlap: producer-consumer
+  retention strategy: pooled-copy
+  provider queue capacity: 8
+  retained-byte budget: 536870912
+  startup retained payload prewarm: enabled and visible
+  execution: async shard transport
+  worker count: 4
+  worker queue capacity: 8
+  ordered active batch capacity: 4
+
+commit note:
+  active rebalance batches may compute handler-free processing deltas
+  concurrently, but processing, pressure, policy, quarantine, telemetry,
+  decision, validation, and topology mutation commit only in provider
+  sequence
+```
+
 The current accepted readiness answers are:
 
 ```text
@@ -154,6 +186,12 @@ ordered runtime/archive processing readiness:
   concurrently, and publish externally visible processing results in
   deterministic provider sequence order over the accepted milestone 020
   baseline
+
+ordered runtime/archive rebalance readiness:
+  yes with scoped warnings, the scoped in-process runtime/archive rebalance
+  path can keep multiple accepted batches active for handler-free
+  processing-delta compute while committing processing, rebalance decisions,
+  validation, and topology mutation deterministically in provider sequence
 ```
 
 The named warnings carried forward are:
@@ -174,16 +212,21 @@ runtime startup prewarm:
   baseline; it must not be hidden inside steady measured allocation
 
 runtime coverage:
-  true live ingestion, durable queues, cross-process workers, production
-  runtime selection/reporting, ordered concurrent rebalance/topology commit,
-  handler-state delta/merge, and repeated variance gates remain future
-  implementation work that should inherit the accepted default baseline unless
-  a concrete surface incompatibility is proven
+  durable queues and cross-process workers are active milestone 023 work;
+  true live ingestion, production runtime selection/reporting,
+  handler-state delta/merge, and repeated variance gates remain future work
+  that should inherit the accepted default baseline unless a concrete surface
+  incompatibility is proven
 
 ordered processing performance breadth:
   direct full-cache ordered-processing evidence is clean, but the measured
   full-cache workload is archive-producer dominated; processing-bottleneck
   matrices remain useful before broad default promotion
+
+ordered rebalance topology breadth:
+  milestone 022 accepted ordered rebalance/topology commit for the scoped
+  in-process path, but durable/cross-process ownership, recovery, retry, and
+  operator-visible blocking state remain separate milestone 023 work
 
 callback attribution:
   full-cache milestone 020 rows did not regress end-to-end, but queued-owned
@@ -721,26 +764,42 @@ true live network ingestion
 
 ### 11. Durable And Cross-Process Runtime
 
-Future milestone after milestone 022.
+Status:
+
+```text
+active as milestone 023
+architecture document written
+architecture decision written
+implementation plan written
+implementation pending
+```
+
+Milestone documents:
+
+```text
+docs/milestones/023-durable-cross-process-runtime-readiness.md
+docs/milestones/023-durable-cross-process-runtime-readiness-architecture-decision.md
+docs/milestones/023-durable-cross-process-runtime-readiness-plan.md
+```
 
 Goal:
 
 ```text
-implement durable queues, brokers, or cross-process providers/workers using
-the accepted prewarmed queued-owned default baseline unless a concrete
-ownership-boundary incompatibility is proven
+implement durable/cross-process runtime readiness using the accepted
+prewarmed queued-owned default baseline, ordered processing commit, and
+ordered rebalance/topology commit unless a concrete ownership-boundary
+incompatibility is proven
 ```
 
-Likely required work:
+Planned work:
 
 ```text
-durable queue or broker contract
-cross-process retained payload ownership model
-worker-local state and transfer boundaries
-durable-safe ordered commit and recovery policy
-failure, retry, cancellation, and cleanup semantics across process boundaries
-operator-visible recovery and fallback policy
-Release gates over durable/cross-process workloads
+durable envelope contract and queue harness
+durable ordered processing runtime
+retry, recovery, cancellation, and cleanup semantics
+durable ordered rebalance runtime
+operator-visible summary and gate evidence
+pre-decision trace review point
 ```
 
 Prepared by current state:
@@ -753,6 +812,16 @@ ordered processing commit is accepted for runtime/archive processing
 ordered rebalance/topology commit is accepted for runtime/archive rebalance
 retained pressure, cleanup, release, telemetry, validation, prewarm
 attribution, and processing-completeness guardrails can inform durable design
+```
+
+Still not implemented:
+
+```text
+production broker adapters
+true live network ingestion
+production deployment/rollback/runbooks
+handler-state delta/merge
+exactly-once production delivery claims
 ```
 
 ### 12. Production Pipeline Integration
@@ -832,8 +901,8 @@ product-facing scope has not yet been the main milestone target
 [done] prewarmed queued-owned runtime default baseline promotion
 [done] default-baseline runtime/archive integration
 [done] ordered concurrent runtime/archive processing
-[active] ordered rebalance/topology commit and processing-bottleneck evidence
-[later] durable/cross-process runtime
+[done] ordered rebalance/topology commit and processing-bottleneck evidence
+[active] durable/cross-process runtime
 [later] production pipeline integration
 [later] product-facing completion
 ```

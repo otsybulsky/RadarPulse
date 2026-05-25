@@ -1,6 +1,82 @@
-# Handoff: Milestone 022 Complete
+# Handoff: Milestone 023 Active
 
 ## Current State
+
+Milestone 023 is active. The primary milestone documents are:
+
+```text
+docs/milestones/023-durable-cross-process-runtime-readiness.md
+docs/milestones/023-durable-cross-process-runtime-readiness-architecture-decision.md
+docs/milestones/023-durable-cross-process-runtime-readiness-plan.md
+```
+
+Milestone 023 purpose:
+
+```text
+implement durable/cross-process runtime readiness over the accepted
+runtime/archive baseline using a broker-neutral durable envelope contract and
+deterministic in-process durable harness
+```
+
+Accepted implementation direction:
+
+```text
+accept owned runtime/archive batches into durable envelopes
+assign stable batch ids and provider sequences
+make worker claim, completion, failure, abandon, retry, poison, commit, and
+release states explicit
+allow worker completion out of provider order while committing processing and
+rebalance/topology state only by provider sequence
+preserve fail-closed queued-owned behavior, visible startup prewarm, no
+silent borrowed fallback, worker telemetry, release health, terminal retained
+pressure cleanup, and operator-visible recovery state
+```
+
+Milestone 023 planned slices:
+
+```text
+1. Durable envelope contract and queue harness
+2. Durable ordered processing runtime
+3. Retry, recovery, cancellation, and cleanup
+4. Durable ordered rebalance runtime
+5. Operator summary and gate evidence
+6. Pre-decision trace review point
+```
+
+Current implementation status:
+
+```text
+architecture document: written
+architecture decision: written
+implementation plan: written
+implementation: not started
+gate: not written
+decision trace: not written
+closeout: not written
+```
+
+Carry-forward boundaries:
+
+```text
+milestone 020 provider/execution baseline remains closed
+milestone 021 non-mutating processing delta plus ordered commit remains the
+  foundation
+milestone 022 ordered rebalance/topology commit remains the foundation
+production broker adapters are not implemented in this milestone unless a
+  later decision explicitly changes scope
+true live network ingestion, production deployment/rollback/runbooks,
+handler-state delta/merge, cross-machine performance certification, and
+exactly-once production delivery claims remain future work
+```
+
+Stop point:
+
+```text
+implementation should proceed slice by slice with commits after each slice.
+Stop before writing the milestone 023 decision trace for review.
+```
+
+## Milestone 022 Complete Baseline
 
 Milestone 022 is complete. The primary milestone documents are:
 
