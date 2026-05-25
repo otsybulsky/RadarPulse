@@ -134,7 +134,7 @@ result:
 
 ## Slice 3: Stale Topology Recompute
 
-Status: pending.
+Status: complete.
 
 Implementation:
 
@@ -165,6 +165,16 @@ Exit criteria:
 ```text
 topology-version safety is explicit and stale active work is corrected rather
 than silently committed or unnecessarily faulted
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingQueuedRebalanceSessionTests"
+
+result:
+  13 passed, 0 failed, 0 skipped
 ```
 
 ## Slice 4: Runtime/Archive Integration

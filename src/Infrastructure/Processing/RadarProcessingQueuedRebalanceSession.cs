@@ -512,7 +512,10 @@ public sealed class RadarProcessingQueuedRebalanceSession : IDisposable, IAsyncD
                     ? RadarProcessingQueuedBatchProcessingResult.SkippedAfterFault(
                         completion.Sequence,
                         faultMessage)
-                    : completion.Commit(rebalanceSession, activeCancellation.Token);
+                    : completion.Commit(
+                        rebalanceSession,
+                        asyncRebalanceSession,
+                        activeCancellation.Token);
                 RecordProcessingResult(result);
                 nextPublishSequence++;
 
@@ -864,6 +867,7 @@ public sealed class RadarProcessingQueuedRebalanceSession : IDisposable, IAsyncD
 
         public RadarProcessingQueuedBatchProcessingResult Commit(
             RadarProcessingRebalanceSession rebalanceSession,
+            RadarProcessingAsyncRebalanceSession? asyncRebalanceSession,
             CancellationToken cancellationToken)
         {
             ArgumentNullException.ThrowIfNull(rebalanceSession);
@@ -877,12 +881,51 @@ public sealed class RadarProcessingQueuedRebalanceSession : IDisposable, IAsyncD
                 throw new InvalidOperationException("Ordered concurrent rebalance completion has no delta or result.");
             }
 
+            RecomputeStaleDeltaIfNeeded(
+                rebalanceSession,
+                asyncRebalanceSession,
+                cancellationToken);
+
             var rebalanceResult = rebalanceSession.CommitProcessingDelta(
                 delta,
                 workerTelemetry,
                 cancellationToken);
             processingResult = CreateProcessingResult(Sequence, rebalanceResult);
             return processingResult;
+        }
+
+        private void RecomputeStaleDeltaIfNeeded(
+            RadarProcessingRebalanceSession rebalanceSession,
+            RadarProcessingAsyncRebalanceSession? asyncRebalanceSession,
+            CancellationToken cancellationToken)
+        {
+            if (delta is null ||
+                delta.Route.TopologyVersion == rebalanceSession.CurrentTopology.Version)
+            {
+                return;
+            }
+
+            if (batch is null)
+            {
+                throw new InvalidOperationException("Ordered rebalance stale topology recompute requires the source batch.");
+            }
+
+            DisposeCurrentDelta();
+            if (asyncRebalanceSession is not null)
+            {
+                asyncDelta = asyncRebalanceSession
+                    .AsyncCoreSession
+                    .ComputeDeltaAsync(batch, cancellationToken)
+                    .AsTask()
+                    .GetAwaiter()
+                    .GetResult();
+                delta = asyncDelta.Delta;
+                workerTelemetry = asyncDelta.WorkerTelemetry;
+                return;
+            }
+
+            delta = rebalanceSession.Core.ComputeProcessingDelta(batch, cancellationToken);
+            workerTelemetry = null;
         }
 
         public void Dispose()
@@ -893,6 +936,13 @@ public sealed class RadarProcessingQueuedRebalanceSession : IDisposable, IAsyncD
             }
 
             disposed = true;
+            DisposeCurrentDelta();
+            workerTelemetry = null;
+            lease?.Dispose();
+        }
+
+        private void DisposeCurrentDelta()
+        {
             asyncDelta?.Dispose();
             if (asyncDelta is null)
             {
@@ -901,8 +951,6 @@ public sealed class RadarProcessingQueuedRebalanceSession : IDisposable, IAsyncD
 
             delta = null;
             asyncDelta = null;
-            workerTelemetry = null;
-            lease?.Dispose();
         }
 
         private static RadarProcessingQueuedBatchProcessingResult CreateProcessingResult(
