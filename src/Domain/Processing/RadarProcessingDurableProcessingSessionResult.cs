@@ -15,6 +15,7 @@ public sealed class RadarProcessingDurableProcessingSessionResult
 
         Status = status;
         QueueSummary = queueSummary ?? RadarProcessingDurableQueueSummary.Empty;
+        ReadinessSummary = new RadarProcessingDurableRuntimeReadinessSummary(QueueSummary);
         this.processingResults = CopyRequired(
             processingResults ?? Array.Empty<RadarProcessingQueuedBatchProcessingResult>(),
             nameof(processingResults));
@@ -24,6 +25,8 @@ public sealed class RadarProcessingDurableProcessingSessionResult
     public RadarProcessingQueuedSessionStatus Status { get; }
 
     public RadarProcessingDurableQueueSummary QueueSummary { get; }
+
+    public RadarProcessingDurableRuntimeReadinessSummary ReadinessSummary { get; }
 
     public IReadOnlyList<RadarProcessingQueuedBatchProcessingResult> ProcessingResults => processingResults;
 

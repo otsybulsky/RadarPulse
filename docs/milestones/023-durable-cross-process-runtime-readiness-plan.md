@@ -266,7 +266,7 @@ result:
 
 ## Slice 5: Operator Summary And Gate Evidence
 
-Status: pending.
+Status: complete.
 
 Implementation:
 
@@ -294,6 +294,46 @@ Exit criteria:
 ```text
 the milestone has focused Release evidence and operator-readable state before
 decision-trace discussion
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingDurableRuntimeReadinessSummaryTests"
+
+result:
+  4 passed, 0 failed, 0 skipped
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingDurableEnvelopeQueueTests|FullyQualifiedName~RadarProcessingDurableProcessingSessionTests|FullyQualifiedName~RadarProcessingDurableRecoveryTests|FullyQualifiedName~RadarProcessingDurableRebalanceSessionTests|FullyQualifiedName~RadarProcessingDurableRuntimeReadinessSummaryTests"
+
+result:
+  26 passed, 0 failed, 0 skipped
+
+dotnet build RadarPulse.sln -c Release --no-restore
+
+result:
+  succeeded, 0 warnings, 0 errors
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+  --no-restore --no-build
+  --filter "FullyQualifiedName~RadarProcessingDurableEnvelopeQueueTests|FullyQualifiedName~RadarProcessingDurableProcessingSessionTests|FullyQualifiedName~RadarProcessingDurableRecoveryTests|FullyQualifiedName~RadarProcessingDurableRebalanceSessionTests|FullyQualifiedName~RadarProcessingDurableRuntimeReadinessSummaryTests"
+
+result:
+  26 passed, 0 failed, 0 skipped
+
+full Release test project:
+  847 passed, 1 failed, 3 skipped
+  known allocation-sensitive synthetic benchmark caveat:
+    RadarProcessingSyntheticRebalanceBenchmarkTests.
+      AcceptedMovePressureAggregationDoesNotCopyPreviousIterations
+
+isolated rerun of the known caveat:
+  1 passed, 0 failed, 0 skipped
+
+gate written:
+  docs/milestones/023-durable-cross-process-runtime-readiness-gate.md
 ```
 
 ## Slice 6: Pre-Decision Trace Review Point

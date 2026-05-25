@@ -8,6 +8,7 @@ Milestone 023 is active. The primary milestone documents are:
 docs/milestones/023-durable-cross-process-runtime-readiness.md
 docs/milestones/023-durable-cross-process-runtime-readiness-architecture-decision.md
 docs/milestones/023-durable-cross-process-runtime-readiness-plan.md
+docs/milestones/023-durable-cross-process-runtime-readiness-gate.md
 ```
 
 Milestone 023 purpose:
@@ -49,13 +50,13 @@ Current implementation status:
 architecture document: written
 architecture decision: written
 implementation plan: written
-implementation: slice 4 complete
+implementation: complete through gate capture
 durable envelope contract and queue harness: complete
 durable ordered processing runtime: complete
 retry, recovery, cancellation, and cleanup: complete
 durable ordered rebalance runtime: complete
-operator summary and gate evidence: pending
-gate: not written
+operator summary and gate evidence: complete
+gate: written
 decision trace: not written
 closeout: not written
 ```
@@ -113,6 +114,34 @@ slice 1-4 durable-focused suites:
 latest Release build:
   dotnet build RadarPulse.sln -c Release --no-restore
   result: succeeded, 0 warnings, 0 errors
+
+slice 5 focused durable readiness summary suite:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~RadarProcessingDurableRuntimeReadinessSummaryTests"
+  result: 4 passed, 0 failed, 0 skipped
+
+slice 1-5 durable-focused suites:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+    --filter "FullyQualifiedName~RadarProcessingDurableEnvelopeQueueTests|FullyQualifiedName~RadarProcessingDurableProcessingSessionTests|FullyQualifiedName~RadarProcessingDurableRecoveryTests|FullyQualifiedName~RadarProcessingDurableRebalanceSessionTests|FullyQualifiedName~RadarProcessingDurableRuntimeReadinessSummaryTests"
+  result: 26 passed, 0 failed, 0 skipped
+
+Release durable-focused gate:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+    --no-restore --no-build
+    --filter "FullyQualifiedName~RadarProcessingDurableEnvelopeQueueTests|FullyQualifiedName~RadarProcessingDurableProcessingSessionTests|FullyQualifiedName~RadarProcessingDurableRecoveryTests|FullyQualifiedName~RadarProcessingDurableRebalanceSessionTests|FullyQualifiedName~RadarProcessingDurableRuntimeReadinessSummaryTests"
+  result: 26 passed, 0 failed, 0 skipped
+
+full Release test project:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+    --no-restore --no-build
+  result: 847 passed, 1 failed, 3 skipped
+  known allocation-sensitive synthetic benchmark caveat:
+    RadarProcessingSyntheticRebalanceBenchmarkTests.
+      AcceptedMovePressureAggregationDoesNotCopyPreviousIterations
+    Expected bounded benchmark aggregation allocation, got 1134179616 bytes.
+
+known allocation-sensitive synthetic test isolated rerun:
+  1 passed, 0 failed, 0 skipped
 ```
 
 Carry-forward boundaries:

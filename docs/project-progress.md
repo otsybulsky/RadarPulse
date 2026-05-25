@@ -775,7 +775,8 @@ slice 1 durable envelope contract and queue harness complete
 slice 2 durable ordered processing runtime complete
 slice 3 retry, recovery, cancellation, and cleanup complete
 slice 4 durable ordered rebalance runtime complete
-remaining implementation pending
+slice 5 operator summary and gate evidence complete
+decision trace pending review
 ```
 
 Milestone documents:
@@ -784,6 +785,7 @@ Milestone documents:
 docs/milestones/023-durable-cross-process-runtime-readiness.md
 docs/milestones/023-durable-cross-process-runtime-readiness-architecture-decision.md
 docs/milestones/023-durable-cross-process-runtime-readiness-plan.md
+docs/milestones/023-durable-cross-process-runtime-readiness-gate.md
 ```
 
 Goal:
