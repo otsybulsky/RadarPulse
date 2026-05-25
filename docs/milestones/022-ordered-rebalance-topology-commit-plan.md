@@ -88,7 +88,7 @@ result:
 
 ## Slice 2: Queued Rebalance Ordered Concurrent Drain
 
-Status: pending.
+Status: complete.
 
 Implementation:
 
@@ -120,6 +120,16 @@ Exit criteria:
 ```text
 queued rebalance can overlap processing-delta compute while preserving
 ordered rebalance/topology mutation
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingQueuedRebalanceSessionTests"
+
+result:
+  12 passed, 0 failed, 0 skipped
 ```
 
 ## Slice 3: Stale Topology Recompute
