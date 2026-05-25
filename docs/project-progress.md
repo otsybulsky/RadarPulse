@@ -624,7 +624,8 @@ Status:
 ```text
 active as milestone 022
 architecture and implementation plan written
-decision trace intentionally pending until implementation and gate review
+implementation complete through gate capture
+decision trace intentionally pending until gate review and discussion
 ```
 
 Recommended next milestone:

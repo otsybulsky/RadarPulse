@@ -292,7 +292,7 @@ ordered-rebalance synthetic processing/rebalance workload:
 
 ## Slice 6: Gate Documentation
 
-Status: pending.
+Status: complete; stopped before decision trace.
 
 Implementation:
 
@@ -310,6 +310,16 @@ Exit criteria:
 ```text
 decision trace is not written until the milestone result and warnings are
 reviewed
+```
+
+Verification:
+
+```text
+gate written:
+  docs/milestones/022-ordered-rebalance-topology-commit-gate.md
+
+decision trace:
+  intentionally not written
 ```
 
 ## Verification Targets

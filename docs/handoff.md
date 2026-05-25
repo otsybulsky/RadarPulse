@@ -51,9 +51,10 @@ Current implementation status:
 architecture document: written
 architecture decision: written
 implementation plan: written
-implementation: not started
-decision trace: intentionally not written; stop before decision trace for
-  review
+implementation: complete through gate capture
+gate: written
+decision trace: intentionally not written; stopped before decision trace for
+  review and discussion
 ```
 
 Carry-forward boundaries:
@@ -66,6 +67,49 @@ handler-state delta/merge is not implemented
 durable queues, brokers, cross-process workers, true live network ingestion,
 production operator/deployment/rollback surfaces, and product-facing
 workflows remain future work
+```
+
+Milestone 022 gate evidence:
+
+```text
+docs/milestones/022-ordered-rebalance-topology-commit-gate.md
+docs/milestones/022-ordered-rebalance-topology-commit-processing-bottleneck-performance-matrix.md
+```
+
+Current verification:
+
+```text
+Release build:
+  succeeded, 0 warnings, 0 errors
+
+focused milestone 022 Release gate suite:
+  76 passed, 0 failed, 0 skipped
+
+known allocation-sensitive synthetic test isolated rerun:
+  1 passed, 0 failed, 0 skipped
+
+full Release test project:
+  821 passed, 1 failed, 3 skipped
+  known allocation-sensitive synthetic benchmark caveat:
+    RadarProcessingSyntheticRebalanceBenchmarkTests.
+      AcceptedMovePressureAggregationDoesNotCopyPreviousIterations
+```
+
+Decision-trace discussion input:
+
+```text
+recommended posture is accepted with scoped warnings for ordered
+rebalance/topology commit over the scoped in-process runtime/archive
+queued-overlap path
+
+important warnings:
+  handler-state delta/merge is not implemented
+  topology churn can increase stale-delta recompute, worker dispatches, and
+    allocation under active-batch overlap
+  durable queues, brokers, cross-process workers, true live network
+    ingestion, production operator/deployment/rollback surfaces, and
+    product-facing workflows remain future work
+  one full-suite allocation-sensitive synthetic benchmark caveat remains
 ```
 
 ## Milestone 021 Complete Baseline
