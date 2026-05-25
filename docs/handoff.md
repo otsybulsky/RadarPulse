@@ -1,8 +1,8 @@
-# Handoff: Milestone 023 Active
+# Handoff: Milestone 023 Complete
 
 ## Current State
 
-Milestone 023 is active. The primary milestone documents are:
+Milestone 023 is complete. The primary milestone documents are:
 
 ```text
 docs/milestones/023-durable-cross-process-runtime-readiness.md
@@ -10,6 +10,7 @@ docs/milestones/023-durable-cross-process-runtime-readiness-architecture-decisio
 docs/milestones/023-durable-cross-process-runtime-readiness-plan.md
 docs/milestones/023-durable-cross-process-runtime-readiness-gate.md
 docs/milestones/023-durable-cross-process-runtime-readiness-decision-trace.md
+docs/milestones/023-durable-cross-process-runtime-readiness-closeout.md
 ```
 
 Milestone 023 purpose:
@@ -51,7 +52,7 @@ Current implementation status:
 architecture document: written
 architecture decision: written
 implementation plan: written
-implementation: complete through gate capture
+implementation: complete
 durable envelope contract and queue harness: complete
 durable ordered processing runtime: complete
 retry, recovery, cancellation, and cleanup: complete
@@ -60,7 +61,7 @@ operator summary and gate evidence: complete
 pre-decision trace review point: reached
 gate: written
 decision trace: written
-closeout: not written
+closeout: written
 ```
 
 Latest verification:
@@ -163,8 +164,8 @@ exactly-once production delivery claims remain future work
 Stop point:
 
 ```text
-milestone 023 implementation, gate capture, warning review, and decision trace
-are complete. Closeout is not written yet.
+milestone 023 implementation, gate capture, warning review, decision trace,
+and closeout are complete.
 ```
 
 Decision trace:
@@ -187,6 +188,22 @@ warnings:
 
 recommended next milestone input:
   persistent durable adapter readiness
+```
+
+Closeout:
+
+```text
+accepted with scoped warnings for durable/cross-process runtime readiness over
+the broker-neutral durable envelope contract and deterministic in-process
+durable harness
+
+recommended next milestone input:
+  persistent durable adapter readiness. Validate one concrete persistent or
+  broker-like adapter against the milestone 023 durable envelope contract,
+  including serialization compatibility, restart recovery, duplicate delivery,
+  lease or abandoned-attempt recovery, poison/dead-letter mapping,
+  provider-sequence ordered commit, retained ownership cleanup, and
+  operator-readable adapter state.
 ```
 
 ## Milestone 022 Complete Baseline
@@ -245,7 +262,7 @@ Current implementation status:
 architecture document: written
 architecture decision: written
 implementation plan: written
-implementation: complete through gate capture
+implementation: complete
 gate: written
 decision trace: written
 closeout: written

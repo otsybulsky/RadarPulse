@@ -1,6 +1,6 @@
 # RadarPulse Project Progress
 
-Status: current after milestone 023 plan start.
+Status: current after milestone 023 closeout.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -20,8 +20,8 @@ rebalance/topology commit milestone.
 Current state:
 
 ```text
-completed milestones: 001-022
-active milestone: 023 durable/cross-process runtime readiness
+completed milestones: 001-023
+recommended next milestone: persistent durable adapter readiness
 
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive
@@ -54,14 +54,16 @@ current runtime/live posture:
   provider sequence
   caller-supplied processing cores and rebalance sessions remain explicit and
   are not silently rewritten
-  durable/cross-process runtime readiness is now active and should inherit
-  this default baseline unless a concrete ownership-boundary incompatibility
-  is proven
+  durable/cross-process runtime readiness is accepted with scoped warnings
+  over the broker-neutral durable envelope contract and deterministic
+  in-process durable harness
+  persistent durable adapter readiness should inherit this default baseline
+  unless a concrete adapter-boundary incompatibility is proven
   true live network ingestion and production deployment/rollback/operator
   surfaces are not implemented yet
 
-current active milestone:
-  durable/cross-process runtime readiness
+recommended next milestone:
+  persistent durable adapter readiness
 ```
 
 The current accepted direct benchmark contour is:
@@ -212,11 +214,12 @@ runtime startup prewarm:
   baseline; it must not be hidden inside steady measured allocation
 
 runtime coverage:
-  durable queues and cross-process workers are active milestone 023 work;
-  true live ingestion, production runtime selection/reporting,
-  handler-state delta/merge, and repeated variance gates remain future work
-  that should inherit the accepted default baseline unless a concrete surface
-  incompatibility is proven
+  durable queues and cross-process runtime readiness are accepted milestone
+  023 work over the broker-neutral durable envelope contract; persistent
+  adapter readiness, true live ingestion, production runtime
+  selection/reporting, handler-state delta/merge, and repeated variance gates
+  remain future work that should inherit the accepted default baseline unless
+  a concrete surface incompatibility is proven
 
 ordered processing performance breadth:
   direct full-cache ordered-processing evidence is clean, but the measured
@@ -767,7 +770,7 @@ true live network ingestion
 Status:
 
 ```text
-active as milestone 023
+complete as milestone 023
 architecture document written
 architecture decision written
 implementation plan written
@@ -778,7 +781,7 @@ slice 4 durable ordered rebalance runtime complete
 slice 5 operator summary and gate evidence complete
 slice 6 pre-decision trace review point reached
 decision trace written
-closeout pending
+closeout written
 ```
 
 Milestone documents:
@@ -789,6 +792,7 @@ docs/milestones/023-durable-cross-process-runtime-readiness-architecture-decisio
 docs/milestones/023-durable-cross-process-runtime-readiness-plan.md
 docs/milestones/023-durable-cross-process-runtime-readiness-gate.md
 docs/milestones/023-durable-cross-process-runtime-readiness-decision-trace.md
+docs/milestones/023-durable-cross-process-runtime-readiness-closeout.md
 ```
 
 Goal:
@@ -809,6 +813,14 @@ retry, recovery, cancellation, and cleanup semantics
 durable ordered rebalance runtime
 operator-visible summary and gate evidence
 pre-decision trace review point
+```
+
+Closeout:
+
+```text
+accepted with scoped warnings for durable/cross-process runtime readiness over
+the broker-neutral durable envelope contract and deterministic in-process
+durable harness
 ```
 
 Prepared by current state:
@@ -833,9 +845,52 @@ handler-state delta/merge
 exactly-once production delivery claims
 ```
 
-### 12. Production Pipeline Integration
+Recommended next milestone:
 
-Future milestone after durable/runtime readiness.
+```text
+persistent durable adapter readiness
+```
+
+### 12. Persistent Durable Adapter Readiness
+
+Future milestone after milestone 023.
+
+Goal:
+
+```text
+validate one concrete persistent or broker-like adapter against the milestone
+023 durable envelope contract
+```
+
+Likely required work:
+
+```text
+serialized durable envelope schema and compatibility checks
+persistent accept, claim, complete, fail, abandon, retry, poison, commit, and
+  release transitions
+restart recovery from pending, claimed, completed, failed, poison, canceled,
+  and released states
+duplicate delivery and idempotent accept behavior
+lease or abandoned-attempt recovery policy
+poison/dead-letter mapping
+provider-sequence ordered commit from adapter-backed state
+retained ownership cleanup across restart and adapter failure
+operator-readable adapter summary and first blocking envelope state
+Release gates over adapter-backed durable workloads
+```
+
+Prepared by current state:
+
+```text
+milestone 023 defines and tests the broker-neutral durable envelope contract,
+ordered processing commit, ordered rebalance/topology commit, retry/recovery,
+poison, cancellation cleanup, and operator-readable readiness summary that
+the adapter must preserve
+```
+
+### 13. Production Pipeline Integration
+
+Future milestone after persistent durable adapter readiness.
 
 Goal:
 
@@ -864,7 +919,7 @@ for runtime integration, but production integration still needs separate
 surface evidence
 ```
 
-### 13. Product-Facing Completion
+### 14. Product-Facing Completion
 
 Future milestone after production pipeline integration.
 
@@ -911,7 +966,8 @@ product-facing scope has not yet been the main milestone target
 [done] default-baseline runtime/archive integration
 [done] ordered concurrent runtime/archive processing
 [done] ordered rebalance/topology commit and processing-bottleneck evidence
-[active] durable/cross-process runtime
+[done] durable/cross-process runtime
+[later] persistent durable adapter readiness
 [later] production pipeline integration
 [later] product-facing completion
 ```

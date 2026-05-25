@@ -1,6 +1,6 @@
 # Milestone 023: Durable/Cross-Process Runtime Readiness Implementation Plan
 
-Status: active.
+Status: complete.
 
 This plan implements the milestone 023 architecture defined in
 `023-durable-cross-process-runtime-readiness.md` and the accepted
@@ -359,13 +359,13 @@ reviewed
 Verification:
 
 ```text
-decision trace: not written
-closeout: not written
+decision trace: written
+closeout: written
 gate evidence captured:
   docs/milestones/023-durable-cross-process-runtime-readiness-gate.md
 
 review status:
-  ready for decision-trace discussion
+  milestone complete
 ```
 
 ## Verification Targets

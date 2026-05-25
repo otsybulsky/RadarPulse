@@ -1,6 +1,9 @@
 # Milestone 023: Durable/Cross-Process Runtime Readiness Architecture
 
-Status: active architecture.
+Status: complete.
+
+The milestone closeout is recorded in
+`023-durable-cross-process-runtime-readiness-closeout.md`.
 
 RadarPulse milestone 023 starts from the closed milestone 022 ordered
 rebalance/topology commit foundation.

@@ -1,6 +1,6 @@
 # Milestone 023: Durable/Cross-Process Runtime Readiness Gate
 
-Status: captured before decision trace.
+Status: captured before decision trace; milestone complete.
 
 This document records milestone 023 gate evidence for the broker-neutral
 durable/cross-process runtime readiness implementation. It does not make the
