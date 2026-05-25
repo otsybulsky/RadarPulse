@@ -773,6 +773,7 @@ architecture decision written
 implementation plan written
 slice 1 durable envelope contract and queue harness complete
 slice 2 durable ordered processing runtime complete
+slice 3 retry, recovery, cancellation, and cleanup complete
 remaining implementation pending
 ```
 

@@ -22,6 +22,45 @@ public sealed class RadarProcessingDurableEnvelopeQueue
         }
     }
 
+    public bool TryGetSnapshot(
+        RadarProcessingDurableBatchId batchId,
+        out RadarProcessingDurableEnvelopeSnapshot? snapshot)
+    {
+        EnsureValidBatchId(batchId);
+
+        lock (sync)
+        {
+            if (byBatchId.TryGetValue(batchId, out var entry))
+            {
+                snapshot = entry.ToSnapshot();
+                return true;
+            }
+
+            snapshot = null;
+            return false;
+        }
+    }
+
+    public IReadOnlyList<RadarProcessingDurableEnvelopeSnapshot> CreateSnapshots()
+    {
+        lock (sync)
+        {
+            if (bySequence.Count == 0)
+            {
+                return Array.Empty<RadarProcessingDurableEnvelopeSnapshot>();
+            }
+
+            var snapshots = new RadarProcessingDurableEnvelopeSnapshot[bySequence.Count];
+            var index = 0;
+            foreach (var entry in bySequence.Values)
+            {
+                snapshots[index++] = entry.ToSnapshot();
+            }
+
+            return Array.AsReadOnly(snapshots);
+        }
+    }
+
     public RadarProcessingDurableQueueOperationResult Accept(
         RadarProcessingDurableBatchId batchId,
         RadarEventBatch batch,
@@ -185,6 +224,21 @@ public sealed class RadarProcessingDurableEnvelopeQueue
         }
     }
 
+    public RadarProcessingDurableQueueOperationResult Poison(
+        RadarProcessingDurableBatchId batchId,
+        string message)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        return Transition(
+            batchId,
+            RadarProcessingDurableQueueOperationStatus.Poisoned,
+            RadarProcessingDurableEnvelopeState.Poison,
+            message,
+            static entry => entry.State is RadarProcessingDurableEnvelopeState.Failed or
+                RadarProcessingDurableEnvelopeState.Abandoned,
+            static entry => entry.CompletedTimestamp = Stopwatch.GetTimestamp());
+    }
+
     public RadarProcessingDurableQueueOperationResult MarkCommitted(
         RadarProcessingDurableBatchId batchId,
         string message = "")
@@ -324,6 +378,58 @@ public sealed class RadarProcessingDurableEnvelopeQueue
                 firstBlockingSequence,
                 firstBlockingState,
                 firstBlockingReason);
+        }
+    }
+
+    public int CancelOpen(
+        string message = "")
+    {
+        ArgumentNullException.ThrowIfNull(message);
+
+        lock (sync)
+        {
+            var canceled = 0;
+            foreach (var entry in bySequence.Values)
+            {
+                if (entry.State is not RadarProcessingDurableEnvelopeState.Pending and
+                    not RadarProcessingDurableEnvelopeState.Claimed and
+                    not RadarProcessingDurableEnvelopeState.Completed)
+                {
+                    continue;
+                }
+
+                entry.State = RadarProcessingDurableEnvelopeState.Canceled;
+                entry.Message = message;
+                entry.CompletedTimestamp = Stopwatch.GetTimestamp();
+                canceled++;
+            }
+
+            return canceled;
+        }
+    }
+
+    public int ReleaseCanceled(
+        string message = "")
+    {
+        ArgumentNullException.ThrowIfNull(message);
+
+        lock (sync)
+        {
+            var released = 0;
+            foreach (var entry in bySequence.Values)
+            {
+                if (entry.State != RadarProcessingDurableEnvelopeState.Canceled)
+                {
+                    continue;
+                }
+
+                entry.State = RadarProcessingDurableEnvelopeState.Released;
+                entry.Message = message;
+                entry.ReleasedTimestamp = Stopwatch.GetTimestamp();
+                released++;
+            }
+
+            return released;
         }
     }
 

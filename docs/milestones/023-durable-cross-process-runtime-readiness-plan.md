@@ -155,7 +155,7 @@ result:
 
 ## Slice 3: Retry, Recovery, Cancellation, And Cleanup
 
-Status: pending.
+Status: complete.
 
 Implementation:
 
@@ -186,6 +186,27 @@ Exit criteria:
 ```text
 failure and recovery behavior is deterministic, bounded, and
 operator-visible
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingDurableRecoveryTests"
+
+result:
+  4 passed, 0 failed, 0 skipped
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingDurableEnvelopeQueueTests|FullyQualifiedName~RadarProcessingDurableProcessingSessionTests|FullyQualifiedName~RadarProcessingDurableRecoveryTests"
+
+result:
+  18 passed, 0 failed, 0 skipped
+
+dotnet build RadarPulse.sln -c Release --no-restore
+
+result:
+  succeeded, 0 warnings, 0 errors
 ```
 
 ## Slice 4: Durable Ordered Rebalance Runtime

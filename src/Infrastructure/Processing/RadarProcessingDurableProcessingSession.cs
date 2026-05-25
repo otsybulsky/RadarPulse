@@ -178,6 +178,56 @@ public sealed class RadarProcessingDurableProcessingSession : IDisposable, IAsyn
         return CreateResult();
     }
 
+    public RadarProcessingDurableQueueOperationResult RetryOrPoison(
+        RadarProcessingDurableBatchId batchId,
+        RadarProcessingDurableRetryPolicy? retryPolicy = null,
+        string retryMessage = "",
+        string poisonMessage = "")
+    {
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+        ArgumentNullException.ThrowIfNull(retryMessage);
+        ArgumentNullException.ThrowIfNull(poisonMessage);
+
+        var effectivePolicy = retryPolicy ?? RadarProcessingDurableRetryPolicy.NoRetry;
+        if (!queue.TryGetSnapshot(batchId, out var snapshot))
+        {
+            return RadarProcessingDurableQueueOperationResult.NotFound(
+                $"Durable envelope '{batchId}' was not found.");
+        }
+
+        if (effectivePolicy.CanRetry(snapshot!))
+        {
+            return queue.Retry(batchId, retryMessage);
+        }
+
+        if (snapshot!.State is RadarProcessingDurableEnvelopeState.Failed or
+            RadarProcessingDurableEnvelopeState.Abandoned)
+        {
+            return queue.Poison(
+                batchId,
+                string.IsNullOrWhiteSpace(poisonMessage)
+                    ? $"Durable envelope '{batchId}' exhausted retry policy after {snapshot.Attempt} attempt(s)."
+                    : poisonMessage);
+        }
+
+        return RadarProcessingDurableQueueOperationResult.InvalidState(
+            snapshot,
+            $"Durable envelope '{batchId}' cannot retry from state {snapshot.State}.");
+    }
+
+    public RadarProcessingDurableProcessingSessionResult CancelAndCleanup(
+        string message = "Durable processing was canceled.")
+    {
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+        ArgumentNullException.ThrowIfNull(message);
+
+        MarkCanceled();
+        DisposePendingCompletions();
+        queue.CancelOpen(message);
+        queue.ReleaseCanceled(message);
+        return CreateResult();
+    }
+
     public RadarProcessingDurableProcessingSessionResult CreateResult()
     {
         RadarProcessingQueuedBatchProcessingResult[] processingSnapshot;
@@ -382,6 +432,19 @@ public sealed class RadarProcessingDurableProcessingSession : IDisposable, IAsyn
                 throw new InvalidOperationException(
                     $"Durable processing sequence {completion.Sequence.Value} has already completed.");
             }
+        }
+    }
+
+    private void DisposePendingCompletions()
+    {
+        lock (sync)
+        {
+            foreach (var completion in pendingCompletions.Values)
+            {
+                completion.Dispose();
+            }
+
+            pendingCompletions.Clear();
         }
     }
 
