@@ -179,7 +179,7 @@ result:
 
 ## Slice 4: Runtime/Archive Integration
 
-Status: pending.
+Status: complete.
 
 Implementation:
 
@@ -211,6 +211,16 @@ Exit criteria:
 runtime/archive callers have an explicit ordered rebalance surface with
 provider, execution, active capacity, prewarm, telemetry, and cleanup
 contracts visible
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingRuntimeArchiveLiveAdapterIntegrationTests"
+
+result:
+  6 passed, 0 failed, 0 skipped
 ```
 
 ## Slice 5: Processing-Bottleneck Evidence

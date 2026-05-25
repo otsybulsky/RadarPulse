@@ -25,6 +25,32 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
             cancellationToken);
     }
 
+    public ValueTask<RadarProcessingArchiveQueuedOverlapResult> RunOrderedRebalanceAsync(
+        Func<IArchiveRadarEventBatchPublisher, CancellationToken, ArchiveRadarEventBatchPublishResult> produce,
+        RadarProcessingRebalanceSession rebalanceSession,
+        RadarProcessingOrderedConcurrencyOptions? orderedConcurrencyOptions = null,
+        RadarProcessingArchiveQueuedOverlapOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(produce);
+        ArgumentNullException.ThrowIfNull(rebalanceSession);
+        var effectiveOrderedConcurrencyOptions =
+            orderedConcurrencyOptions ?? RadarProcessingRuntimeArchiveBaseline.OrderedConcurrencyOptions;
+
+        return RunAsync(
+            produce,
+            (queue, publisher, token) => DrainOrderedRebalanceAsync(
+                rebalanceSession,
+                queue,
+                publisher,
+                effectiveOrderedConcurrencyOptions,
+                token),
+            CreateOrderedProcessingOverlapOptions(
+                options ?? RadarProcessingArchiveQueuedOverlapOptions.Default,
+                effectiveOrderedConcurrencyOptions),
+            cancellationToken);
+    }
+
     public ValueTask<RadarProcessingArchiveQueuedOverlapResult> RunProcessingAsync(
         Func<IArchiveRadarEventBatchPublisher, CancellationToken, ArchiveRadarEventBatchPublishResult> produce,
         RadarProcessingCore core,
@@ -392,6 +418,35 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
             ownsAsyncRebalanceSession: ownsAsyncRebalanceSession,
             consumerResourceLeaseFactory: publisher.AcquireConsumerResourceLease);
         var result = await queuedSession.DrainAsync(cancellationToken).ConfigureAwait(false);
+        publisher.ReleasePendingResources();
+        return result;
+    }
+
+    private static async ValueTask<RadarProcessingQueuedSessionResult> DrainOrderedRebalanceAsync(
+        RadarProcessingRebalanceSession rebalanceSession,
+        RadarProcessingOwnedBatchQueue queue,
+        ArchiveOwnedRadarEventBatchQueueingPublisher publisher,
+        RadarProcessingOrderedConcurrencyOptions orderedConcurrencyOptions,
+        CancellationToken cancellationToken)
+    {
+        RadarProcessingAsyncRebalanceSession? asyncRebalanceSession = null;
+        var ownsAsyncRebalanceSession = rebalanceSession.Core.Options.ExecutionMode ==
+            RadarProcessingExecutionMode.AsyncShardTransport;
+        if (ownsAsyncRebalanceSession)
+        {
+            asyncRebalanceSession = new RadarProcessingAsyncRebalanceSession(rebalanceSession);
+        }
+
+        await using var queuedSession = new RadarProcessingQueuedRebalanceSession(
+            rebalanceSession,
+            queue,
+            asyncRebalanceSession,
+            ownsQueue: false,
+            ownsAsyncRebalanceSession: ownsAsyncRebalanceSession,
+            consumerResourceLeaseFactory: publisher.AcquireConsumerResourceLease);
+        var result = await queuedSession
+            .DrainOrderedConcurrentAsync(orderedConcurrencyOptions, cancellationToken)
+            .ConfigureAwait(false);
         publisher.ReleasePendingResources();
         return result;
     }
