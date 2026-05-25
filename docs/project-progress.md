@@ -771,7 +771,8 @@ active as milestone 023
 architecture document written
 architecture decision written
 implementation plan written
-implementation pending
+slice 1 durable envelope contract and queue harness complete
+remaining implementation pending
 ```
 
 Milestone documents:

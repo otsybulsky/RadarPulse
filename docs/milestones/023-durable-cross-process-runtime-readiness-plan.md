@@ -47,7 +47,7 @@ not a production durability claim.
 
 ## Slice 1: Durable Envelope Contract And Queue Harness
 
-Status: pending.
+Status: complete.
 
 Implementation:
 
@@ -78,6 +78,21 @@ Exit criteria:
 ```text
 durable state transitions are explicit and tested before runtime/archive
 processing is composed with them
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingDurableEnvelopeQueueTests"
+
+result:
+  8 passed, 0 failed, 0 skipped
+
+dotnet build RadarPulse.sln -c Release --no-restore
+
+result:
+  succeeded, 0 warnings, 0 errors
 ```
 
 ## Slice 2: Durable Ordered Processing Runtime
