@@ -776,7 +776,8 @@ slice 2 durable ordered processing runtime complete
 slice 3 retry, recovery, cancellation, and cleanup complete
 slice 4 durable ordered rebalance runtime complete
 slice 5 operator summary and gate evidence complete
-decision trace pending review
+slice 6 pre-decision trace review point reached
+decision trace pending review; intentionally not written
 ```
 
 Milestone documents:

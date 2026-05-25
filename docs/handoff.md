@@ -56,6 +56,7 @@ durable ordered processing runtime: complete
 retry, recovery, cancellation, and cleanup: complete
 durable ordered rebalance runtime: complete
 operator summary and gate evidence: complete
+pre-decision trace review point: reached
 gate: written
 decision trace: not written
 closeout: not written
@@ -161,8 +162,8 @@ exactly-once production delivery claims remain future work
 Stop point:
 
 ```text
-implementation should proceed slice by slice with commits after each slice.
-Stop before writing the milestone 023 decision trace for review.
+milestone 023 implementation and gate capture are complete through slice 6.
+Stop here before writing the milestone 023 decision trace for review.
 ```
 
 ## Milestone 022 Complete Baseline

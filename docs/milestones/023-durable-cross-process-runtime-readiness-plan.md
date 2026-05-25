@@ -338,7 +338,7 @@ gate written:
 
 ## Slice 6: Pre-Decision Trace Review Point
 
-Status: pending.
+Status: complete; stopped before decision trace.
 
 Implementation:
 
@@ -354,6 +354,18 @@ Exit criteria:
 ```text
 decision trace is not written until the milestone result and warnings are
 reviewed
+```
+
+Verification:
+
+```text
+decision trace: not written
+closeout: not written
+gate evidence captured:
+  docs/milestones/023-durable-cross-process-runtime-readiness-gate.md
+
+review status:
+  ready for decision-trace discussion
 ```
 
 ## Verification Targets
