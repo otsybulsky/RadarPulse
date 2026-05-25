@@ -9,6 +9,7 @@ docs/milestones/023-durable-cross-process-runtime-readiness.md
 docs/milestones/023-durable-cross-process-runtime-readiness-architecture-decision.md
 docs/milestones/023-durable-cross-process-runtime-readiness-plan.md
 docs/milestones/023-durable-cross-process-runtime-readiness-gate.md
+docs/milestones/023-durable-cross-process-runtime-readiness-decision-trace.md
 ```
 
 Milestone 023 purpose:
@@ -58,7 +59,7 @@ durable ordered rebalance runtime: complete
 operator summary and gate evidence: complete
 pre-decision trace review point: reached
 gate: written
-decision trace: not written
+decision trace: written
 closeout: not written
 ```
 
@@ -162,8 +163,30 @@ exactly-once production delivery claims remain future work
 Stop point:
 
 ```text
-milestone 023 implementation and gate capture are complete through slice 6.
-Stop here before writing the milestone 023 decision trace for review.
+milestone 023 implementation, gate capture, warning review, and decision trace
+are complete. Closeout is not written yet.
+```
+
+Decision trace:
+
+```text
+accepted with scoped warnings for durable/cross-process runtime readiness over
+the broker-neutral durable envelope contract and deterministic in-process
+durable harness
+
+warnings:
+  production broker adapters are not implemented
+  in-process durable harness is a contract gate, not a production durability
+    claim
+  true live network ingestion is not implemented
+  production deployment, rollback, autoscaling, and runbooks are not
+    implemented
+  handler-state delta/merge is not implemented
+  exactly-once production delivery is not claimed
+  known full-suite allocation-sensitive synthetic benchmark caveat remains
+
+recommended next milestone input:
+  persistent durable adapter readiness
 ```
 
 ## Milestone 022 Complete Baseline

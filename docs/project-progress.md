@@ -777,7 +777,8 @@ slice 3 retry, recovery, cancellation, and cleanup complete
 slice 4 durable ordered rebalance runtime complete
 slice 5 operator summary and gate evidence complete
 slice 6 pre-decision trace review point reached
-decision trace pending review; intentionally not written
+decision trace written
+closeout pending
 ```
 
 Milestone documents:
@@ -787,6 +788,7 @@ docs/milestones/023-durable-cross-process-runtime-readiness.md
 docs/milestones/023-durable-cross-process-runtime-readiness-architecture-decision.md
 docs/milestones/023-durable-cross-process-runtime-readiness-plan.md
 docs/milestones/023-durable-cross-process-runtime-readiness-gate.md
+docs/milestones/023-durable-cross-process-runtime-readiness-decision-trace.md
 ```
 
 Goal:
