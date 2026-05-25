@@ -2949,10 +2949,12 @@ public sealed record ProcessingBenchmarkRebalanceSyntheticOptions(
     int WarmupIterations,
     RadarProcessingExecutionMode ExecutionMode = RadarProcessingExecutionMode.PartitionedBarrier,
     RadarProcessingAsyncExecutionOptions? AsyncExecution = null,
-    int OrderedActiveBatchCapacity = RadarProcessingRuntimeArchiveBaseline.OrderedActiveBatchCapacity)
+    int OrderedActiveBatchCapacityValue = RadarProcessingRuntimeArchiveBaseline.OrderedActiveBatchCapacity)
 {
     private const int DefaultAsyncWorkerCount = 2;
     private const int DefaultAsyncQueueCapacity = 1;
+
+    public int OrderedActiveBatchCapacity => OrderedActiveBatchCapacityValue;
 
     private static readonly IReadOnlyList<RadarProcessingSyntheticRebalanceWorkloadKind> AllWorkloads =
         Array.AsReadOnly(
