@@ -612,22 +612,35 @@ rebalance/topology commit on top of this foundation instead of first solving
 shared processing-state mutation.
 ```
 
-## Remaining Arc
+## Current And Remaining Arc
 
-The following stages are not complete. They are the recommended route from the
-current state to the intended production-ready result.
+Milestone 022 is now complete. The following section records that completed
+stage and the remaining route from the current state to the intended
+production-ready result.
 
 ### 10. Ordered Rebalance/Topology Commit And Processing-Bottleneck Evidence
 
 Status:
 
 ```text
-active as milestone 022
+complete as milestone 022
 architecture and implementation plan written
 implementation complete through gate capture
 post-gate full-cache performance matrix captured
 decision trace written
-closeout pending
+closeout written
+```
+
+Closeout:
+
+```text
+docs/milestones/022-ordered-rebalance-topology-commit-closeout.md
+
+accepted with scoped warnings, the scoped in-process runtime/archive
+rebalance path is ready to keep multiple accepted batches active for
+handler-free processing-delta compute while committing processing,
+rebalance decisions, validation, and topology mutation deterministically in
+provider sequence
 ```
 
 Latest full-cache regression evidence:
@@ -656,7 +669,7 @@ ordered-archive-processing direct full-cache matrix:
 Recommended next milestone:
 
 ```text
-close out milestone 022, then move to durable/cross-process runtime readiness
+durable/cross-process runtime readiness
 ```
 
 Goal:
@@ -708,7 +721,7 @@ true live network ingestion
 
 ### 11. Durable And Cross-Process Runtime
 
-Future milestone after milestone 022 closeout.
+Future milestone after milestone 022.
 
 Goal:
 
@@ -736,6 +749,8 @@ Prepared by current state:
 direct benchmark readiness is accepted across cache, file, and small-file
 workloads
 in-process queued-overlap runtime default promotion is accepted
+ordered processing commit is accepted for runtime/archive processing
+ordered rebalance/topology commit is accepted for runtime/archive rebalance
 retained pressure, cleanup, release, telemetry, validation, prewarm
 attribution, and processing-completeness guardrails can inform durable design
 ```

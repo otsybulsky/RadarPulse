@@ -66,7 +66,6 @@ true live network ingestion
 production deployment/operator/rollback surfaces
 product-facing radar workflows
 automatic silent borrowed fallback
-closeout
 ```
 
 ## Gate Results
@@ -343,4 +342,11 @@ written:
 decision:
   accepted with scoped warnings for ordered rebalance/topology commit over the
   scoped in-process runtime/archive queued-overlap path
+```
+
+## Closeout
+
+```text
+written:
+  docs/milestones/022-ordered-rebalance-topology-commit-closeout.md
 ```

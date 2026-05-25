@@ -1,9 +1,8 @@
-# Handoff: Milestone 022 Decision Accepted
+# Handoff: Milestone 022 Complete
 
 ## Current State
 
-Milestone 022 implementation and decision trace are complete. Closeout is
-pending. The primary milestone documents are:
+Milestone 022 is complete. The primary milestone documents are:
 
 ```text
 docs/milestones/022-ordered-rebalance-topology-commit.md
@@ -13,6 +12,7 @@ docs/milestones/022-ordered-rebalance-topology-commit-gate.md
 docs/milestones/022-ordered-rebalance-topology-commit-processing-bottleneck-performance-matrix.md
 docs/milestones/022-ordered-rebalance-topology-commit-full-cache-performance-matrix.md
 docs/milestones/022-ordered-rebalance-topology-commit-decision-trace.md
+docs/milestones/022-ordered-rebalance-topology-commit-closeout.md
 ```
 
 Milestone 022 purpose:
@@ -59,7 +59,7 @@ implementation plan: written
 implementation: complete through gate capture
 gate: written
 decision trace: written
-closeout: not written
+closeout: written
 ```
 
 Carry-forward boundaries:
@@ -81,6 +81,7 @@ docs/milestones/022-ordered-rebalance-topology-commit-gate.md
 docs/milestones/022-ordered-rebalance-topology-commit-processing-bottleneck-performance-matrix.md
 docs/milestones/022-ordered-rebalance-topology-commit-full-cache-performance-matrix.md
 docs/milestones/022-ordered-rebalance-topology-commit-decision-trace.md
+docs/milestones/022-ordered-rebalance-topology-commit-closeout.md
 ```
 
 Current verification:
@@ -142,12 +143,14 @@ important warnings:
   one full-suite allocation-sensitive synthetic benchmark caveat remains
 ```
 
-Closeout input:
+Closeout:
 
 ```text
-recommended closeout posture remains accepted with scoped warnings for
-rebalance/topology commit over the scoped in-process runtime/archive
-queued-overlap path
+accepted with scoped warnings, the scoped in-process runtime/archive
+rebalance path is ready to keep multiple accepted batches active for
+handler-free processing-delta compute while committing processing,
+rebalance decisions, validation, and topology mutation deterministically in
+provider sequence
 
 important warnings:
   handler-state delta/merge is not implemented
@@ -159,6 +162,16 @@ important warnings:
     ingestion, production operator/deployment/rollback surfaces, and
     product-facing workflows remain future work
   one full-suite allocation-sensitive synthetic benchmark caveat remains
+```
+
+Recommended next milestone input:
+
+```text
+move to durable/cross-process runtime readiness. Design durable queues,
+brokers, or cross-process providers/workers using the accepted prewarmed
+queued-owned baseline, ordered processing commit, and ordered
+rebalance/topology commit unless a concrete ownership-boundary
+incompatibility is proven.
 ```
 
 ## Milestone 021 Complete Baseline

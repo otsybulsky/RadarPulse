@@ -1,6 +1,6 @@
 # Milestone 022: Ordered Rebalance/Topology Commit Implementation Plan
 
-Status: complete through decision trace; closeout pending.
+Status: complete.
 
 This plan implements the milestone 022 architecture defined in
 `022-ordered-rebalance-topology-commit.md` and the accepted implementation
