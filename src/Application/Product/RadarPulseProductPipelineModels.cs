@@ -49,6 +49,44 @@ public enum RadarPulseProductOptionSource
     TestHarness = 4
 }
 
+public enum RadarPulseProductHandlerSet
+{
+    None = 1,
+    CounterChecksum = 2,
+    CounterChecksumHeavy = 3,
+    SnapshotCounting = 4,
+    Unsupported = 5
+}
+
+public sealed record RadarPulseProductPipelineOptions(
+    int? WorkerCount = null,
+    int? WorkerQueueCapacity = null,
+    int? ProviderQueueCapacity = null,
+    long? RetainedPayloadBytes = null,
+    int? OrderedActiveBatchCapacity = null,
+    int? WorkloadBatchLimit = null,
+    bool SilentBorrowedProviderFallback = false);
+
+public sealed record RadarPulseProductPipelineSyntheticRunRequest(
+    string RunId,
+    int SourceCount = 2,
+    int BatchCount = 2,
+    int EventsPerBatch = 2,
+    int PartitionCount = 0,
+    int ShardCount = 0,
+    RadarPulseProductHandlerSet HandlerSet = RadarPulseProductHandlerSet.None,
+    RadarPulseProductPipelineOptions? Options = null);
+
+public sealed record RadarPulseProductPipelineArchiveFileRunRequest(
+    string RunId,
+    string FilePath,
+    int Parallelism = 1,
+    int PartitionCount = 0,
+    int ShardCount = 0,
+    string Decompressor = "radarpulse",
+    RadarPulseProductHandlerSet HandlerSet = RadarPulseProductHandlerSet.None,
+    RadarPulseProductPipelineOptions? Options = null);
+
 public sealed record RadarPulseProductInputSummary(
     RadarPulseProductInputKind Kind,
     string Description,

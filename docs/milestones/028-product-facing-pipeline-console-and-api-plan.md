@@ -115,7 +115,7 @@ result:
 
 ## Slice 2: Product Pipeline Run Service
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -157,6 +157,28 @@ Commit:
 
 ```text
 Add product pipeline run service
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarPulseProductPipelineServiceTests"
+
+result:
+  6 passed, 0 failed, 0 skipped
+
+dotnet build RadarPulse.sln -c Release --no-restore
+
+result:
+  succeeded, 0 warnings, 0 errors
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+  --no-restore
+  --filter "FullyQualifiedName~RadarPulseProductPipelineServiceTests"
+
+result:
+  6 passed, 0 failed, 0 skipped
 ```
 
 ## Slice 3: Product Read Query Surface
