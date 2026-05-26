@@ -66,10 +66,14 @@ Most recently closed milestone:
 Milestone 026 scope boundary:
 
 ```text
-the first concrete adapter is a deterministic local file-backed adapter used
-as a contract and restart-recovery gate. It does not claim production broker
+the selected adapter is deterministic local file-based persistence.
+milestone 026 stops at this file-based adapter as the accepted persistent
+contract and restart-recovery gate. It does not claim production broker
 durability, true live ingestion, deployment readiness, cross-machine
 throughput certification, or exactly-once production delivery.
+Kafka, RabbitMQ, cloud queue, and database-backed adapters require a separate
+future milestone decision instead of automatic continuation from milestone
+026.
 ```
 
 Milestone 026 key implementation:

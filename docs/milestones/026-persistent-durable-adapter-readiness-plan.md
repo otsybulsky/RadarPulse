@@ -40,6 +40,9 @@ Scope note:
 ```text
 the first concrete adapter is a deterministic local file-backed adapter. It
 is a contract and restart-recovery gate, not a production broker claim.
+milestone 026 stops at this file-based adapter; Kafka, RabbitMQ, cloud queue,
+database-backed adapters, and production broker certification are not
+automatic continuation work.
 ```
 
 ## Slice 1: Persistent Envelope Schema And Adapter Contract

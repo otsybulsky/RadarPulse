@@ -157,15 +157,29 @@ summary:
   sequence, first blocking envelope, and first blocking reason
 ```
 
-The first concrete adapter should be deterministic and local. A file-backed
-adapter is the recommended milestone gate because it proves serialization,
-restart recovery, idempotency, and ordering without requiring service
-credentials, container orchestration, external broker retention policy, or
-network failure injection before the RadarPulse contract is hardened.
+The selected adapter for milestone 026 is deterministic local file-backed
+persistence. The milestone stops at this file-based adapter.
 
-The file-backed adapter is not a production broker claim. It is the first
-persistent contract adapter and should remain replaceable by a later Kafka,
-RabbitMQ, cloud queue, or database adapter.
+This is a deliberate scope decision:
+
+```text
+accepted for milestone 026:
+  file-based durable envelope adapter
+  restart recovery and serialization proof
+  adapter-backed ordered commit and handler delta replay proof
+
+not pulled into milestone 026:
+  Kafka adapter
+  RabbitMQ adapter
+  cloud queue adapter
+  database-backed adapter
+  production broker operations or retention certification
+```
+
+The file-based adapter is not a production broker claim. It is the accepted
+persistent contract adapter for this milestone. Later Kafka, RabbitMQ, cloud
+queue, or database adapter work should require a new explicit milestone
+decision instead of being treated as automatic continuation of milestone 026.
 
 ## Persistence Model
 
@@ -196,10 +210,10 @@ The adapter must validate schema version before loading persisted records.
 Unknown future versions should fail closed with a compatibility diagnostic
 rather than silently interpreting incompatible state.
 
-For milestone 026, local serialized payload storage is acceptable for the
-file-backed adapter because the purpose is recovery proof. Later production
+For milestone 026, local serialized payload storage is accepted for the
+file-based adapter because the purpose is recovery proof. Later production
 adapters can replace this with broker payload references, object storage
-references, or database rows.
+references, or database rows only after a separate scope decision.
 
 ## Restart Recovery
 

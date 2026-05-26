@@ -163,8 +163,10 @@ readiness remains blocked when adapter-backed durable state has a failed
 ## Warnings To Review In Decision Trace
 
 ```text
-the accepted adapter is deterministic local file-backed persistence, not a
-  production broker adapter
+the accepted adapter is deterministic local file-based persistence; milestone
+  026 stops at this adapter
+Kafka, RabbitMQ, cloud queue, and database-backed adapters are not included
+  and require a separate future milestone decision
 the file-backed adapter is a restart-recovery and serialization gate, not a
   cross-machine throughput or broker retention certification
 completed-envelope recovery recomputes scoped processing completion material
