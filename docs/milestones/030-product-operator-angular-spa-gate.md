@@ -25,7 +25,8 @@ Implemented:
 ```text
 Angular 21 operator SPA in src/Presentation/OperatorUi
 package-lock.json committed for deterministic npm installs
-RadarPulse.Cli.csproj excludes OperatorUi/** from .NET SDK item discovery
+RadarPulse.Cli project isolated under src/Presentation/RadarPulse.Cli
+RadarPulse.Http project isolated under src/Presentation/RadarPulse.Http
 typed TypeScript DTO subset for accepted product HTTP responses
 typed RadarPulseProductApiClient over milestone 029 product routes
 runtime API base URL override stored in localStorage
@@ -156,8 +157,9 @@ inspection tabs, handler output value versus absent output, operator control
 route actions, unsafe fallback rejection, and unreachable-host control
 disablement.
 The focused .NET gate keeps the milestone 029 HTTP host, control routes, and
-product API contract green after adding the UI workspace, CLI project item
-exclusion, and the scoped local Operator UI CORS bridge.
+product API contract green after adding the UI workspace, isolating the CLI
+and HTTP projects under Presentation, and adding the scoped local Operator UI
+CORS bridge.
 Manual local browser issue found after the first gate:
   Angular dev server at http://localhost:4200 could not call
   RadarPulse.Http at http://localhost:5117 because preflight returned 405.

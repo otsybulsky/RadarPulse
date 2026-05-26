@@ -42,10 +42,10 @@ Angular version:
 Angular workspace location:
   accepted; the app lives under src/Presentation/OperatorUi
 
-.NET CLI packaging boundary:
-  accepted; RadarPulse.Cli.csproj excludes OperatorUi/** from SDK item
-  discovery so Angular workspace files and node_modules do not become CLI
-  project content
+.NET presentation packaging boundary:
+  accepted; RadarPulse.Cli, RadarPulse.Http, and OperatorUi are isolated
+  siblings under src/Presentation so Angular workspace files and node_modules
+  do not become CLI or HTTP project content
 
 npm dependency lock:
   accepted; package-lock.json is committed for deterministic local installs
@@ -158,24 +158,25 @@ only CLI and HTTP contracts."
 ### Accept OperatorUi Workspace Under Presentation
 
 Decision: accept `src/Presentation/OperatorUi` as the Angular project
-location.
+location, with .NET presentation projects isolated in sibling folders.
 
-Why chosen: the UI is a presentation-layer artifact, but the existing
-`src/Presentation` folder is also the .NET CLI project folder. A nested
-`OperatorUi` folder keeps the Angular workspace separate while matching the
-requested placement.
+Why chosen: the UI is a presentation-layer artifact. Keeping `OperatorUi`,
+`RadarPulse.Cli`, and `RadarPulse.Http` as sibling folders under
+`src/Presentation` keeps presentation surfaces together without letting the
+Angular workspace leak into .NET project item discovery.
 
-Alternatives: create `src/Presentation.Ui`, place the UI at repo root, or put
-the SPA inside `src/Presentation.Http`.
+Alternatives: create `src/Presentation.Ui`, place the UI at repo root, leave
+the CLI project at the root of `src/Presentation`, or put the SPA inside the
+HTTP project.
 
 Rejected because: `src/Presentation.Ui` diverges from the requested location;
-repo-root UI would separate it from presentation surfaces; putting Angular
-inside the HTTP project would blur API host and frontend workspace concerns
-before integrated delivery is selected.
+repo-root UI would separate it from presentation surfaces; keeping the CLI at
+the root of `src/Presentation` makes Angular workspace exclusions more
+fragile; putting Angular inside the HTTP project would blur API host and
+frontend workspace concerns before integrated delivery is selected.
 
-Trade-offs/debt: the CLI project needed explicit item exclusions for
-`OperatorUi/**`. Future integrated delivery may move build artifacts into
-the HTTP host, but source ownership remains clean.
+Trade-offs/debt: future integrated delivery may move build artifacts into the
+HTTP host, but source ownership remains clean.
 
 Review explanation: "Angular lives in Presentation, but not inside the CLI
 project's compile surface."
@@ -351,7 +352,8 @@ Included:
 src/Presentation/OperatorUi Angular workspace
 Angular 21 package set and package-lock.json
 Angular CLI build/test configuration
-RadarPulse.Cli.csproj OperatorUi/** item exclusions
+RadarPulse.Cli project under src/Presentation/RadarPulse.Cli
+RadarPulse.Http project under src/Presentation/RadarPulse.Http
 TypeScript product DTO subset
 RADARPULSE_PRODUCT_API_BASE_URL injection token
 runtime API base URL localStorage override

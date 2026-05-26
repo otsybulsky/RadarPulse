@@ -102,7 +102,8 @@ Completed implementation:
 ```text
 Angular 21 operator SPA in src/Presentation/OperatorUi
 package-lock.json committed for deterministic npm installs
-RadarPulse.Cli.csproj excludes OperatorUi/** from .NET SDK item discovery
+RadarPulse.Cli project is isolated under src/Presentation/RadarPulse.Cli
+RadarPulse.Http project is isolated under src/Presentation/RadarPulse.Http
 typed TypeScript DTO subset and RadarPulseProductApiClient over milestone 029
   product HTTP routes
 runtime API base URL override through localStorage and topbar input
@@ -118,6 +119,33 @@ operator controls for stop accepting, drain accepted, cancel/release, and
 explicit loading, empty, not-found, blocked, rejected, bad-request, and
   unreachable-host posture
 project-specific UI README and milestone gate evidence
+```
+
+Post-decision presentation layout refactor:
+
+```text
+RadarPulse.Cli moved from src/Presentation to
+  src/Presentation/RadarPulse.Cli
+RadarPulse.Http moved from src/Presentation.Http to
+  src/Presentation/RadarPulse.Http
+RadarPulse.sln and tests/RadarPulse.Tests project references now use the new
+  presentation project paths
+src/Presentation now contains the sibling presentation surfaces:
+  OperatorUi
+  RadarPulse.Cli
+  RadarPulse.Http
+```
+
+Post-refactor verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore
+  result: succeeded, 0 warnings, 0 errors
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+  --no-restore
+  --filter "FullyQualifiedName~RadarPulseProductHttpHostTests|FullyQualifiedName~RadarPulseProductHttpControlTests|FullyQualifiedName~RadarPulseProductPipelineApiContractTests|FullyQualifiedName~RadarPulseProductPipelineCliTests"
+  result: 18 passed, 0 failed, 0 skipped
 ```
 
 Milestone 030 scope boundary:

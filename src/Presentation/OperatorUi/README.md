@@ -44,7 +44,7 @@ http://localhost:4200
 Run the local product HTTP host from the repository root:
 
 ```powershell
-dotnet run --project src\Presentation.Http\RadarPulse.Http.csproj
+dotnet run --project src\Presentation\RadarPulse.Http\RadarPulse.Http.csproj
 ```
 
 The UI defaults to:

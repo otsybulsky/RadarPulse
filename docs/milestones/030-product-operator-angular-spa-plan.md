@@ -58,9 +58,8 @@ use the latest stable Angular CLI/core package versions at scaffold time
 enable strict TypeScript settings and routing
 commit package-lock.json for deterministic local installs
 keep Angular generated files within the OperatorUi folder
-update src/Presentation/RadarPulse.Cli.csproj if needed so Angular files and
-  future node_modules content are excluded from the .NET CLI project item
-  glob
+keep the .NET CLI project isolated from Angular files and future node_modules
+  content
 add or preserve local UI ignore rules for dist, .angular, coverage, and
   node_modules
 verify Angular scaffold build/test succeeds before moving to product code
