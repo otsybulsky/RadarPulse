@@ -1,9 +1,12 @@
-# Handoff: Milestone 024 Complete, Milestone 025 Recommended
+# Handoff: Milestone 025 Started
 
 ## Current State
 
-Milestone 024 is complete. RadarPulse has accepted the scoped MVP
-output/BFF readiness surface for deterministic archive-shaped workloads.
+Milestone 024 is complete. Milestone 025 has started.
+
+RadarPulse has accepted the scoped MVP output/BFF readiness surface for
+deterministic archive-shaped workloads. The current milestone is the handler
+delta/merge contract for fast custom analytics.
 
 Most recently closed milestone:
 
@@ -11,14 +14,67 @@ Most recently closed milestone:
 024 Custom Handler Output Contract And BFF Readiness
 ```
 
-Recommended next milestone input:
+Current milestone:
 
 ```text
-handler delta/merge contract for fast custom analytics. Define mergeable
-handler classification, per-batch handler deltas, deterministic
-provider-sequence merge, serialization/versioning boundaries, retry and
-idempotency behavior, failure diagnostics, sequential fallback parity gates,
-BFF output compatibility, and a handler-heavy large-volume performance gate.
+025 Handler Delta/Merge Contract For Fast Custom Analytics
+```
+
+Milestone 025 current status:
+
+```text
+architecture/concept document: written
+implementation plan: written
+implementation: not started
+decision trace: not written
+planned stop point: stop before decision trace for discussion
+```
+
+Milestone 025 documents:
+
+```text
+docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics.md
+docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics-plan.md
+```
+
+Milestone 025 goal:
+
+```text
+make stateful custom analytics fast on large volumes without weakening the
+accepted ordered commit and handler output contracts
+```
+
+Milestone 025 planned slices:
+
+```text
+1. Handler classification contract
+2. Per-batch handler delta contract
+3. Deterministic ordered merge coordinator
+4. MVP runtime integration and fallback policy
+5. BFF compatibility and diagnostics
+6. Handler-heavy performance gate
+7. Pre-decision trace review point
+```
+
+Milestone 025 key scope:
+
+```text
+define mergeable, snapshot-only, and unsupported handler classification;
+per-batch handler deltas; deterministic provider-sequence merge;
+serialization/versioning boundaries; retry, replay, duplicate delta, and
+idempotency behavior; failure diagnostics; sequential fallback parity gates;
+BFF output compatibility; and a handler-heavy large-volume performance gate.
+```
+
+Milestone 025 out of scope unless explicitly pulled forward:
+
+```text
+frontend application
+production HTTP BFF host
+persistent durable adapter
+true live network ingestion
+production deployment, rollback, autoscaling, alerts, and runbooks
+exactly-once production delivery claims
 ```
 
 Milestone 024 documents:
