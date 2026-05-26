@@ -1,6 +1,6 @@
 # Milestone 026: Persistent Durable Adapter Readiness Implementation Plan
 
-Status: in progress.
+Status: pre-decision review.
 
 This plan implements the milestone 026 architecture defined in
 `026-persistent-durable-adapter-readiness.md`.
@@ -340,7 +340,7 @@ result:
 
 ## Slice 6: Operator Summary And Release Gate
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -377,9 +377,31 @@ Commit:
 Capture persistent durable adapter gate
 ```
 
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingDurableRuntimeReadinessSummaryTests"
+
+result:
+  5 passed, 0 failed, 0 skipped
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+  --no-restore
+  --filter "FullyQualifiedName~RadarProcessingPersistentDurableEnvelopeStoreTests|FullyQualifiedName~RadarProcessingPersistentDurableEnvelopeQueueTests|FullyQualifiedName~RadarProcessingPersistentDurableRecoveryTests|FullyQualifiedName~RadarProcessingPersistentDurableProcessingSessionTests|FullyQualifiedName~RadarProcessingPersistentDurableHandlerDeltaTests|FullyQualifiedName~RadarProcessingDurableEnvelopeQueueTests|FullyQualifiedName~RadarProcessingDurableProcessingSessionTests|FullyQualifiedName~RadarProcessingDurableRecoveryTests|FullyQualifiedName~RadarProcessingHandlerDeltaContractTests|FullyQualifiedName~RadarProcessingHandlerDeltaMergeCoordinatorTests|FullyQualifiedName~RadarProcessingDurableRuntimeReadinessSummaryTests"
+
+result:
+  57 passed, 0 failed, 0 skipped
+
+dotnet build RadarPulse.sln -c Release --no-restore
+
+result:
+  succeeded, 0 warnings, 0 errors
+```
+
 ## Slice 7: Pre-Decision Trace Review Point
 
-Status: planned.
+Status: reached.
 
 Implementation:
 

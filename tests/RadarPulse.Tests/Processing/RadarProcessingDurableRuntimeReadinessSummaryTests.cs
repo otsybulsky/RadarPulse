@@ -96,6 +96,39 @@ public sealed class RadarProcessingDurableRuntimeReadinessSummaryTests
         Assert.Equal(1, rebalanceResult.ReadinessSummary.ReleasedEnvelopeCount);
     }
 
+    [Fact]
+    public void PersistentAdapterSummaryFeedsReadinessSummary()
+    {
+        var directory = CreateTempDirectory();
+        try
+        {
+            var path = Path.Combine(directory, "durable.json");
+            var queue = new RadarProcessingDurableEnvelopeQueue(
+                new RadarProcessingFileDurableEnvelopeStore(path));
+            var batchId = new RadarProcessingDurableBatchId("blocked");
+
+            queue.Accept(batchId, CreateBatch(SourceUniverseVersion.Initial, [0], messageTimestampBase: 100));
+            queue.ClaimNext("worker-a");
+            queue.Fail(batchId, "adapter-backed validation failed");
+
+            var adapter = queue.CreateAdapterSummary();
+            var readiness = new RadarProcessingDurableRuntimeReadinessSummary(adapter.QueueSummary);
+
+            Assert.Equal(RadarProcessingFileDurableEnvelopeStore.Kind, adapter.AdapterKind);
+            Assert.Equal(RadarProcessingPersistentDurableEnvelopeRecord.CurrentSchemaVersion, adapter.SchemaVersion);
+            Assert.Equal(path, adapter.StorageIdentity);
+            Assert.Equal(RadarProcessingDurableAdapterCompatibilityStatus.Compatible, adapter.CompatibilityStatus);
+            Assert.False(readiness.IsReady);
+            Assert.Equal(batchId, readiness.FirstBlockingBatchId);
+            Assert.Equal(RadarProcessingDurableEnvelopeState.Failed, readiness.FirstBlockingState);
+            Assert.Equal("adapter-backed validation failed", readiness.BlockingReason);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
     private static RadarProcessingCore CreateCore(
         RadarSourceUniverse universe) =>
         new(
@@ -133,6 +166,16 @@ public sealed class RadarProcessingDurableRuntimeReadinessSummaryTests
             elevationSlotCount: 1,
             azimuthBucketCount: sourceCount,
             rangeBandCount: 1);
+
+    private static string CreateTempDirectory()
+    {
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            "radarpulse-m026-readiness-",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        return directory;
+    }
 
     private static RadarEventBatch CreateBatch(
         SourceUniverseVersion sourceUniverseVersion,

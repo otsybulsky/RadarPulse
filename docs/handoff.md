@@ -1,10 +1,17 @@
-# Handoff: Milestone 026 Planned
+# Handoff: Milestone 026 Pre-Decision Review
 
 ## Current State
 
 Milestone 026 has started as the selected reliability milestone after
-milestone 025 closeout. The architecture/concept document and implementation
-plan are now written; implementation has not started yet.
+milestone 025 closeout. The architecture/concept document, implementation
+plan, implementation slices, focused Release gate, and handoff update are
+complete.
+
+Stop point:
+
+```text
+stop before decision trace for review
+```
 
 Current milestone:
 
@@ -25,25 +32,29 @@ Milestone 026 documents:
 ```text
 docs/milestones/026-persistent-durable-adapter-readiness.md
 docs/milestones/026-persistent-durable-adapter-readiness-plan.md
+docs/milestones/026-persistent-durable-adapter-readiness-gate.md
 ```
 
 Milestone 026 planned slices:
 
 ```text
-1. Persistent envelope schema and adapter contract [planned]
-2. File-backed durable envelope queue [planned]
-3. Restart recovery transitions [planned]
-4. Adapter-backed ordered processing commit [planned]
-5. Handler delta replay compatibility [planned]
-6. Operator summary and Release gate [planned]
-7. Pre-decision trace review point [planned; stop before decision trace]
+1. Persistent envelope schema and adapter contract [complete]
+2. File-backed durable envelope queue [complete]
+3. Restart recovery transitions [complete]
+4. Adapter-backed ordered processing commit [complete]
+5. Handler delta replay compatibility [complete]
+6. Operator summary and Release gate [complete]
+7. Pre-decision trace review point [reached; stop before decision trace]
 ```
 
-Current next action:
+Latest verification:
 
 ```text
-begin milestone 026 slice 1:
-  persistent envelope schema and adapter contract
+focused milestone 026 Release gate:
+  57 passed, 0 failed, 0 skipped
+
+Release build:
+  succeeded, 0 warnings, 0 errors
 ```
 
 Most recently closed milestone:
@@ -59,6 +70,30 @@ the first concrete adapter is a deterministic local file-backed adapter used
 as a contract and restart-recovery gate. It does not claim production broker
 durability, true live ingestion, deployment readiness, cross-machine
 throughput certification, or exactly-once production delivery.
+```
+
+Milestone 026 key implementation:
+
+```text
+versioned persistent durable envelope schema
+local file-backed durable envelope store
+optional persistent backend for RadarProcessingDurableEnvelopeQueue
+restart recovery for pending, claimed, completed, failed, abandoned, poison,
+  canceled, and released states
+completed-envelope recovery hook for ordered processing commit after
+  adapter/session recreation
+persistent adapter summary composed with durable runtime readiness summary
+adapter-backed handler delta identity, duplicate replay, conflict rejection,
+  and ordered merge compatibility tests
+```
+
+Decision trace has not been written:
+
+```text
+docs/milestones/026-persistent-durable-adapter-readiness-decision-trace.md
+  not created
+docs/milestones/026-persistent-durable-adapter-readiness-closeout.md
+  not created
 ```
 
 ## Previous Closed Milestone Context
