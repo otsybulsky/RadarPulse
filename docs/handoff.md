@@ -3,13 +3,13 @@
 ## Current State
 
 Milestone 028 has been selected after milestone 027 closeout. The
-architecture/concept document and implementation plan are written. No
-implementation slices have started yet.
+architecture/concept document, implementation plan, and slice 1 product DTO
+and mapping contract are complete.
 
 Stop point:
 
 ```text
-milestone 028 architecture and implementation plan written
+milestone 028 slice 1 complete
 ```
 
 Current milestone:
@@ -37,7 +37,7 @@ docs/milestones/028-product-facing-pipeline-console-and-api-plan.md
 Milestone 028 planned slices:
 
 ```text
-1. Product DTO and mapping contract [planned]
+1. Product DTO and mapping contract [complete]
 2. Product pipeline run service [planned]
 3. Product read query surface [planned]
 4. Product operator control surface [planned]
@@ -49,7 +49,14 @@ Milestone 028 planned slices:
 Latest verification:
 
 ```text
-milestone 028 implementation has not started yet
+slice 1 focused product DTO suite:
+  3 passed, 0 failed, 0 skipped
+
+slice 1 focused product DTO Release suite:
+  3 passed, 0 failed, 0 skipped
+
+Release build:
+  succeeded, 0 warnings, 0 errors
 
 latest closed milestone verification remains milestone 027:
   focused milestone 027 Release gate:
@@ -116,7 +123,7 @@ throughput certification, or exactly-once production delivery.
 Current next action:
 
 ```text
-start slice 1: product DTO and mapping contract
+start slice 2: product pipeline run service
 ```
 
 Stop-before-decision-trace instruction:

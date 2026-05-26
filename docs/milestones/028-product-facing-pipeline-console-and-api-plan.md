@@ -51,7 +51,7 @@ deployment readiness, cross-machine throughput, or exactly-once delivery.
 
 ## Slice 1: Product DTO And Mapping Contract
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -89,6 +89,28 @@ Commit:
 
 ```text
 Add product pipeline DTO mapping
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarPulseProductPipelineDtoTests"
+
+result:
+  3 passed, 0 failed, 0 skipped
+
+dotnet build RadarPulse.sln -c Release --no-restore
+
+result:
+  succeeded, 0 warnings, 0 errors
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+  --no-restore --no-build
+  --filter "FullyQualifiedName~RadarPulseProductPipelineDtoTests"
+
+result:
+  3 passed, 0 failed, 0 skipped
 ```
 
 ## Slice 2: Product Pipeline Run Service
