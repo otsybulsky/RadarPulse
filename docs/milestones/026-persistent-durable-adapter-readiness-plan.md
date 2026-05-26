@@ -279,7 +279,7 @@ result:
 
 ## Slice 5: Handler Delta Replay Compatibility
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -315,6 +315,27 @@ Commit:
 
 ```text
 Validate handler delta replay with persistent durable adapter
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingPersistentDurableHandlerDeltaTests"
+
+result:
+  4 passed, 0 failed, 0 skipped
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingPersistentDurableHandlerDeltaTests|FullyQualifiedName~RadarProcessingHandlerDeltaContractTests|FullyQualifiedName~RadarProcessingHandlerDeltaMergeCoordinatorTests"
+
+result:
+  17 passed, 0 failed, 0 skipped
+
+dotnet build RadarPulse.sln -c Release --no-restore
+
+result:
+  succeeded, 0 warnings, 0 errors
 ```
 
 ## Slice 6: Operator Summary And Release Gate
