@@ -1,6 +1,69 @@
-# Handoff: Milestone 025 Complete
+# Handoff: Milestone 026 Planned
 
 ## Current State
+
+Milestone 026 has started as the selected reliability milestone after
+milestone 025 closeout. The architecture/concept document and implementation
+plan are now written; implementation has not started yet.
+
+Current milestone:
+
+```text
+026 Persistent Durable Adapter Readiness
+```
+
+Current milestone goal:
+
+```text
+validate one concrete persistent or broker-like adapter against the
+milestone 023 durable envelope contract while preserving milestone 025
+handler delta identity, idempotency, replay, and ordered merge semantics
+```
+
+Milestone 026 documents:
+
+```text
+docs/milestones/026-persistent-durable-adapter-readiness.md
+docs/milestones/026-persistent-durable-adapter-readiness-plan.md
+```
+
+Milestone 026 planned slices:
+
+```text
+1. Persistent envelope schema and adapter contract [planned]
+2. File-backed durable envelope queue [planned]
+3. Restart recovery transitions [planned]
+4. Adapter-backed ordered processing commit [planned]
+5. Handler delta replay compatibility [planned]
+6. Operator summary and Release gate [planned]
+7. Pre-decision trace review point [planned; stop before decision trace]
+```
+
+Current next action:
+
+```text
+begin milestone 026 slice 1:
+  persistent envelope schema and adapter contract
+```
+
+Most recently closed milestone:
+
+```text
+025 Handler Delta/Merge Contract For Fast Custom Analytics
+```
+
+Milestone 026 scope boundary:
+
+```text
+the first concrete adapter is a deterministic local file-backed adapter used
+as a contract and restart-recovery gate. It does not claim production broker
+durability, true live ingestion, deployment readiness, cross-machine
+throughput certification, or exactly-once production delivery.
+```
+
+## Previous Closed Milestone Context
+
+### Current State
 
 Milestone 025 is complete. Implementation slices, gate evidence, the
 requested full-cache handler performance matrix, the follow-up merge-state
