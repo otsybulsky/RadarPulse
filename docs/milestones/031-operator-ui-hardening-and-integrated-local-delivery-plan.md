@@ -96,7 +96,7 @@ Harden operator UI state and validation
 
 ## Slice 2: Browser Smoke Harness
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -119,6 +119,19 @@ Tests:
 npm run smoke
 npm test -- --watch=false
 npm run build
+```
+
+Verification:
+
+```text
+npm run smoke
+  result: 4 passed, 0 failed
+
+npm test -- --watch=false
+  result: 18 passed, 0 failed
+
+npm run build
+  result: succeeded, 0 warnings
 ```
 
 Exit criteria:

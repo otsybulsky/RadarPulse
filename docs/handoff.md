@@ -4,12 +4,13 @@
 
 Milestone 031 has been selected after milestone 030 closeout. The
 architecture/concept document and implementation plan are written. Slice 1
-URL state and validation hardening is complete.
+URL state and validation hardening is complete. Slice 2 browser smoke harness
+is complete.
 
 Stop point:
 
 ```text
-milestone 031 slice 1 complete; start implementation slice 2
+milestone 031 slice 2 complete; start implementation slice 3
 ```
 
 Most recently closed milestone:
@@ -58,7 +59,7 @@ Milestone 031 planned slices:
 
 ```text
 1. URL state and validation hardening [complete]
-2. Browser smoke harness [planned]
+2. Browser smoke harness [complete]
 3. Integrated static UI delivery [planned]
 4. Same-origin smoke and local workflow docs [planned]
 5. Gate evidence and handoff [planned]
@@ -68,6 +69,13 @@ Latest verification:
 
 ```text
 milestone 031 slice 1:
+  Angular gate:
+    18 passed, 0 failed
+    production build succeeded, 0 warnings
+
+milestone 031 slice 2:
+  browser smoke gate:
+    4 passed, 0 failed
   Angular gate:
     18 passed, 0 failed
     production build succeeded, 0 warnings
@@ -107,6 +115,7 @@ input validation for product HTTP base URL, archive run, and handler lookup
 control disabled/loading/rejected/blocked posture hardening
 selected run not-found posture from URL state
 Playwright-style browser smoke coverage for critical operator workflows
+deterministic browser API route fixtures for operator UI smoke tests
 RadarPulse.Http local static delivery for the built Angular SPA
 route fallback that does not intercept /product/pipeline API routes
 README updates for dev-server and integrated same-origin workflows
@@ -155,8 +164,8 @@ visualization.
 Current next action:
 
 ```text
-implement slice 2:
-  Browser smoke harness
+implement slice 3:
+  Integrated static UI delivery
 ```
 
 Decision trace posture:
