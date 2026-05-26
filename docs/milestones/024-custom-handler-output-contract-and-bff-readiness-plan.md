@@ -87,7 +87,7 @@ result:
 
 ## Slice 2: Processing Output Read Models
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -117,6 +117,21 @@ Exit criteria:
 ```text
 processing results can be inspected without reaching into processing core,
 queue, or durable session internals
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingRunReadModelTests"
+
+result:
+  4 passed, 0 failed, 0 skipped
+
+dotnet build RadarPulse.sln -c Release --no-restore
+
+result:
+  succeeded, 0 warnings, 0 errors
 ```
 
 ## Slice 3: BFF Application Surface
