@@ -1,10 +1,12 @@
 using System.Globalization;
 using RadarPulse.Application.Archive;
+using RadarPulse.Application.Product;
 using RadarPulse.Domain.Archive;
 using RadarPulse.Domain.Processing;
 using RadarPulse.Domain.Streaming;
 using RadarPulse.Infrastructure.Archive;
 using RadarPulse.Infrastructure.Processing;
+using RadarPulse.Infrastructure.Product;
 
 if (args.Length < 2)
 {
@@ -28,6 +30,7 @@ try
             _ => PrintUsage()
         },
         "processing" => Processing(args[1..]),
+        "product" => await ProductAsync(args[1..]),
         _ => PrintUsage()
     };
 }
@@ -185,6 +188,8 @@ static int PrintUsage()
     Console.WriteLine("  radarpulse processing benchmark rebalance-synthetic [--workload balanced|hot-shard|intrinsic-hot|oscillating|cooldown-storm|quarantine-ttl-retry|quarantine-cooling-clear|quarantine-pressure-change-retry|quarantine-retry-reentry|quarantine-successful-relief-clear|long-no-hot-shard|long-cooldown-rejection|long-unsafe-target-rejection|long-mixed-skipped-reasons|counters-only-retention|all] [--mode static|sampling|rebalance|ordered-rebalance|all] [--active-batches n] [--execution sync|async] [--workers n] [--queue-capacity n] [--validation-profile off|essential|diagnostic|benchmark] [--quarantine-ttl-evaluations n] [--quarantine-sustained-cooling-samples n] [--quarantine-material-pressure-change n] [--iterations n] [--warmup-iterations n]");
     Console.WriteLine("  radarpulse processing benchmark rebalance-archive (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--mode static|sampling|rebalance|all] [--provider blocking-borrowed|queued-owned] [--provider-overlap none|producer-consumer] [--retention-strategy snapshot-copy|pooled-copy|builder-transfer] [--execution sync|async] [--workers n] [--queue-capacity n] [--queue-timeout-ms n] [--queue-retained-bytes n] [--queue-telemetry none|summary|recent] [--overlap-telemetry none|summary|recent] [--overlap-consumer-delay-ms n] [--partitions n] [--shards n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress] [--validation-profile off|essential|diagnostic|benchmark] [--quarantine-ttl-evaluations n] [--quarantine-sustained-cooling-samples n] [--quarantine-material-pressure-change n] [--retention-mode counters|recent|diagnostic] [--max-retained-decisions n] [--max-retained-transitions n] [--max-retained-accepted-moves n] [--max-retained-validation-failures n] [--skew-profile none|hot-shard|rotating-hot-shard|hot-partition|target-starvation|budget-storm] [--skew-factor n] [--skew-period n]");
     Console.WriteLine("  radarpulse processing benchmark ordered-archive-processing (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--active-batches n] [--partitions n] [--shards n] [--handlers none|counter-checksum|counter-checksum-heavy] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress] [--queue-telemetry none|summary|recent] [--overlap-telemetry none|summary|recent]");
+    Console.WriteLine("  radarpulse product pipeline demo [--run-id id] [--sources n] [--batches n] [--events-per-batch n] [--partitions n] [--shards n] [--handlers none|counter-checksum|counter-checksum-heavy|snapshot-counting|unsupported] [--workers n] [--worker-queue-capacity n] [--provider-queue-capacity n] [--active-batches n]");
+    Console.WriteLine("  radarpulse product pipeline run-archive --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 [--run-id id] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress] [--handlers none|counter-checksum|counter-checksum-heavy|snapshot-counting|unsupported]");
     Console.WriteLine("    rebalance-archive omitted-provider default: queued-owned + pooled-copy + producer-consumer, async workers 4, queue capacity 8, retained-byte budget 536870912, retained-payload prewarm on.");
     Console.WriteLine("    rebalance-archive fallback/oracle: use --provider blocking-borrowed for the borrowed path and same-run comparison.");
     Console.WriteLine("    rebalance-archive direct MeasureFile()/MeasureCache() defaults use the same queued-owned rollout contour.");
@@ -379,6 +384,159 @@ static int ProcessingBenchmark(string[] args)
         _ => PrintUsage()
     };
 }
+
+static async Task<int> ProductAsync(string[] args)
+{
+    if (args.Length == 0)
+    {
+        return PrintUsage();
+    }
+
+    return args[0] switch
+    {
+        "pipeline" => await ProductPipelineAsync(args[1..]),
+        _ => PrintUsage()
+    };
+}
+
+static async Task<int> ProductPipelineAsync(string[] args)
+{
+    if (args.Length == 0)
+    {
+        return PrintUsage();
+    }
+
+    return args[0] switch
+    {
+        "demo" => await RunProductPipelineDemoAsync(args[1..]),
+        "run-archive" => await RunProductPipelineArchiveAsync(args[1..]),
+        _ => PrintUsage()
+    };
+}
+
+static async Task<int> RunProductPipelineDemoAsync(string[] args)
+{
+    var options = ProductPipelineDemoOptions.Parse(args);
+    var service = new RadarPulseProductPipelineService();
+    var detail = await service.RunSyntheticAsync(
+        new RadarPulseProductPipelineSyntheticRunRequest(
+            options.RunId,
+            options.SourceCount,
+            options.BatchCount,
+            options.EventsPerBatch,
+            options.PartitionCount,
+            options.ShardCount,
+            options.HandlerSet,
+            options.PipelineOptions));
+
+    PrintProductRunDetail("demo", detail);
+    return detail.IsReady ? 0 : 1;
+}
+
+static async Task<int> RunProductPipelineArchiveAsync(string[] args)
+{
+    var options = ProductPipelineArchiveOptions.Parse(args);
+    var service = new RadarPulseProductPipelineService();
+    var detail = await service.RunArchiveFileAsync(
+        new RadarPulseProductPipelineArchiveFileRunRequest(
+            options.RunId,
+            options.FilePath,
+            options.Parallelism,
+            options.PartitionCount,
+            options.ShardCount,
+            options.Decompressor,
+            options.HandlerSet,
+            options.PipelineOptions));
+
+    PrintProductRunDetail("archive-file", detail);
+    return detail.IsReady ? 0 : 1;
+}
+
+static void PrintProductRunDetail(
+    string workflow,
+    RadarPulseProductRunDetail detail)
+{
+    Console.WriteLine($"Product pipeline: {workflow}");
+    Console.WriteLine($"Run id: {detail.RunId}");
+    Console.WriteLine($"Input kind: {FormatProductInputKind(detail.Summary.Input.Kind)}");
+    Console.WriteLine($"Input source: {detail.Summary.Input.Source}");
+    Console.WriteLine($"Run state: {FormatProductRunState(detail.Summary.State)}");
+    Console.WriteLine($"Readiness: {(detail.IsReady ? "ready" : "blocked")}");
+    Console.WriteLine($"First blocking reason: {FormatEmptyAsNone(detail.Summary.FirstBlockingReason)}");
+    Console.WriteLine($"Fallback recommendation: {FormatProductFallback(detail.Summary.FallbackRecommendation)}");
+    Console.WriteLine($"Handler mode: {FormatProductHandlerMode(detail.Summary.HandlerMode)}");
+    Console.WriteLine($"Read model: {(detail.HasReadModel ? "published" : "not-published")}");
+    Console.WriteLine($"Input batches: {FormatNumber(detail.Summary.Input.BatchCount)}");
+    Console.WriteLine($"Input events: {FormatNumber(detail.Summary.Input.EventCount)}");
+    Console.WriteLine($"Batches: {FormatNumber(detail.Summary.BatchCount)}");
+    Console.WriteLine($"Sources: {FormatNumber(detail.Summary.SourceCount)}");
+    Console.WriteLine($"Accepted batches: {FormatNumber(detail.Summary.AcceptedBatchCount)}");
+    Console.WriteLine($"Processed batches: {FormatNumber(detail.Summary.ProcessedBatchCount)}");
+    Console.WriteLine($"Committed batches: {FormatNumber(detail.Summary.CommittedBatchCount)}");
+    Console.WriteLine($"Processing completeness: {(detail.CapacityEvidence.ProcessingCompletenessPassed ? "succeeded" : "failed")}");
+    Console.WriteLine($"Terminal retained batches: {FormatNumber(detail.CapacityEvidence.TerminalRetainedBatchCount)}");
+    Console.WriteLine($"Terminal retained payload bytes: {FormatNumber(detail.CapacityEvidence.TerminalRetainedPayloadBytes)}");
+    Console.WriteLine($"Elapsed ms: {FormatDecimal(detail.CapacityEvidence.ElapsedMilliseconds)}");
+    Console.WriteLine($"Allocated bytes: {FormatNumber(detail.CapacityEvidence.MeasuredAllocatedBytes)}");
+    Console.WriteLine($"Configuration contour: {detail.CapacityEvidence.ConfigurationContour}");
+    Console.WriteLine($"Warnings: {FormatNumber(detail.Summary.WarningCount)}");
+    foreach (var warning in detail.OperatorSummary.Warnings)
+    {
+        Console.WriteLine($"Warning: {warning}");
+    }
+}
+
+static string FormatEmptyAsNone(string value) =>
+    string.IsNullOrWhiteSpace(value) ? "none" : value;
+
+static string FormatProductInputKind(RadarPulseProductInputKind kind) =>
+    kind switch
+    {
+        RadarPulseProductInputKind.Synthetic => "synthetic",
+        RadarPulseProductInputKind.ArchiveFile => "archive-file",
+        _ => throw new ArgumentOutOfRangeException(nameof(kind))
+    };
+
+static string FormatProductRunState(RadarPulseProductRunState state) =>
+    state switch
+    {
+        RadarPulseProductRunState.NotStarted => "not-started",
+        RadarPulseProductRunState.Running => "running",
+        RadarPulseProductRunState.Draining => "draining",
+        RadarPulseProductRunState.Completed => "completed",
+        RadarPulseProductRunState.Stopped => "stopped",
+        RadarPulseProductRunState.Blocked => "blocked",
+        RadarPulseProductRunState.Failed => "failed",
+        RadarPulseProductRunState.Canceled => "canceled",
+        _ => throw new ArgumentOutOfRangeException(nameof(state))
+    };
+
+static string FormatProductHandlerMode(RadarPulseProductHandlerMode mode) =>
+    mode switch
+    {
+        RadarPulseProductHandlerMode.Auto => "auto",
+        RadarPulseProductHandlerMode.HandlerFree => "handler-free",
+        RadarPulseProductHandlerMode.MergeableDelta => "mergeable-delta",
+        RadarPulseProductHandlerMode.SnapshotSequential => "snapshot-sequential",
+        _ => throw new ArgumentOutOfRangeException(nameof(mode))
+    };
+
+static string FormatProductFallback(RadarPulseProductFallbackRecommendation recommendation) =>
+    recommendation switch
+    {
+        RadarPulseProductFallbackRecommendation.None => "none",
+        RadarPulseProductFallbackRecommendation.FixConfiguration => "fix-configuration",
+        RadarPulseProductFallbackRecommendation.InspectDurableAdapter => "inspect-durable-adapter",
+        RadarPulseProductFallbackRecommendation.RecoverClaimedEnvelope => "recover-claimed-envelope",
+        RadarPulseProductFallbackRecommendation.RetryOrPoisonEnvelope => "retry-or-poison-envelope",
+        RadarPulseProductFallbackRecommendation.QuarantinePoisonEnvelope => "quarantine-poison-envelope",
+        RadarPulseProductFallbackRecommendation.CleanupCanceledEnvelope => "cleanup-canceled-envelope",
+        RadarPulseProductFallbackRecommendation.ReleaseRetainedResources => "release-retained-resources",
+        RadarPulseProductFallbackRecommendation.CompleteOrRecoverUncommittedWork => "complete-or-recover-uncommitted-work",
+        RadarPulseProductFallbackRecommendation.ResolveHandlerPosture => "resolve-handler-posture",
+        RadarPulseProductFallbackRecommendation.RejectUnsafeFallback => "reject-unsafe-fallback",
+        _ => throw new ArgumentOutOfRangeException(nameof(recommendation))
+    };
 
 static int BenchmarkProcessingSynthetic(string[] args)
 {
@@ -4938,6 +5096,230 @@ internal sealed record ArchiveValidateReplayShapeOptions(
 
         index++;
         return args[index];
+    }
+}
+
+internal sealed record ProductPipelineDemoOptions(
+    string RunId,
+    int SourceCount,
+    int BatchCount,
+    int EventsPerBatch,
+    int PartitionCount,
+    int ShardCount,
+    RadarPulseProductHandlerSet HandlerSet,
+    RadarPulseProductPipelineOptions PipelineOptions)
+{
+    public static ProductPipelineDemoOptions Parse(string[] args)
+    {
+        var runId = "product-demo";
+        var sourceCount = 2;
+        var batchCount = 2;
+        var eventsPerBatch = 2;
+        var partitionCount = 0;
+        var shardCount = 0;
+        var handlerSet = RadarPulseProductHandlerSet.None;
+        int? workerCount = null;
+        int? workerQueueCapacity = null;
+        int? providerQueueCapacity = null;
+        int? orderedActiveBatchCapacity = null;
+
+        for (var i = 0; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--run-id":
+                    runId = RequireValue(args, ref i, "--run-id");
+                    break;
+                case "--sources":
+                    sourceCount = int.Parse(RequireValue(args, ref i, "--sources"));
+                    break;
+                case "--batches":
+                    batchCount = int.Parse(RequireValue(args, ref i, "--batches"));
+                    break;
+                case "--events-per-batch":
+                    eventsPerBatch = int.Parse(RequireValue(args, ref i, "--events-per-batch"));
+                    break;
+                case "--partitions":
+                    partitionCount = int.Parse(RequireValue(args, ref i, "--partitions"));
+                    break;
+                case "--shards":
+                    shardCount = int.Parse(RequireValue(args, ref i, "--shards"));
+                    break;
+                case "--handlers":
+                    handlerSet = ProductPipelineCliOptionParsing.ParseHandlerSet(RequireValue(args, ref i, "--handlers"));
+                    break;
+                case "--workers":
+                    workerCount = int.Parse(RequireValue(args, ref i, "--workers"));
+                    break;
+                case "--worker-queue-capacity":
+                    workerQueueCapacity = int.Parse(RequireValue(args, ref i, "--worker-queue-capacity"));
+                    break;
+                case "--provider-queue-capacity":
+                    providerQueueCapacity = int.Parse(RequireValue(args, ref i, "--provider-queue-capacity"));
+                    break;
+                case "--active-batches":
+                    orderedActiveBatchCapacity = int.Parse(RequireValue(args, ref i, "--active-batches"));
+                    break;
+                default:
+                    throw new ArgumentException($"Unknown option: {args[i]}");
+            }
+        }
+
+        ProductPipelineCliOptionParsing.ValidatePositive(sourceCount, "--sources");
+        ProductPipelineCliOptionParsing.ValidatePositive(batchCount, "--batches");
+        ProductPipelineCliOptionParsing.ValidatePositive(eventsPerBatch, "--events-per-batch");
+        ProductPipelineCliOptionParsing.ValidateNonNegative(partitionCount, "--partitions");
+        ProductPipelineCliOptionParsing.ValidateNonNegative(shardCount, "--shards");
+        ProductPipelineCliOptionParsing.ValidateOptionalPositive(workerCount, "--workers");
+        ProductPipelineCliOptionParsing.ValidateOptionalPositive(workerQueueCapacity, "--worker-queue-capacity");
+        ProductPipelineCliOptionParsing.ValidateOptionalPositive(providerQueueCapacity, "--provider-queue-capacity");
+        ProductPipelineCliOptionParsing.ValidateOptionalPositive(orderedActiveBatchCapacity, "--active-batches");
+
+        return new ProductPipelineDemoOptions(
+            runId,
+            sourceCount,
+            batchCount,
+            eventsPerBatch,
+            partitionCount,
+            shardCount,
+            handlerSet,
+            new RadarPulseProductPipelineOptions(
+                WorkerCount: workerCount,
+                WorkerQueueCapacity: workerQueueCapacity,
+                ProviderQueueCapacity: providerQueueCapacity,
+                OrderedActiveBatchCapacity: orderedActiveBatchCapacity));
+    }
+
+    private static string RequireValue(string[] args, ref int index, string option)
+    {
+        if (index + 1 >= args.Length)
+        {
+            throw new ArgumentException($"{option} requires a value.");
+        }
+
+        index++;
+        return args[index];
+    }
+}
+
+internal sealed record ProductPipelineArchiveOptions(
+    string RunId,
+    string FilePath,
+    int Parallelism,
+    int PartitionCount,
+    int ShardCount,
+    string Decompressor,
+    RadarPulseProductHandlerSet HandlerSet,
+    RadarPulseProductPipelineOptions PipelineOptions)
+{
+    public static ProductPipelineArchiveOptions Parse(string[] args)
+    {
+        var runId = "product-archive";
+        string? filePath = null;
+        var parallelism = 1;
+        var partitionCount = 0;
+        var shardCount = 0;
+        var decompressor = ArchiveBZip2Decompressors.DefaultName;
+        var handlerSet = RadarPulseProductHandlerSet.None;
+
+        for (var i = 0; i < args.Length; i++)
+        {
+            switch (args[i])
+            {
+                case "--run-id":
+                    runId = RequireValue(args, ref i, "--run-id");
+                    break;
+                case "--file":
+                    filePath = RequireValue(args, ref i, "--file");
+                    break;
+                case "--parallelism":
+                    parallelism = int.Parse(RequireValue(args, ref i, "--parallelism"));
+                    break;
+                case "--partitions":
+                    partitionCount = int.Parse(RequireValue(args, ref i, "--partitions"));
+                    break;
+                case "--shards":
+                    shardCount = int.Parse(RequireValue(args, ref i, "--shards"));
+                    break;
+                case "--decompressor":
+                    decompressor = RequireValue(args, ref i, "--decompressor");
+                    break;
+                case "--handlers":
+                    handlerSet = ProductPipelineCliOptionParsing.ParseHandlerSet(RequireValue(args, ref i, "--handlers"));
+                    break;
+                default:
+                    throw new ArgumentException($"Unknown option: {args[i]}");
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            throw new InvalidOperationException("--file is required.");
+        }
+
+        ProductPipelineCliOptionParsing.ValidatePositive(parallelism, "--parallelism");
+        ProductPipelineCliOptionParsing.ValidateNonNegative(partitionCount, "--partitions");
+        ProductPipelineCliOptionParsing.ValidateNonNegative(shardCount, "--shards");
+        ArchiveBZip2Decompressors.Create(decompressor);
+
+        return new ProductPipelineArchiveOptions(
+            runId,
+            filePath,
+            parallelism,
+            partitionCount,
+            shardCount,
+            decompressor,
+            handlerSet,
+            new RadarPulseProductPipelineOptions());
+    }
+
+    private static string RequireValue(string[] args, ref int index, string option)
+    {
+        if (index + 1 >= args.Length)
+        {
+            throw new ArgumentException($"{option} requires a value.");
+        }
+
+        index++;
+        return args[index];
+    }
+}
+
+internal static class ProductPipelineCliOptionParsing
+{
+    public static RadarPulseProductHandlerSet ParseHandlerSet(string value) =>
+        value.Trim().ToLowerInvariant() switch
+        {
+            "none" => RadarPulseProductHandlerSet.None,
+            "counter-checksum" => RadarPulseProductHandlerSet.CounterChecksum,
+            "counter-checksum-heavy" => RadarPulseProductHandlerSet.CounterChecksumHeavy,
+            "snapshot-counting" => RadarPulseProductHandlerSet.SnapshotCounting,
+            "unsupported" => RadarPulseProductHandlerSet.Unsupported,
+            _ => throw new ArgumentException($"Unknown product handler set: {value}.")
+        };
+
+    public static void ValidatePositive(int value, string option)
+    {
+        if (value <= 0)
+        {
+            throw new InvalidOperationException($"{option} must be greater than zero.");
+        }
+    }
+
+    public static void ValidateNonNegative(int value, string option)
+    {
+        if (value < 0)
+        {
+            throw new InvalidOperationException($"{option} cannot be negative.");
+        }
+    }
+
+    public static void ValidateOptionalPositive(int? value, string option)
+    {
+        if (value <= 0)
+        {
+            throw new InvalidOperationException($"{option} must be greater than zero.");
+        }
     }
 }
 
