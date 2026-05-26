@@ -1,4 +1,4 @@
-# Handoff: Milestone 031 Pre-Decision
+# Handoff: Milestone 031 Decision Trace Written
 
 ## Current State
 
@@ -7,13 +7,13 @@ architecture/concept document and implementation plan are written. Slice 1
 URL state and validation hardening is complete. Slice 2 browser smoke harness
 is complete. Slice 3 integrated static UI delivery is complete.
 Slice 4 same-origin smoke and local workflow docs are complete. Slice 5 gate
-evidence and handoff is complete. Stop before decision trace.
+evidence and handoff is complete. The decision trace is written. Closeout is
+pending.
 
 Stop point:
 
 ```text
-milestone 031 implementation slices complete; gate evidence captured; stop
-before decision trace
+milestone 031 decision trace written; closeout pending
 ```
 
 Most recently closed milestone:
@@ -57,6 +57,7 @@ Milestone 031 documents:
 docs/milestones/031-operator-ui-hardening-and-integrated-local-delivery.md
 docs/milestones/031-operator-ui-hardening-and-integrated-local-delivery-plan.md
 docs/milestones/031-operator-ui-hardening-and-integrated-local-delivery-gate.md
+docs/milestones/031-operator-ui-hardening-and-integrated-local-delivery-decision-trace.md
 ```
 
 Milestone 031 planned slices:
@@ -205,9 +206,10 @@ stop before writing milestone 031 decision trace
 Decision trace posture:
 
 ```text
-milestone 031 decision trace has not been written
-stop before decision trace after implementation slices and gate evidence are
-  complete
+milestone 031 decision trace has been written
+closeout has not been written
+recommended next milestone input:
+  Product demo/readiness packaging
 ```
 
 Previous milestone closeout:
