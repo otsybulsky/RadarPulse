@@ -1,26 +1,24 @@
-# Handoff: Milestone 025 Decision Trace Written
+# Handoff: Milestone 025 Complete
 
 ## Current State
 
-Milestone 024 is complete. Milestone 025 implementation slices,
-pre-decision gate evidence, the requested full-cache handler performance
-matrix, the follow-up merge-state optimization, and the decision trace are
-complete. Closeout is not written.
+Milestone 025 is complete. Implementation slices, gate evidence, the
+requested full-cache handler performance matrix, the follow-up merge-state
+optimization, decision trace, and closeout are complete.
 
-RadarPulse has accepted the scoped MVP output/BFF readiness surface for
-deterministic archive-shaped workloads. The current milestone is the handler
-delta/merge contract for fast custom analytics.
+RadarPulse has accepted the scoped handler delta/merge contract for fast
+custom analytics over deterministic archive-shaped MVP workloads.
 
 Most recently closed milestone:
 
 ```text
-024 Custom Handler Output Contract And BFF Readiness
+025 Handler Delta/Merge Contract For Fast Custom Analytics
 ```
 
-Current milestone:
+Recommended next milestone input:
 
 ```text
-025 Handler Delta/Merge Contract For Fast Custom Analytics
+persistent durable adapter readiness
 ```
 
 Milestone 025 current status:
@@ -39,9 +37,8 @@ pre-decision trace gate: captured
 full-cache handler performance matrix: captured
 merge-state optimization: captured
 decision trace: written
-closeout: not written
-planned stop point: proceed to closeout or next milestone planning after
-  review
+closeout: written
+recommended next milestone input: persistent durable adapter readiness
 ```
 
 Milestone 025 documents:
@@ -52,6 +49,7 @@ docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics-plan.
 docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics-gate.md
 docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics-full-cache-performance-matrix.md
 docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics-decision-trace.md
+docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics-closeout.md
 ```
 
 Milestone 025 goal:
@@ -131,6 +129,12 @@ milestone 025 decision trace:
     custom analytics over deterministic archive-shaped MVP workloads
   recommended next milestone input:
     persistent durable adapter readiness
+
+milestone 025 closeout:
+  docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics-closeout.md
+  final closeout answer:
+    accepted with scoped warnings for handler delta/merge contract and fast
+    custom analytics over deterministic archive-shaped MVP workloads
 ```
 
 Milestone 025 key scope:

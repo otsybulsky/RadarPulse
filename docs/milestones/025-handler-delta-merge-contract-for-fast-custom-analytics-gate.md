@@ -1,12 +1,13 @@
 # Milestone 025: Handler Delta/Merge Contract For Fast Custom Analytics Gate
 
-Status: captured and referenced by decision trace; milestone implementation
-slices are complete and closeout is not written.
+Status: captured and referenced by decision trace and closeout; milestone is
+complete.
 
 This document records gate evidence for milestone 025. The decision trace is
 written in
 `025-handler-delta-merge-contract-for-fast-custom-analytics-decision-trace.md`.
-This document does not close the milestone.
+The closeout is written in
+`025-handler-delta-merge-contract-for-fast-custom-analytics-closeout.md`.
 
 ## Scope Under Gate
 
@@ -271,6 +272,4 @@ the known allocation-sensitive synthetic benchmark caveat remains outside
 
 ## Stop Point
 
-Milestone 025 decision trace is written.
-
-Closeout remains pending.
+Milestone 025 decision trace and closeout are written.

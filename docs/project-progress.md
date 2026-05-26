@@ -1,7 +1,7 @@
 # RadarPulse Project Progress
 
-Status: current during milestone 025 after decision trace with optimized
-full-cache handler matrix evidence accepted.
+Status: current after milestone 025 closeout with optimized full-cache
+handler matrix evidence accepted.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -17,23 +17,25 @@ runtime/archive default-baseline promotion, the default-baseline
 runtime/archive owned-construction integration milestone, the scoped ordered
 concurrent runtime/archive processing milestone, the ordered
 rebalance/topology commit milestone, the durable/cross-process runtime
-readiness milestone, and the custom handler output contract and BFF readiness
-milestone. Milestone 025 handler delta/merge implementation slices, gate
-evidence, full-cache handler performance matrix, merge-state optimization,
-and decision trace are captured. Closeout is not written yet.
+readiness milestone, the custom handler output contract and BFF readiness
+milestone, and the handler delta/merge contract for fast custom analytics
+milestone. Milestone 025 is complete through closeout.
 
 Current state:
 
 ```text
-completed milestones: 001-024
-active milestone: 025 handler delta/merge contract for fast custom analytics
-active milestone status:
+completed milestones: 001-025
+latest completed milestone:
+  025 handler delta/merge contract for fast custom analytics
+latest completed milestone status:
   implementation slices complete
   pre-decision gate captured
   full-cache handler matrix captured
   merge-state optimization captured
   decision trace written
-  closeout not written
+  closeout written
+recommended next milestone input:
+  persistent durable adapter readiness
 
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive
@@ -81,14 +83,13 @@ current runtime/live posture:
   elapsed time is flat versus active=1 handler-aware rows; allocation remains
   higher than active=1 and stays a scoped warning unless parity is required
   persistent durable adapter readiness is now the recommended next milestone
-  input because the immediate MVP analytics handler delta/merge path has a
-  decision trace
+  input because the immediate MVP analytics handler delta/merge path is
+  complete through closeout
   true live network ingestion and production deployment/rollback/operator
   surfaces are not implemented yet
 
 current next action:
-  write milestone 025 closeout, then start the recommended persistent durable
-  adapter readiness milestone
+  start the recommended persistent durable adapter readiness milestone
 ```
 
 The current accepted direct benchmark contour is:
@@ -1066,7 +1067,7 @@ handler delta/merge contract for fast custom analytics
 Status:
 
 ```text
-active as milestone 025
+complete as milestone 025
 architecture/concept document written
 implementation plan written
 handler classification contract complete
@@ -1078,7 +1079,7 @@ handler-heavy performance gate complete
 pre-decision gate captured
 full-cache handler matrix captured and optimized
 decision trace written
-closeout not written
+closeout written
 ```
 
 Milestone documents:
@@ -1089,6 +1090,7 @@ docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics-plan.
 docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics-gate.md
 docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics-full-cache-performance-matrix.md
 docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics-decision-trace.md
+docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics-closeout.md
 ```
 
 Goal:
@@ -1186,6 +1188,13 @@ exactly-once production delivery is not claimed
 
 recommended next milestone input:
   persistent durable adapter readiness
+```
+
+Closeout:
+
+```text
+accepted with scoped warnings for handler delta/merge contract and fast
+custom analytics over deterministic archive-shaped MVP workloads
 ```
 
 Out of scope unless explicitly pulled forward:
@@ -1323,8 +1332,7 @@ workflows still need their own milestone gates
 [done] ordered rebalance/topology commit and processing-bottleneck evidence
 [done] durable/cross-process runtime
 [done] custom handler output contract and BFF readiness
-[active] handler delta/merge contract for fast custom analytics
-  (decision trace written; closeout pending)
+[done] handler delta/merge contract for fast custom analytics
 [recommended next] persistent durable adapter readiness
 [later] production pipeline integration
 [later] product-facing completion
