@@ -220,7 +220,7 @@ Add operator overview and run workflow
 
 ## Slice 4: Run Detail Inspection Views
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -247,6 +247,15 @@ Angular component/helper tests cover absent handler output versus request
 Angular component/helper tests cover diagnostics/capacity empty and populated
   states
 Angular production build succeeds
+```
+
+Verification:
+
+```text
+npm test -- --watch=false
+  result: 9 passed, 0 failed
+npm run build
+  result: succeeded, 0 warnings
 ```
 
 Exit criteria:

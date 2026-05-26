@@ -6,6 +6,7 @@ import { App } from './app';
 import { RadarPulseProductApiClient } from './product/product-api.client';
 import {
   ProductApiResponse,
+  ProductHandlerOutput,
   ProductRunDetail,
   ProductRunHistoryReadiness,
   ProductRunSummary,
@@ -78,6 +79,49 @@ describe('App', () => {
 
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('network-error');
   });
+
+  it('renders run inspection tabs for diagnostics and capacity evidence', async () => {
+    api.runs = [summary('run-detail')];
+    api.latest = detail('run-detail');
+
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    clickButton(fixture.nativeElement, 'Diagnostics');
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('ordered merge');
+
+    clickButton(fixture.nativeElement, 'Capacity');
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('production');
+  });
+
+  it('distinguishes handler output value from absent handler output', async () => {
+    api.runs = [summary('run-handler')];
+    api.latest = detail('run-handler');
+
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    clickButton(fixture.nativeElement, 'Handlers');
+    fixture.detectChanges();
+    clickButton(fixture.nativeElement, 'Load handler output');
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('benchmark.events');
+
+    api.handlerOutput = null;
+    clickButton(fixture.nativeElement, 'Load handler output');
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Handler output was not found.');
+  });
 });
 
 class ProductApiStub {
@@ -85,6 +129,14 @@ class ProductApiStub {
   latest: ProductRunDetail | null = null;
   readinessError: HttpErrorResponse | null = null;
   demoRunRequested = false;
+  handlerOutput: ProductHandlerOutput | null = {
+    handlerIndex: 0,
+    handlerName: 'counter-checksum',
+    name: 'benchmark.events',
+    type: 'Int64',
+    int64Value: 42,
+    doubleValue: 0,
+  };
 
   getHistoryReadiness() {
     if (this.readinessError) {
@@ -138,6 +190,20 @@ class ProductApiStub {
 
   runArchive() {
     return of(ok(detail('archive-created')));
+  }
+
+  getHandlerOutput() {
+    return this.handlerOutput
+      ? of(ok(this.handlerOutput))
+      : throwError(() => new HttpErrorResponse({
+        status: 404,
+        error: {
+          statusCode: 404,
+          isSuccess: false,
+          body: null,
+          message: 'Handler output was not found.',
+        },
+      }));
   }
 }
 
@@ -222,13 +288,91 @@ function detail(runId: string): ProductRunDetail {
       firstBlockingReason: '',
       configurationContour: 'default',
     },
-    diagnostics: null,
-    handlerContract: null,
-    batches: [],
-    sources: [],
+    diagnostics: {
+      processingCompletenessPassed: true,
+      isReady: true,
+      blockingReason: '',
+      handlerOutputProvenance: 'ordered merge',
+      usesOrderedHandlerDeltaMerge: true,
+      usesSequentialHandlerFallback: false,
+      handlerOutputBlocked: false,
+      releaseFailureCount: 0,
+      terminalRetainedEnvelopeCount: 0,
+      terminalRetainedPayloadBytes: 0,
+      currentRetainedBatchCount: 0,
+      currentRetainedPayloadBytes: 0,
+      warnings: [],
+    },
+    handlerContract: {
+      statePosture: 'mergeable',
+      message: 'handler output available',
+      firstBlockingReason: null,
+      isBlocked: false,
+      handlers: [
+        {
+          handlerIndex: 0,
+          name: 'counter-checksum',
+          int64SlotCount: 1,
+          doubleSlotCount: 0,
+          executionClassification: 'mergeable',
+          fields: [
+            {
+              handlerIndex: 0,
+              handlerName: 'counter-checksum',
+              name: 'benchmark.events',
+              type: 'Int64',
+              slotIndex: 0,
+            },
+          ],
+        },
+      ],
+    },
+    batches: [
+      {
+        providerSequence: 1,
+        wasAccepted: true,
+        streamEventCount: 2,
+        payloadBytes: 4,
+        payloadValueCount: 4,
+        rawValueChecksum: 10,
+        processingStatus: 'Committed',
+        isSuccessful: true,
+        message: '',
+        topologyVersion: 1,
+      },
+    ],
+    sources: [
+      {
+        identity: {
+          sourceId: 0,
+          radarOrdinal: 0,
+          elevationSlot: 0,
+          azimuthBucket: 0,
+          rangeBand: 0,
+        },
+        isActive: true,
+        processedEventCount: 2,
+        processedPayloadValueCount: 4,
+        rawValueChecksum: 10,
+        lastMessageTimestampUtcTicks: 100,
+        processingChecksum: 12,
+        handlerValues: [],
+      },
+    ],
     message: '',
     runId,
     isReady: true,
     hasReadModel: true,
   };
+}
+
+function clickButton(root: Element, label: string): void {
+  const buttons = Array.from(root.querySelectorAll('button'));
+  const button = buttons.find(candidate => candidate.textContent?.trim() === label);
+
+  if (!button) {
+    throw new Error(`Button not found: ${label}`);
+  }
+
+  button.dispatchEvent(new Event('click'));
 }

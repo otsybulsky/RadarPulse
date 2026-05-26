@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { RadarPulseProductApiClient } from './product/product-api.client';
 import {
   ProductHandlerSet,
+  ProductHandlerOutput,
   ProductRunDetail,
   ProductRunHistoryReadiness,
   ProductRunSummary,
@@ -15,6 +16,9 @@ import {
   mapProductApiResponse,
   mapProductHttpError,
 } from './product/product-api-state';
+
+type DetailTab = 'summary' | 'batches' | 'sources' | 'handlers' | 'diagnostics' | 'capacity';
+type EnumKind = 'state' | 'handlerMode' | 'fallback';
 
 @Component({
   selector: 'app-root',
@@ -28,26 +32,32 @@ export class App implements OnInit {
   protected demoBatchCount = 2;
   protected demoEventsPerBatch = 2;
   protected archiveFilePath = '';
+  protected handlerSourceId = 0;
+  protected handlerFieldName = 'benchmark.events';
 
   protected readonly readiness = signal<ProductRequestState<ProductRunHistoryReadiness> | null>(null);
   protected readonly runs = signal<ProductRequestState<readonly ProductRunSummary[]> | null>(null);
   protected readonly latestRun = signal<ProductRequestState<ProductRunDetail> | null>(null);
   protected readonly selectedRun = signal<ProductRequestState<ProductRunDetail> | null>(null);
   protected readonly runCommand = signal<ProductRequestState<ProductRunDetail> | null>(null);
+  protected readonly handlerOutput = signal<ProductRequestState<ProductHandlerOutput> | null>(null);
   protected readonly selectedRunId = signal<string>('');
+  protected readonly activeTab = signal<DetailTab>('summary');
 
   protected readonly readinessLoading = signal(false);
   protected readonly runsLoading = signal(false);
   protected readonly latestLoading = signal(false);
   protected readonly selectedRunLoading = signal(false);
   protected readonly runLoading = signal(false);
+  protected readonly handlerOutputLoading = signal(false);
 
   protected readonly isBusy = computed(() =>
     this.readinessLoading() ||
     this.runsLoading() ||
     this.latestLoading() ||
     this.selectedRunLoading() ||
-    this.runLoading(),
+    this.runLoading() ||
+    this.handlerOutputLoading(),
   );
 
   constructor(private readonly api: RadarPulseProductApiClient) {}
@@ -97,6 +107,7 @@ export class App implements OnInit {
   protected selectRun(runId: string): void {
     this.selectedRunId.set(runId);
     this.selectedRunLoading.set(true);
+    this.handlerOutput.set(null);
     this.api.getRun(runId).subscribe({
       next: response => {
         this.selectedRun.set(mapProductApiResponse(response));
@@ -153,8 +164,69 @@ export class App implements OnInit {
     return this.runCommand()?.kind || 'Idle';
   }
 
-  protected enumLabel(value: ProductEnumValue): string {
-    return String(value);
+  protected selectTab(tab: DetailTab): void {
+    this.activeTab.set(tab);
+  }
+
+  protected loadHandlerOutput(): void {
+    const runId = this.selectedRunId();
+    const fieldName = this.handlerFieldName.trim();
+
+    if (!runId || !fieldName) {
+      return;
+    }
+
+    this.handlerOutputLoading.set(true);
+    this.api.getHandlerOutput(runId, this.handlerSourceId, fieldName).subscribe({
+      next: response => {
+        this.handlerOutput.set(mapProductApiResponse(response));
+        this.handlerOutputLoading.set(false);
+      },
+      error: error => {
+        this.handlerOutput.set(mapProductHttpError(error) as ProductRequestState<ProductHandlerOutput>);
+        this.handlerOutputLoading.set(false);
+      },
+    });
+  }
+
+  protected enumLabel(value: ProductEnumValue, kind: EnumKind): string {
+    if (typeof value === 'string') {
+      return value;
+    }
+
+    const labels = {
+      state: new Map<number, string>([
+        [1, 'Not started'],
+        [2, 'Running'],
+        [3, 'Draining'],
+        [4, 'Completed'],
+        [5, 'Stopped'],
+        [6, 'Blocked'],
+        [7, 'Failed'],
+        [8, 'Canceled'],
+      ]),
+      handlerMode: new Map<number, string>([
+        [1, 'Auto'],
+        [2, 'Handler free'],
+        [3, 'Mergeable delta'],
+        [4, 'Snapshot sequential'],
+      ]),
+      fallback: new Map<number, string>([
+        [1, 'None'],
+        [2, 'Fix configuration'],
+        [3, 'Inspect durable adapter'],
+        [4, 'Recover claimed envelope'],
+        [5, 'Retry or poison envelope'],
+        [6, 'Quarantine poison envelope'],
+        [7, 'Cleanup canceled envelope'],
+        [8, 'Release retained resources'],
+        [9, 'Complete or recover work'],
+        [10, 'Resolve handler posture'],
+        [11, 'Reject unsafe fallback'],
+      ]),
+    } satisfies Record<EnumKind, Map<number, string>>;
+
+    return labels[kind].get(value) || String(value);
   }
 
   protected combinedWarnings(detail: ProductRunDetail): readonly string[] {

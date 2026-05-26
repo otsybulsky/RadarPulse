@@ -71,7 +71,7 @@
           <button type="button" class="link-button" (click)="selectRun(detail.runId)">
             {{ detail.runId }}
           </button>
-          <span>{{ enumLabel(detail.summary.state) }}</span>
+          <span>{{ enumLabel(detail.summary.state, 'state') }}</span>
         </div>
         <dl class="metric-grid">
           <div>
@@ -157,7 +157,7 @@
                 [class.selected]="selectedRunId() === run.runId"
                 (click)="selectRun(run.runId)">
                 <span>{{ run.runId }}</span>
-                <small>{{ enumLabel(run.state) }} · {{ run.committedBatchCount }}/{{ run.acceptedBatchCount }}</small>
+                <small>{{ enumLabel(run.state, 'state') }} · {{ run.committedBatchCount }}/{{ run.acceptedBatchCount }}</small>
               </button>
             </li>
           }
@@ -177,10 +177,33 @@
             <h2>{{ detail.runId }}</h2>
           </div>
           <span class="state-pill" [class.good]="detail.isReady" [class.blocked]="!detail.isReady">
-            {{ enumLabel(detail.summary.state) }}
+            {{ enumLabel(detail.summary.state, 'state') }}
           </span>
         </div>
 
+        <nav class="detail-tabs" aria-label="Run inspection views">
+          <button type="button" [class.active]="activeTab() === 'summary'" (click)="selectTab('summary')">
+            Summary
+          </button>
+          <button type="button" [class.active]="activeTab() === 'batches'" (click)="selectTab('batches')">
+            Batches
+          </button>
+          <button type="button" [class.active]="activeTab() === 'sources'" (click)="selectTab('sources')">
+            Sources
+          </button>
+          <button type="button" [class.active]="activeTab() === 'handlers'" (click)="selectTab('handlers')">
+            Handlers
+          </button>
+          <button type="button" [class.active]="activeTab() === 'diagnostics'" (click)="selectTab('diagnostics')">
+            Diagnostics
+          </button>
+          <button type="button" [class.active]="activeTab() === 'capacity'" (click)="selectTab('capacity')">
+            Capacity
+          </button>
+        </nav>
+
+        @switch (activeTab()) {
+          @case ('summary') {
         <dl class="metric-grid wide">
           <div>
             <dt>Input</dt>
@@ -188,7 +211,7 @@
           </div>
           <div>
             <dt>Handler mode</dt>
-            <dd>{{ enumLabel(detail.summary.handlerMode) }}</dd>
+            <dd>{{ enumLabel(detail.summary.handlerMode, 'handlerMode') }}</dd>
           </div>
           <div>
             <dt>Processing</dt>
@@ -196,7 +219,7 @@
           </div>
           <div>
             <dt>Fallback</dt>
-            <dd>{{ enumLabel(detail.summary.fallbackRecommendation) }}</dd>
+            <dd>{{ enumLabel(detail.summary.fallbackRecommendation, 'fallback') }}</dd>
           </div>
         </dl>
 
@@ -212,6 +235,226 @@
               <li>{{ warning }}</li>
             }
           </ul>
+        }
+          }
+
+          @case ('batches') {
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Seq</th>
+                    <th>Status</th>
+                    <th>Events</th>
+                    <th>Payload</th>
+                    <th>Checksum</th>
+                    <th>Message</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (batch of detail.batches; track batch.providerSequence) {
+                    <tr>
+                      <td>{{ batch.providerSequence }}</td>
+                      <td>{{ batch.processingStatus || (batch.isSuccessful ? 'Successful' : 'Not successful') }}</td>
+                      <td>{{ batch.streamEventCount }}</td>
+                      <td>{{ batch.payloadBytes }}</td>
+                      <td>{{ batch.rawValueChecksum }}</td>
+                      <td>{{ batch.message || 'none' }}</td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td colspan="6">No batch records are available for this run.</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+
+          @case ('sources') {
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Source</th>
+                    <th>Radar</th>
+                    <th>Elevation</th>
+                    <th>Azimuth</th>
+                    <th>Range</th>
+                    <th>Events</th>
+                    <th>Checksum</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (source of detail.sources; track source.identity.sourceId) {
+                    <tr>
+                      <td>{{ source.identity.sourceId }}</td>
+                      <td>{{ source.identity.radarOrdinal }}</td>
+                      <td>{{ source.identity.elevationSlot }}</td>
+                      <td>{{ source.identity.azimuthBucket }}</td>
+                      <td>{{ source.identity.rangeBand }}</td>
+                      <td>{{ source.processedEventCount }}</td>
+                      <td>{{ source.rawValueChecksum }}</td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td colspan="7">No source records are available for this run.</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+
+          @case ('handlers') {
+            @if (detail.handlerContract; as contract) {
+              <dl class="metric-grid wide">
+                <div>
+                  <dt>State</dt>
+                  <dd>{{ contract.statePosture }}</dd>
+                </div>
+                <div>
+                  <dt>Blocked</dt>
+                  <dd>{{ contract.isBlocked ? 'yes' : 'no' }}</dd>
+                </div>
+                <div>
+                  <dt>Handlers</dt>
+                  <dd>{{ contract.handlers.length }}</dd>
+                </div>
+                <div>
+                  <dt>Message</dt>
+                  <dd>{{ contract.message || 'none' }}</dd>
+                </div>
+              </dl>
+
+              <div class="handler-query">
+                <label>
+                  Source id
+                  <input name="handlerSource" type="number" min="0" [(ngModel)]="handlerSourceId" />
+                </label>
+                <label>
+                  Field
+                  <input name="handlerField" [(ngModel)]="handlerFieldName" autocomplete="off" />
+                </label>
+                <button type="button" (click)="loadHandlerOutput()" [disabled]="handlerOutputLoading()">
+                  Load handler output
+                </button>
+              </div>
+
+              @if (handlerOutputLoading()) {
+                <p class="muted">Loading handler output...</p>
+              } @else if (handlerOutput(); as state) {
+                @if (state.body) {
+                  <dl class="metric-grid wide">
+                    <div>
+                      <dt>Handler</dt>
+                      <dd>{{ state.body.handlerName }}</dd>
+                    </div>
+                    <div>
+                      <dt>Name</dt>
+                      <dd>{{ state.body.name }}</dd>
+                    </div>
+                    <div>
+                      <dt>Int64</dt>
+                      <dd>{{ state.body.int64Value }}</dd>
+                    </div>
+                    <div>
+                      <dt>Double</dt>
+                      <dd>{{ state.body.doubleValue }}</dd>
+                    </div>
+                  </dl>
+                } @else {
+                  <p class="callout blocked-text">{{ state.message || state.firstBlockingReason || 'Handler output is absent.' }}</p>
+                }
+              }
+            } @else {
+              <p class="muted padded">This run did not publish a handler contract.</p>
+            }
+          }
+
+          @case ('diagnostics') {
+            @if (detail.diagnostics; as diagnostics) {
+              <dl class="metric-grid wide">
+                <div>
+                  <dt>Ready</dt>
+                  <dd>{{ diagnostics.isReady ? 'yes' : 'no' }}</dd>
+                </div>
+                <div>
+                  <dt>Complete</dt>
+                  <dd>{{ diagnostics.processingCompletenessPassed ? 'yes' : 'no' }}</dd>
+                </div>
+                <div>
+                  <dt>Handler delta</dt>
+                  <dd>{{ diagnostics.usesOrderedHandlerDeltaMerge ? 'yes' : 'no' }}</dd>
+                </div>
+                <div>
+                  <dt>Sequential fallback</dt>
+                  <dd>{{ diagnostics.usesSequentialHandlerFallback ? 'yes' : 'no' }}</dd>
+                </div>
+                <div>
+                  <dt>Release failures</dt>
+                  <dd>{{ diagnostics.releaseFailureCount }}</dd>
+                </div>
+                <div>
+                  <dt>Retained payload</dt>
+                  <dd>{{ diagnostics.currentRetainedPayloadBytes }}</dd>
+                </div>
+                <div>
+                  <dt>Terminal retained</dt>
+                  <dd>{{ diagnostics.terminalRetainedEnvelopeCount }}</dd>
+                </div>
+                <div>
+                  <dt>Provenance</dt>
+                  <dd>{{ diagnostics.handlerOutputProvenance }}</dd>
+                </div>
+              </dl>
+              @if (diagnostics.blockingReason) {
+                <p class="callout blocked-text">{{ diagnostics.blockingReason }}</p>
+              }
+            } @else {
+              <p class="muted padded">No diagnostics are available for this run.</p>
+            }
+          }
+
+          @case ('capacity') {
+            <dl class="metric-grid wide">
+              <div>
+                <dt>Profile</dt>
+                <dd>{{ detail.capacityEvidence.profileName }}</dd>
+              </div>
+              <div>
+                <dt>Elapsed ms</dt>
+                <dd>{{ detail.capacityEvidence.elapsedMilliseconds }}</dd>
+              </div>
+              <div>
+                <dt>Allocated bytes</dt>
+                <dd>{{ detail.capacityEvidence.measuredAllocatedBytes }}</dd>
+              </div>
+              <div>
+                <dt>Durable adapter</dt>
+                <dd>{{ detail.capacityEvidence.durableAdapterKind }}</dd>
+              </div>
+              <div>
+                <dt>Accepted</dt>
+                <dd>{{ detail.capacityEvidence.acceptedBatchCount }}</dd>
+              </div>
+              <div>
+                <dt>Processed</dt>
+                <dd>{{ detail.capacityEvidence.processedBatchCount }}</dd>
+              </div>
+              <div>
+                <dt>Committed</dt>
+                <dd>{{ detail.capacityEvidence.committedBatchCount }}</dd>
+              </div>
+              <div>
+                <dt>Contour</dt>
+                <dd>{{ detail.capacityEvidence.configurationContour }}</dd>
+              </div>
+            </dl>
+            @if (detail.capacityEvidence.firstBlockingReason) {
+              <p class="callout blocked-text">{{ detail.capacityEvidence.firstBlockingReason }}</p>
+            }
+          }
         }
       } @else {
         <div class="empty-detail">
