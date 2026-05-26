@@ -350,7 +350,7 @@ result:
 
 ## Slice 6: Documentation, Gate Evidence, And Handoff
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -394,7 +394,13 @@ dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
   --no-restore
   --filter "FullyQualifiedName~RadarPulseProductRunHistoryStoreTests|FullyQualifiedName~RadarPulseProductFileRunHistoryStoreTests|FullyQualifiedName~RadarPulseProductPersistentHistoryServiceTests|FullyQualifiedName~RadarPulseProductHttpHostTests|FullyQualifiedName~RadarPulseProductHttpControlTests|FullyQualifiedName~RadarPulseProductPipelineApiContractTests"
 
+result:
+  27 passed, 0 failed, 0 skipped
+
 dotnet build RadarPulse.sln -c Release --no-restore
+
+result:
+  succeeded, 0 warnings, 0 errors
 ```
 
 ## Gate Command Shape
@@ -437,7 +443,10 @@ The milestone currently has:
 ```text
 029-product-http-host-and-persistent-run-history.md
 029-product-http-host-and-persistent-run-history-plan.md
-implementation slices planned
+029-product-http-host-and-persistent-run-history-gate.md
+implementation slices complete
+focused Release gate captured
+Release build clean
 decision trace not written
 closeout not written
 ```

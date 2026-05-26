@@ -3,13 +3,16 @@
 ## Current State
 
 Milestone 029 has been selected after milestone 028 closeout. The
-architecture/concept document and implementation plan are written. No
-implementation slices have been started yet.
+architecture/concept document, implementation plan, product history store
+contract, file-backed product history store, persistent history service
+integration, HTTP host route mapping, HTTP control/failure posture, gate
+evidence, and handoff update are complete.
 
 Stop point:
 
 ```text
-milestone 029 plan written; start implementation slice 1
+milestone 029 implementation and focused Release gate complete; stop before
+decision trace
 ```
 
 Most recently closed milestone:
@@ -37,17 +40,18 @@ Milestone 029 documents:
 ```text
 docs/milestones/029-product-http-host-and-persistent-run-history.md
 docs/milestones/029-product-http-host-and-persistent-run-history-plan.md
+docs/milestones/029-product-http-host-and-persistent-run-history-gate.md
 ```
 
 Milestone 029 planned slices:
 
 ```text
-1. Product run history store contract [planned]
-2. File-backed product run history store [planned]
-3. Persistent history service integration [planned]
-4. Product HTTP host project and route mapping [planned]
-5. HTTP control and failure posture [planned]
-6. Documentation, gate evidence, and handoff [planned]
+1. Product run history store contract [complete]
+2. File-backed product run history store [complete]
+3. Persistent history service integration [complete]
+4. Product HTTP host project and route mapping [complete]
+5. HTTP control and failure posture [complete]
+6. Documentation, gate evidence, and handoff [complete]
 ```
 
 Latest verification:
@@ -60,18 +64,26 @@ latest closed milestone verification is milestone 028:
     succeeded, 0 warnings, 0 errors
 
 milestone 029:
-  no implementation gate captured yet
+  focused Release gate:
+    27 passed, 0 failed, 0 skipped
+  Release build:
+    succeeded, 0 warnings, 0 errors
 ```
 
-Current implementation direction:
+Completed implementation:
 
 ```text
-add an injectable product history store behind RadarPulseProductPipelineService
-preserve in-memory history as the default milestone 028-compatible behavior
-add deterministic local file-backed product history persistence
-add a thin local HTTP host over RadarPulseProductPipelineApiContract/product
-  service routes
-capture route, persistence, restart, readiness, failure, and control gates
+IRadarPulseProductRunHistoryStore and in-memory adapter
+RadarPulseProductFileRunHistoryStore deterministic local JSON persistence
+RadarPulseProductPipelineService file-history factory and persistent
+  restart-query behavior
+RadarPulseProductPipelineApiContract history readiness, batch, source, and
+  handler-output query methods
+RadarPulse.Http local ASP.NET Core host project
+HTTP routes for product run, read, diagnostics, capacity, handler output,
+  readiness, and controls
+focused route, persistence, restart, readiness, bad request, not found,
+  blocked history, and unsafe fallback gates
 ```
 
 Milestone 029 scope boundary:
@@ -109,7 +121,7 @@ throughput certification, or exactly-once production delivery.
 Current next action:
 
 ```text
-start slice 1: product run history store contract
+review milestone 029 implementation and gate evidence before decision trace
 ```
 
 Decision trace:
