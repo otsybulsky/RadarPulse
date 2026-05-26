@@ -308,6 +308,36 @@ full Release test project:
   result: 865 passed, 0 failed, 3 skipped
 ```
 
+Optional milestone 024 full-cache performance matrix:
+
+```text
+docs/milestones/024-custom-handler-output-contract-and-bff-readiness-full-cache-performance-matrix.md
+
+status:
+  captured before decision trace
+
+rebalance-archive:
+  default queued-owned stayed faster than explicit BlockingBorrowed in
+  static, sampling, and rebalance-session modes
+  default elapsed ratios: 0.812x static, 0.931x sampling,
+    0.885x rebalance-session
+  default allocation ratios: 1.002x static, 1.003x sampling,
+    1.000x rebalance-session
+  validation, processing completeness, checksum parity, accepted move parity,
+    worker health, retained pool health, release health, and terminal retained
+    pressure cleanup passed
+
+ordered-archive-processing:
+  active=4 elapsed ratio versus active=1: 0.982x
+  active=4 steady allocation ratio versus active=1: 1.007x
+  final processing checksum matched
+  processing completeness passed
+  worker failed batches/items 0/0
+  retained payload pool misses 0
+  release failures 0
+  terminal combined retained pressure 0
+```
+
 ## Milestone 022 Complete Baseline
 
 Milestone 022 is complete. The primary milestone documents are:
