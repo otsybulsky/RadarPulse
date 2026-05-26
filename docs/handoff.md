@@ -1,17 +1,16 @@
-# Handoff: Milestone 029 Complete
+# Handoff: Milestone 030 Planned
 
 ## Current State
 
-Milestone 029 has been selected after milestone 028 closeout. The
-architecture/concept document, implementation plan, product history store
-contract, file-backed product history store, persistent history service
-integration, HTTP host route mapping, HTTP control/failure posture, gate
-evidence, decision trace, closeout, and handoff update are complete.
+Milestone 030 has been selected after milestone 029 closeout. The
+architecture/concept document and implementation plan are written. The next
+work is implementation of the Angular product operator UI in
+`src/Presentation/OperatorUi`, with commits per implementation slice.
 
 Stop point:
 
 ```text
-milestone 029 closeout written; next milestone selection pending
+milestone 030 architecture and plan written; implementation not started
 ```
 
 Most recently closed milestone:
@@ -20,117 +19,122 @@ Most recently closed milestone:
 029 Product HTTP Host And Persistent Run History
 ```
 
-Milestone 029 goal:
+Current milestone:
 
 ```text
-expose the accepted milestone 028 product pipeline contract through a thin
-local HTTP host and persist product run history through deterministic local
-file-backed storage for archive-shaped workflows
+030 Product Operator Angular SPA
 ```
 
-Milestone 029 documents:
+Milestone 030 goal:
 
 ```text
-docs/milestones/029-product-http-host-and-persistent-run-history.md
-docs/milestones/029-product-http-host-and-persistent-run-history-plan.md
-docs/milestones/029-product-http-host-and-persistent-run-history-gate.md
-docs/milestones/029-product-http-host-and-persistent-run-history-decision-trace.md
-docs/milestones/029-product-http-host-and-persistent-run-history-closeout.md
+provide a local Angular product operator UI over the accepted product HTTP
+host for running, inspecting, diagnosing, and controlling deterministic
+archive-shaped RadarPulse workflows
 ```
 
-Milestone 029 planned slices:
+Milestone 030 selected implementation direction:
 
 ```text
-1. Product run history store contract [complete]
-2. File-backed product run history store [complete]
-3. Persistent history service integration [complete]
-4. Product HTTP host project and route mapping [complete]
-5. HTTP control and failure posture [complete]
-6. Documentation, gate evidence, and handoff [complete]
+Angular SPA in src/Presentation/OperatorUi
+use the newest stable Angular release at implementation time
+as of 2026-05-26, official Angular docs list Angular 21.x as the newest
+  actively supported stable line and Angular 22.0 as scheduled for the week
+  of 2026-06-01
+call only the accepted RadarPulse.Http product routes from milestone 029
+do not import .NET assemblies, parse local history JSON directly, or reach
+  around the product HTTP host
+```
+
+Milestone 030 documents:
+
+```text
+docs/milestones/030-product-operator-angular-spa.md
+docs/milestones/030-product-operator-angular-spa-plan.md
+```
+
+Milestone 030 planned slices:
+
+```text
+1. Angular workspace scaffold and packaging boundary [planned]
+2. Typed product HTTP client and DTO mapping [planned]
+3. Operator shell, readiness, run creation, and run list [planned]
+4. Run detail inspection views [planned]
+5. Operator controls and failure posture [planned]
+6. Documentation, gate evidence, and handoff [planned]
 ```
 
 Latest verification:
 
 ```text
-previous closed milestone verification is milestone 028:
-  focused milestone 028 Release gate:
-    26 passed, 0 failed, 0 skipped
-  Release build:
-    succeeded, 0 warnings, 0 errors
-
-milestone 029:
+latest closed milestone verification is milestone 029:
   focused Release gate:
     27 passed, 0 failed, 0 skipped
   Release build:
     succeeded, 0 warnings, 0 errors
 ```
 
-Completed implementation:
+Milestone 030 expected gate:
 
 ```text
-IRadarPulseProductRunHistoryStore and in-memory adapter
-RadarPulseProductFileRunHistoryStore deterministic local JSON persistence
-RadarPulseProductPipelineService file-history factory and persistent
-  restart-query behavior
-RadarPulseProductPipelineApiContract history readiness, batch, source, and
-  handler-output query methods
-RadarPulse.Http local ASP.NET Core host project
-HTTP routes for product run, read, diagnostics, capacity, handler output,
-  readiness, and controls
-focused route, persistence, restart, readiness, bad request, not found,
-  blocked history, and unsafe fallback gates
+Angular:
+  cd src/Presentation/OperatorUi
+  npm test -- --watch=false
+  npm run build
+
+.NET focused product HTTP/API Release gate:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+    --no-restore
+    --filter "FullyQualifiedName~RadarPulseProductHttpHostTests|FullyQualifiedName~RadarPulseProductHttpControlTests|FullyQualifiedName~RadarPulseProductPipelineApiContractTests"
+
+.NET Release build:
+  dotnet build RadarPulse.sln -c Release --no-restore
 ```
 
-Milestone 029 scope boundary:
+Milestone 030 scope boundary:
 
 ```text
-do not reopen accepted runtime/default/durable/handler/product decisions from
-milestones 020-028. Do not expand this milestone into frontend SPA
-implementation, true live network ingestion, external broker/cloud
+do not reopen accepted runtime/default/durable/handler/BFF/production
+pipeline/product/HTTP host decisions from milestones 020-029. Do not expand
+this milestone into true live network ingestion, external broker/cloud
 queue/database adapter certification, deployment automation, public hosted
 production readiness, auth/TLS/CORS hardening, cross-machine throughput
-certification, or exactly-once production delivery.
+certification, exactly-once production delivery, or rich radar visualization.
 ```
 
-Milestone 028 accepted product surface:
+Milestone 029 accepted product HTTP surface:
 
 ```text
-product-facing pipeline console/API over deterministic archive-shaped radar
-workflows
-stable product DTOs and queries over accepted BFF read models
-console-facing product workflow in the existing .NET presentation layer
-API-facing contract over the same product service
-operator controls reuse milestone 027 stop/drain/cancel/reject posture
-```
-
-Milestone 028 scope boundary:
-
-```text
-do not reopen accepted runtime/default/durable/handler decisions from
-milestones 020-027. Do not expand this milestone into frontend SPA
-implementation, true live network ingestion, external broker/cloud
-queue/database adapter certification, deployment automation, cross-machine
-throughput certification, or exactly-once production delivery.
+RadarPulse.Http local ASP.NET Core host project
+product HTTP routes for demo/archive runs, run list/latest/detail, batches,
+  sources, handler output, diagnostics, capacity evidence, host readiness,
+  and controls
+deterministic local file-backed product run history that survives service
+  recreation
 ```
 
 Current next action:
 
 ```text
-start the recommended product operator UI over the HTTP host milestone
+start implementation slice 1: Angular workspace scaffold and packaging
+boundary
 ```
 
 Decision trace:
 
 ```text
-milestone 029 decision trace written:
-  accepted with scoped warnings for product HTTP host and persistent run
-  history over deterministic archive-shaped workloads
-
-recommended next milestone input:
-  product operator UI over the HTTP host
+milestone 030 decision trace is not written
+stop before decision trace after implementation, gate evidence, and handoff
+are complete
 ```
 
 Closeout:
+
+```text
+milestone 030 closeout is not written
+```
+
+Previous milestone decision trace:
 
 ```text
 milestone 029 closeout written:
