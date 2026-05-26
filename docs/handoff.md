@@ -1,8 +1,32 @@
-# Handoff: Milestone 023 Complete
+# Handoff: Milestone 023 Complete, Milestone 024 Planned
 
 ## Current State
 
-Milestone 023 is complete. The primary milestone documents are:
+Milestone 023 is complete. Post-closeout MVP planning has selected milestone
+024 as the next milestone.
+
+Current next milestone:
+
+```text
+024 Custom Handler Output Contract And BFF Readiness
+```
+
+Milestone 024 planning documents:
+
+```text
+docs/milestones/024-custom-handler-output-contract-and-bff-readiness.md
+docs/milestones/024-custom-handler-output-contract-and-bff-readiness-plan.md
+```
+
+MVP planning decision:
+
+```text
+defer persistent durable adapter readiness until after RadarPulse has a
+custom handler output contract and backend-for-frontend read model for a
+future UI
+```
+
+Milestone 023 historical closeout documents:
 
 ```text
 docs/milestones/023-durable-cross-process-runtime-readiness.md
@@ -190,6 +214,15 @@ recommended next milestone input:
   persistent durable adapter readiness
 ```
 
+Current planning note:
+
+```text
+the milestone 023 closeout recommendation is preserved as historical input,
+but the current next milestone is milestone 024 custom handler output
+contract and BFF readiness; persistent durable adapter readiness is deferred
+to the next reliability milestone unless MVP scope changes again
+```
+
 Closeout:
 
 ```text
@@ -204,6 +237,15 @@ recommended next milestone input:
   lease or abandoned-attempt recovery, poison/dead-letter mapping,
   provider-sequence ordered commit, retained ownership cleanup, and
   operator-readable adapter state.
+```
+
+Current next milestone input:
+
+```text
+custom handler output contract and BFF readiness. Define stable handler
+output DTOs, handler metadata discovery, handler-state safety posture,
+processing result read models, BFF query surfaces, diagnostics, and
+archive-shaped MVP gates for a future frontend.
 ```
 
 ## Milestone 022 Complete Baseline
