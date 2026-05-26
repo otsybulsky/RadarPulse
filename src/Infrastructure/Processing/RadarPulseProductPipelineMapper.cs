@@ -174,6 +174,21 @@ public static class RadarPulseProductPipelineMapper
             batch.TopologyVersion?.Value);
     }
 
+    public static RadarPulseProductControlSummary ToProductControlSummary(
+        RadarProcessingProductionPipelineControlResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        return new RadarPulseProductControlSummary(
+            result.RunId,
+            result.Action.ToString(),
+            ToProductOperatorSummary(result.OperatorSummary),
+            result.CanceledOpenCount,
+            result.ReleasedCanceledCount,
+            result.DrainedProcessingCount,
+            result.Message);
+    }
+
     public static RadarPulseProductSource ToProductSource(
         RadarProcessingSourceOutputReadModel source)
     {

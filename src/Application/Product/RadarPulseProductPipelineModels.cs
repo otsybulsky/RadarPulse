@@ -58,6 +58,14 @@ public enum RadarPulseProductHandlerSet
     Unsupported = 5
 }
 
+public enum RadarPulseProductControlAction
+{
+    StopAccepting = 1,
+    DrainAccepted = 2,
+    CancelOpenAndRelease = 3,
+    RejectUnsafeFallback = 4
+}
+
 public sealed record RadarPulseProductPipelineOptions(
     int? WorkerCount = null,
     int? WorkerQueueCapacity = null,
@@ -86,6 +94,17 @@ public sealed record RadarPulseProductPipelineArchiveFileRunRequest(
     string Decompressor = "radarpulse",
     RadarPulseProductHandlerSet HandlerSet = RadarPulseProductHandlerSet.None,
     RadarPulseProductPipelineOptions? Options = null);
+
+public sealed record RadarPulseProductPipelineControlRequest(
+    string RunId,
+    RadarPulseProductControlAction Action,
+    string DurableStorePath,
+    int SourceCount = 2,
+    int PartitionCount = 0,
+    int ShardCount = 0,
+    RadarPulseProductHandlerSet HandlerSet = RadarPulseProductHandlerSet.None,
+    RadarPulseProductPipelineOptions? Options = null,
+    string Message = "");
 
 public sealed record RadarPulseProductInputSummary(
     RadarPulseProductInputKind Kind,

@@ -244,7 +244,7 @@ result:
 
 ## Slice 4: Product Operator Control Surface
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -280,6 +280,28 @@ Commit:
 
 ```text
 Add product pipeline control surface
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarPulseProductPipelineControlTests"
+
+result:
+  5 passed, 0 failed, 0 skipped
+
+dotnet build RadarPulse.sln -c Release --no-restore
+
+result:
+  succeeded, 0 warnings, 0 errors
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+  --no-restore
+  --filter "FullyQualifiedName~RadarPulseProductPipelineControlTests"
+
+result:
+  5 passed, 0 failed, 0 skipped
 ```
 
 ## Slice 5: Console Product Workflow
