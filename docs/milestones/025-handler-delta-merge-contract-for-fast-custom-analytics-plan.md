@@ -330,7 +330,7 @@ Expose handler delta diagnostics through BFF models
 
 ## Slice 6: Handler-Heavy Performance Gate
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -370,8 +370,13 @@ dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
   --no-restore
   --filter "FullyQualifiedName~RadarProcessingHandlerDeltaClassificationTests|FullyQualifiedName~RadarProcessingHandlerDeltaContractTests|FullyQualifiedName~RadarProcessingHandlerDeltaMergeCoordinatorTests|FullyQualifiedName~RadarProcessingMvpHandlerDeltaRuntimeTests|FullyQualifiedName~RadarProcessingHandlerDeltaBffCompatibilityTests|FullyQualifiedName~RadarProcessingHandlerDeltaPerformanceGateTests"
 
-dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
-  --no-restore --no-build
+result:
+  26 passed, 0 failed, 0 skipped
+
+dotnet build RadarPulse.sln -c Release --no-restore
+
+result:
+  succeeded, 0 warnings, 0 errors
 ```
 
 Commit:
