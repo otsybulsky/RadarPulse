@@ -224,7 +224,7 @@ result:
 
 ## Slice 4: Durable Restart And Recovery Pipeline Gate
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -260,6 +260,21 @@ Commit:
 
 ```text
 Validate production pipeline durable restart recovery
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingProductionPipelineRecoveryTests"
+
+result:
+  4 passed, 0 failed, 0 skipped
+
+dotnet build RadarPulse.sln -c Release --no-restore
+
+result:
+  succeeded, 0 warnings, 0 errors
 ```
 
 ## Slice 5: Rollback, Fallback, And Handler Output Compatibility
