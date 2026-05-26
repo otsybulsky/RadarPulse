@@ -1,4 +1,4 @@
-# Handoff: Milestone 031 Decision Trace Written
+# Handoff: Milestone 031 Complete
 
 ## Current State
 
@@ -7,25 +7,24 @@ architecture/concept document and implementation plan are written. Slice 1
 URL state and validation hardening is complete. Slice 2 browser smoke harness
 is complete. Slice 3 integrated static UI delivery is complete.
 Slice 4 same-origin smoke and local workflow docs are complete. Slice 5 gate
-evidence and handoff is complete. The decision trace is written. Closeout is
-pending.
+evidence and handoff is complete. The decision trace and closeout are written.
 
 Stop point:
 
 ```text
-milestone 031 decision trace written; closeout pending
+milestone 031 closeout written; next milestone selected but not started
 ```
 
 Most recently closed milestone:
 
 ```text
-030 Product Operator Angular SPA
+031 Operator UI Hardening And Integrated Local Delivery
 ```
 
-Current milestone:
+Recommended next milestone:
 
 ```text
-031 Operator UI Hardening And Integrated Local Delivery
+032 Product Demo/Readiness Packaging
 ```
 
 Milestone 031 goal:
@@ -58,6 +57,7 @@ docs/milestones/031-operator-ui-hardening-and-integrated-local-delivery.md
 docs/milestones/031-operator-ui-hardening-and-integrated-local-delivery-plan.md
 docs/milestones/031-operator-ui-hardening-and-integrated-local-delivery-gate.md
 docs/milestones/031-operator-ui-hardening-and-integrated-local-delivery-decision-trace.md
+docs/milestones/031-operator-ui-hardening-and-integrated-local-delivery-closeout.md
 ```
 
 Milestone 031 planned slices:
@@ -200,14 +200,14 @@ visualization.
 Current next action:
 
 ```text
-stop before writing milestone 031 decision trace
+start the recommended Product demo/readiness packaging milestone
 ```
 
-Decision trace posture:
+Decision trace and closeout:
 
 ```text
 milestone 031 decision trace has been written
-closeout has not been written
+milestone 031 closeout has been written
 recommended next milestone input:
   Product demo/readiness packaging
 ```

@@ -1,8 +1,7 @@
 # RadarPulse Project Progress
 
-Status: current after milestone 030 closeout with product operator Angular SPA
-accepted for deterministic archive-shaped workloads over the local product
-HTTP host.
+Status: current after milestone 031 closeout with operator UI hardening and
+integrated local delivery accepted for deterministic archive-shaped workflows.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -22,24 +21,26 @@ readiness milestone, the custom handler output contract and BFF readiness
 milestone, the handler delta/merge contract for fast custom analytics
 milestone, the persistent durable adapter readiness milestone, the production
 pipeline integration milestone, the product-facing pipeline console/API
-milestone, the product HTTP host and persistent run history milestone, and
-the product operator Angular SPA milestone. Milestone 030 is complete through
+milestone, the product HTTP host and persistent run history milestone, the
+product operator Angular SPA milestone, and the operator UI hardening and
+integrated local delivery milestone. Milestone 031 is complete through
 closeout.
 
 Current state:
 
 ```text
-completed milestones: 001-030
+completed milestones: 001-031
 latest completed milestone:
-  030 product operator Angular SPA
+  031 operator UI hardening and integrated local delivery
 latest completed milestone status:
   implementation slices complete
   Angular gate captured
-  focused .NET Release gate captured
+  browser smoke gates captured
+  focused .NET HTTP/API/static-delivery Release gate captured
   decision trace written
   closeout written
 recommended next milestone input:
-  operator UI hardening and integrated local delivery
+  Product demo/readiness packaging
 
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive
@@ -116,17 +117,22 @@ current runtime/live posture:
   the local browser UI can inspect readiness, latest/persisted runs, selected
   run detail, batches, sources, handlers, diagnostics, capacity evidence, and
   controls through the accepted product HTTP routes
+  operator UI hardening and integrated local delivery is accepted with scoped
+  warnings over deterministic archive-shaped workflows
+  the local product UI now has URL-restorable selected run/tab state,
+  validated local inputs, hardened control posture, browser smoke coverage,
+  and a same-origin local RadarPulse.Http delivery path for the built Angular
+  SPA
   src/Presentation now contains the sibling presentation surfaces:
     OperatorUi, RadarPulse.Cli, and RadarPulse.Http
   true live network ingestion, public/deployed production HTTP/API/frontend
   hosting, rich radar visualization, deployment automation, production
-  security hardening, and exactly-once production delivery remain outside the
-  accepted implementation; external broker/database adapter certification is
-  not planned for this project
+  security hardening, runtime frontend build orchestration, and exactly-once
+  production delivery remain outside the accepted implementation; external
+  broker/database adapter certification is not planned for this project
 
 current next action:
-  start the recommended operator UI hardening and integrated local delivery
-  milestone
+  start the recommended Product demo/readiness packaging milestone
 ```
 
 Current project scope decision:
@@ -351,6 +357,11 @@ persistent durable adapter readiness:
   back the accepted durable envelope contract while preserving restart
   recovery, ordered commit, handler delta replay, terminal release behavior,
   and operator-visible blocking diagnostics
+
+operator UI hardening and integrated local delivery readiness:
+  yes with scoped warnings, RadarPulse is ready to use the Angular operator UI
+  as the hardened local product surface, including browser-smoke validated
+  workflows and integrated same-origin local delivery through RadarPulse.Http
 ```
 
 The named warnings carried forward are:
@@ -396,6 +407,12 @@ ordered processing performance breadth:
 BFF and frontend boundary:
   milestone 024 accepts an application-level BFF read-model query surface,
   not a production HTTP API host or concrete frontend implementation
+
+operator UI delivery boundary:
+  milestone 031 accepts local same-origin UI delivery through RadarPulse.Http
+  over a built Angular bundle; it is not public production deployment, does
+  not add auth/TLS/production CORS hardening, and does not make RadarPulse.Http
+  perform frontend build orchestration at runtime
 
 persistent adapter boundary:
   milestone 026 accepts deterministic local file-based persistence only;
@@ -1916,6 +1933,139 @@ Recommended next milestone input:
 operator UI hardening and integrated local delivery
 ```
 
+### 19. Operator UI Hardening And Integrated Local Delivery
+
+Status:
+
+```text
+complete as milestone 031
+architecture/concept document written
+implementation plan written
+URL state and validation hardening complete
+browser smoke harness complete
+integrated static UI delivery complete
+same-origin smoke and local workflow docs complete
+gate evidence captured
+decision trace written
+closeout written
+```
+
+Milestone documents:
+
+```text
+docs/milestones/031-operator-ui-hardening-and-integrated-local-delivery.md
+docs/milestones/031-operator-ui-hardening-and-integrated-local-delivery-plan.md
+docs/milestones/031-operator-ui-hardening-and-integrated-local-delivery-gate.md
+docs/milestones/031-operator-ui-hardening-and-integrated-local-delivery-decision-trace.md
+docs/milestones/031-operator-ui-hardening-and-integrated-local-delivery-closeout.md
+```
+
+Goal:
+
+```text
+make the accepted Angular operator UI the stable local product surface, with
+browser-level smoke coverage, URL-restorable operator state, stricter
+form/control validation, polished failure posture, and integrated local
+same-origin delivery through RadarPulse.Http
+```
+
+Implemented work:
+
+```text
+URL-restorable selected run id and active run-detail tab
+selected run not-found/unavailable posture from URL state
+product HTTP base URL validation
+archive-shaped run input validation
+handler lookup input validation
+disabled/loading/blocked/rejected control posture hardening
+Playwright browser smoke harness for Angular dev-server workflows
+deterministic browser API route fixtures for UI smoke tests
+hosted same-origin Playwright smoke harness through RadarPulse.Http
+same-origin product API base URL default when the UI is served by
+  RadarPulse.Http
+dev-server product API base URL default preservation for localhost:4200
+RadarPulse.Http static Angular asset delivery options
+RadarPulse.Http operator UI static file middleware
+RadarPulse.Http operator UI fallback to index.html
+explicit /product/pipeline route fallback exclusion
+focused .NET static-delivery tests
+OperatorUi README updates for dev-server and integrated local workflows
+```
+
+Verification summary:
+
+```text
+Angular gate:
+  20 passed, 0 failed
+  production build succeeded, 0 warnings
+
+browser smoke gate:
+  dev-server smoke 4 passed, 0 failed
+  hosted same-origin smoke 1 passed, 0 failed
+
+focused .NET product HTTP/API/static-delivery Release gate:
+  18 passed, 0 failed, 0 skipped
+
+Release build:
+  succeeded, 0 warnings, 0 errors
+```
+
+Decision trace:
+
+```text
+accepted with scoped warnings for operator UI hardening and integrated local
+delivery over deterministic archive-shaped workflows
+
+warnings:
+the integrated UI delivery path is local same-origin hosting through
+  RadarPulse.Http, not public production deployment
+the hosted smoke uses deterministic demo/archive-shaped product workflows,
+  not true live radar network ingestion
+the Angular dev-server CORS bridge remains a local development bridge and is
+  not production public API security hardening
+same-origin local delivery does not add authentication, authorization, TLS
+  termination, production CORS hardening, deployment automation, autoscaling,
+  alert routing, or operator runbooks
+the static asset root expects a built Angular bundle; RadarPulse.Http does
+  not perform frontend build orchestration at runtime
+external broker/cloud queue/database adapters remain outside the project plan
+cross-machine throughput certification is not claimed
+exactly-once end-to-end production delivery is not claimed
+accepted milestone 020-030 backend decisions are not reopened
+```
+
+Closeout:
+
+```text
+accepted with scoped warnings for operator UI hardening and integrated local
+delivery over deterministic archive-shaped workflows
+```
+
+Prepared by milestone 031 implementation:
+
+```text
+RadarPulse now has a hardened local product UI surface instead of only a
+dev-server operator SPA
+browser-level regressions in navigation state, run workflow, handler lookup,
+control posture, unreachable-host posture, and hosted same-origin delivery can
+be caught by repeatable smoke gates
+the built Angular UI can be served from RadarPulse.Http on the same local
+origin as the product API without masking /product/pipeline API routes
+future product demo/readiness packaging can build on the same-origin local
+host, smoke commands, readiness route, deterministic workflows, and README
+workflow instead of inventing another delivery path
+live ingestion, public production deployment, auth/TLS/production CORS
+hardening, external broker/database adapters, operations automation, rich
+radar visualization, runtime frontend build orchestration, and exactly-once
+work remain explicitly separated
+```
+
+Recommended next milestone input:
+
+```text
+Product demo/readiness packaging
+```
+
 ## Project Chain Summary
 
 ```text
@@ -1941,7 +2091,8 @@ operator UI hardening and integrated local delivery
 [done] product-facing pipeline console/API
 [done] product HTTP host and persistent run history
 [done] product operator Angular SPA
-[recommended next] operator UI hardening and integrated local delivery
+[done] operator UI hardening and integrated local delivery
+[recommended next] Product demo/readiness packaging
 ```
 
 ## Update Rules
