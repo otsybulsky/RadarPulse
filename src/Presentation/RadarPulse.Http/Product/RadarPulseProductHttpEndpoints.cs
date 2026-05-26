@@ -26,6 +26,7 @@ public static class RadarPulseProductHttpEndpoints
         group.MapGet("/runs/{runId}/diagnostics", GetDiagnostics);
         group.MapGet("/runs/{runId}/capacity", GetCapacityEvidence);
         group.MapGet("/host/readiness", GetHistoryReadiness);
+        group.MapGet("/host/demo-readiness", GetDemoReadiness);
         group.MapPost("/controls/stop-accepting", StopAcceptingAsync);
         group.MapPost("/controls/drain-accepted", DrainAcceptedAsync);
         group.MapPost("/controls/cancel-open-release", CancelOpenAndReleaseAsync);
@@ -105,6 +106,17 @@ public static class RadarPulseProductHttpEndpoints
     public static IResult GetHistoryReadiness(
         [FromServices] RadarPulseProductPipelineApiContract api) =>
         ToHttpResult(api.GetHistoryReadiness());
+
+    public static IResult GetDemoReadiness(
+        [FromServices] RadarPulseProductPipelineApiContract api,
+        [FromServices] RadarPulseProductHttpOptions options)
+    {
+        var historyResponse = api.GetHistoryReadiness();
+        var readiness = RadarPulseProductDemoReadiness.From(
+            historyResponse.Body!,
+            options);
+        return ToHttpResult(RadarPulseProductApiResponse<RadarPulseProductDemoReadiness>.Ok(readiness));
+    }
 
     public static ValueTask<IResult> StopAcceptingAsync(
         [FromServices] RadarPulseProductPipelineApiContract api,

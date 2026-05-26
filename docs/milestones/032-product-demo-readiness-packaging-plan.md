@@ -44,7 +44,7 @@ cross-machine delivery, or exactly-once delivery.
 
 ## Slice 1: Product Demo Readiness Surface
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -67,6 +67,15 @@ Tests:
 dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
   --no-restore
   --filter "FullyQualifiedName~RadarPulseProductHttpHostTests"
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+  --no-restore
+  --filter "FullyQualifiedName~RadarPulseProductHttpHostTests"
+  result: 12 passed, 0 failed, 0 skipped
 ```
 
 Exit criteria:
@@ -330,7 +339,7 @@ The milestone currently has:
 ```text
 032-product-demo-readiness-packaging.md
 032-product-demo-readiness-packaging-plan.md
-implementation not started
+slice 1 product demo readiness surface complete
 gate evidence not captured
 decision trace not written
 closeout not written

@@ -48,6 +48,7 @@ public sealed class RadarPulseProductHttpHostTests
         Assert.Contains("/product/pipeline/runs/{runId}/diagnostics", patterns);
         Assert.Contains("/product/pipeline/runs/{runId}/capacity", patterns);
         Assert.Contains("/product/pipeline/host/readiness", patterns);
+        Assert.Contains("/product/pipeline/host/demo-readiness", patterns);
     }
 
     [Fact]
@@ -127,6 +128,82 @@ public sealed class RadarPulseProductHttpHostTests
             });
 
         Assert.Equal(404, context.Response.StatusCode);
+    }
+
+    [Fact]
+    public async Task DemoReadinessReportsReadyHistoryAndStaticUi()
+    {
+        using var staticRoot = OperatorUiStaticRoot.Create();
+        var api = new RadarPulseProductPipelineApiContract();
+        await api.RunDemoAsync(new RadarPulseProductPipelineSyntheticRunRequest("demo-readiness"));
+
+        var response = await ExecuteAsync<RadarPulseProductDemoReadiness>(
+            RadarPulseProductHttpEndpoints.GetDemoReadiness(
+                api,
+                new RadarPulseProductHttpOptions
+                {
+                    OperatorUiStaticAssetPath = staticRoot.Path
+                }));
+
+        Assert.True(response.IsSuccess);
+        Assert.Equal(200, response.StatusCode);
+        Assert.True(response.Body!.IsReady);
+        Assert.Equal(string.Empty, response.Body.FirstBlockingReason);
+        Assert.True(response.Body.ProductApi.IsReady);
+        Assert.True(response.Body.History.IsReady);
+        Assert.True(response.Body.OperatorUi.IsReady);
+        Assert.Equal(System.IO.Path.GetFullPath(staticRoot.Path), response.Body.OperatorUiStaticAssetRoot);
+        Assert.Contains(
+            "public production deployment",
+            response.Body.NonClaims);
+    }
+
+    [Fact]
+    public async Task DemoReadinessBlocksMissingStaticUi()
+    {
+        var api = new RadarPulseProductPipelineApiContract();
+        var missingPath = System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
+            $"radarpulse-missing-ui-{Guid.NewGuid():N}");
+
+        var response = await ExecuteAsync<RadarPulseProductDemoReadiness>(
+            RadarPulseProductHttpEndpoints.GetDemoReadiness(
+                api,
+                new RadarPulseProductHttpOptions
+                {
+                    OperatorUiStaticAssetPath = missingPath
+                }));
+
+        Assert.True(response.IsSuccess);
+        Assert.False(response.Body!.IsReady);
+        Assert.True(response.Body.History.IsReady);
+        Assert.False(response.Body.OperatorUi.IsReady);
+        Assert.Contains("Operator UI static asset root is unavailable", response.Body.FirstBlockingReason);
+    }
+
+    [Fact]
+    public async Task DemoReadinessPreservesBlockedHistoryPosture()
+    {
+        using var staticRoot = OperatorUiStaticRoot.Create();
+        using var blockedHistoryDirectory = TemporaryDirectory.Create();
+        var service = RadarPulseProductPipelineService.CreateWithFileHistory(blockedHistoryDirectory.Path);
+        var api = new RadarPulseProductPipelineApiContract(service);
+
+        var response = await ExecuteAsync<RadarPulseProductDemoReadiness>(
+            RadarPulseProductHttpEndpoints.GetDemoReadiness(
+                api,
+                new RadarPulseProductHttpOptions
+                {
+                    HistoryPath = blockedHistoryDirectory.Path,
+                    OperatorUiStaticAssetPath = staticRoot.Path
+                }));
+
+        Assert.True(response.IsSuccess);
+        Assert.False(response.Body!.IsReady);
+        Assert.False(response.Body.History.IsReady);
+        Assert.True(response.Body.OperatorUi.IsReady);
+        Assert.NotEmpty(response.Body.FirstBlockingReason);
+        Assert.Equal(blockedHistoryDirectory.Path, response.Body.HistoryPath);
     }
 
     [Fact]
@@ -304,6 +381,35 @@ public sealed class RadarPulseProductHttpHostTests
                 "console.log('operator ui');");
 
             return new OperatorUiStaticRoot(path);
+        }
+
+        public void Dispose()
+        {
+            if (Directory.Exists(Path))
+            {
+                Directory.Delete(Path, recursive: true);
+            }
+        }
+    }
+
+    private sealed class TemporaryDirectory :
+        IDisposable
+    {
+        private TemporaryDirectory(
+            string path)
+        {
+            Path = path;
+        }
+
+        public string Path { get; }
+
+        public static TemporaryDirectory Create()
+        {
+            var path = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(),
+                $"radarpulse-history-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(path);
+            return new TemporaryDirectory(path);
         }
 
         public void Dispose()

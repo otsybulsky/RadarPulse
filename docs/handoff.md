@@ -4,13 +4,13 @@
 
 Milestone 032 has been selected after milestone 031 closeout. The
 architecture/concept document and detailed implementation plan are written.
-Implementation has not started. The decision trace and closeout are not
-written.
+Slice 1 product demo readiness surface is complete. The decision trace and
+closeout are not written.
 
 Stop point:
 
 ```text
-milestone 032 planned; implementation not started
+milestone 032 slice 1 complete; slice 2 not started
 ```
 
 Most recently closed milestone:
@@ -58,7 +58,7 @@ docs/milestones/032-product-demo-readiness-packaging-plan.md
 Milestone 032 planned slices:
 
 ```text
-1. Product demo readiness surface [planned]
+1. Product demo readiness surface [complete]
 2. Local demo package script [planned]
 3. Product demo workflow documentation [planned]
 4. Packaged verification command [planned]
@@ -68,6 +68,10 @@ Milestone 032 planned slices:
 Latest verification:
 
 ```text
+milestone 032 slice 1:
+  focused .NET product HTTP host Release gate:
+    12 passed, 0 failed, 0 skipped
+
 inherited from milestone 031:
   Angular gate:
     20 passed, 0 failed
@@ -176,7 +180,7 @@ visualization.
 Current next action:
 
 ```text
-implement milestone 032 slice 1: Product demo readiness surface
+implement milestone 032 slice 2: Local demo package script
 ```
 
 Decision trace and closeout:
