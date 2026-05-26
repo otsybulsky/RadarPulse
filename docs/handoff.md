@@ -1,4 +1,4 @@
-# Handoff: Milestone 028 Planned
+# Handoff: Milestone 028 Gate Review
 
 ## Current State
 
@@ -6,13 +6,15 @@ Milestone 028 has been selected after milestone 027 closeout. The
 architecture/concept document, implementation plan, slice 1 product DTO and
 mapping contract, slice 2 product pipeline run service, and slice 3 product
 read query surface, and slice 4 product operator control surface are
-complete. Slice 5 console product workflow and slice 6 API-facing contract
-are complete.
+complete. Slice 5 console product workflow, slice 6 API-facing contract, and
+slice 7 documentation/gate evidence are complete. The milestone is stopped
+before decision trace as requested.
 
 Stop point:
 
 ```text
-milestone 028 slice 6 complete
+milestone 028 implementation and gate evidence complete; stopped before
+decision trace
 ```
 
 Current milestone:
@@ -35,6 +37,7 @@ Milestone 028 documents:
 ```text
 docs/milestones/028-product-facing-pipeline-console-and-api.md
 docs/milestones/028-product-facing-pipeline-console-and-api-plan.md
+docs/milestones/028-product-facing-pipeline-console-and-api-gate.md
 ```
 
 Milestone 028 planned slices:
@@ -46,7 +49,7 @@ Milestone 028 planned slices:
 4. Product operator control surface [complete]
 5. Console product workflow [complete]
 6. API-facing contract or thin host [complete]
-7. Documentation, gate evidence, and handoff [planned]
+7. Documentation, gate evidence, and handoff [complete]
 ```
 
 Latest verification:
@@ -87,6 +90,9 @@ slice 6 focused product API contract suite:
 
 slice 6 focused product API contract Release suite:
   4 passed, 0 failed, 0 skipped
+
+focused milestone 028 Release gate:
+  26 passed, 0 failed, 0 skipped
 
 Release build:
   succeeded, 0 warnings, 0 errors
@@ -156,7 +162,8 @@ throughput certification, or exactly-once production delivery.
 Current next action:
 
 ```text
-start slice 7: documentation, gate evidence, and handoff
+review milestone 028 gate evidence, then decide whether to write decision
+trace
 ```
 
 Stop-before-decision-trace instruction:
