@@ -75,7 +75,18 @@ public sealed class RadarSourceProcessingStateStore
     public void ApplyProcessedEvent(
         in RadarStreamEvent streamEvent,
         ReadOnlySpan<byte> eventPayload,
-        RadarProcessingPayloadMetrics payloadMetrics)
+        RadarProcessingPayloadMetrics payloadMetrics) =>
+        ApplyProcessedEventCore(
+            streamEvent,
+            eventPayload,
+            payloadMetrics,
+            applyHandlers: true);
+
+    private void ApplyProcessedEventCore(
+        in RadarStreamEvent streamEvent,
+        ReadOnlySpan<byte> eventPayload,
+        RadarProcessingPayloadMetrics payloadMetrics,
+        bool applyHandlers)
     {
         var sourceId = streamEvent.SourceId;
         EnsureSourceId(sourceId);
@@ -106,7 +117,10 @@ public sealed class RadarSourceProcessingStateStore
             streamEvent,
             payloadMetrics.PayloadValueCount,
             payloadMetrics.RawValueChecksum);
-        ApplyHandlers(sourceId, streamEvent, eventPayload, payloadMetrics);
+        if (applyHandlers)
+        {
+            ApplyHandlers(sourceId, streamEvent, eventPayload, payloadMetrics);
+        }
     }
 
     public RadarSourceProcessingSnapshot GetSnapshot(int sourceId)
@@ -265,6 +279,47 @@ public sealed class RadarSourceProcessingStateStore
         }
     }
 
+    internal void ApplyDeltaWithoutHandlers(
+        RadarProcessingBatchDelta delta)
+    {
+        ArgumentNullException.ThrowIfNull(delta);
+
+        var events = delta.Batch.Events.Span;
+        var routedEvents = delta.Route.RoutedEvents.Span;
+        for (var i = 0; i < routedEvents.Length; i++)
+        {
+            var routed = routedEvents[i];
+            ApplyProcessedEventCore(
+                events[routed.EventIndex],
+                ReadOnlySpan<byte>.Empty,
+                routed.PayloadMetrics,
+                applyHandlers: false);
+        }
+    }
+
+    internal void ApplyMergedHandlerValues(
+        IReadOnlyList<RadarProcessingHandlerDeltaValue> values)
+    {
+        ArgumentNullException.ThrowIfNull(values);
+        if (!handlerSlotLayout.HasHandlers)
+        {
+            if (values.Count != 0)
+            {
+                throw new ArgumentException(
+                    "Merged handler values require a processing core with handlers.",
+                    nameof(values));
+            }
+
+            return;
+        }
+
+        foreach (var value in values)
+        {
+            EnsureSourceId(value.SourceId);
+            ApplyMergedHandlerValue(value);
+        }
+    }
+
     private void EnsureSourceId(int sourceId)
     {
         if ((uint)sourceId < (uint)SourceCount)
@@ -354,6 +409,54 @@ public sealed class RadarSourceProcessingStateStore
                 assignment.Descriptor.DoubleSlotCount);
 
         return new RadarSourceProcessingState(int64Slots, doubleSlots);
+    }
+
+    private void ApplyMergedHandlerValue(
+        RadarProcessingHandlerDeltaValue value)
+    {
+        foreach (var assignment in handlerSlotLayout.Assignments)
+        {
+            foreach (var field in assignment.Descriptor.SnapshotFields)
+            {
+                if (!string.Equals(field.Name, value.FieldName, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (field.Type != value.Type)
+                {
+                    throw new ArgumentException(
+                        "Merged handler value type must match the handler descriptor field type.",
+                        nameof(value));
+                }
+
+                switch (value.Type)
+                {
+                    case RadarSourceProcessingSnapshotFieldType.Int64:
+                        handlerInt64Slots[
+                            GetSourceSlotOffset(
+                                value.SourceId,
+                                handlerSlotLayout.TotalInt64SlotCount,
+                                assignment.Int64SlotOffset + field.SlotIndex)] = value.Int64Value;
+                        return;
+
+                    case RadarSourceProcessingSnapshotFieldType.Double:
+                        handlerDoubleSlots[
+                            GetSourceSlotOffset(
+                                value.SourceId,
+                                handlerSlotLayout.TotalDoubleSlotCount,
+                                assignment.DoubleSlotOffset + field.SlotIndex)] = value.DoubleValue;
+                        return;
+
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(value));
+                }
+            }
+        }
+
+        throw new ArgumentException(
+            $"Merged handler value field '{value.FieldName}' does not match any handler descriptor field.",
+            nameof(value));
     }
 
     private long ReadInt64HandlerSlot(

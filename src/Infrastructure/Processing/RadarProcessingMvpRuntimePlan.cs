@@ -38,6 +38,10 @@ public sealed class RadarProcessingMvpRuntimePlan
         HandlerOutputContract.AllowsOrderedConcurrentDelta &&
         !EffectiveOrderedConcurrencyOptions.IsSequential;
 
+    public bool AllowsOrderedConcurrentHandlerDeltaMerge =>
+        HandlerOutputContract.AllowsOrderedConcurrentHandlerDeltaMerge &&
+        !EffectiveOrderedConcurrencyOptions.IsSequential;
+
     public static RadarProcessingMvpRuntimePlan Create(
         RadarProcessingCore core,
         RadarProcessingOrderedConcurrencyOptions? requestedOrderedConcurrencyOptions = null)
@@ -73,9 +77,9 @@ public sealed class RadarProcessingMvpRuntimePlan
             return new RadarProcessingMvpRuntimePlan(
                 handlerContract,
                 requested,
-                RadarProcessingOrderedConcurrencyOptions.Sequential,
-                usedSequentialFallback: true,
-                "Mergeable handler output is classified, but MVP processing uses sequential fallback until ordered handler delta/merge runtime integration exists.");
+                requested,
+                usedSequentialFallback: false,
+                "Mergeable handler output uses ordered concurrent handler delta/merge.");
         }
 
         return new RadarProcessingMvpRuntimePlan(

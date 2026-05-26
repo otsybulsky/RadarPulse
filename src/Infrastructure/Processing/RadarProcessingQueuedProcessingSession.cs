@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using RadarPulse.Application.Processing;
 using RadarPulse.Domain.Processing;
 using RadarPulse.Domain.Streaming;
 
@@ -258,6 +259,124 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
         }
     }
 
+    public async ValueTask<RadarProcessingQueuedSessionResult> DrainOrderedHandlerDeltaMergeAsync(
+        RadarProcessingOrderedConcurrencyOptions? orderedOptions = null,
+        CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+
+        var effectiveOptions = orderedOptions ?? RadarProcessingOrderedConcurrencyOptions.Default;
+        if (effectiveOptions.IsSequential)
+        {
+            return await DrainAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        var handlerMergeCoordinators = CreateHandlerDeltaMergeCoordinators(core);
+        var started = Stopwatch.GetTimestamp();
+        using var activeCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var active = new List<OrderedConcurrentBatchWork>(effectiveOptions.ActiveBatchCapacity);
+        var completed = new List<OrderedConcurrentBatchCompletion>(effectiveOptions.ActiveBatchCapacity);
+        var inputClosed = false;
+        var nextPublishSequence = -1L;
+
+        try
+        {
+            while (!inputClosed || active.Count > 0 || completed.Count > 0)
+            {
+                while (!inputClosed && active.Count < effectiveOptions.ActiveBatchCapacity)
+                {
+                    var dequeue = await queue.DequeueAsync(cancellationToken).ConfigureAwait(false);
+                    switch (dequeue.Status)
+                    {
+                        case RadarProcessingOwnedBatchDequeueStatus.Item:
+                            var queuedBatch = dequeue.Batch!;
+                            if (nextPublishSequence < 0)
+                            {
+                                nextPublishSequence = queuedBatch.Sequence.Value;
+                            }
+
+                            if (IsFaulted)
+                            {
+                                completed.Add(CreateSkippedAfterFaultCompletion(queuedBatch));
+                            }
+                            else
+                            {
+                                active.Add(StartOrderedConcurrentHandlerDeltaBatch(queuedBatch, activeCancellation.Token));
+                            }
+
+                            break;
+
+                        case RadarProcessingOwnedBatchDequeueStatus.Closed:
+                            inputClosed = true;
+                            break;
+
+                        case RadarProcessingOwnedBatchDequeueStatus.Faulted:
+                            MarkFaulted(dequeue.Message);
+                            inputClosed = true;
+                            break;
+
+                        case RadarProcessingOwnedBatchDequeueStatus.Canceled:
+                            activeCancellation.Cancel();
+                            MarkCanceledAndRecordQueued();
+                            inputClosed = true;
+                            break;
+
+                        case RadarProcessingOwnedBatchDequeueStatus.Disposed:
+                            AddDrainTime(started);
+                            return CreateSessionResult(
+                                RadarProcessingQueuedSessionStatus.Disposed,
+                                "Queued processing queue was disposed.");
+
+                        default:
+                            RadarProcessingOwnedBatchDequeueResult.EnsureKnownStatus(dequeue.Status);
+                            throw new ArgumentOutOfRangeException(nameof(dequeue));
+                    }
+                }
+
+                PublishReadyHandlerDeltaMergeCompletions(
+                    completed,
+                    ref nextPublishSequence,
+                    activeCancellation,
+                    handlerMergeCoordinators);
+                if (active.Count == 0)
+                {
+                    if (inputClosed && completed.Count == 0)
+                    {
+                        break;
+                    }
+
+                    continue;
+                }
+
+                var completedTask = await Task.WhenAny(active.Select(static item => item.Task)).ConfigureAwait(false);
+                var activeIndex = FindActiveWorkIndex(active, completedTask);
+                var activeWork = active[activeIndex];
+                active.RemoveAt(activeIndex);
+                completed.Add(await activeWork.Task.ConfigureAwait(false));
+                PublishReadyHandlerDeltaMergeCompletions(
+                    completed,
+                    ref nextPublishSequence,
+                    activeCancellation,
+                    handlerMergeCoordinators);
+            }
+
+            AddDrainTime(started);
+            return CreateSessionResult(GetTerminalStatus(), GetTerminalMessage());
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            activeCancellation.Cancel();
+            await CompleteAndDiscardActiveWorkAsync(active).ConfigureAwait(false);
+            MarkCanceledAndRecordQueued();
+            AddDrainTime(started);
+            return CreateSessionResult(RadarProcessingQueuedSessionStatus.Canceled, "Queued processing drain was canceled.");
+        }
+        finally
+        {
+            DisposeCompleted(completed);
+        }
+    }
+
     public void Dispose()
     {
         DisposeAsync().AsTask().GetAwaiter().GetResult();
@@ -365,6 +484,17 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
         return new OrderedConcurrentBatchWork(task);
     }
 
+    private OrderedConcurrentBatchWork StartOrderedConcurrentHandlerDeltaBatch(
+        RadarProcessingQueuedBatch queuedBatch,
+        CancellationToken cancellationToken)
+    {
+        var lease = consumerResourceLeaseFactory?.Invoke(queuedBatch.Sequence);
+        var task = Task.Run(
+            () => ComputeOrderedConcurrentHandlerDeltaBatch(queuedBatch, lease, cancellationToken),
+            CancellationToken.None);
+        return new OrderedConcurrentBatchWork(task);
+    }
+
     private OrderedConcurrentBatchCompletion CreateSkippedAfterFaultCompletion(
         RadarProcessingQueuedBatch queuedBatch)
     {
@@ -448,6 +578,74 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
         }
     }
 
+    private OrderedConcurrentBatchCompletion ComputeOrderedConcurrentHandlerDeltaBatch(
+        RadarProcessingQueuedBatch queuedBatch,
+        IDisposable? lease,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                lease?.Dispose();
+                return OrderedConcurrentBatchCompletion.FromProcessingResult(
+                    RadarProcessingQueuedBatchProcessingResult.Canceled(
+                        queuedBatch.Sequence,
+                        "Queued processing batch was canceled."),
+                    leaseAlreadyDisposed: true);
+            }
+
+            var invalid = core.ValidateBatchForProcessing(queuedBatch.Batch, cancellationToken);
+            if (invalid is not null)
+            {
+                return OrderedConcurrentBatchCompletion.FromProcessingResult(
+                    RadarProcessingQueuedBatchProcessingResult.FailedValidation(
+                        queuedBatch.Sequence,
+                        invalid.Validation.Message,
+                        invalid),
+                    lease);
+            }
+
+            var delta = core.ComputeProcessingDeltaForHandlerDeltaMerge(queuedBatch.Batch, cancellationToken);
+            var handlerDeltas = CreateHandlerDeltas(queuedBatch, cancellationToken);
+            return OrderedConcurrentBatchCompletion.FromHandlerDeltas(
+                queuedBatch.Sequence,
+                delta,
+                handlerDeltas,
+                lease);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return OrderedConcurrentBatchCompletion.FromProcessingResult(
+                RadarProcessingQueuedBatchProcessingResult.Canceled(
+                    queuedBatch.Sequence,
+                    "Queued processing batch was canceled."),
+                lease);
+        }
+        catch (RadarProcessingBatchDeltaValidationException exception)
+        {
+            var result = core.CreateInvalidProcessingResult(
+                exception.Error,
+                exception.SourceId,
+                exception.EventIndex,
+                exception.Message);
+            return OrderedConcurrentBatchCompletion.FromProcessingResult(
+                RadarProcessingQueuedBatchProcessingResult.FailedValidation(
+                    queuedBatch.Sequence,
+                    exception.Message,
+                    result),
+                lease);
+        }
+        catch (Exception exception)
+        {
+            return OrderedConcurrentBatchCompletion.FromProcessingResult(
+                RadarProcessingQueuedBatchProcessingResult.FailedProcessing(
+                    queuedBatch.Sequence,
+                    exception.Message),
+                lease);
+        }
+    }
+
     private void PublishReadyOrderedCompletions(
         List<OrderedConcurrentBatchCompletion> completed,
         ref long nextPublishSequence,
@@ -494,6 +692,181 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
                 completion.Dispose();
             }
         }
+    }
+
+    private void PublishReadyHandlerDeltaMergeCompletions(
+        List<OrderedConcurrentBatchCompletion> completed,
+        ref long nextPublishSequence,
+        CancellationTokenSource activeCancellation,
+        IReadOnlyDictionary<string, RadarProcessingHandlerDeltaMergeCoordinator> handlerMergeCoordinators)
+    {
+        if (nextPublishSequence < 0)
+        {
+            return;
+        }
+
+        while (true)
+        {
+            var index = FindCompletionIndex(completed, nextPublishSequence);
+            if (index < 0)
+            {
+                return;
+            }
+
+            var completion = completed[index];
+            completed.RemoveAt(index);
+            try
+            {
+                var result = IsFaulted
+                    ? RadarProcessingQueuedBatchProcessingResult.SkippedAfterFault(
+                        completion.Sequence,
+                        faultMessage)
+                    : completion.Commit(core, activeCancellation.Token, handlerMergeCoordinators);
+                RecordProcessingResult(result);
+                nextPublishSequence++;
+
+                if (IsFailedProcessingStatus(result.Status))
+                {
+                    MarkFaulted(result.Message);
+                    activeCancellation.Cancel();
+                }
+                else if (result.Status == RadarProcessingQueuedBatchProcessingStatus.Canceled)
+                {
+                    activeCancellation.Cancel();
+                    MarkCanceledAndRecordQueued();
+                }
+            }
+            finally
+            {
+                completion.Dispose();
+            }
+        }
+    }
+
+    private IReadOnlyList<RadarProcessingHandlerDelta> CreateHandlerDeltas(
+        RadarProcessingQueuedBatch queuedBatch,
+        CancellationToken cancellationToken)
+    {
+        var contract = RadarProcessingHandlerOutputContract.FromOptions(core.Options);
+        if (!contract.AllowsOrderedConcurrentHandlerDeltaMerge)
+        {
+            throw new NotSupportedException(
+                "Ordered handler delta/merge requires all handlers to be mergeable.");
+        }
+
+        var tempCore = new RadarProcessingCore(
+            core.SourceUniverse,
+            new RadarProcessingCoreOptions(
+                RadarProcessingExecutionMode.Sequential,
+                partitionCount: 1,
+                shardCount: 1,
+                enableValidation: core.Options.EnableValidation,
+                handlers: core.Options.Handlers));
+        var processingResult = tempCore.Process(queuedBatch.Batch, cancellationToken);
+        if (!processingResult.IsValid)
+        {
+            throw new InvalidOperationException(processingResult.Validation.Message);
+        }
+
+        var snapshots = tempCore.CreateSourceHandlerSnapshots();
+        var result = new RadarProcessingHandlerDelta[contract.Handlers.Count];
+        for (var handlerIndex = 0; handlerIndex < contract.Handlers.Count; handlerIndex++)
+        {
+            var descriptor = contract.Handlers[handlerIndex];
+            if (core.Options.Handlers[descriptor.HandlerIndex] is not IRadarProcessingHandlerDeltaMerger merger)
+            {
+                throw new NotSupportedException(
+                    $"Mergeable handler '{descriptor.Name}' must implement the handler delta merger contract.");
+            }
+
+            if (!string.Equals(merger.HandlerName, descriptor.Name, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"Mergeable handler '{descriptor.Name}' merger name does not match its descriptor.");
+            }
+
+            result[handlerIndex] = RadarProcessingHandlerDelta.Create(
+                descriptor.Name,
+                merger.HandlerContractVersion,
+                queuedBatch.Sequence,
+                durableBatchId: null,
+                queuedBatch.StreamEventCount,
+                core.SourceCount,
+                queuedBatch.PayloadValueCount,
+                queuedBatch.RawValueChecksum,
+                CreateHandlerDeltaValues(descriptor, snapshots));
+        }
+
+        return Array.AsReadOnly(result);
+    }
+
+    private static IReadOnlyList<RadarProcessingHandlerDeltaValue> CreateHandlerDeltaValues(
+        RadarProcessingHandlerOutputDescriptor descriptor,
+        IReadOnlyList<RadarSourceProcessingHandlerSnapshot> snapshots)
+    {
+        var result = new List<RadarProcessingHandlerDeltaValue>(
+            checked(descriptor.Fields.Count * snapshots.Count));
+        foreach (var snapshot in snapshots)
+        {
+            foreach (var field in descriptor.Fields)
+            {
+                if (!snapshot.TryGetValue(field.Name, out var value))
+                {
+                    throw new InvalidOperationException(
+                        $"Handler snapshot is missing field '{field.Name}'.");
+                }
+
+                result.Add(value.Type switch
+                {
+                    RadarSourceProcessingSnapshotFieldType.Int64 =>
+                        RadarProcessingHandlerDeltaValue.ForInt64(
+                            snapshot.SourceId,
+                            field.Name,
+                            value.Int64Value),
+                    RadarSourceProcessingSnapshotFieldType.Double =>
+                        RadarProcessingHandlerDeltaValue.ForDouble(
+                            snapshot.SourceId,
+                            field.Name,
+                            value.DoubleValue),
+                    _ => throw new InvalidOperationException("Unsupported handler snapshot field type.")
+                });
+            }
+        }
+
+        return result;
+    }
+
+    private static IReadOnlyDictionary<string, RadarProcessingHandlerDeltaMergeCoordinator> CreateHandlerDeltaMergeCoordinators(
+        RadarProcessingCore core)
+    {
+        var contract = RadarProcessingHandlerOutputContract.FromOptions(core.Options);
+        if (!contract.AllowsOrderedConcurrentHandlerDeltaMerge)
+        {
+            throw new NotSupportedException(
+                "Ordered handler delta/merge requires a mergeable handler output contract.");
+        }
+
+        var result = new Dictionary<string, RadarProcessingHandlerDeltaMergeCoordinator>(StringComparer.Ordinal);
+        foreach (var descriptor in contract.Handlers)
+        {
+            if (core.Options.Handlers[descriptor.HandlerIndex] is not IRadarProcessingHandlerDeltaMerger merger)
+            {
+                throw new NotSupportedException(
+                    $"Mergeable handler '{descriptor.Name}' must implement the handler delta merger contract.");
+            }
+
+            if (!string.Equals(merger.HandlerName, descriptor.Name, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"Mergeable handler '{descriptor.Name}' merger name does not match its descriptor.");
+            }
+
+            result.Add(
+                descriptor.Name,
+                new RadarProcessingHandlerDeltaMergeCoordinator(merger));
+        }
+
+        return result;
     }
 
     private static int FindActiveWorkIndex(
@@ -737,6 +1110,7 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
         private readonly IDisposable? lease;
         private RadarProcessingBatchDelta? delta;
         private RadarProcessingAsyncBatchDeltaResult? asyncDelta;
+        private IReadOnlyList<RadarProcessingHandlerDelta>? handlerDeltas;
         private RadarProcessingWorkerTelemetrySummary? workerTelemetry;
         private RadarProcessingQueuedBatchProcessingResult? processingResult;
         private bool disposed;
@@ -745,6 +1119,7 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
             RadarProcessingQueuedBatchSequence sequence,
             RadarProcessingBatchDelta? delta,
             RadarProcessingAsyncBatchDeltaResult? asyncDelta,
+            IReadOnlyList<RadarProcessingHandlerDelta>? handlerDeltas,
             RadarProcessingWorkerTelemetrySummary? workerTelemetry,
             RadarProcessingQueuedBatchProcessingResult? processingResult,
             IDisposable? lease)
@@ -752,6 +1127,7 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
             Sequence = sequence;
             this.delta = delta;
             this.asyncDelta = asyncDelta;
+            this.handlerDeltas = handlerDeltas;
             this.workerTelemetry = workerTelemetry;
             this.processingResult = processingResult;
             this.lease = lease;
@@ -765,7 +1141,7 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
             IDisposable? lease)
         {
             ArgumentNullException.ThrowIfNull(delta);
-            return new OrderedConcurrentBatchCompletion(sequence, delta, null, null, null, lease);
+            return new OrderedConcurrentBatchCompletion(sequence, delta, null, null, null, null, lease);
         }
 
         public static OrderedConcurrentBatchCompletion FromAsyncDelta(
@@ -778,7 +1154,26 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
                 sequence,
                 asyncDelta.Delta,
                 asyncDelta,
+                null,
                 asyncDelta.WorkerTelemetry,
+                null,
+                lease);
+        }
+
+        public static OrderedConcurrentBatchCompletion FromHandlerDeltas(
+            RadarProcessingQueuedBatchSequence sequence,
+            RadarProcessingBatchDelta delta,
+            IReadOnlyList<RadarProcessingHandlerDelta> handlerDeltas,
+            IDisposable? lease)
+        {
+            ArgumentNullException.ThrowIfNull(delta);
+            ArgumentNullException.ThrowIfNull(handlerDeltas);
+            return new OrderedConcurrentBatchCompletion(
+                sequence,
+                delta,
+                null,
+                handlerDeltas,
+                null,
                 null,
                 lease);
         }
@@ -794,13 +1189,15 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
                 null,
                 null,
                 null,
+                null,
                 processingResult,
                 leaseAlreadyDisposed ? null : lease);
         }
 
         public RadarProcessingQueuedBatchProcessingResult Commit(
             RadarProcessingCore core,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            IReadOnlyDictionary<string, RadarProcessingHandlerDeltaMergeCoordinator>? handlerMergeCoordinators = null)
         {
             ArgumentNullException.ThrowIfNull(core);
             if (processingResult is not null)
@@ -811,6 +1208,58 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
             if (delta is null)
             {
                 throw new InvalidOperationException("Ordered concurrent completion has no delta or result.");
+            }
+
+            if (handlerDeltas is not null)
+            {
+                ArgumentNullException.ThrowIfNull(handlerMergeCoordinators);
+                var invalid = core.ValidateProcessingDeltaForCommit(delta, cancellationToken);
+                if (invalid is not null)
+                {
+                    processingResult = RadarProcessingQueuedBatchProcessingResult.FailedValidation(
+                        Sequence,
+                        invalid.Validation.Message,
+                        invalid);
+                    return processingResult;
+                }
+
+                foreach (var handlerDelta in handlerDeltas)
+                {
+                    if (!handlerMergeCoordinators.TryGetValue(
+                            handlerDelta.HandlerName,
+                            out var coordinator))
+                    {
+                        processingResult = RadarProcessingQueuedBatchProcessingResult.FailedProcessing(
+                            Sequence,
+                            $"No merge coordinator exists for handler '{handlerDelta.HandlerName}'.");
+                        return processingResult;
+                    }
+
+                    var mergeResult = coordinator.Complete(handlerDelta);
+                    if (mergeResult.IsRejected || mergeResult.IsBlocked)
+                    {
+                        processingResult = RadarProcessingQueuedBatchProcessingResult.FailedProcessing(
+                            Sequence,
+                            mergeResult.Message);
+                        return processingResult;
+                    }
+                }
+
+                var mergedHandlerValues = handlerMergeCoordinators.Values
+                    .SelectMany(static coordinator => coordinator.CreateSummary().MergedValues)
+                    .ToArray();
+                var handlerResult = core.CommitValidatedProcessingDeltaWithMergedHandlerValues(
+                    delta,
+                    mergedHandlerValues,
+                    workerTelemetry,
+                    cancellationToken);
+                processingResult = handlerResult.IsValid
+                    ? RadarProcessingQueuedBatchProcessingResult.Succeeded(Sequence, handlerResult)
+                    : RadarProcessingQueuedBatchProcessingResult.FailedValidation(
+                        Sequence,
+                        handlerResult.Validation.Message,
+                        handlerResult);
+                return processingResult;
             }
 
             var result = core.CommitProcessingDelta(
@@ -842,6 +1291,7 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
 
             asyncDelta = null;
             delta = null;
+            handlerDeltas = null;
             workerTelemetry = null;
             lease?.Dispose();
         }

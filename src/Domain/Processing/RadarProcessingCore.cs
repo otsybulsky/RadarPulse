@@ -30,6 +30,8 @@ public sealed class RadarProcessingCore
 
     internal RadarProcessingTopologyManager TopologyManager => topologyManager;
 
+    internal RadarSourceUniverse SourceUniverse => sourceUniverse;
+
     internal int SourceCount => sourceUniverse.SourceCount;
 
     public RadarProcessingResult Process(
@@ -95,6 +97,22 @@ public sealed class RadarProcessingCore
         return RadarProcessingBatchDelta.Create(batch, route, sourceUniverse.SourceCount);
     }
 
+    internal RadarProcessingBatchDelta ComputeProcessingDeltaForHandlerDeltaMerge(
+        RadarEventBatch batch,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        var invalid = ValidateBatchForProcessing(batch, cancellationToken);
+        if (invalid is not null)
+        {
+            throw new InvalidOperationException(invalid.Validation.Message);
+        }
+
+        var route = new RadarProcessingBatchRouter(Topology).Route(batch);
+        return RadarProcessingBatchDelta.Create(batch, route, sourceUniverse.SourceCount);
+    }
+
     public RadarProcessingResult CommitProcessingDelta(
         RadarProcessingBatchDelta delta,
         RadarProcessingWorkerTelemetrySummary? workerTelemetry = null,
@@ -120,6 +138,52 @@ public sealed class RadarProcessingCore
         }
 
         stateStore.ApplyDelta(delta);
+        processedBatchCount = checked(processedBatchCount + 1);
+
+        var telemetry = Options.ExecutionMode == RadarProcessingExecutionMode.Sequential
+            ? null
+            : RadarProcessingTelemetry.FromRoute(Options.ExecutionMode, delta.Route);
+        return Valid(telemetry, workerTelemetry);
+    }
+
+    internal RadarProcessingResult? ValidateProcessingDeltaForCommit(
+        RadarProcessingBatchDelta delta,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(delta);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (delta.Route.TopologyVersion != Topology.Version)
+        {
+            throw new InvalidOperationException(
+                "Processing delta topology version must match the current processing topology.");
+        }
+
+        return stateStore.ValidateDeltaForCommit(
+            delta,
+            Options,
+            Topology.Version,
+            processedBatchCount);
+    }
+
+    internal RadarProcessingResult CommitValidatedProcessingDeltaWithMergedHandlerValues(
+        RadarProcessingBatchDelta delta,
+        IReadOnlyList<RadarProcessingHandlerDeltaValue> mergedHandlerValues,
+        RadarProcessingWorkerTelemetrySummary? workerTelemetry = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(delta);
+        ArgumentNullException.ThrowIfNull(mergedHandlerValues);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (delta.Route.TopologyVersion != Topology.Version)
+        {
+            throw new InvalidOperationException(
+                "Processing delta topology version must match the current processing topology.");
+        }
+
+        stateStore.ApplyDeltaWithoutHandlers(delta);
+        stateStore.ApplyMergedHandlerValues(mergedHandlerValues);
         processedBatchCount = checked(processedBatchCount + 1);
 
         var telemetry = Options.ExecutionMode == RadarProcessingExecutionMode.Sequential
