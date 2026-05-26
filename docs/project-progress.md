@@ -1,7 +1,7 @@
 # RadarPulse Project Progress
 
-Status: current after milestone 025 closeout with optimized full-cache
-handler matrix evidence accepted.
+Status: current after milestone 026 closeout with file-based persistent
+durable adapter readiness accepted.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -18,24 +18,23 @@ runtime/archive owned-construction integration milestone, the scoped ordered
 concurrent runtime/archive processing milestone, the ordered
 rebalance/topology commit milestone, the durable/cross-process runtime
 readiness milestone, the custom handler output contract and BFF readiness
-milestone, and the handler delta/merge contract for fast custom analytics
-milestone. Milestone 025 is complete through closeout.
+milestone, the handler delta/merge contract for fast custom analytics
+milestone, and the persistent durable adapter readiness milestone. Milestone
+026 is complete through closeout.
 
 Current state:
 
 ```text
-completed milestones: 001-025
+completed milestones: 001-026
 latest completed milestone:
-  025 handler delta/merge contract for fast custom analytics
+  026 persistent durable adapter readiness
 latest completed milestone status:
   implementation slices complete
-  pre-decision gate captured
-  full-cache handler matrix captured
-  merge-state optimization captured
+  focused Release gate captured
   decision trace written
   closeout written
 recommended next milestone input:
-  persistent durable adapter readiness
+  production pipeline integration
 
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive
@@ -82,14 +81,16 @@ current runtime/live posture:
   sets on the local full cache, and optimized active=4 handler delta/merge
   elapsed time is flat versus active=1 handler-aware rows; allocation remains
   higher than active=1 and stays a scoped warning unless parity is required
-  persistent durable adapter readiness is now the recommended next milestone
-  input because the immediate MVP analytics handler delta/merge path is
-  complete through closeout
+  file-based persistent durable adapter readiness is accepted with scoped
+  warnings over deterministic archive-shaped MVP workloads
+  deterministic local file-based persistence is accepted as the milestone 026
+  adapter boundary; Kafka, RabbitMQ, cloud queue, and database-backed adapters
+  require a separate future milestone decision
   true live network ingestion and production deployment/rollback/operator
   surfaces are not implemented yet
 
 current next action:
-  start the recommended persistent durable adapter readiness milestone
+  start the recommended production pipeline integration milestone
 ```
 
 The current accepted direct benchmark contour is:
@@ -210,8 +211,9 @@ handler posture:
   surfaces
   stateful custom handlers are exported from committed deterministic
   snapshots
-  stateful custom handlers use explicit sequential fallback while no handler
-  delta/merge contract exists
+  snapshot-only stateful custom handlers use explicit sequential fallback
+  explicitly mergeable stateful custom handlers can use the accepted handler
+  delta/merge path
 
 BFF query shape:
   latest run
@@ -227,6 +229,31 @@ diagnostic note:
   processing completeness, provider sequence, checksums, retained pressure,
   release health, readiness status, warnings, and first blocking reason remain
   visible
+```
+
+The current accepted persistent durable adapter contour is:
+
+```text
+surface:
+  IRadarProcessingPersistentDurableEnvelopeStore
+  RadarProcessingFileDurableEnvelopeStore
+  RadarProcessingDurableEnvelopeQueue optional persistent backend
+  RadarProcessingDurableProcessingSession completed-envelope recovery
+  RadarProcessingDurableRuntimeReadinessSummary adapter integration
+
+adapter posture:
+  deterministic local file-based persistence is accepted as the concrete
+  milestone 026 adapter
+  persisted durable envelope state can survive adapter/session recreation
+  pending, claimed, completed, failed, abandoned, poison, canceled, and
+  released states preserve explicit recovery posture after restart
+  provider-sequence ordered commit remains the externally visible commit
+  order after restart
+
+boundary:
+  this is not Kafka, RabbitMQ, cloud queue, database-backed adapter,
+  production broker durability, cross-machine delivery, or exactly-once
+  production delivery certification
 ```
 
 The current accepted readiness answers are:
@@ -266,6 +293,17 @@ custom handler output and BFF readiness:
   results through stable custom handler output contracts and application-level
   BFF read models for a future frontend over deterministic archive-shaped
   workloads
+
+handler delta/merge readiness:
+  yes with scoped warnings, explicitly mergeable stateful handlers can use
+  immutable per-batch handler deltas and provider-sequence ordered merge for
+  fast custom analytics over deterministic archive-shaped MVP workloads
+
+persistent durable adapter readiness:
+  yes with scoped warnings, deterministic local file-based persistence can
+  back the accepted durable envelope contract while preserving restart
+  recovery, ordered commit, handler delta replay, terminal release behavior,
+  and operator-visible blocking diagnostics
 ```
 
 The named warnings carried forward are:
@@ -289,15 +327,19 @@ runtime and product coverage:
   durable queues and cross-process runtime readiness are accepted milestone
   023 work over the broker-neutral durable envelope contract; custom handler
   output export and BFF read models are accepted milestone 024 work for
-  deterministic archive-shaped MVP workloads; persistent adapter readiness,
-  true live ingestion, production runtime selection/reporting, and repeated
-  variance gates remain future work that should inherit the accepted default
-  baseline unless a concrete surface incompatibility is proven
+  deterministic archive-shaped MVP workloads; handler delta/merge is accepted
+  milestone 025 work for explicitly mergeable handlers; file-based persistent
+  durable adapter readiness is accepted milestone 026 work for deterministic
+  archive-shaped MVP workloads; true live ingestion, production runtime
+  selection/reporting, and repeated variance gates remain future work that
+  should inherit the accepted default baseline unless a concrete surface
+  incompatibility is proven
 
 handler analytics throughput:
-  stateful custom handlers use committed snapshot export and explicit
-  sequential fallback until a handler delta/merge contract exists; high-volume
-  custom analytics performance readiness is not accepted yet
+  the fast path applies only to explicitly mergeable handlers; snapshot-only
+  handlers keep committed snapshot export and explicit sequential fallback;
+  optimized active=4 handler delta/merge elapsed time is flat versus active=1
+  handler-aware rows, but allocation remains higher than active=1
 
 ordered processing performance breadth:
   direct full-cache ordered-processing evidence is clean, but the measured
@@ -308,15 +350,23 @@ BFF and frontend boundary:
   milestone 024 accepts an application-level BFF read-model query surface,
   not a production HTTP API host or concrete frontend implementation
 
+persistent adapter boundary:
+  milestone 026 accepts deterministic local file-based persistence only;
+  Kafka, RabbitMQ, cloud queue, database-backed adapters, production broker
+  durability, cross-machine delivery, and exactly-once production delivery
+  remain future decisions and gates
+
 callback attribution:
   full-cache milestone 020 rows did not regress end-to-end, but queued-owned
   processing callback allocation and elapsed attribution remain heavier than
   borrowed and must stay visible in future performance reviews
 
 full-suite allocation sensitivity:
-  earlier milestones carried one allocation-sensitive synthetic benchmark
-  caveat in full-suite runs; milestone 024 full Release test project passed
-  with 865 passed, 0 failed, and 3 skipped
+  earlier milestones carried allocation-sensitive synthetic benchmark caveats;
+  milestone 024 full Release test project passed with 865 passed, 0 failed,
+  and 3 skipped; milestone 025 full Release had one isolated
+  allocation-sensitive failure with a passing isolated rerun; milestone 026
+  used a focused Release gate plus clean Release build
 ```
 
 ## Completed Arc
@@ -1210,56 +1260,138 @@ exactly-once production delivery claims
 
 ### 14. Persistent Durable Adapter Readiness
 
-Recommended next reliability milestone after milestone 025 closeout unless
-priorities change.
+Status:
+
+```text
+complete as milestone 026
+architecture/concept document written
+implementation plan written
+persistent envelope schema and adapter contract complete
+file-backed durable envelope queue complete
+restart recovery transitions complete
+adapter-backed ordered processing commit complete
+handler delta replay compatibility complete
+operator summary and Release gate captured
+decision trace written
+closeout written
+```
+
+Milestone documents:
+
+```text
+docs/milestones/026-persistent-durable-adapter-readiness.md
+docs/milestones/026-persistent-durable-adapter-readiness-plan.md
+docs/milestones/026-persistent-durable-adapter-readiness-gate.md
+docs/milestones/026-persistent-durable-adapter-readiness-decision-trace.md
+docs/milestones/026-persistent-durable-adapter-readiness-closeout.md
+```
 
 Goal:
 
 ```text
 validate one concrete persistent or broker-like adapter against the milestone
-023 durable envelope contract
+023 durable envelope contract while preserving milestone 025 handler delta
+identity, idempotency, replay, and ordered merge semantics
 ```
 
-Likely required work:
+Implemented work:
 
 ```text
-serialized durable envelope schema and compatibility checks
-persistent accept, claim, complete, fail, abandon, retry, poison, commit, and
-  release transitions
-restart recovery from pending, claimed, completed, failed, poison, canceled,
-  and released states
-duplicate delivery and idempotent accept behavior
-lease or abandoned-attempt recovery policy
-poison/dead-letter mapping
-provider-sequence ordered commit from adapter-backed state
-retained ownership cleanup across restart and adapter failure
-operator-readable adapter summary and first blocking envelope state
-Release gates over adapter-backed durable workloads
+versioned persistent durable envelope schema
+persistent RadarEventBatch payload record for deterministic local recovery
+IRadarProcessingPersistentDurableEnvelopeStore adapter contract
+RadarProcessingFileDurableEnvelopeStore deterministic local file-backed
+  adapter
+optional persistent backend for RadarProcessingDurableEnvelopeQueue
+fail-closed load behavior for unsupported schema, corrupt content, and
+  incompatible persisted records
+idempotent duplicate accept after adapter/session recreation
+persistent transitions for accept, claim, complete, fail, abandon, retry,
+  poison, commit, release, cancel, CancelOpen, and ReleaseCanceled
+restart recovery for pending, claimed, completed, failed, abandoned, poison,
+  canceled, and released states
+completed-envelope recovery hook for ordered processing commit after adapter
+  and session recreation
+adapter-backed handler delta identity, duplicate replay, conflict rejection,
+  and provider-sequence ordered merge compatibility tests
+adapter summary and durable runtime readiness summary integration
 ```
 
-Prepared by current state:
+Verification summary:
 
 ```text
-milestone 023 defines and tests the broker-neutral durable envelope contract,
-ordered processing commit, ordered rebalance/topology commit, retry/recovery,
-poison, cancellation cleanup, and operator-readable readiness summary that
-the adapter must preserve
-milestone 024 provides product-facing output and BFF contracts that a future
-persistent adapter can serve without changing the MVP result shape
-milestone 025 should define how fast handler analytics deltas interact with
-retry, replay, and ordered commit before persistent adapter work hardens
-those semantics
+focused milestone 026 Release gate:
+  57 passed, 0 failed, 0 skipped
+
+Release build:
+  succeeded, 0 warnings, 0 errors
+```
+
+Decision trace:
+
+```text
+accepted with scoped warnings for persistent durable adapter readiness over
+deterministic archive-shaped MVP workloads, stopping milestone 026 at the
+deterministic local file-based adapter
+
+warnings:
+milestone 026 stops at deterministic local file-based persistence
+Kafka, RabbitMQ, cloud queue, and database-backed adapters are not included
+  and require a separate future milestone decision
+broker retention, broker operations, cross-machine delivery, and broker
+  durability certification are not claimed
+completed-envelope recovery recomputes scoped processing completion material
+  from the persisted batch for the gate
+claimed envelopes remain claimed after restart until explicit abandon, fail,
+  complete, or recovery policy action
+true live network ingestion is not implemented
+production HTTP BFF host and frontend application are not implemented
+deployment, rollback, autoscaling, alerts, and runbooks are not implemented
+exactly-once production delivery is not claimed
+```
+
+Closeout:
+
+```text
+accepted with scoped warnings for persistent durable adapter readiness over
+deterministic archive-shaped MVP workloads, stopping milestone 026 at the
+deterministic local file-based adapter
+```
+
+Prepared by milestone 026 implementation:
+
+```text
+the accepted durable envelope contract now has a concrete persistent local
+adapter proof instead of only an in-process harness
+restart recovery behavior is validated for the states that can block ordered
+runtime progress
+provider-sequence ordered commit survives adapter and session recreation
+handler delta identity, duplicate replay idempotency, conflict rejection, and
+ordered merge semantics remain compatible with adapter-backed retry/replay
+operator readiness can report adapter kind, schema, storage identity,
+compatibility, blocking batch, blocking state, and blocking reason
+future production integration can consume a deterministic file-based durable
+adapter as the local persistence baseline without pretending it is broker
+certification
+```
+
+Recommended next milestone input:
+
+```text
+production pipeline integration
 ```
 
 ### 15. Production Pipeline Integration
 
-Future milestone after persistent durable adapter readiness.
+Recommended next milestone after milestone 026 closeout.
 
 Goal:
 
 ```text
 connect the accepted runtime provider posture into an end-to-end operational
-pipeline with deployable defaults, diagnostics, and acceptance gates
+pipeline with deployable defaults, diagnostics, representative workload
+gates, restart/recovery validation, rollback/fallback posture, and capacity
+evidence
 ```
 
 Likely required work:
@@ -1277,9 +1409,12 @@ performance budget and capacity planning
 Prepared by current state:
 
 ```text
-benchmark and runtime default-baseline evidence provide default expectations
-for runtime integration, but production integration still needs separate
-surface evidence
+runtime/archive provider defaults, ordered processing/rebalance commit
+contracts, durable file-based adapter readiness, custom handler output/BFF
+read models, and handler delta/merge semantics are accepted as the backend
+foundation; production integration still needs separate surface evidence and
+must not silently expand into Kafka, RabbitMQ, cloud queue, or database
+adapter work unless that adapter decision is explicitly selected first
 ```
 
 ### 16. Product-Facing Completion
@@ -1333,8 +1468,8 @@ workflows still need their own milestone gates
 [done] durable/cross-process runtime
 [done] custom handler output contract and BFF readiness
 [done] handler delta/merge contract for fast custom analytics
-[recommended next] persistent durable adapter readiness
-[later] production pipeline integration
+[done] persistent durable adapter readiness
+[recommended next] production pipeline integration
 [later] product-facing completion
 ```
 

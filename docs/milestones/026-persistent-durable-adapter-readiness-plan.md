@@ -1,6 +1,6 @@
 # Milestone 026: Persistent Durable Adapter Readiness Implementation Plan
 
-Status: decision trace written.
+Status: complete.
 
 This plan implements the milestone 026 architecture defined in
 `026-persistent-durable-adapter-readiness.md`.
@@ -446,12 +446,13 @@ attributed separately if it appears again outside the focused adapter gate.
 
 ## Stop Rule
 
-Decision trace is written.
+Decision trace and closeout are written.
 
-Do not create:
+Created:
 
 ```text
 026-persistent-durable-adapter-readiness-closeout.md
 ```
 
-until closeout is explicitly started.
+The next milestone should start from production pipeline integration unless
+priorities change.
