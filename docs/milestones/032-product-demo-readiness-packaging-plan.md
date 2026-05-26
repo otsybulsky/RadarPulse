@@ -94,7 +94,7 @@ Expose product demo readiness posture
 
 ## Slice 2: Local Demo Package Script
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -128,6 +128,22 @@ powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
   help
 powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
   paths
+```
+
+Verification:
+
+```text
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
+  help
+  result: passed
+
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
+  paths
+  result: passed
+
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
+  reset-history
+  result: passed, absent default demo history reported without deletion
 ```
 
 Exit criteria:
@@ -340,6 +356,7 @@ The milestone currently has:
 032-product-demo-readiness-packaging.md
 032-product-demo-readiness-packaging-plan.md
 slice 1 product demo readiness surface complete
+slice 2 local demo package script complete
 gate evidence not captured
 decision trace not written
 closeout not written
