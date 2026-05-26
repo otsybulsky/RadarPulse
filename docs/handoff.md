@@ -1,4 +1,4 @@
-# Handoff: Milestone 032 Pre-Decision
+# Handoff: Milestone 032 Decision Trace Written
 
 ## Current State
 
@@ -7,14 +7,13 @@ architecture/concept document and detailed implementation plan are written.
 Slice 1 product demo readiness surface is complete. Slice 2 local demo
 package script is complete. Slice 3 product demo workflow documentation is
 complete. Slice 4 packaged verification command is complete. Slice 5 gate
-evidence and handoff is complete. The decision trace and closeout are not
-written.
+evidence and handoff is complete. The decision trace is written. The closeout
+is not written.
 
 Stop point:
 
 ```text
-milestone 032 implementation and gate evidence complete; pre-decision review
-  pending
+milestone 032 decision trace written; closeout not written
 ```
 
 Most recently closed milestone:
@@ -58,6 +57,7 @@ Milestone 032 documents:
 docs/milestones/032-product-demo-readiness-packaging.md
 docs/milestones/032-product-demo-readiness-packaging-plan.md
 docs/milestones/032-product-demo-readiness-packaging-gate.md
+docs/milestones/032-product-demo-readiness-packaging-decision-trace.md
 ```
 
 Milestone 032 planned slices:
@@ -214,16 +214,16 @@ visualization.
 Current next action:
 
 ```text
-stop for review before writing milestone 032 decision trace
+write milestone 032 closeout when requested
 ```
 
 Decision trace and closeout:
 
 ```text
-milestone 032 decision trace has not been written
+milestone 032 decision trace has been written
 milestone 032 closeout has not been written
-stop before decision trace for review after implementation slices and gate
-  evidence are complete
+recommended next milestone input:
+  Product demo polish and portfolio readiness
 ```
 
 Previous milestone closeout:
