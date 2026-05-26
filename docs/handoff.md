@@ -1,18 +1,16 @@
-# Handoff: Milestone 031 Complete
+# Handoff: Milestone 032 Planned
 
 ## Current State
 
-Milestone 031 has been selected after milestone 030 closeout. The
-architecture/concept document and implementation plan are written. Slice 1
-URL state and validation hardening is complete. Slice 2 browser smoke harness
-is complete. Slice 3 integrated static UI delivery is complete.
-Slice 4 same-origin smoke and local workflow docs are complete. Slice 5 gate
-evidence and handoff is complete. The decision trace and closeout are written.
+Milestone 032 has been selected after milestone 031 closeout. The
+architecture/concept document and detailed implementation plan are written.
+Implementation has not started. The decision trace and closeout are not
+written.
 
 Stop point:
 
 ```text
-milestone 031 closeout written; next milestone selected but not started
+milestone 032 planned; implementation not started
 ```
 
 Most recently closed milestone:
@@ -21,85 +19,56 @@ Most recently closed milestone:
 031 Operator UI Hardening And Integrated Local Delivery
 ```
 
-Recommended next milestone:
+Current milestone:
 
 ```text
 032 Product Demo/Readiness Packaging
 ```
 
-Milestone 031 goal:
+Milestone 032 goal:
 
 ```text
-make the accepted Angular operator UI the stable local product surface, with
-browser-level smoke coverage, URL-restorable operator state, stricter
-form/control validation, polished failure posture, and integrated local
-same-origin delivery through RadarPulse.Http
+make RadarPulse repeatable as a local product demo/readiness package over the
+accepted same-origin RadarPulse.Http UI/API host, deterministic product
+workflows, local file-backed history, readiness checks, and packaged
+verification commands
 ```
 
-Milestone 031 selected implementation direction:
+Milestone 032 selected implementation direction:
 
 ```text
-keep the Angular SPA in src/Presentation/OperatorUi
-keep RadarPulse.Http as the accepted product HTTP host
-add real-browser smoke coverage for critical operator workflows
-make selected run and active detail tab restorable from URL state
-harden local form validation and control request posture
-serve the built Angular SPA from RadarPulse.Http as an integrated local
-  same-origin delivery path
-keep the Angular dev-server CORS bridge scoped to local development
-do not reopen accepted milestone 020-030 backend or UI boundary decisions
+keep RadarPulse.Http as the local product HTTP host
+keep src/Presentation/OperatorUi as the Angular operator UI
+add product demo/readiness posture over existing history readiness and static
+  UI delivery state
+add repository-local scripts for startup, readiness, deterministic demo run,
+  history inspection/reset, and packaged verification
+document the local first-use, demo, reset, and verify workflow
+preserve the accepted same-origin local delivery path from milestone 031
+do not reopen accepted milestone 020-031 backend or UI boundary decisions
 ```
 
-Milestone 031 documents:
+Milestone 032 documents:
 
 ```text
-docs/milestones/031-operator-ui-hardening-and-integrated-local-delivery.md
-docs/milestones/031-operator-ui-hardening-and-integrated-local-delivery-plan.md
-docs/milestones/031-operator-ui-hardening-and-integrated-local-delivery-gate.md
-docs/milestones/031-operator-ui-hardening-and-integrated-local-delivery-decision-trace.md
-docs/milestones/031-operator-ui-hardening-and-integrated-local-delivery-closeout.md
+docs/milestones/032-product-demo-readiness-packaging.md
+docs/milestones/032-product-demo-readiness-packaging-plan.md
 ```
 
-Milestone 031 planned slices:
+Milestone 032 planned slices:
 
 ```text
-1. URL state and validation hardening [complete]
-2. Browser smoke harness [complete]
-3. Integrated static UI delivery [complete]
-4. Same-origin smoke and local workflow docs [complete]
-5. Gate evidence and handoff [complete]
+1. Product demo readiness surface [planned]
+2. Local demo package script [planned]
+3. Product demo workflow documentation [planned]
+4. Packaged verification command [planned]
+5. Gate evidence and handoff [planned]
 ```
 
 Latest verification:
 
 ```text
-milestone 031 slice 1:
-  Angular gate:
-    18 passed, 0 failed
-    production build succeeded, 0 warnings
-
-milestone 031 slice 2:
-  browser smoke gate:
-    4 passed, 0 failed
-  Angular gate:
-    18 passed, 0 failed
-    production build succeeded, 0 warnings
-
-milestone 031 slice 3:
-  focused .NET product HTTP host Release gate:
-    9 passed, 0 failed, 0 skipped
-  Release build:
-    succeeded, 0 warnings, 0 errors
-
-milestone 031 slice 4:
-  Angular gate:
-    20 passed, 0 failed
-    production build succeeded, 0 warnings
-  browser smoke gate:
-    dev-server smoke 4 passed, 0 failed
-    hosted same-origin smoke 1 passed, 0 failed
-
-milestone 031 final gate:
+inherited from milestone 031:
   Angular gate:
     20 passed, 0 failed
     production build succeeded, 0 warnings
@@ -120,17 +89,21 @@ inherited from milestone 030:
     succeeded, 0 warnings, 0 errors
 ```
 
-Milestone 031 expected gate:
+Milestone 032 expected gate:
 
 ```text
-Angular:
+packaged command:
+  powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
+    verify
+
+individual Angular:
   cd src/Presentation/OperatorUi
   npm test -- --watch=false
   npm run build
   npm run smoke
   npm run smoke:hosted
 
-.NET focused product HTTP/static-delivery Release gate:
+focused .NET product HTTP/API/readiness Release gate:
   dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
     --no-restore
     --filter "FullyQualifiedName~RadarPulseProductHttpHostTests|FullyQualifiedName~RadarPulseProductHttpControlTests|FullyQualifiedName~RadarPulseProductPipelineApiContractTests"
@@ -139,26 +112,23 @@ Angular:
   dotnet build RadarPulse.sln -c Release --no-restore
 ```
 
-Milestone 031 planned implementation:
+Milestone 032 planned implementation:
 
 ```text
-URL-restorable selected run and active detail tab
-input validation for product HTTP base URL, archive run, and handler lookup
-control disabled/loading/rejected/blocked posture hardening
-selected run not-found posture from URL state
-Playwright-style browser smoke coverage for critical operator workflows
-deterministic browser API route fixtures for operator UI smoke tests
-RadarPulse.Http local static delivery for the built Angular SPA
-route fallback that does not intercept /product/pipeline API routes
-configured local static asset root for Angular dist output
-same-origin hosted browser smoke through RadarPulse.Http
-same-origin default product API base URL when the UI is served by
-  RadarPulse.Http
-README updates for dev-server and integrated same-origin workflows
-milestone 031 gate evidence
+product demo/readiness HTTP posture over history and UI static asset state
+repository-local product demo script
+scripted same-origin local startup
+readiness inspection command
+deterministic demo run command
+history inspection command
+safe local demo history reset command
+packaged verify command
+product demo/readiness workflow documentation
+OperatorUi README pointer to the product demo/readiness package
+milestone 032 gate evidence
 ```
 
-Milestone 030 accepted implementation baseline:
+Milestone 031 accepted implementation baseline:
 
 ```text
 Angular 21 operator SPA in src/Presentation/OperatorUi
@@ -172,6 +142,12 @@ presentation sibling projects under src/Presentation:
   OperatorUi
   RadarPulse.Cli
   RadarPulse.Http
+URL-restorable selected run id and active detail tab
+validated product HTTP base URL, archive run, and handler lookup inputs
+Playwright browser smoke coverage for dev-server and hosted same-origin
+  workflows
+RadarPulse.Http static Angular asset delivery with /product/pipeline route
+  separation
 ```
 
 Milestone 029 accepted product HTTP surface:
@@ -185,11 +161,11 @@ deterministic local file-backed product run history that survives service
   recreation
 ```
 
-Milestone 031 scope boundary:
+Milestone 032 scope boundary:
 
 ```text
 do not reopen accepted runtime/default/durable/handler/BFF/production
-pipeline/product/HTTP host/UI decisions from milestones 020-030. Do not
+pipeline/product/HTTP host/UI decisions from milestones 020-031. Do not
 expand this milestone into true live network ingestion, external broker/cloud
 queue/database adapter certification, deployment automation, public hosted
 production readiness, auth/TLS/production CORS hardening, cross-machine
@@ -200,27 +176,27 @@ visualization.
 Current next action:
 
 ```text
-start the recommended Product demo/readiness packaging milestone
+implement milestone 032 slice 1: Product demo readiness surface
 ```
 
 Decision trace and closeout:
 
 ```text
-milestone 031 decision trace has been written
-milestone 031 closeout has been written
-recommended next milestone input:
-  Product demo/readiness packaging
+milestone 032 decision trace has not been written
+milestone 032 closeout has not been written
+stop before decision trace for review after implementation slices and gate
+  evidence are complete
 ```
 
 Previous milestone closeout:
 
 ```text
-milestone 030 closeout written:
-  accepted with scoped warnings for product operator Angular SPA over the
-  local product HTTP host for deterministic archive-shaped workflows
+milestone 031 closeout written:
+  accepted with scoped warnings for operator UI hardening and integrated local
+  delivery over deterministic archive-shaped workflows
 
 recommended next milestone input:
-  operator UI hardening and integrated local delivery
+  Product demo/readiness packaging
 ```
 
 ## Previous Closed Milestone Context
