@@ -1,6 +1,6 @@
 # Milestone 031: Operator UI Hardening And Integrated Local Delivery Plan
 
-Status: planned.
+Status: implementation complete; pre-decision review pending.
 
 This plan implements the milestone 031 architecture defined in
 `031-operator-ui-hardening-and-integrated-local-delivery.md`.
@@ -258,7 +258,7 @@ Document integrated operator UI workflow
 
 ## Slice 5: Gate Evidence And Handoff
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -284,6 +284,30 @@ dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
   --filter "FullyQualifiedName~RadarPulseProductHttpHostTests|FullyQualifiedName~RadarPulseProductHttpControlTests|FullyQualifiedName~RadarPulseProductPipelineApiContractTests"
 
 dotnet build RadarPulse.sln -c Release --no-restore
+```
+
+Verification:
+
+```text
+npm test -- --watch=false
+  result: 20 passed, 0 failed
+
+npm run build
+  result: succeeded, 0 warnings
+
+npm run smoke
+  result: 4 passed, 0 failed
+
+npm run smoke:hosted
+  result: 1 passed, 0 failed
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+  --no-restore
+  --filter "FullyQualifiedName~RadarPulseProductHttpHostTests|FullyQualifiedName~RadarPulseProductHttpControlTests|FullyQualifiedName~RadarPulseProductPipelineApiContractTests"
+  result: 18 passed, 0 failed, 0 skipped
+
+dotnet build RadarPulse.sln -c Release --no-restore
+  result: succeeded, 0 warnings, 0 errors
 ```
 
 Exit criteria:
@@ -351,8 +375,9 @@ The milestone currently has:
 ```text
 031-operator-ui-hardening-and-integrated-local-delivery.md
 031-operator-ui-hardening-and-integrated-local-delivery-plan.md
-implementation not started
-gate evidence not captured
+031-operator-ui-hardening-and-integrated-local-delivery-gate.md
+implementation slices complete
+gate evidence captured
 decision trace not written
 closeout not written
 ```

@@ -1,4 +1,4 @@
-# Handoff: Milestone 031 Planned
+# Handoff: Milestone 031 Pre-Decision
 
 ## Current State
 
@@ -6,12 +6,14 @@ Milestone 031 has been selected after milestone 030 closeout. The
 architecture/concept document and implementation plan are written. Slice 1
 URL state and validation hardening is complete. Slice 2 browser smoke harness
 is complete. Slice 3 integrated static UI delivery is complete.
-Slice 4 same-origin smoke and local workflow docs are complete.
+Slice 4 same-origin smoke and local workflow docs are complete. Slice 5 gate
+evidence and handoff is complete. Stop before decision trace.
 
 Stop point:
 
 ```text
-milestone 031 slice 4 complete; start implementation slice 5
+milestone 031 implementation slices complete; gate evidence captured; stop
+before decision trace
 ```
 
 Most recently closed milestone:
@@ -54,6 +56,7 @@ Milestone 031 documents:
 ```text
 docs/milestones/031-operator-ui-hardening-and-integrated-local-delivery.md
 docs/milestones/031-operator-ui-hardening-and-integrated-local-delivery-plan.md
+docs/milestones/031-operator-ui-hardening-and-integrated-local-delivery-gate.md
 ```
 
 Milestone 031 planned slices:
@@ -63,7 +66,7 @@ Milestone 031 planned slices:
 2. Browser smoke harness [complete]
 3. Integrated static UI delivery [complete]
 4. Same-origin smoke and local workflow docs [complete]
-5. Gate evidence and handoff [planned]
+5. Gate evidence and handoff [complete]
 ```
 
 Latest verification:
@@ -95,6 +98,18 @@ milestone 031 slice 4:
     dev-server smoke 4 passed, 0 failed
     hosted same-origin smoke 1 passed, 0 failed
 
+milestone 031 final gate:
+  Angular gate:
+    20 passed, 0 failed
+    production build succeeded, 0 warnings
+  browser smoke gate:
+    dev-server smoke 4 passed, 0 failed
+    hosted same-origin smoke 1 passed, 0 failed
+  focused .NET product HTTP/API/static-delivery Release gate:
+    18 passed, 0 failed, 0 skipped
+  Release build:
+    succeeded, 0 warnings, 0 errors
+
 inherited from milestone 030:
   focused .NET product HTTP/API Release gate:
     14 passed, 0 failed, 0 skipped
@@ -112,6 +127,7 @@ Angular:
   npm test -- --watch=false
   npm run build
   npm run smoke
+  npm run smoke:hosted
 
 .NET focused product HTTP/static-delivery Release gate:
   dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
@@ -183,8 +199,7 @@ visualization.
 Current next action:
 
 ```text
-implement slice 5:
-  Gate evidence and handoff
+stop before writing milestone 031 decision trace
 ```
 
 Decision trace posture:
