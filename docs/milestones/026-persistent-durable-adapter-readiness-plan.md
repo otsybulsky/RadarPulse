@@ -1,6 +1,6 @@
 # Milestone 026: Persistent Durable Adapter Readiness Implementation Plan
 
-Status: pre-decision review.
+Status: decision trace written.
 
 This plan implements the milestone 026 architecture defined in
 `026-persistent-durable-adapter-readiness.md`.
@@ -404,28 +404,27 @@ result:
 
 ## Slice 7: Pre-Decision Trace Review Point
 
-Status: reached.
+Status: complete.
 
 Implementation:
 
 ```text
-stop before writing the decision trace
-summarize completed slices, gate evidence, warnings, and remaining questions
-ask for review of whether the adapter-backed readiness evidence is accepted,
-  needs follow-up, or should change scope before decision trace
+decision trace written after review of completed slices, gate evidence,
+warnings, and scope boundary
+file-based adapter stop point recorded in the decision
+closeout remains pending until explicitly started
 ```
 
 Exit criteria:
 
 ```text
-the milestone is ready for decision trace discussion, but no decision trace
-or closeout document has been created
+decision trace is written and closeout document has not been created
 ```
 
 Commit:
 
 ```text
-none before review unless handoff-only corrections are required
+Write persistent durable adapter decision trace
 ```
 
 ## Gate Command Shape
@@ -447,13 +446,12 @@ attributed separately if it appears again outside the focused adapter gate.
 
 ## Stop Rule
 
-Stop before decision trace.
+Decision trace is written.
 
 Do not create:
 
 ```text
-026-persistent-durable-adapter-readiness-decision-trace.md
 026-persistent-durable-adapter-readiness-closeout.md
 ```
 
-until the pre-decision evidence and warnings have been reviewed.
+until closeout is explicitly started.

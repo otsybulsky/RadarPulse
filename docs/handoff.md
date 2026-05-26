@@ -1,16 +1,16 @@
-# Handoff: Milestone 026 Pre-Decision Review
+# Handoff: Milestone 026 Decision Trace Written
 
 ## Current State
 
 Milestone 026 has started as the selected reliability milestone after
 milestone 025 closeout. The architecture/concept document, implementation
-plan, implementation slices, focused Release gate, and handoff update are
-complete.
+plan, implementation slices, focused Release gate, decision trace, and
+handoff update are complete.
 
 Stop point:
 
 ```text
-stop before decision trace for review
+decision trace written; closeout not started
 ```
 
 Current milestone:
@@ -33,6 +33,7 @@ Milestone 026 documents:
 docs/milestones/026-persistent-durable-adapter-readiness.md
 docs/milestones/026-persistent-durable-adapter-readiness-plan.md
 docs/milestones/026-persistent-durable-adapter-readiness-gate.md
+docs/milestones/026-persistent-durable-adapter-readiness-decision-trace.md
 ```
 
 Milestone 026 planned slices:
@@ -44,7 +45,7 @@ Milestone 026 planned slices:
 4. Adapter-backed ordered processing commit [complete]
 5. Handler delta replay compatibility [complete]
 6. Operator summary and Release gate [complete]
-7. Pre-decision trace review point [reached; stop before decision trace]
+7. Pre-decision trace review point [complete]
 ```
 
 Latest verification:
@@ -91,11 +92,23 @@ adapter-backed handler delta identity, duplicate replay, conflict rejection,
   and ordered merge compatibility tests
 ```
 
-Decision trace has not been written:
+Decision trace:
 
 ```text
-docs/milestones/026-persistent-durable-adapter-readiness-decision-trace.md
-  not created
+accepted with scoped warnings for persistent durable adapter readiness over
+deterministic archive-shaped MVP workloads, stopping milestone 026 at the
+deterministic local file-based adapter
+```
+
+Recommended next milestone input:
+
+```text
+production pipeline integration
+```
+
+Closeout has not been written:
+
+```text
 docs/milestones/026-persistent-durable-adapter-readiness-closeout.md
   not created
 ```
