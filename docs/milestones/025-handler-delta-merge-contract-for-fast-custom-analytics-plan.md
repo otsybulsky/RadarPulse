@@ -387,7 +387,7 @@ Add handler delta performance gate
 
 ## Slice 7: Pre-Decision Trace Review Point
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -396,6 +396,23 @@ capture gate evidence in a milestone 025 gate document
 summarize implementation results, accepted warnings, and any residual risks
 update handoff and project progress with current status
 stop before writing the decision trace
+```
+
+Verification:
+
+```text
+docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics-gate.md
+
+focused milestone 025 Release gate:
+  26 passed, 0 failed, 0 skipped
+
+Release build:
+  succeeded, 0 warnings, 0 errors
+
+full Release test project:
+  890 passed, 1 failed, 3 skipped
+  known allocation-sensitive synthetic benchmark caveat isolated rerun:
+    1 passed, 0 failed, 0 skipped
 ```
 
 Exit criteria:
@@ -416,6 +433,13 @@ Capture milestone 025 gate evidence
 The planned stop point is before
 `025-handler-delta-merge-contract-for-fast-custom-analytics-decision-trace.md`
 is written.
+
+Current status:
+
+```text
+stop point reached
+decision trace not written
+```
 
 At that point, the expected handoff should include:
 

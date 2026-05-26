@@ -1,8 +1,9 @@
-# Handoff: Milestone 025 Started
+# Handoff: Milestone 025 Pre-Decision Gate Captured
 
 ## Current State
 
-Milestone 024 is complete. Milestone 025 has started.
+Milestone 024 is complete. Milestone 025 implementation slices and
+pre-decision gate evidence are complete.
 
 RadarPulse has accepted the scoped MVP output/BFF readiness surface for
 deterministic archive-shaped workloads. The current milestone is the handler
@@ -25,13 +26,14 @@ Milestone 025 current status:
 ```text
 architecture/concept document: written
 implementation plan: written
-implementation: slice 6 complete
+implementation: slices complete
 handler classification contract: complete
 per-batch handler delta contract: complete
 deterministic ordered merge coordinator: complete
 MVP runtime integration and fallback policy: complete
 BFF compatibility and diagnostics: complete
 handler-heavy performance gate: complete
+pre-decision trace gate: captured
 decision trace: not written
 planned stop point: stop before decision trace for discussion
 ```
@@ -41,6 +43,7 @@ Milestone 025 documents:
 ```text
 docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics.md
 docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics-plan.md
+docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics-gate.md
 ```
 
 Milestone 025 goal:
@@ -59,7 +62,33 @@ Milestone 025 planned slices:
 4. MVP runtime integration and fallback policy [complete]
 5. BFF compatibility and diagnostics [complete]
 6. Handler-heavy performance gate [complete]
-7. Pre-decision trace review point
+7. Pre-decision trace review point [complete]
+```
+
+Milestone 025 latest verification:
+
+```text
+focused milestone 025 Release gate:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+    --no-restore
+    --filter "FullyQualifiedName~RadarProcessingHandlerDeltaClassificationTests|FullyQualifiedName~RadarProcessingHandlerDeltaContractTests|FullyQualifiedName~RadarProcessingHandlerDeltaMergeCoordinatorTests|FullyQualifiedName~RadarProcessingMvpHandlerDeltaRuntimeTests|FullyQualifiedName~RadarProcessingHandlerDeltaBffCompatibilityTests|FullyQualifiedName~RadarProcessingHandlerDeltaPerformanceGateTests"
+  result: 26 passed, 0 failed, 0 skipped
+
+Release build:
+  dotnet build RadarPulse.sln -c Release --no-restore
+  result: succeeded, 0 warnings, 0 errors
+
+full Release test project:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+    --no-restore --no-build
+  result: 890 passed, 1 failed, 3 skipped
+  known allocation-sensitive synthetic benchmark caveat:
+    RadarProcessingSyntheticRebalanceBenchmarkTests.
+      AcceptedMovePressureAggregationDoesNotCopyPreviousIterations
+    Expected bounded benchmark aggregation allocation, got 894196968 bytes.
+
+known allocation-sensitive synthetic test isolated rerun:
+  result: 1 passed, 0 failed, 0 skipped
 ```
 
 Milestone 025 key scope:

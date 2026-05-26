@@ -1,6 +1,6 @@
 # RadarPulse Project Progress
 
-Status: current after milestone 024 closeout.
+Status: current during milestone 025 pre-decision trace review.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -17,14 +17,18 @@ runtime/archive owned-construction integration milestone, the scoped ordered
 concurrent runtime/archive processing milestone, the ordered
 rebalance/topology commit milestone, the durable/cross-process runtime
 readiness milestone, and the custom handler output contract and BFF readiness
-milestone.
+milestone. Milestone 025 handler delta/merge implementation slices and gate
+evidence are captured; the decision trace is intentionally not written yet.
 
 Current state:
 
 ```text
 completed milestones: 001-024
-recommended next milestone: handler delta/merge contract for fast custom
-  analytics
+active milestone: 025 handler delta/merge contract for fast custom analytics
+active milestone status:
+  implementation slices complete
+  pre-decision gate captured
+  decision trace not written
 
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive
@@ -62,17 +66,21 @@ current runtime/live posture:
   in-process durable harness
   product-facing custom handler output and BFF readiness is accepted with
   scoped warnings for deterministic archive-shaped MVP workloads
-  stateful handler output uses committed snapshot export and explicit
-  sequential fallback until a handler delta/merge contract exists
-  high-volume custom analytics performance readiness is not accepted yet
+  snapshot-only stateful handler output keeps committed snapshot export and
+  explicit sequential fallback
+  explicitly mergeable stateful handlers now have scoped in-process handler
+  delta/merge implementation and pre-decision gate evidence
+  high-volume custom analytics performance readiness is under decision-trace
+  review and is not accepted until milestone 025 decision trace is written
   persistent durable adapter readiness remains deferred to a later reliability
   milestone while the immediate MVP analytics path addresses handler
   delta/merge first
   true live network ingestion and production deployment/rollback/operator
   surfaces are not implemented yet
 
-recommended next milestone:
-  handler delta/merge contract for fast custom analytics
+current next action:
+  review milestone 025 gate evidence and write the decision trace only after
+  the scoped warnings and readiness posture are agreed
 ```
 
 The current accepted direct benchmark contour is:
@@ -1039,7 +1047,7 @@ production deployment, rollback, autoscaling, alerts, and runbooks
 exactly-once production delivery claims
 ```
 
-Recommended next milestone:
+Post-closeout selected milestone:
 
 ```text
 handler delta/merge contract for fast custom analytics
@@ -1047,7 +1055,30 @@ handler delta/merge contract for fast custom analytics
 
 ### 13. Handler Delta/Merge Contract For Fast Custom Analytics
 
-Next milestone after milestone 024.
+Status:
+
+```text
+active as milestone 025
+architecture/concept document written
+implementation plan written
+handler classification contract complete
+per-batch handler delta contract complete
+deterministic ordered merge coordinator complete
+MVP runtime integration and fallback policy complete
+BFF compatibility and diagnostics complete
+handler-heavy performance gate complete
+pre-decision gate captured
+decision trace not written
+closeout not written
+```
+
+Milestone documents:
+
+```text
+docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics.md
+docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics-plan.md
+docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics-gate.md
+```
 
 Goal:
 
@@ -1056,19 +1087,46 @@ make stateful custom analytics fast on large volumes without weakening the
 accepted ordered commit and handler output contracts
 ```
 
-Likely required work:
+Implemented work:
 
 ```text
-mergeable handler classification
-non-mergeable handler fallback policy
-per-batch handler delta shape
+mergeable, snapshot-only, and unsupported handler classification
+non-mergeable snapshot-only sequential fallback policy
+per-batch handler delta identity, validation, serialization, and versioning
 deterministic provider-sequence merge contract
-handler delta serialization and versioning boundaries
 retry, replay, and idempotency behavior for handler deltas
-failure diagnostics and first blocking reason for handler delta work
+failure diagnostics and first blocking reason for unsupported handler work
 sequential fallback parity gates
 BFF output compatibility with merged handler results
 handler-heavy large-volume performance gate
+```
+
+Pre-decision gate summary:
+
+```text
+focused milestone 025 Release gate:
+  26 passed, 0 failed, 0 skipped
+
+Release build:
+  succeeded, 0 warnings, 0 errors
+
+full Release test project:
+  890 passed, 1 failed, 3 skipped
+  known allocation-sensitive synthetic benchmark caveat isolated rerun:
+    1 passed, 0 failed, 0 skipped
+```
+
+Prepared by milestone 025 implementation:
+
+```text
+handler-free work keeps existing ordered concurrent processing-delta posture
+snapshot-only handlers keep explicit sequential fallback and committed
+  snapshot export
+mergeable handlers can compute immutable per-batch handler deltas and merge
+  them by provider sequence
+unsupported handlers fail closed through handler output diagnostics and
+  readiness blocking
+merged handler output projects through milestone 024 BFF read models
 ```
 
 Prepared by current state:
@@ -1082,6 +1140,22 @@ milestones 021 and 022 provide ordered concurrent handler-free delta compute
 and provider-sequence ordered commit foundations
 milestone 023 provides durable retry/recovery semantics that future handler
 delta work must not contradict
+```
+
+Proposed decision-trace warnings:
+
+```text
+the fast path applies only to explicitly mergeable handlers
+mergeable handlers must provide deterministic handler-owned merge semantics
+delta serialization is an in-process/versioned contract gate, not production
+  persistent adapter proof
+the performance gate is deterministic in-process evidence, not cross-machine
+  or production throughput certification
+persistent durable adapter readiness remains future reliability work
+true live network ingestion remains future work
+production HTTP BFF host, frontend, deployment, rollback, autoscaling,
+  alerts, and runbooks remain future work
+exactly-once production delivery is not claimed
 ```
 
 Out of scope unless explicitly pulled forward:
@@ -1219,7 +1293,7 @@ workflows still need their own milestone gates
 [done] ordered rebalance/topology commit and processing-bottleneck evidence
 [done] durable/cross-process runtime
 [done] custom handler output contract and BFF readiness
-[next] handler delta/merge contract for fast custom analytics
+[active] handler delta/merge contract for fast custom analytics
 [later] persistent durable adapter readiness
 [later] production pipeline integration
 [later] product-facing completion
