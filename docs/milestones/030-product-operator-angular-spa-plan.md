@@ -1,6 +1,6 @@
 # Milestone 030: Product Operator Angular SPA Implementation Plan
 
-Status: planned.
+Status: in progress.
 
 This plan implements the milestone 030 architecture defined in
 `030-product-operator-angular-spa.md`.
@@ -47,7 +47,7 @@ auth/TLS/CORS hardening, cross-machine delivery, or exactly-once delivery.
 
 ## Slice 1: Angular Workspace Scaffold And Packaging Boundary
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -75,6 +75,17 @@ npm run build
 dotnet build RadarPulse.sln -c Release --no-restore
 ```
 
+Verification:
+
+```text
+npm test -- --watch=false
+  result: 2 passed, 0 failed
+npm run build
+  result: succeeded
+dotnet build RadarPulse.sln -c Release --no-restore
+  result: succeeded, 0 warnings, 0 errors
+```
+
 Exit criteria:
 
 ```text
@@ -91,7 +102,7 @@ Scaffold product operator Angular UI
 
 ## Slice 2: Typed Product HTTP Client And DTO Mapping
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -128,6 +139,15 @@ Tests:
 Angular unit tests cover base URL joining and every product route method
 Angular unit tests cover API response-state mapping for success, not-found,
   blocked, rejected, and connection failure posture
+```
+
+Verification:
+
+```text
+npm test -- --watch=false
+  result: 5 passed, 0 failed
+npm run build
+  result: succeeded
 ```
 
 Exit criteria:
