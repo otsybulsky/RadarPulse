@@ -1,6 +1,6 @@
 # Milestone 030: Product Operator Angular SPA Implementation Plan
 
-Status: in progress.
+Status: implementation complete; pre-decision review pending.
 
 This plan implements the milestone 030 architecture defined in
 `030-product-operator-angular-spa.md`.
@@ -325,7 +325,7 @@ Add operator controls and failure states
 
 ## Slice 6: Documentation, Gate Evidence, And Handoff
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -355,6 +355,21 @@ dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
   --no-restore
   --filter "FullyQualifiedName~RadarPulseProductHttpHostTests|FullyQualifiedName~RadarPulseProductHttpControlTests|FullyQualifiedName~RadarPulseProductPipelineApiContractTests"
 dotnet build RadarPulse.sln -c Release --no-restore
+```
+
+Verification:
+
+```text
+npm test -- --watch=false
+  result: 13 passed, 0 failed
+npm run build
+  result: succeeded, 0 warnings
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+  --no-restore
+  --filter "FullyQualifiedName~RadarPulseProductHttpHostTests|FullyQualifiedName~RadarPulseProductHttpControlTests|FullyQualifiedName~RadarPulseProductPipelineApiContractTests"
+  result: 13 passed, 0 failed, 0 skipped
+dotnet build RadarPulse.sln -c Release --no-restore
+  result: succeeded, 0 warnings, 0 errors
 ```
 
 Exit criteria:
@@ -420,8 +435,9 @@ The milestone currently has:
 ```text
 030-product-operator-angular-spa.md
 030-product-operator-angular-spa-plan.md
-implementation not started
-gate evidence not captured
+030-product-operator-angular-spa-gate.md
+implementation slices complete
+gate evidence captured
 decision trace not written
 closeout not written
 ```

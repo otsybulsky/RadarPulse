@@ -4,6 +4,10 @@ import { FormsModule } from '@angular/forms';
 
 import { RadarPulseProductApiClient } from './product/product-api.client';
 import {
+  getStoredRadarPulseProductApiBaseUrl,
+  storeRadarPulseProductApiBaseUrl,
+} from './product/product-api.config';
+import {
   ProductControlSummary,
   ProductHandlerSet,
   ProductHandlerOutput,
@@ -29,6 +33,7 @@ type EnumKind = 'state' | 'handlerMode' | 'fallback';
 })
 export class App implements OnInit {
   protected demoRunId = this.createRunId('demo');
+  protected apiBaseUrl = getStoredRadarPulseProductApiBaseUrl();
   protected demoSourceCount = 2;
   protected demoBatchCount = 2;
   protected demoEventsPerBatch = 2;
@@ -75,6 +80,11 @@ export class App implements OnInit {
     this.loadReadiness();
     this.loadRuns();
     this.loadLatestRun();
+  }
+
+  protected applyApiBaseUrl(): void {
+    this.apiBaseUrl = storeRadarPulseProductApiBaseUrl(this.apiBaseUrl);
+    this.refreshAll();
   }
 
   protected runDemo(): void {

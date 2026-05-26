@@ -3,14 +3,14 @@
 ## Current State
 
 Milestone 030 has been selected after milestone 029 closeout. The
-architecture/concept document and implementation plan are written. The next
-work is implementation of the Angular product operator UI in
-`src/Presentation/OperatorUi`, with commits per implementation slice.
+architecture/concept document, implementation plan, Angular operator UI
+implementation slices, gate evidence, and handoff update are complete.
+Decision trace has not been written.
 
 Stop point:
 
 ```text
-milestone 030 architecture and plan written; implementation not started
+milestone 030 implementation and gate captured; stop before decision trace
 ```
 
 Most recently closed milestone:
@@ -51,17 +51,18 @@ Milestone 030 documents:
 ```text
 docs/milestones/030-product-operator-angular-spa.md
 docs/milestones/030-product-operator-angular-spa-plan.md
+docs/milestones/030-product-operator-angular-spa-gate.md
 ```
 
 Milestone 030 planned slices:
 
 ```text
-1. Angular workspace scaffold and packaging boundary [planned]
-2. Typed product HTTP client and DTO mapping [planned]
-3. Operator shell, readiness, run creation, and run list [planned]
-4. Run detail inspection views [planned]
-5. Operator controls and failure posture [planned]
-6. Documentation, gate evidence, and handoff [planned]
+1. Angular workspace scaffold and packaging boundary [complete]
+2. Typed product HTTP client and DTO mapping [complete]
+3. Operator shell, readiness, run creation, and run list [complete]
+4. Run detail inspection views [complete]
+5. Operator controls and failure posture [complete]
+6. Documentation, gate evidence, and handoff [complete]
 ```
 
 Latest verification:
@@ -80,15 +81,40 @@ Milestone 030 expected gate:
 Angular:
   cd src/Presentation/OperatorUi
   npm test -- --watch=false
+    13 passed, 0 failed
   npm run build
+    succeeded, 0 warnings
 
 .NET focused product HTTP/API Release gate:
   dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
     --no-restore
     --filter "FullyQualifiedName~RadarPulseProductHttpHostTests|FullyQualifiedName~RadarPulseProductHttpControlTests|FullyQualifiedName~RadarPulseProductPipelineApiContractTests"
+    13 passed, 0 failed, 0 skipped
 
 .NET Release build:
   dotnet build RadarPulse.sln -c Release --no-restore
+    succeeded, 0 warnings, 0 errors
+```
+
+Completed implementation:
+
+```text
+Angular 21 operator SPA in src/Presentation/OperatorUi
+package-lock.json committed for deterministic npm installs
+RadarPulse.Cli.csproj excludes OperatorUi/** from .NET SDK item discovery
+typed TypeScript DTO subset and RadarPulseProductApiClient over milestone 029
+  product HTTP routes
+runtime API base URL override through localStorage and topbar input
+operator overview for host/history readiness, latest run, run actions, and
+  persisted run list
+selected run inspection tabs for summary, batches, sources, handlers,
+  diagnostics, and capacity evidence
+handler output lookup through the accepted HTTP handler route
+operator controls for stop accepting, drain accepted, cancel/release, and
+  reject unsafe fallback
+explicit loading, empty, not-found, blocked, rejected, bad-request, and
+  unreachable-host posture
+project-specific UI README and milestone gate evidence
 ```
 
 Milestone 030 scope boundary:
@@ -116,8 +142,7 @@ deterministic local file-backed product run history that survives service
 Current next action:
 
 ```text
-start implementation slice 1: Angular workspace scaffold and packaging
-boundary
+review milestone 030 gate evidence and decide whether to write decision trace
 ```
 
 Decision trace:

@@ -48,6 +48,10 @@ h2 {
   gap: 12px;
 }
 
+.base-url {
+  min-width: min(320px, 40vw);
+}
+
 button {
   min-height: 38px;
   border: 0;

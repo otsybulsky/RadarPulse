@@ -6,7 +6,10 @@ import {
 } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 
-import { provideRadarPulseProductApi } from './product-api.config';
+import {
+  RADARPULSE_PRODUCT_API_BASE_URL_STORAGE_KEY,
+  provideRadarPulseProductApi,
+} from './product-api.config';
 import { RadarPulseProductApiClient } from './product-api.client';
 import { ProductControlAction } from './product-api.models';
 import {
@@ -19,6 +22,8 @@ describe('RadarPulseProductApiClient', () => {
   let http: HttpTestingController;
 
   beforeEach(() => {
+    localStorage.removeItem(RADARPULSE_PRODUCT_API_BASE_URL_STORAGE_KEY);
+
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
@@ -103,6 +108,13 @@ describe('RadarPulseProductApiClient', () => {
 
     client.rejectUnsafeFallback(controlRequest).subscribe();
     expectControl('/controls/reject-unsafe-fallback', ProductControlAction.rejectUnsafeFallback);
+  });
+
+  it('uses the runtime base URL override when present', () => {
+    localStorage.setItem(RADARPULSE_PRODUCT_API_BASE_URL_STORAGE_KEY, 'http://localhost:6117/');
+
+    client.getHistoryReadiness().subscribe();
+    http.expectOne('http://localhost:6117/product/pipeline/host/readiness').flush(ok({}));
   });
 });
 

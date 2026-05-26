@@ -1,6 +1,7 @@
 import { InjectionToken, Provider, inject } from '@angular/core';
 
 export const DEFAULT_RADARPULSE_PRODUCT_API_BASE_URL = 'http://localhost:5000';
+export const RADARPULSE_PRODUCT_API_BASE_URL_STORAGE_KEY = 'radarpulse.productApiBaseUrl';
 
 export const RADARPULSE_PRODUCT_API_BASE_URL = new InjectionToken<string>(
   'RADARPULSE_PRODUCT_API_BASE_URL',
@@ -29,4 +30,18 @@ export function normalizeBaseUrl(baseUrl: string): string {
   }
 
   return trimmed.replace(/\/+$/, '');
+}
+
+export function getStoredRadarPulseProductApiBaseUrl(
+  fallback = DEFAULT_RADARPULSE_PRODUCT_API_BASE_URL,
+): string {
+  const stored = globalThis.localStorage?.getItem(RADARPULSE_PRODUCT_API_BASE_URL_STORAGE_KEY);
+
+  return normalizeBaseUrl(stored || fallback);
+}
+
+export function storeRadarPulseProductApiBaseUrl(baseUrl: string): string {
+  const normalized = normalizeBaseUrl(baseUrl);
+  globalThis.localStorage?.setItem(RADARPULSE_PRODUCT_API_BASE_URL_STORAGE_KEY, normalized);
+  return normalized;
 }

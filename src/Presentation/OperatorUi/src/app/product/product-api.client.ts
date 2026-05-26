@@ -2,7 +2,10 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
-import { injectRadarPulseProductApiBaseUrl } from './product-api.config';
+import {
+  getStoredRadarPulseProductApiBaseUrl,
+  injectRadarPulseProductApiBaseUrl,
+} from './product-api.config';
 import {
   ProductApiResponse,
   ProductArchiveFileRunRequest,
@@ -24,7 +27,7 @@ import {
   providedIn: 'root',
 })
 export class RadarPulseProductApiClient {
-  private readonly baseUrl = injectRadarPulseProductApiBaseUrl();
+  private readonly defaultBaseUrl = injectRadarPulseProductApiBaseUrl();
 
   constructor(private readonly http: HttpClient) {}
 
@@ -170,6 +173,6 @@ export class RadarPulseProductApiClient {
   }
 
   private url(route: string): string {
-    return `${this.baseUrl}${route}`;
+    return `${getStoredRadarPulseProductApiBaseUrl(this.defaultBaseUrl)}${route}`;
   }
 }

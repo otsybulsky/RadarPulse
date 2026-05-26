@@ -1,59 +1,87 @@
-# OperatorUi
+# RadarPulse Operator UI
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.12.
+Angular product operator UI for the local RadarPulse product HTTP host.
 
-## Development server
+This app is scoped to deterministic demo/archive-shaped product workflows over
+the accepted `RadarPulse.Http` routes. It does not read product history files
+directly, import .NET assemblies, or call lower-level application/runtime
+objects.
 
-To start a local development server, run:
+## Local Setup
 
-```bash
-ng serve
+Install dependencies:
+
+```powershell
+npm install
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Run tests:
 
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
+```powershell
+npm test -- --watch=false
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+Build the production bundle:
 
-```bash
-ng generate --help
+```powershell
+npm run build
 ```
 
-## Building
+Start the Angular dev server:
 
-To build the project run:
-
-```bash
-ng build
+```powershell
+npm start
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+The dev server normally listens at:
 
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
+```text
+http://localhost:4200
 ```
 
-## Running end-to-end tests
+## Backend
 
-For end-to-end (e2e) testing, run:
+Run the local product HTTP host from the repository root:
 
-```bash
-ng e2e
+```powershell
+dotnet run --project src\Presentation.Http\RadarPulse.Http.csproj
 ```
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+The UI defaults to:
 
-## Additional Resources
+```text
+http://localhost:5000
+```
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+If the HTTP host runs on a different URL, change the `HTTP host` field in the
+top bar and apply it. The override is stored in browser local storage under:
+
+```text
+radarpulse.productApiBaseUrl
+```
+
+## Operator Workflow
+
+The UI supports:
+
+```text
+host/history readiness
+deterministic demo run creation
+archive-shaped run creation when a valid archive file path is supplied
+persisted run list and latest run
+selected run summary
+batch, source, handler, diagnostics, and capacity inspection
+handler output lookup by source id and field name
+stop accepting, drain accepted, cancel/release, and reject unsafe fallback
+  controls
+explicit unreachable host, blocked history, not-found, rejected control, and
+  validation/failure posture
+```
+
+## Scope Boundary
+
+This UI is a local product operator surface. It does not claim true live radar
+network ingestion, public production hosting, deployment automation,
+authentication, authorization, TLS termination, CORS hardening, external
+broker/cloud queue/database adapter readiness, cross-machine throughput, or
+exactly-once delivery.

@@ -4,6 +4,7 @@ import { of, throwError } from 'rxjs';
 
 import { App } from './app';
 import { RadarPulseProductApiClient } from './product/product-api.client';
+import { RADARPULSE_PRODUCT_API_BASE_URL_STORAGE_KEY } from './product/product-api.config';
 import {
   ProductApiResponse,
   ProductHandlerOutput,
@@ -16,6 +17,7 @@ describe('App', () => {
   let api: ProductApiStub;
 
   beforeEach(async () => {
+    localStorage.removeItem(RADARPULSE_PRODUCT_API_BASE_URL_STORAGE_KEY);
     api = new ProductApiStub();
 
     await TestBed.configureTestingModule({
@@ -78,6 +80,20 @@ describe('App', () => {
     fixture.detectChanges();
 
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('network-error');
+  });
+
+  it('stores API base URL override and refreshes host state', async () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const input = fixture.nativeElement.querySelector('input[name="apiBaseUrl"]') as HTMLInputElement;
+    input.value = 'http://localhost:6117/';
+    input.dispatchEvent(new Event('input'));
+    clickButton(fixture.nativeElement, 'Apply URL');
+    await fixture.whenStable();
+
+    expect(localStorage.getItem(RADARPULSE_PRODUCT_API_BASE_URL_STORAGE_KEY)).toBe('http://localhost:6117');
   });
 
   it('renders run inspection tabs for diagnostics and capacity evidence', async () => {
