@@ -1,6 +1,6 @@
 # RadarPulse Project Progress
 
-Status: current after milestone 023 closeout and post-closeout MVP planning.
+Status: current after milestone 024 closeout.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -15,14 +15,16 @@ the first runtime/live ingestion readiness decision, the prewarmed queued-owned
 runtime/archive default-baseline promotion, the default-baseline
 runtime/archive owned-construction integration milestone, the scoped ordered
 concurrent runtime/archive processing milestone, the ordered
-rebalance/topology commit milestone, and the durable/cross-process runtime
-readiness milestone.
+rebalance/topology commit milestone, the durable/cross-process runtime
+readiness milestone, and the custom handler output contract and BFF readiness
+milestone.
 
 Current state:
 
 ```text
-completed milestones: 001-023
-recommended next milestone: custom handler output contract and BFF readiness
+completed milestones: 001-024
+recommended next milestone: handler delta/merge contract for fast custom
+  analytics
 
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive
@@ -58,15 +60,19 @@ current runtime/live posture:
   durable/cross-process runtime readiness is accepted with scoped warnings
   over the broker-neutral durable envelope contract and deterministic
   in-process durable harness
-  post-closeout MVP planning defers persistent durable adapter readiness until
-  after product-facing handler output and BFF contract work
-  custom handler output export, handler-state delta/merge posture, and
-  frontend-facing read models are not implemented yet
+  product-facing custom handler output and BFF readiness is accepted with
+  scoped warnings for deterministic archive-shaped MVP workloads
+  stateful handler output uses committed snapshot export and explicit
+  sequential fallback until a handler delta/merge contract exists
+  high-volume custom analytics performance readiness is not accepted yet
+  persistent durable adapter readiness remains deferred to a later reliability
+  milestone while the immediate MVP analytics path addresses handler
+  delta/merge first
   true live network ingestion and production deployment/rollback/operator
   surfaces are not implemented yet
 
 recommended next milestone:
-  custom handler output contract and BFF readiness
+  handler delta/merge contract for fast custom analytics
 ```
 
 The current accepted direct benchmark contour is:
@@ -171,6 +177,41 @@ commit note:
   sequence
 ```
 
+The current accepted MVP output/BFF contour is:
+
+```text
+surface:
+  RadarProcessingHandlerOutputContract
+  RadarProcessingRunReadModel
+  RadarProcessingRunReadModelBuilder
+  RadarProcessingBffReadModelStore
+  RadarProcessingMvpRuntimePlan
+  RadarProcessingArchiveQueuedOverlapRunner.RunMvpProcessingAsync
+
+handler posture:
+  handler-free processing may use the accepted ordered concurrent runtime
+  surfaces
+  stateful custom handlers are exported from committed deterministic
+  snapshots
+  stateful custom handlers use explicit sequential fallback while no handler
+  delta/merge contract exists
+
+BFF query shape:
+  latest run
+  run detail
+  batch list
+  batch detail
+  source output
+  handler output
+  handler catalog
+  diagnostics
+
+diagnostic note:
+  processing completeness, provider sequence, checksums, retained pressure,
+  release health, readiness status, warnings, and first blocking reason remain
+  visible
+```
+
 The current accepted readiness answers are:
 
 ```text
@@ -197,6 +238,17 @@ ordered runtime/archive rebalance readiness:
   path can keep multiple accepted batches active for handler-free
   processing-delta compute while committing processing, rebalance decisions,
   validation, and topology mutation deterministically in provider sequence
+
+durable/cross-process runtime readiness:
+  yes with scoped warnings, the scoped runtime/archive path is ready to move
+  accepted queued-owned batches through a broker-neutral durable envelope
+  contract under the deterministic in-process durable harness
+
+custom handler output and BFF readiness:
+  yes with scoped warnings, RadarPulse is ready to expose MVP processing
+  results through stable custom handler output contracts and application-level
+  BFF read models for a future frontend over deterministic archive-shaped
+  workloads
 ```
 
 The named warnings carried forward are:
@@ -216,24 +268,28 @@ runtime startup prewarm:
   accepted as visible default lifecycle cost for the runtime/archive default
   baseline; it must not be hidden inside steady measured allocation
 
-runtime coverage:
+runtime and product coverage:
   durable queues and cross-process runtime readiness are accepted milestone
   023 work over the broker-neutral durable envelope contract; custom handler
-  output export, handler-state delta/merge posture, BFF read models,
-  persistent adapter readiness, true live ingestion, production runtime
-  selection/reporting, and repeated variance gates remain future work that
-  should inherit the accepted default baseline unless a concrete surface
-  incompatibility is proven
+  output export and BFF read models are accepted milestone 024 work for
+  deterministic archive-shaped MVP workloads; persistent adapter readiness,
+  true live ingestion, production runtime selection/reporting, and repeated
+  variance gates remain future work that should inherit the accepted default
+  baseline unless a concrete surface incompatibility is proven
+
+handler analytics throughput:
+  stateful custom handlers use committed snapshot export and explicit
+  sequential fallback until a handler delta/merge contract exists; high-volume
+  custom analytics performance readiness is not accepted yet
 
 ordered processing performance breadth:
   direct full-cache ordered-processing evidence is clean, but the measured
   full-cache workload is archive-producer dominated; processing-bottleneck
   matrices remain useful before broad default promotion
 
-ordered rebalance topology breadth:
-  milestone 022 accepted ordered rebalance/topology commit for the scoped
-  in-process path, but durable/cross-process ownership, recovery, retry, and
-  operator-visible blocking state remain separate milestone 023 work
+BFF and frontend boundary:
+  milestone 024 accepts an application-level BFF read-model query surface,
+  not a production HTTP API host or concrete frontend implementation
 
 callback attribution:
   full-cache milestone 020 rows did not regress end-to-end, but queued-owned
@@ -241,8 +297,9 @@ callback attribution:
   borrowed and must stay visible in future performance reviews
 
 full-suite allocation sensitivity:
-  one synthetic benchmark allocation-threshold test remains sensitive in the
-  full suite but passes in isolated rerun
+  earlier milestones carried one allocation-sensitive synthetic benchmark
+  caveat in full-suite runs; milestone 024 full Release test project passed
+  with 865 passed, 0 failed, and 3 skipped
 ```
 
 ## Completed Arc
@@ -864,24 +921,50 @@ custom handler output and BFF readiness milestone
 
 ### 12. Custom Handler Output Contract And BFF Readiness
 
-Next milestone after milestone 023.
+Status:
+
+```text
+complete as milestone 024
+architecture document written
+implementation plan written
+slice 1 handler output contract audit complete
+slice 2 processing output read models complete
+slice 3 BFF application read surface complete
+slice 4 handler execution posture gate complete
+slice 5 archive-shaped MVP gate complete
+optional full-cache performance matrix captured
+decision trace written
+closeout written
+```
+
+Milestone documents:
+
+```text
+docs/milestones/024-custom-handler-output-contract-and-bff-readiness.md
+docs/milestones/024-custom-handler-output-contract-and-bff-readiness-plan.md
+docs/milestones/024-custom-handler-output-contract-and-bff-readiness-gate.md
+docs/milestones/024-custom-handler-output-contract-and-bff-readiness-full-cache-performance-matrix.md
+docs/milestones/024-custom-handler-output-contract-and-bff-readiness-decision-trace.md
+docs/milestones/024-custom-handler-output-contract-and-bff-readiness-closeout.md
+```
 
 Goal:
 
 ```text
 turn the accepted processing/runtime foundations into an MVP-facing result
-surface by defining safe custom handler output contracts, handler-state
-delta/merge posture, and backend-for-frontend read models for a future UI
+surface by defining safe custom handler output contracts, explicit
+handler-state posture, and backend-for-frontend read models for a future UI
 ```
 
-Likely required work:
+Completed work:
 
 ```text
 custom handler output DTOs and export contract
 handler descriptor metadata suitable for frontend-facing result discovery
-explicit handler-state posture for ordered concurrent runtime paths:
-  either handler-state delta/merge for accepted handlers or a documented
-  sequential/non-concurrent fallback for stateful handlers
+explicit handler-state posture:
+  handler-free ordered concurrent remains allowed
+  stateful custom handlers use committed snapshot export and sequential
+  fallback until a handler delta/merge contract exists
 stable processing result read model for batch status, source summaries,
   handler outputs, diagnostics, checksums, and readiness state
 BFF application surface that can serve latest run, batch list, batch detail,
@@ -891,6 +974,40 @@ operator/developer diagnostics that preserve provider sequence, processing
 focused tests over handler output projection, BFF DTO stability, and
   deterministic ordered/sequential behavior
 Release gate over an archive-shaped MVP workload
+optional full-cache performance matrix as regression evidence
+```
+
+Closeout:
+
+```text
+accepted with scoped warnings for custom handler output contract and BFF
+readiness over deterministic archive-shaped MVP workloads
+```
+
+Verification summary:
+
+```text
+Release build:
+  succeeded, 0 warnings, 0 errors
+
+focused milestone 024 Release gate:
+  17 passed, 0 failed, 0 skipped
+
+full Release test project:
+  865 passed, 0 failed, 3 skipped
+
+optional full-cache performance matrix:
+  no full-cache regression observed
+  rebalance-archive default elapsed ratios versus explicit BlockingBorrowed:
+    0.812x static, 0.931x sampling, 0.885x rebalance-session
+  rebalance-archive default allocation ratios versus explicit
+    BlockingBorrowed:
+    1.002x static, 1.003x sampling, 1.000x rebalance-session
+  ordered-archive-processing active=4 elapsed ratio versus active=1:
+    0.982x
+  ordered-archive-processing active=4 steady allocation ratio versus
+    active=1:
+    1.007x
 ```
 
 Prepared by current state:
@@ -904,21 +1021,84 @@ milestone 020 runtime/archive baseline provides the accepted owned
 construction profile for MVP runtime surfaces
 milestone 023 durable readiness summary provides an operator-readable shape
 that the BFF can reuse without requiring a persistent adapter first
+milestone 024 gives future frontend/API work a stable result shape without
+leaking processing queue or durable session internals
 ```
 
-Out of scope:
+Still not implemented:
 
 ```text
+handler delta/merge
+ordered concurrent execution for arbitrary stateful handlers
+high-volume custom analytics performance readiness
 persistent durable adapter implementation
 true live network ingestion
 frontend application implementation
+production HTTP BFF host
 production deployment, rollback, autoscaling, alerts, and runbooks
 exactly-once production delivery claims
 ```
 
-### 13. Persistent Durable Adapter Readiness
+Recommended next milestone:
 
-Future reliability milestone after custom handler output and BFF readiness.
+```text
+handler delta/merge contract for fast custom analytics
+```
+
+### 13. Handler Delta/Merge Contract For Fast Custom Analytics
+
+Next milestone after milestone 024.
+
+Goal:
+
+```text
+make stateful custom analytics fast on large volumes without weakening the
+accepted ordered commit and handler output contracts
+```
+
+Likely required work:
+
+```text
+mergeable handler classification
+non-mergeable handler fallback policy
+per-batch handler delta shape
+deterministic provider-sequence merge contract
+handler delta serialization and versioning boundaries
+retry, replay, and idempotency behavior for handler deltas
+failure diagnostics and first blocking reason for handler delta work
+sequential fallback parity gates
+BFF output compatibility with merged handler results
+handler-heavy large-volume performance gate
+```
+
+Prepared by current state:
+
+```text
+milestone 024 defines stable handler output descriptors and BFF read models
+stateful handler output is already deterministic through committed snapshot
+export
+sequential fallback gives the correctness oracle for delta/merge parity
+milestones 021 and 022 provide ordered concurrent handler-free delta compute
+and provider-sequence ordered commit foundations
+milestone 023 provides durable retry/recovery semantics that future handler
+delta work must not contradict
+```
+
+Out of scope unless explicitly pulled forward:
+
+```text
+production HTTP BFF host
+frontend application implementation
+persistent durable adapter implementation
+true live network ingestion
+production deployment, rollback, autoscaling, alerts, and runbooks
+exactly-once production delivery claims
+```
+
+### 14. Persistent Durable Adapter Readiness
+
+Future reliability milestone after the immediate handler delta/merge MVP
+analytics slice unless priorities change.
 
 Goal:
 
@@ -951,11 +1131,14 @@ milestone 023 defines and tests the broker-neutral durable envelope contract,
 ordered processing commit, ordered rebalance/topology commit, retry/recovery,
 poison, cancellation cleanup, and operator-readable readiness summary that
 the adapter must preserve
-milestone 024 should provide product-facing output and BFF contracts that a
-future persistent adapter can serve without changing the MVP result shape
+milestone 024 provides product-facing output and BFF contracts that a future
+persistent adapter can serve without changing the MVP result shape
+milestone 025 should define how fast handler analytics deltas interact with
+retry, replay, and ordered commit before persistent adapter work hardens
+those semantics
 ```
 
-### 14. Production Pipeline Integration
+### 15. Production Pipeline Integration
 
 Future milestone after persistent durable adapter readiness.
 
@@ -986,7 +1169,7 @@ for runtime integration, but production integration still needs separate
 surface evidence
 ```
 
-### 15. Product-Facing Completion
+### 16. Product-Facing Completion
 
 Future milestone after production pipeline integration.
 
@@ -1012,8 +1195,9 @@ Prepared by current state:
 
 ```text
 the backend data, replay, processing, rebalance, direct benchmark, and
-runtime default-baseline foundations are increasingly stable, but
-product-facing scope has not yet been the main milestone target
+runtime default-baseline foundations are increasingly stable, and milestone
+024 has added the first MVP-facing backend output contract; full product
+workflows still need their own milestone gates
 ```
 
 ## Project Chain Summary
@@ -1034,7 +1218,8 @@ product-facing scope has not yet been the main milestone target
 [done] ordered concurrent runtime/archive processing
 [done] ordered rebalance/topology commit and processing-bottleneck evidence
 [done] durable/cross-process runtime
-[next] custom handler output contract and BFF readiness
+[done] custom handler output contract and BFF readiness
+[next] handler delta/merge contract for fast custom analytics
 [later] persistent durable adapter readiness
 [later] production pipeline integration
 [later] product-facing completion

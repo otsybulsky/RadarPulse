@@ -1,6 +1,6 @@
 # Milestone 024: Custom Handler Output Contract And BFF Readiness Implementation Plan
 
-Status: in progress.
+Status: complete.
 
 This plan implements the milestone 024 architecture defined in
 `024-custom-handler-output-contract-and-bff-readiness.md`.
@@ -288,15 +288,13 @@ result:
 
 ## Slice 6: Decision Trace And Closeout
 
-Status: decision trace written; closeout pending.
+Status: complete.
 
 Stop point:
 
 ```text
-slice 1 through slice 5 are implemented and gated. Decision trace is written
-after review. Closeout remains pending so the final closeout wording,
-project-progress update, and next milestone kickoff can be handled as a
-separate step.
+slice 1 through slice 5 are implemented and gated. Decision trace, closeout,
+handoff, and project-progress updates are complete.
 ```
 
 Documentation:
@@ -304,9 +302,9 @@ Documentation:
 ```text
 write gate evidence: complete
 write decision trace: complete
-write closeout: pending
-update project-progress: pending
-update handoff: complete for decision trace status
+write closeout: complete
+update project-progress: complete
+update handoff: complete
 record next milestone input:
   handler delta/merge contract for fast custom analytics
 ```
@@ -318,11 +316,9 @@ is RadarPulse ready to expose MVP processing results through stable custom
 handler output and BFF read models for a future frontend?
 ```
 
-Expected closeout answer:
+Closeout answer:
 
 ```text
-accepted with scoped warnings for deterministic archive-shaped MVP workloads
-and the accepted handler-state posture; persistent adapter, true live
-ingestion, production operations, and frontend implementation remain future
-work
+accepted with scoped warnings for custom handler output contract and BFF
+readiness over deterministic archive-shaped MVP workloads
 ```

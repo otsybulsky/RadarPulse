@@ -1,10 +1,10 @@
 # Milestone 024: Optional Full-Cache Performance Matrix
 
-Status: captured and referenced by decision trace.
+Status: captured and referenced by decision trace and closeout.
 
 This optional matrix was captured after slice 5 and referenced by the
-milestone 024 decision trace. It reuses the prior full-cache performance
-shape from milestones 020-022.
+milestone 024 decision trace and closeout. It reuses the prior full-cache
+performance shape from milestones 020-022.
 
 The matrix does not change the milestone 024 scope. It checks that the MVP
 handler output/BFF work did not disturb the accepted full-cache benchmark

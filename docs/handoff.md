@@ -1,18 +1,17 @@
-# Handoff: Milestone 024 Decision Trace Written, Closeout Pending
+# Handoff: Milestone 024 Complete, Milestone 025 Recommended
 
 ## Current State
 
-Milestone 023 is complete. Milestone 024 implementation and decision trace
-are complete through the scoped MVP output/BFF readiness decision. Closeout
-remains pending.
+Milestone 024 is complete. RadarPulse has accepted the scoped MVP
+output/BFF readiness surface for deterministic archive-shaped workloads.
 
-Current active milestone:
+Most recently closed milestone:
 
 ```text
 024 Custom Handler Output Contract And BFF Readiness
 ```
 
-Recommended next milestone input after milestone 024 decision trace:
+Recommended next milestone input:
 
 ```text
 handler delta/merge contract for fast custom analytics. Define mergeable
@@ -22,16 +21,18 @@ idempotency behavior, failure diagnostics, sequential fallback parity gates,
 BFF output compatibility, and a handler-heavy large-volume performance gate.
 ```
 
-Milestone 024 planning documents:
+Milestone 024 documents:
 
 ```text
 docs/milestones/024-custom-handler-output-contract-and-bff-readiness.md
 docs/milestones/024-custom-handler-output-contract-and-bff-readiness-plan.md
 docs/milestones/024-custom-handler-output-contract-and-bff-readiness-gate.md
+docs/milestones/024-custom-handler-output-contract-and-bff-readiness-full-cache-performance-matrix.md
 docs/milestones/024-custom-handler-output-contract-and-bff-readiness-decision-trace.md
+docs/milestones/024-custom-handler-output-contract-and-bff-readiness-closeout.md
 ```
 
-MVP planning decision:
+Historical MVP planning decision:
 
 ```text
 defer persistent durable adapter readiness until after RadarPulse has a
@@ -232,9 +233,9 @@ Current planning note:
 ```text
 the milestone 023 closeout recommendation is preserved as historical input,
 but milestone 024 custom handler output contract and BFF readiness was
-selected as the immediate MVP slice and now has its decision trace written;
-persistent durable adapter readiness remains deferred to a later reliability
-milestone unless MVP scope changes again
+selected as the immediate MVP slice and is now closed; persistent durable
+adapter readiness remains deferred to a later reliability milestone unless
+MVP scope changes again
 ```
 
 Closeout:
@@ -265,17 +266,17 @@ archive-shaped MVP gates for a future frontend.
 Milestone 024 current status:
 
 ```text
-implementation: complete through slice 5
+implementation: complete
 slice 1 handler output contract audit: complete
 slice 2 processing output read models: complete
 slice 3 BFF application read surface: complete
 slice 4 handler execution posture gate: complete
 slice 5 archive-shaped MVP gate: complete
 slice 6 decision trace: written
-slice 6 closeout: not started
+slice 6 closeout: written
 
 stop point:
-  decision trace is written; closeout remains pending
+  milestone 024 is closed
 ```
 
 Milestone 024 implemented surfaces:
@@ -329,7 +330,7 @@ Optional milestone 024 full-cache performance matrix:
 docs/milestones/024-custom-handler-output-contract-and-bff-readiness-full-cache-performance-matrix.md
 
 status:
-  captured and referenced by the decision trace
+  captured and referenced by the decision trace and closeout
 
 rebalance-archive:
   default queued-owned stayed faster than explicit BlockingBorrowed in
@@ -381,6 +382,23 @@ warnings:
   exactly-once production delivery is not claimed
   the optional full-cache matrix is regression evidence, not proof of future
     handler-heavy analytics throughput
+
+recommended next milestone input:
+  handler delta/merge contract for fast custom analytics
+```
+
+Milestone 024 closeout:
+
+```text
+accepted with scoped warnings for custom handler output contract and BFF
+readiness over deterministic archive-shaped MVP workloads
+
+accepted result:
+  RadarPulse is ready to expose MVP processing results through stable custom
+  handler output contracts and application-level BFF read models for a future
+  frontend, using committed snapshot export and explicit sequential fallback
+  for stateful handlers while preserving the accepted handler-free ordered
+  concurrent runtime foundations
 
 recommended next milestone input:
   handler delta/merge contract for fast custom analytics
