@@ -1,10 +1,13 @@
 using System.Text.Json;
 using RadarPulse.Application.Product;
+using RadarPulse.Http;
 using RadarPulse.Http.Product;
 using RadarPulse.Infrastructure.Product;
+using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace RadarPulse.Tests.Product;
@@ -45,6 +48,26 @@ public sealed class RadarPulseProductHttpHostTests
         Assert.Contains("/product/pipeline/runs/{runId}/diagnostics", patterns);
         Assert.Contains("/product/pipeline/runs/{runId}/capacity", patterns);
         Assert.Contains("/product/pipeline/host/readiness", patterns);
+    }
+
+    [Fact]
+    public async Task ProductHttpServicesAllowLocalOperatorUiCorsByDefault()
+    {
+        var configuration = new ConfigurationBuilder().Build();
+        var services = new ServiceCollection();
+        services.AddRadarPulseProductHttp(configuration);
+        await using var provider = services.BuildServiceProvider();
+        var policyProvider = provider.GetRequiredService<ICorsPolicyProvider>();
+
+        var policy = await policyProvider.GetPolicyAsync(
+            new DefaultHttpContext
+            {
+                RequestServices = provider
+            },
+            RadarPulseProductHttpServiceCollectionExtensions.OperatorUiCorsPolicyName);
+
+        Assert.NotNull(policy);
+        Assert.Contains("http://localhost:4200", policy!.Origins);
     }
 
     [Fact]

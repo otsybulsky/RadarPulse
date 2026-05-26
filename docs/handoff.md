@@ -89,7 +89,7 @@ Angular:
   dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
     --no-restore
     --filter "FullyQualifiedName~RadarPulseProductHttpHostTests|FullyQualifiedName~RadarPulseProductHttpControlTests|FullyQualifiedName~RadarPulseProductPipelineApiContractTests"
-    13 passed, 0 failed, 0 skipped
+    14 passed, 0 failed, 0 skipped
 
 .NET Release build:
   dotnet build RadarPulse.sln -c Release --no-restore
@@ -105,6 +105,8 @@ RadarPulse.Cli.csproj excludes OperatorUi/** from .NET SDK item discovery
 typed TypeScript DTO subset and RadarPulseProductApiClient over milestone 029
   product HTTP routes
 runtime API base URL override through localStorage and topbar input
+RadarPulse.Http scoped local CORS bridge for the Angular dev server origin
+  http://localhost:4200
 operator overview for host/history readiness, latest run, run actions, and
   persisted run list
 selected run inspection tabs for summary, batches, sources, handlers,
@@ -142,7 +144,8 @@ deterministic local file-backed product run history that survives service
 Current next action:
 
 ```text
-review milestone 030 gate evidence and decide whether to write decision trace
+refresh the browser UI after the local CORS bridge fix, then review
+milestone 030 gate evidence and decide whether to write decision trace
 ```
 
 Decision trace:

@@ -6,6 +6,8 @@ namespace RadarPulse.Http;
 
 public static class RadarPulseProductHttpServiceCollectionExtensions
 {
+    public const string OperatorUiCorsPolicyName = "RadarPulseProductOperatorUi";
+
     public static IServiceCollection AddRadarPulseProductHttp(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -19,6 +21,25 @@ public static class RadarPulseProductHttpServiceCollectionExtensions
             .Bind(options);
 
         services.AddSingleton(options);
+        if (options.EnableOperatorUiCors)
+        {
+            var origins = options.OperatorUiCorsOrigins
+                .Select(origin => origin.Trim().TrimEnd('/'))
+                .Where(origin => origin.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            if (origins.Length > 0)
+            {
+                services.AddCors(cors => cors.AddPolicy(
+                    OperatorUiCorsPolicyName,
+                    policy => policy
+                        .WithOrigins(origins)
+                        .AllowAnyHeader()
+                        .AllowAnyMethod()));
+            }
+        }
+
         services.AddSingleton<IRadarPulseProductRunHistoryStore>(
             _ => options.UseInMemoryHistory
                 ? new RadarPulseProductInMemoryRunHistoryStore()

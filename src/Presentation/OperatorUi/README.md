@@ -60,6 +60,16 @@ top bar and apply it. The override is stored in browser local storage under:
 radarpulse.productApiBaseUrl
 ```
 
+`RadarPulse.Http` enables a scoped local CORS policy for the Angular dev
+server origin:
+
+```text
+http://localhost:4200
+```
+
+That local bridge is for development and milestone validation only. It is not
+production public API security hardening.
+
 ## Operator Workflow
 
 The UI supports:

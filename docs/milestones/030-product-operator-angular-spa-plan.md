@@ -367,9 +367,12 @@ npm run build
 dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
   --no-restore
   --filter "FullyQualifiedName~RadarPulseProductHttpHostTests|FullyQualifiedName~RadarPulseProductHttpControlTests|FullyQualifiedName~RadarPulseProductPipelineApiContractTests"
-  result: 13 passed, 0 failed, 0 skipped
+  result: 14 passed, 0 failed, 0 skipped
 dotnet build RadarPulse.sln -c Release --no-restore
   result: succeeded, 0 warnings, 0 errors
+manual local browser fix:
+  RadarPulse.Http now returns CORS preflight success for the Angular dev
+  server origin http://localhost:4200
 ```
 
 Exit criteria:

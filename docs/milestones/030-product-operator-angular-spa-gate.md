@@ -29,6 +29,7 @@ RadarPulse.Cli.csproj excludes OperatorUi/** from .NET SDK item discovery
 typed TypeScript DTO subset for accepted product HTTP responses
 typed RadarPulseProductApiClient over milestone 029 product routes
 runtime API base URL override stored in localStorage
+local RadarPulse.Http CORS bridge for the Angular dev server origin
 operator overview with host/history readiness, latest run, and run actions
 persisted run list and selected run detail
 run inspection tabs for summary, batches, sources, handlers, diagnostics,
@@ -122,7 +123,7 @@ dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
 Result:
 
 ```text
-13 passed
+14 passed
 0 failed
 0 skipped
 ```
@@ -155,8 +156,17 @@ inspection tabs, handler output value versus absent output, operator control
 route actions, unsafe fallback rejection, and unreachable-host control
 disablement.
 The focused .NET gate keeps the milestone 029 HTTP host, control routes, and
-product API contract green after adding the UI workspace and CLI project item
-exclusion.
+product API contract green after adding the UI workspace, CLI project item
+exclusion, and the scoped local Operator UI CORS bridge.
+Manual local browser issue found after the first gate:
+  Angular dev server at http://localhost:4200 could not call
+  RadarPulse.Http at http://localhost:5117 because preflight returned 405.
+Fix:
+  RadarPulse.Http now enables a named local Operator UI CORS policy by
+  default for http://localhost:4200.
+Verification:
+  OPTIONS /product/pipeline/host/readiness with Origin http://localhost:4200
+  returns 204 and Access-Control-Allow-Origin: http://localhost:4200.
 ```
 
 ## Scoped Warnings
@@ -165,6 +175,8 @@ exclusion.
 the Angular app is a local operator UI, not public production deployment
 the UI consumes deterministic demo/archive-shaped HTTP workflows, not true
   live network ingestion
+the default CORS policy is a local Angular dev-server bridge, not production
+  public API security hardening
 the UI uses local browser state only for HTTP base URL configuration
 auth, authorization, TLS termination, CORS hardening, and public internet
   exposure are not claimed

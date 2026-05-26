@@ -6,4 +6,11 @@ public sealed class RadarPulseProductHttpOptions
         Path.Combine(AppContext.BaseDirectory, "radarpulse-product-history.json");
 
     public bool UseInMemoryHistory { get; set; }
+
+    public bool EnableOperatorUiCors { get; set; } = true;
+
+    public string[] OperatorUiCorsOrigins { get; set; } =
+    [
+        "http://localhost:4200"
+    ];
 }
