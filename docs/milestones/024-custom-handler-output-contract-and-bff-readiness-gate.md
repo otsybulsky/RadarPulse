@@ -1,9 +1,10 @@
 # Milestone 024: Custom Handler Output Contract And BFF Readiness Gate
 
-Status: in progress.
+Status: decision trace written; closeout pending.
 
-This document records gate evidence gathered before the milestone 024
-decision trace. The decision trace is intentionally not written yet.
+This document records gate evidence gathered for the milestone 024 decision
+trace. The decision trace is written in
+`024-custom-handler-output-contract-and-bff-readiness-decision-trace.md`.
 
 ## Scope
 
@@ -136,4 +137,5 @@ archive-shaped MVP workload:
   pressure, provider sequence, and readiness diagnostics visible
 ```
 
-Decision trace is intentionally not written yet.
+Decision trace is written in
+`024-custom-handler-output-contract-and-bff-readiness-decision-trace.md`.

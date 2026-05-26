@@ -1,14 +1,25 @@
-# Handoff: Milestone 023 Complete, Milestone 024 Planned
+# Handoff: Milestone 024 Decision Trace Written, Closeout Pending
 
 ## Current State
 
-Milestone 023 is complete. Post-closeout MVP planning has selected milestone
-024 as the next milestone.
+Milestone 023 is complete. Milestone 024 implementation and decision trace
+are complete through the scoped MVP output/BFF readiness decision. Closeout
+remains pending.
 
-Current next milestone:
+Current active milestone:
 
 ```text
 024 Custom Handler Output Contract And BFF Readiness
+```
+
+Recommended next milestone input after milestone 024 decision trace:
+
+```text
+handler delta/merge contract for fast custom analytics. Define mergeable
+handler classification, per-batch handler deltas, deterministic
+provider-sequence merge, serialization/versioning boundaries, retry and
+idempotency behavior, failure diagnostics, sequential fallback parity gates,
+BFF output compatibility, and a handler-heavy large-volume performance gate.
 ```
 
 Milestone 024 planning documents:
@@ -16,6 +27,8 @@ Milestone 024 planning documents:
 ```text
 docs/milestones/024-custom-handler-output-contract-and-bff-readiness.md
 docs/milestones/024-custom-handler-output-contract-and-bff-readiness-plan.md
+docs/milestones/024-custom-handler-output-contract-and-bff-readiness-gate.md
+docs/milestones/024-custom-handler-output-contract-and-bff-readiness-decision-trace.md
 ```
 
 MVP planning decision:
@@ -218,9 +231,10 @@ Current planning note:
 
 ```text
 the milestone 023 closeout recommendation is preserved as historical input,
-but the current next milestone is milestone 024 custom handler output
-contract and BFF readiness; persistent durable adapter readiness is deferred
-to the next reliability milestone unless MVP scope changes again
+but milestone 024 custom handler output contract and BFF readiness was
+selected as the immediate MVP slice and now has its decision trace written;
+persistent durable adapter readiness remains deferred to a later reliability
+milestone unless MVP scope changes again
 ```
 
 Closeout:
@@ -239,7 +253,7 @@ recommended next milestone input:
   operator-readable adapter state.
 ```
 
-Current next milestone input:
+Milestone 024 original input:
 
 ```text
 custom handler output contract and BFF readiness. Define stable handler
@@ -257,10 +271,11 @@ slice 2 processing output read models: complete
 slice 3 BFF application read surface: complete
 slice 4 handler execution posture gate: complete
 slice 5 archive-shaped MVP gate: complete
-slice 6 decision trace and closeout: not started
+slice 6 decision trace: written
+slice 6 closeout: not started
 
 stop point:
-  stopped before decision trace and closeout per planning instruction
+  decision trace is written; closeout remains pending
 ```
 
 Milestone 024 implemented surfaces:
@@ -314,7 +329,7 @@ Optional milestone 024 full-cache performance matrix:
 docs/milestones/024-custom-handler-output-contract-and-bff-readiness-full-cache-performance-matrix.md
 
 status:
-  captured before decision trace
+  captured and referenced by the decision trace
 
 rebalance-archive:
   default queued-owned stayed faster than explicit BlockingBorrowed in
@@ -336,6 +351,39 @@ ordered-archive-processing:
   retained payload pool misses 0
   release failures 0
   terminal combined retained pressure 0
+```
+
+Milestone 024 decision trace:
+
+```text
+accepted with scoped warnings for custom handler output contract and BFF
+readiness over deterministic archive-shaped MVP workloads
+
+accepted readiness answer:
+  yes with scoped warnings, RadarPulse is ready to expose MVP processing
+  results through stable custom handler output contracts and application-level
+  BFF read models for a future frontend, using committed snapshot export and
+  explicit sequential fallback for stateful handlers while preserving the
+  accepted handler-free ordered concurrent runtime foundations
+
+warnings:
+  stateful handlers do not yet participate in ordered concurrent delta
+    compute
+  handler delta/merge is not implemented
+  high-volume custom analytics performance readiness is not accepted yet
+  the BFF surface is an application read-model query surface, not a
+    production HTTP API host
+  the frontend application is not implemented
+  persistent durable adapter readiness remains future reliability work
+  true live network ingestion is not implemented
+  production deployment, rollback, autoscaling, alerts, and runbooks are not
+    implemented
+  exactly-once production delivery is not claimed
+  the optional full-cache matrix is regression evidence, not proof of future
+    handler-heavy analytics throughput
+
+recommended next milestone input:
+  handler delta/merge contract for fast custom analytics
 ```
 
 ## Milestone 022 Complete Baseline

@@ -1,6 +1,6 @@
 # Milestone 024: Custom Handler Output Contract And BFF Readiness Architecture
 
-Status: planned.
+Status: decision trace written; closeout pending.
 
 Milestone 024 starts from the closed milestone 023 durable/cross-process
 runtime readiness milestone.
@@ -224,4 +224,3 @@ Release build
 focused Release gate suite
 full test project with known residual caveats called out separately
 ```
-

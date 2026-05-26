@@ -288,26 +288,27 @@ result:
 
 ## Slice 6: Decision Trace And Closeout
 
-Status: planned.
+Status: decision trace written; closeout pending.
 
 Stop point:
 
 ```text
-slice 1 through slice 5 are implemented and gated. Per milestone planning
-instructions, stop before writing decision trace and closeout so the accepted
-readiness answer can be discussed.
+slice 1 through slice 5 are implemented and gated. Decision trace is written
+after review. Closeout remains pending so the final closeout wording,
+project-progress update, and next milestone kickoff can be handled as a
+separate step.
 ```
 
 Documentation:
 
 ```text
-write gate evidence
-write decision trace
-write closeout
-update project-progress
-update handoff
-record whether persistent durable adapter remains next, or whether the next
-  MVP slice should build more product-facing output
+write gate evidence: complete
+write decision trace: complete
+write closeout: pending
+update project-progress: pending
+update handoff: complete for decision trace status
+record next milestone input:
+  handler delta/merge contract for fast custom analytics
 ```
 
 Closeout question:
