@@ -293,7 +293,7 @@ result:
 
 ## Slice 5: HTTP Control And Failure Posture
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -339,7 +339,13 @@ Verification:
 dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
   --filter "FullyQualifiedName~RadarPulseProductHttpControlTests|FullyQualifiedName~RadarPulseProductHttpHostTests"
 
+result:
+  9 passed, 0 failed, 0 skipped
+
 dotnet build RadarPulse.sln -c Release --no-restore
+
+result:
+  succeeded, 0 warnings, 0 errors
 ```
 
 ## Slice 6: Documentation, Gate Evidence, And Handoff

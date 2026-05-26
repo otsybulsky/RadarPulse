@@ -26,6 +26,10 @@ public static class RadarPulseProductHttpEndpoints
         group.MapGet("/runs/{runId}/diagnostics", GetDiagnostics);
         group.MapGet("/runs/{runId}/capacity", GetCapacityEvidence);
         group.MapGet("/host/readiness", GetHistoryReadiness);
+        group.MapPost("/controls/stop-accepting", StopAcceptingAsync);
+        group.MapPost("/controls/drain-accepted", DrainAcceptedAsync);
+        group.MapPost("/controls/cancel-open-release", CancelOpenAndReleaseAsync);
+        group.MapPost("/controls/reject-unsafe-fallback", RejectUnsafeFallbackAsync);
 
         return endpoints;
     }
@@ -102,9 +106,60 @@ public static class RadarPulseProductHttpEndpoints
         [FromServices] RadarPulseProductPipelineApiContract api) =>
         ToHttpResult(api.GetHistoryReadiness());
 
+    public static ValueTask<IResult> StopAcceptingAsync(
+        [FromServices] RadarPulseProductPipelineApiContract api,
+        [FromBody] RadarPulseProductPipelineControlRequest request,
+        CancellationToken cancellationToken) =>
+        ApplyControlAsync(
+            api,
+            request,
+            RadarPulseProductControlAction.StopAccepting,
+            cancellationToken);
+
+    public static ValueTask<IResult> DrainAcceptedAsync(
+        [FromServices] RadarPulseProductPipelineApiContract api,
+        [FromBody] RadarPulseProductPipelineControlRequest request,
+        CancellationToken cancellationToken) =>
+        ApplyControlAsync(
+            api,
+            request,
+            RadarPulseProductControlAction.DrainAccepted,
+            cancellationToken);
+
+    public static ValueTask<IResult> CancelOpenAndReleaseAsync(
+        [FromServices] RadarPulseProductPipelineApiContract api,
+        [FromBody] RadarPulseProductPipelineControlRequest request,
+        CancellationToken cancellationToken) =>
+        ApplyControlAsync(
+            api,
+            request,
+            RadarPulseProductControlAction.CancelOpenAndRelease,
+            cancellationToken);
+
+    public static ValueTask<IResult> RejectUnsafeFallbackAsync(
+        [FromServices] RadarPulseProductPipelineApiContract api,
+        [FromBody] RadarPulseProductPipelineControlRequest request,
+        CancellationToken cancellationToken) =>
+        ApplyControlAsync(
+            api,
+            request,
+            RadarPulseProductControlAction.RejectUnsafeFallback,
+            cancellationToken);
+
     public static IResult ToHttpResult<T>(
         RadarPulseProductApiResponse<T> response) =>
         Results.Json(
             response,
             statusCode: response.StatusCode);
+
+    private static async ValueTask<IResult> ApplyControlAsync(
+        RadarPulseProductPipelineApiContract api,
+        RadarPulseProductPipelineControlRequest request,
+        RadarPulseProductControlAction action,
+        CancellationToken cancellationToken) =>
+        ToHttpResult(
+            await api.ApplyControlAsync(
+                    request with { Action = action },
+                    cancellationToken)
+                .ConfigureAwait(false));
 }
