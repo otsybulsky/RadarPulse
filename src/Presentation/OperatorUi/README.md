@@ -21,6 +21,13 @@ Run tests:
 npm test -- --watch=false
 ```
 
+Run browser smoke tests against the Angular dev server with deterministic
+product HTTP route fixtures:
+
+```powershell
+npm run smoke
+```
+
 Build the production bundle:
 
 ```powershell
@@ -70,6 +77,56 @@ http://localhost:4200
 That local bridge is for development and milestone validation only. It is not
 production public API security hardening.
 
+## Integrated Local Host
+
+Milestone 031 also supports a single local host workflow where
+`RadarPulse.Http` serves the built Angular bundle and the product API from the
+same origin.
+
+Build the UI first:
+
+```powershell
+npm run build
+```
+
+Then run the HTTP host:
+
+```powershell
+dotnet run --project ..\RadarPulse.Http\RadarPulse.Http.csproj --urls http://127.0.0.1:5129
+```
+
+Open:
+
+```text
+http://127.0.0.1:5129
+```
+
+When the UI is served from `RadarPulse.Http`, the default product API base URL
+is the current browser origin. The dev-server default remains
+`http://localhost:5000`.
+
+The static asset root is configured by:
+
+```text
+RadarPulse:ProductHttp:OperatorUiStaticAssetPath
+```
+
+The default local development value resolves to:
+
+```text
+src/Presentation/OperatorUi/dist/OperatorUi/browser
+```
+
+The integrated hosted browser smoke gate uses a local in-memory product
+history store:
+
+```powershell
+npm run smoke:hosted
+```
+
+Run `npm run build` before `npm run smoke:hosted` so the hosted path has a
+fresh Angular bundle to serve.
+
 ## Operator Workflow
 
 The UI supports:
@@ -92,6 +149,6 @@ explicit unreachable host, blocked history, not-found, rejected control, and
 
 This UI is a local product operator surface. It does not claim true live radar
 network ingestion, public production hosting, deployment automation,
-authentication, authorization, TLS termination, CORS hardening, external
-broker/cloud queue/database adapter readiness, cross-machine throughput, or
-exactly-once delivery.
+authentication, authorization, TLS termination, production CORS hardening,
+external broker/cloud queue/database adapter readiness, cross-machine
+throughput, or exactly-once delivery.

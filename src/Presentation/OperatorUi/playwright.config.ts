@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './smoke',
+  testIgnore: '**/*.hosted.smoke.spec.ts',
   fullyParallel: false,
   timeout: 30_000,
   expect: {

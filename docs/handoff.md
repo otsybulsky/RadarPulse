@@ -6,11 +6,12 @@ Milestone 031 has been selected after milestone 030 closeout. The
 architecture/concept document and implementation plan are written. Slice 1
 URL state and validation hardening is complete. Slice 2 browser smoke harness
 is complete. Slice 3 integrated static UI delivery is complete.
+Slice 4 same-origin smoke and local workflow docs are complete.
 
 Stop point:
 
 ```text
-milestone 031 slice 3 complete; start implementation slice 4
+milestone 031 slice 4 complete; start implementation slice 5
 ```
 
 Most recently closed milestone:
@@ -61,7 +62,7 @@ Milestone 031 planned slices:
 1. URL state and validation hardening [complete]
 2. Browser smoke harness [complete]
 3. Integrated static UI delivery [complete]
-4. Same-origin smoke and local workflow docs [planned]
+4. Same-origin smoke and local workflow docs [complete]
 5. Gate evidence and handoff [planned]
 ```
 
@@ -85,6 +86,14 @@ milestone 031 slice 3:
     9 passed, 0 failed, 0 skipped
   Release build:
     succeeded, 0 warnings, 0 errors
+
+milestone 031 slice 4:
+  Angular gate:
+    20 passed, 0 failed
+    production build succeeded, 0 warnings
+  browser smoke gate:
+    dev-server smoke 4 passed, 0 failed
+    hosted same-origin smoke 1 passed, 0 failed
 
 inherited from milestone 030:
   focused .NET product HTTP/API Release gate:
@@ -125,6 +134,9 @@ deterministic browser API route fixtures for operator UI smoke tests
 RadarPulse.Http local static delivery for the built Angular SPA
 route fallback that does not intercept /product/pipeline API routes
 configured local static asset root for Angular dist output
+same-origin hosted browser smoke through RadarPulse.Http
+same-origin default product API base URL when the UI is served by
+  RadarPulse.Http
 README updates for dev-server and integrated same-origin workflows
 milestone 031 gate evidence
 ```
@@ -171,8 +183,8 @@ visualization.
 Current next action:
 
 ```text
-implement slice 4:
-  Same-origin smoke and local workflow docs
+implement slice 5:
+  Gate evidence and handoff
 ```
 
 Decision trace posture:

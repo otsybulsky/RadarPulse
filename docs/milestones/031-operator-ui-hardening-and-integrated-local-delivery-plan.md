@@ -200,7 +200,7 @@ Serve operator UI from product HTTP host
 
 ## Slice 4: Same-Origin Smoke And Local Workflow Docs
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -224,6 +224,22 @@ npm run smoke
 npm test -- --watch=false
 npm run build
 focused .NET HTTP/static-delivery gate
+```
+
+Verification:
+
+```text
+npm test -- --watch=false
+  result: 20 passed, 0 failed
+
+npm run build
+  result: succeeded, 0 warnings
+
+npm run smoke
+  result: 4 passed, 0 failed
+
+npm run smoke:hosted
+  result: 1 passed, 0 failed
 ```
 
 Exit criteria:

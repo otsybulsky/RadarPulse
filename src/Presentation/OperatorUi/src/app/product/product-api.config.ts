@@ -7,7 +7,7 @@ export const RADARPULSE_PRODUCT_API_BASE_URL = new InjectionToken<string>(
   'RADARPULSE_PRODUCT_API_BASE_URL',
   {
     providedIn: 'root',
-    factory: () => DEFAULT_RADARPULSE_PRODUCT_API_BASE_URL,
+    factory: () => getDefaultRadarPulseProductApiBaseUrl(),
   },
 );
 
@@ -32,8 +32,31 @@ export function normalizeBaseUrl(baseUrl: string): string {
   return trimmed.replace(/\/+$/, '');
 }
 
+export function getDefaultRadarPulseProductApiBaseUrl(): string {
+  return getRadarPulseProductApiBaseUrlForOrigin(globalThis.location?.origin);
+}
+
+export function getRadarPulseProductApiBaseUrlForOrigin(
+  origin: string | undefined,
+): string {
+  if (!origin || origin === 'null') {
+    return DEFAULT_RADARPULSE_PRODUCT_API_BASE_URL;
+  }
+
+  try {
+    const url = new URL(origin);
+    if (url.port === '4200') {
+      return DEFAULT_RADARPULSE_PRODUCT_API_BASE_URL;
+    }
+
+    return normalizeBaseUrl(origin);
+  } catch {
+    return DEFAULT_RADARPULSE_PRODUCT_API_BASE_URL;
+  }
+}
+
 export function getStoredRadarPulseProductApiBaseUrl(
-  fallback = DEFAULT_RADARPULSE_PRODUCT_API_BASE_URL,
+  fallback = getDefaultRadarPulseProductApiBaseUrl(),
 ): string {
   const stored = globalThis.localStorage?.getItem(RADARPULSE_PRODUCT_API_BASE_URL_STORAGE_KEY);
 

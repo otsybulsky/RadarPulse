@@ -7,6 +7,7 @@ import {
 import { TestBed } from '@angular/core/testing';
 
 import {
+  getRadarPulseProductApiBaseUrlForOrigin,
   RADARPULSE_PRODUCT_API_BASE_URL_STORAGE_KEY,
   provideRadarPulseProductApi,
 } from './product-api.config';
@@ -115,6 +116,20 @@ describe('RadarPulseProductApiClient', () => {
 
     client.getHistoryReadiness().subscribe();
     http.expectOne('http://localhost:6117/product/pipeline/host/readiness').flush(ok({}));
+  });
+});
+
+describe('product API base URL defaults', () => {
+  it('keeps the local HTTP host default for the Angular dev server origin', () => {
+    expect(getRadarPulseProductApiBaseUrlForOrigin('http://127.0.0.1:4200')).toBe(
+      'http://localhost:5000',
+    );
+  });
+
+  it('uses the current origin for integrated same-origin delivery', () => {
+    expect(getRadarPulseProductApiBaseUrlForOrigin('http://127.0.0.1:5129')).toBe(
+      'http://127.0.0.1:5129',
+    );
   });
 });
 
