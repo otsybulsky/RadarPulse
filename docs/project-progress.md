@@ -1,7 +1,7 @@
 # RadarPulse Project Progress
 
-Status: current after milestone 031 closeout with operator UI hardening and
-integrated local delivery accepted for deterministic archive-shaped workflows.
+Status: current after milestone 032 closeout with product demo/readiness
+packaging accepted for deterministic archive-shaped workflows.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -22,25 +22,26 @@ milestone, the handler delta/merge contract for fast custom analytics
 milestone, the persistent durable adapter readiness milestone, the production
 pipeline integration milestone, the product-facing pipeline console/API
 milestone, the product HTTP host and persistent run history milestone, the
-product operator Angular SPA milestone, and the operator UI hardening and
-integrated local delivery milestone. Milestone 031 is complete through
-closeout.
+product operator Angular SPA milestone, the operator UI hardening and
+integrated local delivery milestone, and the product demo/readiness packaging
+milestone. Milestone 032 is complete through closeout.
 
 Current state:
 
 ```text
-completed milestones: 001-031
+completed milestones: 001-032
 latest completed milestone:
-  031 operator UI hardening and integrated local delivery
+  032 product demo/readiness packaging
 latest completed milestone status:
   implementation slices complete
   Angular gate captured
   browser smoke gates captured
-  focused .NET HTTP/API/static-delivery Release gate captured
+  packaged verify command captured
+  focused .NET HTTP/API/readiness Release gate captured
   decision trace written
   closeout written
 recommended next milestone input:
-  Product demo/readiness packaging
+  Product demo polish and portfolio readiness
 
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive
@@ -123,6 +124,13 @@ current runtime/live posture:
   validated local inputs, hardened control posture, browser smoke coverage,
   and a same-origin local RadarPulse.Http delivery path for the built Angular
   SPA
+  product demo/readiness packaging is accepted with scoped warnings over
+  deterministic archive-shaped workflows
+  the local product package now has product demo readiness posture, scripted
+  startup/readiness/demo/history/reset/verify commands, safe local demo
+  history reset, product workflow documentation, and a packaged verify command
+  over the accepted Angular, browser smoke, focused .NET, and Release build
+  gates
   src/Presentation now contains the sibling presentation surfaces:
     OperatorUi, RadarPulse.Cli, and RadarPulse.Http
   true live network ingestion, public/deployed production HTTP/API/frontend
@@ -132,7 +140,7 @@ current runtime/live posture:
   broker/database adapter certification is not planned for this project
 
 current next action:
-  start the recommended Product demo/readiness packaging milestone
+  start the recommended Product demo polish and portfolio readiness milestone
 ```
 
 Current project scope decision:
@@ -362,6 +370,11 @@ operator UI hardening and integrated local delivery readiness:
   yes with scoped warnings, RadarPulse is ready to use the Angular operator UI
   as the hardened local product surface, including browser-smoke validated
   workflows and integrated same-origin local delivery through RadarPulse.Http
+
+product demo/readiness packaging readiness:
+  yes with scoped warnings, RadarPulse is ready to be demonstrated and
+  readiness-checked as a repeatable local product package over the accepted
+  same-origin UI/API host and deterministic product workflows
 ```
 
 The named warnings carried forward are:
@@ -413,6 +426,13 @@ operator UI delivery boundary:
   over a built Angular bundle; it is not public production deployment, does
   not add auth/TLS/production CORS hardening, and does not make RadarPulse.Http
   perform frontend build orchestration at runtime
+
+product demo package boundary:
+  milestone 032 accepts a repeatable local product demo/readiness package
+  over deterministic demo/archive-shaped workflows; it is not an installer,
+  public deployment package, production security posture, database-backed
+  history implementation, operations/runbook package, cross-machine
+  certification, or exactly-once delivery claim
 
 persistent adapter boundary:
   milestone 026 accepts deterministic local file-based persistence only;
@@ -2066,6 +2086,152 @@ Recommended next milestone input:
 Product demo/readiness packaging
 ```
 
+### 20. Product Demo/Readiness Packaging
+
+Status:
+
+```text
+complete as milestone 032
+architecture/concept document written
+implementation plan written
+product demo readiness surface complete
+local demo package script complete
+product demo workflow documentation complete
+packaged verification command complete
+gate evidence captured
+decision trace written
+closeout written
+```
+
+Milestone documents:
+
+```text
+docs/milestones/032-product-demo-readiness-packaging.md
+docs/milestones/032-product-demo-readiness-packaging-plan.md
+docs/milestones/032-product-demo-readiness-packaging-gate.md
+docs/milestones/032-product-demo-readiness-packaging-decision-trace.md
+docs/milestones/032-product-demo-readiness-packaging-closeout.md
+```
+
+Goal:
+
+```text
+make RadarPulse repeatable as a local product demo/readiness package over the
+accepted same-origin RadarPulse.Http UI/API host, deterministic product
+workflows, local file-backed history, readiness checks, and packaged
+verification commands
+```
+
+Implemented work:
+
+```text
+GET /product/pipeline/host/demo-readiness
+product demo/readiness model with product API, history, operator UI static
+  asset, first blocker, warnings, and explicit non-claims
+focused tests for ready package posture, missing static UI posture, blocked
+  history posture, and route mapping
+scripts/radarpulse-product-demo.ps1 package entrypoint
+script commands:
+  help
+  paths
+  start
+  readiness
+  demo
+  history
+  reset-history
+  verify
+scripted same-origin local startup for RadarPulse.Http and built OperatorUi
+  assets
+deterministic demo run command over the accepted product demo route
+history inspection command over accepted product history/read routes
+safe default history reset constrained to .tmp/product-demo
+packaged verify command over Angular, browser smoke, focused .NET, and
+  Release build gates
+observable command runner that prints each command before execution
+docs/product-demo-readiness.md workflow documentation
+OperatorUi README pointer to the product demo/readiness package
+```
+
+Verification summary:
+
+```text
+packaged verify:
+  passed
+
+Angular gate:
+  20 passed, 0 failed
+  production build succeeded
+
+browser smoke gate:
+  dev-server smoke 4 passed, 0 failed
+  hosted same-origin smoke 1 passed, 0 failed
+
+focused .NET product HTTP/API/readiness Release gate:
+  21 passed, 0 failed, 0 skipped
+
+Release build:
+  succeeded, 0 warnings, 0 errors
+```
+
+Decision trace:
+
+```text
+accepted with scoped warnings for product demo/readiness packaging over
+deterministic archive-shaped workflows
+
+warnings:
+the product demo/readiness package covers deterministic demo/archive-shaped
+  local workflows only
+the same-origin host is local RadarPulse.Http delivery, not public production
+  deployment
+the package does not add authentication, authorization, TLS termination,
+  production CORS hardening, deployment automation, autoscaling, alert
+  routing, or operator runbooks
+history remains deterministic local file-backed product history, not
+  database-backed product history
+the static asset root expects a built Angular bundle; RadarPulse.Http does
+  not perform frontend build orchestration at runtime
+external broker/cloud queue/database adapters remain outside the project plan
+cross-machine throughput certification is not claimed
+exactly-once end-to-end production delivery is not claimed
+accepted milestone 020-031 backend decisions are not reopened
+```
+
+Closeout:
+
+```text
+accepted with scoped warnings for product demo/readiness packaging over
+deterministic archive-shaped workflows
+```
+
+Prepared by milestone 032 implementation:
+
+```text
+RadarPulse now has a repeatable local product demo/readiness package instead
+of only separately documented local UI/API commands
+operators can inspect product package readiness through a product route and
+scripted readiness command
+demo runs, local history inspection, and safe default history reset are
+available through one repository-local command surface
+the accepted Angular, browser smoke, focused .NET, and Release build gates can
+be run through one packaged verify command while preserving individual command
+output for diagnosis
+future product demo polish and portfolio readiness can build on the scripted
+local package, product workflow documentation, readiness route, deterministic
+demo workflow, and packaged verification instead of inventing another
+delivery path
+live ingestion, public production deployment, auth/TLS/production CORS
+hardening, external broker/database adapters, operations automation, rich
+radar visualization, runtime frontend build orchestration, and exactly-once
+work remain explicitly separated
+```
+
+Recommended next milestone input:
+
+```text
+Product demo polish and portfolio readiness
+```
+
 ## Project Chain Summary
 
 ```text
@@ -2092,7 +2258,8 @@ Product demo/readiness packaging
 [done] product HTTP host and persistent run history
 [done] product operator Angular SPA
 [done] operator UI hardening and integrated local delivery
-[recommended next] Product demo/readiness packaging
+[done] product demo/readiness packaging
+[recommended next] Product demo polish and portfolio readiness
 ```
 
 ## Update Rules
