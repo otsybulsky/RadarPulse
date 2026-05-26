@@ -1,4 +1,4 @@
-# Handoff: Milestone 032 Planned
+# Handoff: Milestone 032 Pre-Decision
 
 ## Current State
 
@@ -6,13 +6,15 @@ Milestone 032 has been selected after milestone 031 closeout. The
 architecture/concept document and detailed implementation plan are written.
 Slice 1 product demo readiness surface is complete. Slice 2 local demo
 package script is complete. Slice 3 product demo workflow documentation is
-complete. Slice 4 packaged verification command is complete. The decision
-trace and closeout are not written.
+complete. Slice 4 packaged verification command is complete. Slice 5 gate
+evidence and handoff is complete. The decision trace and closeout are not
+written.
 
 Stop point:
 
 ```text
-milestone 032 slice 4 complete; slice 5 not started
+milestone 032 implementation and gate evidence complete; pre-decision review
+  pending
 ```
 
 Most recently closed milestone:
@@ -55,6 +57,7 @@ Milestone 032 documents:
 ```text
 docs/milestones/032-product-demo-readiness-packaging.md
 docs/milestones/032-product-demo-readiness-packaging-plan.md
+docs/milestones/032-product-demo-readiness-packaging-gate.md
 ```
 
 Milestone 032 planned slices:
@@ -64,7 +67,7 @@ Milestone 032 planned slices:
 2. Local demo package script [complete]
 3. Product demo workflow documentation [complete]
 4. Packaged verification command [complete]
-5. Gate evidence and handoff [planned]
+5. Gate evidence and handoff [complete]
 ```
 
 Latest verification:
@@ -94,6 +97,14 @@ milestone 032 slice 4:
     focused .NET product HTTP/API/readiness Release gate 21 passed, 0 failed,
       0 skipped
     Release build succeeded, 0 warnings, 0 errors
+
+milestone 032 slice 5:
+  gate evidence:
+    docs/milestones/032-product-demo-readiness-packaging-gate.md written
+  package script smoke:
+    help passed
+    paths passed
+    verify passed
 
 inherited from milestone 031:
   Angular gate:
@@ -203,7 +214,7 @@ visualization.
 Current next action:
 
 ```text
-implement milestone 032 slice 5: Gate evidence and handoff
+stop for review before writing milestone 032 decision trace
 ```
 
 Decision trace and closeout:

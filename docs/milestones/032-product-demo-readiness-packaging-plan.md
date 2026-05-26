@@ -288,7 +288,7 @@ Add product demo verification command
 
 ## Slice 5: Gate Evidence And Handoff
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -310,6 +310,22 @@ powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
   paths
 powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
   verify
+```
+
+Verification:
+
+```text
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
+  help
+  result: passed
+
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
+  paths
+  result: passed
+
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
+  verify
+  result: passed
 ```
 
 Exit criteria:
@@ -393,7 +409,8 @@ slice 1 product demo readiness surface complete
 slice 2 local demo package script complete
 slice 3 product demo workflow documentation complete
 slice 4 packaged verification command complete
-gate evidence not captured
+slice 5 gate evidence and handoff complete
+gate evidence captured
 decision trace not written
 closeout not written
 ```
