@@ -70,6 +70,10 @@ public sealed class RadarPulseProductPipelineApiContract
         string runId) =>
         FromQuery(service.TryGetCapacityEvidence(runId));
 
+    public RadarPulseProductApiResponse<RadarPulseProductRunHistoryReadiness> GetHistoryReadiness() =>
+        RadarPulseProductApiResponse<RadarPulseProductRunHistoryReadiness>.Ok(
+            service.HistoryReadiness);
+
     public async ValueTask<RadarPulseProductApiResponse<RadarPulseProductControlSummary>> ApplyControlAsync(
         RadarPulseProductPipelineControlRequest request,
         CancellationToken cancellationToken = default)
