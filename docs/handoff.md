@@ -27,7 +27,7 @@ architecture/concept document: written
 implementation plan: written
 implementation: slice 1 complete
 handler classification contract: complete
-per-batch handler delta contract: not started
+per-batch handler delta contract: complete
 deterministic ordered merge coordinator: not started
 MVP runtime integration and fallback policy: not started
 BFF compatibility and diagnostics: not started
@@ -54,7 +54,7 @@ Milestone 025 planned slices:
 
 ```text
 1. Handler classification contract [complete]
-2. Per-batch handler delta contract
+2. Per-batch handler delta contract [complete]
 3. Deterministic ordered merge coordinator
 4. MVP runtime integration and fallback policy
 5. BFF compatibility and diagnostics
