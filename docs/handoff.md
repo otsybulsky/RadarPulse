@@ -1,25 +1,20 @@
-# Handoff: Milestone 030 Decision Trace Written
+# Handoff: Milestone 030 Complete
 
 ## Current State
 
 Milestone 030 has been selected after milestone 029 closeout. The
 architecture/concept document, implementation plan, Angular operator UI
 implementation slices, gate evidence, decision trace, and handoff update are
-complete. Closeout has not been written.
+complete. The presentation layout refactor, closeout, and handoff update are
+complete.
 
 Stop point:
 
 ```text
-milestone 030 decision trace written; closeout pending
+milestone 030 closeout written; next milestone selection pending
 ```
 
 Most recently closed milestone:
-
-```text
-029 Product HTTP Host And Persistent Run History
-```
-
-Current milestone:
 
 ```text
 030 Product Operator Angular SPA
@@ -53,6 +48,7 @@ docs/milestones/030-product-operator-angular-spa.md
 docs/milestones/030-product-operator-angular-spa-plan.md
 docs/milestones/030-product-operator-angular-spa-gate.md
 docs/milestones/030-product-operator-angular-spa-decision-trace.md
+docs/milestones/030-product-operator-angular-spa-closeout.md
 ```
 
 Milestone 030 planned slices:
@@ -69,9 +65,14 @@ Milestone 030 planned slices:
 Latest verification:
 
 ```text
-latest closed milestone verification is milestone 029:
-  focused Release gate:
-    27 passed, 0 failed, 0 skipped
+milestone 030:
+  Angular gate:
+    13 passed, 0 failed
+    production build succeeded, 0 warnings, 0 errors
+  focused .NET product HTTP/API Release gate:
+    14 passed, 0 failed, 0 skipped
+  post-refactor focused presentation Release gate:
+    18 passed, 0 failed, 0 skipped
   Release build:
     succeeded, 0 warnings, 0 errors
 ```
@@ -173,7 +174,8 @@ deterministic local file-backed product run history that survives service
 Current next action:
 
 ```text
-write milestone 030 closeout if the decision trace is accepted
+start the recommended operator UI hardening and integrated local delivery
+milestone
 ```
 
 Decision trace:
@@ -190,10 +192,15 @@ recommended next milestone input:
 Closeout:
 
 ```text
-milestone 030 closeout is not written
+milestone 030 closeout written:
+  accepted with scoped warnings for product operator Angular SPA over the
+  local product HTTP host for deterministic archive-shaped workflows
+
+recommended next milestone input:
+  operator UI hardening and integrated local delivery
 ```
 
-Previous milestone decision trace:
+Previous milestone closeout:
 
 ```text
 milestone 029 closeout written:

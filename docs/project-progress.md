@@ -1,7 +1,8 @@
 # RadarPulse Project Progress
 
-Status: current after milestone 029 closeout with product HTTP host and
-persistent run history accepted for deterministic archive-shaped workloads.
+Status: current after milestone 030 closeout with product operator Angular SPA
+accepted for deterministic archive-shaped workloads over the local product
+HTTP host.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -21,22 +22,24 @@ readiness milestone, the custom handler output contract and BFF readiness
 milestone, the handler delta/merge contract for fast custom analytics
 milestone, the persistent durable adapter readiness milestone, the production
 pipeline integration milestone, the product-facing pipeline console/API
-milestone, and the product HTTP host and persistent run history milestone.
-Milestone 029 is complete through closeout.
+milestone, the product HTTP host and persistent run history milestone, and
+the product operator Angular SPA milestone. Milestone 030 is complete through
+closeout.
 
 Current state:
 
 ```text
-completed milestones: 001-029
+completed milestones: 001-030
 latest completed milestone:
-  029 product HTTP host and persistent run history
+  030 product operator Angular SPA
 latest completed milestone status:
   implementation slices complete
-  focused Release gate captured
+  Angular gate captured
+  focused .NET Release gate captured
   decision trace written
   closeout written
 recommended next milestone input:
-  product operator UI over the HTTP host
+  operator UI hardening and integrated local delivery
 
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive
@@ -108,14 +111,22 @@ current runtime/live posture:
   handler output, and capacity evidence after service recreation
   RadarPulse.Http is accepted as a thin local hosted delivery adapter over
   the product API contract and service
-  true live network ingestion, public/deployed production HTTP API, frontend
-  application, deployment automation, production security hardening, and
-  exactly-once production delivery remain outside the accepted implementation;
-  external broker/database adapter certification is not planned for this
-  project
+  product operator Angular SPA is accepted with scoped warnings over the
+  local product HTTP host for deterministic archive-shaped workflows
+  the local browser UI can inspect readiness, latest/persisted runs, selected
+  run detail, batches, sources, handlers, diagnostics, capacity evidence, and
+  controls through the accepted product HTTP routes
+  src/Presentation now contains the sibling presentation surfaces:
+    OperatorUi, RadarPulse.Cli, and RadarPulse.Http
+  true live network ingestion, public/deployed production HTTP/API/frontend
+  hosting, rich radar visualization, deployment automation, production
+  security hardening, and exactly-once production delivery remain outside the
+  accepted implementation; external broker/database adapter certification is
+  not planned for this project
 
 current next action:
-  start the recommended product operator UI over the HTTP host milestone
+  start the recommended operator UI hardening and integrated local delivery
+  milestone
 ```
 
 Current project scope decision:
@@ -1776,6 +1787,135 @@ Recommended next milestone input:
 product operator UI over the HTTP host
 ```
 
+### 18. Product Operator Angular SPA
+
+Status:
+
+```text
+complete as milestone 030
+architecture/concept document written
+implementation plan written
+Angular workspace scaffold and packaging boundary complete
+typed product HTTP client and DTO mapping complete
+operator shell, readiness, run creation, and run list complete
+run detail inspection views complete
+operator controls and failure posture complete
+documentation and gate evidence captured
+decision trace written
+presentation layout refactor complete
+closeout written
+```
+
+Milestone documents:
+
+```text
+docs/milestones/030-product-operator-angular-spa.md
+docs/milestones/030-product-operator-angular-spa-plan.md
+docs/milestones/030-product-operator-angular-spa-gate.md
+docs/milestones/030-product-operator-angular-spa-decision-trace.md
+docs/milestones/030-product-operator-angular-spa-closeout.md
+```
+
+Goal:
+
+```text
+provide a local Angular product operator UI over the accepted product HTTP
+host for running, inspecting, diagnosing, and controlling deterministic
+archive-shaped RadarPulse workflows
+```
+
+Implemented work:
+
+```text
+Angular 21 operator SPA in src/Presentation/OperatorUi
+typed TypeScript DTO subset and RadarPulseProductApiClient over milestone 029
+  product HTTP routes
+runtime HTTP host URL override through localStorage and topbar input
+operator overview for host/history readiness, latest run, run actions, and
+  persisted run list
+selected run inspection tabs for summary, batches, sources, handlers,
+  diagnostics, and capacity evidence
+handler output lookup through the accepted HTTP handler route
+operator controls for stop accepting, drain accepted, cancel/release, and
+  reject unsafe fallback
+explicit loading, empty, not-found, blocked, rejected, bad-request, and
+  unreachable-host posture
+scoped local RadarPulse.Http CORS bridge for the Angular dev server origin
+presentation project layout:
+  src/Presentation/OperatorUi
+  src/Presentation/RadarPulse.Cli
+  src/Presentation/RadarPulse.Http
+```
+
+Verification summary:
+
+```text
+Angular gate:
+  13 passed, 0 failed
+  production build succeeded, 0 warnings, 0 errors
+
+focused .NET product HTTP/API Release gate:
+  14 passed, 0 failed, 0 skipped
+
+post-refactor focused presentation Release gate:
+  18 passed, 0 failed, 0 skipped
+
+Release build:
+  succeeded, 0 warnings, 0 errors
+```
+
+Decision trace:
+
+```text
+accepted with scoped warnings for product operator Angular SPA over the local
+product HTTP host for deterministic archive-shaped workflows
+
+warnings:
+the Angular app is a local operator UI, not public production deployment
+the UI consumes deterministic demo/archive-shaped HTTP workflows, not true
+  live network ingestion
+the default CORS policy is a local Angular dev-server bridge, not production
+  public API security hardening
+the UI uses local browser state only for HTTP base URL configuration
+rich meteorological radar visualization is not implemented
+serving the built Angular SPA from RadarPulse.Http is not implemented
+auth, authorization, TLS termination, production CORS hardening, and public
+  internet exposure are not claimed
+external broker/cloud queue/database adapters remain outside the project plan
+cross-machine throughput certification is not claimed
+exactly-once end-to-end production delivery is not claimed
+accepted milestone 020-029 backend decisions are not reopened
+```
+
+Closeout:
+
+```text
+accepted with scoped warnings for product operator Angular SPA over the local
+product HTTP host for deterministic archive-shaped workflows
+```
+
+Prepared by milestone 030 implementation:
+
+```text
+RadarPulse now has a real local browser operator surface over the accepted
+product HTTP host rather than only CLI and HTTP/API contracts
+UI-driven validation can expose browser integration problems, as shown by
+the scoped local CORS bridge fix
+future UI work can harden browser flows, navigation state, validation, and
+polish without redefining backend product semantics
+future integrated local delivery can consider serving the built Angular SPA
+from RadarPulse.Http as a separate same-origin delivery milestone
+live ingestion, public production deployment, auth/TLS/CORS hardening,
+external broker/database adapters, operations automation, rich radar
+visualization, and exactly-once work remain explicitly separated
+```
+
+Recommended next milestone input:
+
+```text
+operator UI hardening and integrated local delivery
+```
+
 ## Project Chain Summary
 
 ```text
@@ -1800,7 +1940,8 @@ product operator UI over the HTTP host
 [done] production pipeline integration
 [done] product-facing pipeline console/API
 [done] product HTTP host and persistent run history
-[recommended next] product operator UI over the HTTP host
+[done] product operator Angular SPA
+[recommended next] operator UI hardening and integrated local delivery
 ```
 
 ## Update Rules
