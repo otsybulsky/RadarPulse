@@ -1,85 +1,61 @@
-# Handoff: Milestone 027 Complete
+# Handoff: Milestone 028 Planned
 
 ## Current State
 
-Milestone 027 is complete as the selected production integration milestone
-after milestone 026 closeout. The architecture/concept document,
-implementation plan, slice 1 production pipeline configuration contract, and
-slice 2 pipeline operator summary/readiness contract, and slice 3
-archive-shaped pipeline runner, and slice 4 durable restart/recovery pipeline
-gate, slice 5 rollback/fallback diagnostics, and slice 6 representative
-capacity/gate evidence are complete. Gate review evidence was tightened,
-decision trace is written, and closeout is written.
+Milestone 028 has been selected after milestone 027 closeout. The
+architecture/concept document and implementation plan are written. No
+implementation slices have started yet.
 
 Stop point:
 
 ```text
-milestone 027 closeout written
+milestone 028 architecture and implementation plan written
 ```
 
 Current milestone:
 
 ```text
-027 Production Pipeline Integration
+028 Product-Facing Pipeline Console And API
 ```
 
 Current milestone goal:
 
 ```text
-connect the accepted runtime provider posture into an end-to-end operational
-backend pipeline with deployable defaults, diagnostics, representative
-workload gates, restart/recovery validation, rollback/fallback posture, and
-capacity evidence
+turn the accepted production-shaped backend pipeline into a usable
+product-facing console/API surface for deterministic archive-shaped radar
+workflows, with stable DTOs, run/read/control workflows, operator
+diagnostics, handler output visibility, documentation, and focused gates
 ```
 
-Milestone 027 documents:
+Milestone 028 documents:
 
 ```text
-docs/milestones/027-production-pipeline-integration.md
-docs/milestones/027-production-pipeline-integration-plan.md
-docs/milestones/027-production-pipeline-integration-gate.md
-docs/milestones/027-production-pipeline-integration-decision-trace.md
-docs/milestones/027-production-pipeline-integration-closeout.md
+docs/milestones/028-product-facing-pipeline-console-and-api.md
+docs/milestones/028-product-facing-pipeline-console-and-api-plan.md
 ```
 
-Milestone 027 planned slices:
+Milestone 028 planned slices:
 
 ```text
-1. Production pipeline profile and configuration contract [complete]
-2. Pipeline operator summary and readiness contract [complete]
-3. Archive-shaped pipeline runner [complete]
-4. Durable restart and recovery pipeline gate [complete]
-5. Rollback, fallback, and handler output compatibility [complete]
-6. Representative capacity and gate evidence [complete]
-7. Pre-decision trace review point [complete]
+1. Product DTO and mapping contract [planned]
+2. Product pipeline run service [planned]
+3. Product read query surface [planned]
+4. Product operator control surface [planned]
+5. Console product workflow [planned]
+6. API-facing contract or thin host [planned]
+7. Documentation, gate evidence, and handoff [planned]
 ```
 
 Latest verification:
 
 ```text
-slice 1 focused configuration suite:
-  6 passed, 0 failed, 0 skipped
+milestone 028 implementation has not started yet
 
-slice 2 focused operator summary suite:
-  7 passed, 0 failed, 0 skipped
-
-slice 3 focused pipeline runner suite:
-  5 passed, 0 failed, 0 skipped
-
-slice 4 focused durable recovery suite:
-  4 passed, 0 failed, 0 skipped
-
-slice 5 focused rollback/fallback suite:
-  5 passed, 0 failed, 0 skipped
-
-slice 6 focused capacity evidence suite:
-  2 passed, 0 failed, 0 skipped
-
-focused milestone 027 Release gate:
-  29 passed, 0 failed, 0 skipped
-
-Release build:
-  succeeded, 0 warnings, 0 errors
+latest closed milestone verification remains milestone 027:
+  focused milestone 027 Release gate:
+    29 passed, 0 failed, 0 skipped
+  Release build:
+    succeeded, 0 warnings, 0 errors
 ```
 
 Most recently closed milestone:
@@ -116,31 +92,38 @@ rollback/fallback controls for stop-accepting, drain-accepted,
 capacity evidence for local representative archive-shaped pipeline runs
 ```
 
-Decision trace:
+Milestone 028 selected product surface:
 
 ```text
-milestone 027 decision trace written:
-  accepted with scoped warnings for production pipeline integration over
-  deterministic archive-shaped backend workloads
+product-facing pipeline console/API over deterministic archive-shaped radar
+workflows
+stable product DTOs and queries over accepted BFF read models
+console-facing product workflow in the existing .NET presentation layer
+API-facing contract or thin host over the same product service
+operator controls reuse milestone 027 stop/drain/cancel/reject posture
 ```
 
-Recommended next milestone input:
+Milestone 028 scope boundary:
 
 ```text
-product-facing completion
-```
-
-Milestone 027 closeout:
-
-```text
-accepted with scoped warnings for production pipeline integration over
-deterministic archive-shaped backend workloads
+do not reopen accepted runtime/default/durable/handler decisions from
+milestones 020-027. Do not expand this milestone into frontend SPA
+implementation, true live network ingestion, external broker/cloud
+queue/database adapter certification, deployment automation, cross-machine
+throughput certification, or exactly-once production delivery.
 ```
 
 Current next action:
 
 ```text
-start the recommended product-facing completion milestone
+start slice 1: product DTO and mapping contract
+```
+
+Stop-before-decision-trace instruction:
+
+```text
+complete implementation slices, gate evidence, and handoff updates, then stop
+before writing milestone 028 decision trace
 ```
 
 ## Previous Closed Milestone Context
