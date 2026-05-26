@@ -96,6 +96,31 @@ public sealed class RadarProcessingProductionPipelineRunnerTests
     }
 
     [Fact]
+    public async Task UnsupportedHandlerRunBlocksWithHandlerSpecificReason()
+    {
+        var universe = CreateUniverse(sourceCount: 1);
+        var request = new RadarProcessingProductionPipelineRunRequest(
+            "run-unsupported",
+            universe,
+            new[] { CreateBatch(universe.Version, [0], messageTimestampBase: 100) },
+            partitionCount: 1,
+            shardCount: 1,
+            handlers: new IRadarSourceProcessingHandler[] { new UnsupportedHandler() });
+        var runner = new RadarProcessingProductionPipelineRunner();
+
+        var result = await runner.RunAsync(request);
+
+        Assert.False(result.IsCompleted);
+        Assert.False(result.HasReadModel);
+        Assert.False(result.OperatorSummary.IsReady);
+        Assert.Equal(
+            RadarProcessingProductionPipelineFallbackRecommendation.ResolveHandlerPosture,
+            result.OperatorSummary.FallbackRecommendation);
+        Assert.Contains("Unsupported handler 'unsupported'", result.OperatorSummary.FirstBlockingReason);
+        Assert.Equal(0, result.ReadModelStore.Count);
+    }
+
+    [Fact]
     public async Task InvalidConfigurationReturnsBlockedResultWithoutReadModel()
     {
         var universe = CreateUniverse(sourceCount: 1);
@@ -178,6 +203,34 @@ public sealed class RadarProcessingProductionPipelineRunnerTests
                         RadarSourceProcessingSnapshotFieldType.Int64,
                         slotIndex: 0)
                 });
+
+        public void Process(
+            in RadarSourceProcessingHandlerContext context,
+            RadarSourceProcessingState state)
+        {
+            state.AddInt64(slotIndex: 0, value: 1);
+        }
+    }
+
+    private sealed class UnsupportedHandler :
+        IRadarSourceProcessingHandler,
+        IRadarSourceProcessingHandlerExecutionMetadata
+    {
+        public RadarSourceProcessingHandlerDescriptor Descriptor { get; } =
+            new(
+                "unsupported",
+                int64SlotCount: 1,
+                doubleSlotCount: 0,
+                new[]
+                {
+                    new RadarSourceProcessingSnapshotFieldDescriptor(
+                        "unsupported.events",
+                        RadarSourceProcessingSnapshotFieldType.Int64,
+                        slotIndex: 0)
+                });
+
+        public RadarSourceProcessingHandlerExecutionClassification ExecutionClassification =>
+            RadarSourceProcessingHandlerExecutionClassification.Unsupported;
 
         public void Process(
             in RadarSourceProcessingHandlerContext context,

@@ -173,6 +173,15 @@ public sealed class RadarProcessingProductionPipelineOperatorSummary
                 RadarProcessingProductionPipelineFallbackRecommendation.InspectDurableAdapter);
         }
 
+        if (hasHandlerConflict)
+        {
+            return new Blocker(
+                string.IsNullOrWhiteSpace(handlerBlockingReason)
+                    ? "handler output conflict"
+                    : handlerBlockingReason,
+                RadarProcessingProductionPipelineFallbackRecommendation.ResolveHandlerPosture);
+        }
+
         if (runState is RadarProcessingProductionPipelineRunState.Blocked or
             RadarProcessingProductionPipelineRunState.Failed)
         {
@@ -186,15 +195,6 @@ public sealed class RadarProcessingProductionPipelineOperatorSummary
             return new Blocker(
                 "pipeline canceled",
                 RadarProcessingProductionPipelineFallbackRecommendation.CleanupCanceledEnvelope);
-        }
-
-        if (hasHandlerConflict)
-        {
-            return new Blocker(
-                string.IsNullOrWhiteSpace(handlerBlockingReason)
-                    ? "handler output conflict"
-                    : handlerBlockingReason,
-                RadarProcessingProductionPipelineFallbackRecommendation.ResolveHandlerPosture);
         }
 
         if (!processingComplete)

@@ -214,7 +214,7 @@ dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
   --filter "FullyQualifiedName~RadarProcessingProductionPipelineRunnerTests"
 
 result:
-  4 passed, 0 failed, 0 skipped
+  5 passed, 0 failed, 0 skipped
 
 dotnet build RadarPulse.sln -c Release --no-restore
 
@@ -388,7 +388,7 @@ dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
   --filter "FullyQualifiedName~RadarProcessingProductionPipelineConfigurationTests|FullyQualifiedName~RadarProcessingProductionPipelineSummaryTests|FullyQualifiedName~RadarProcessingProductionPipelineRunnerTests|FullyQualifiedName~RadarProcessingProductionPipelineRecoveryTests|FullyQualifiedName~RadarProcessingProductionPipelineFallbackTests|FullyQualifiedName~RadarProcessingProductionPipelineGateTests"
 
 result:
-  28 passed, 0 failed, 0 skipped
+  29 passed, 0 failed, 0 skipped
 
 dotnet build RadarPulse.sln -c Release --no-restore
 

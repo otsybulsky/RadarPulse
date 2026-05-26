@@ -1,4 +1,4 @@
-# Handoff: Milestone 027 Planned
+# Handoff: Milestone 027 Pre-Decision Review
 
 ## Current State
 
@@ -61,7 +61,7 @@ slice 2 focused operator summary suite:
   7 passed, 0 failed, 0 skipped
 
 slice 3 focused pipeline runner suite:
-  4 passed, 0 failed, 0 skipped
+  5 passed, 0 failed, 0 skipped
 
 slice 4 focused durable recovery suite:
   4 passed, 0 failed, 0 skipped
@@ -73,7 +73,7 @@ slice 6 focused capacity evidence suite:
   2 passed, 0 failed, 0 skipped
 
 focused milestone 027 Release gate:
-  28 passed, 0 failed, 0 skipped
+  29 passed, 0 failed, 0 skipped
 
 Release build:
   succeeded, 0 warnings, 0 errors

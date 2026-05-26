@@ -47,7 +47,7 @@ dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
 Result:
 
 ```text
-28 passed, 0 failed, 0 skipped
+29 passed, 0 failed, 0 skipped
 ```
 
 Coverage summary:
@@ -126,6 +126,7 @@ runtime/archive baseline
 handler-free runs use ordered concurrent processing defaults
 mergeable handler runs use handler delta/merge posture
 snapshot-only handlers use explicit sequential fallback posture
+unsupported handlers block with a handler-specific reason
 BFF read model store publishes latest run, batches, source outputs,
 diagnostics, and handler output
 invalid configuration returns a blocked result without publishing a read
