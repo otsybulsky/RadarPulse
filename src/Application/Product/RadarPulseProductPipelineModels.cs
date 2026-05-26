@@ -280,6 +280,25 @@ public sealed record RadarPulseProductQueryResult<T>(
         new(false, default, message);
 }
 
+public sealed record RadarPulseProductApiResponse<T>(
+    int StatusCode,
+    bool IsSuccess,
+    T? Body,
+    string Message)
+{
+    public static RadarPulseProductApiResponse<T> Ok(T body) =>
+        new(200, true, body, string.Empty);
+
+    public static RadarPulseProductApiResponse<T> Created(T body) =>
+        new(201, true, body, string.Empty);
+
+    public static RadarPulseProductApiResponse<T> BadRequest(string message) =>
+        new(400, false, default, message);
+
+    public static RadarPulseProductApiResponse<T> NotFound(string message) =>
+        new(404, false, default, message);
+}
+
 public sealed record RadarPulseProductControlSummary(
     string RunId,
     string Action,

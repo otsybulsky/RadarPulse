@@ -369,7 +369,7 @@ result:
 
 ## Slice 6: API-Facing Contract Or Thin Host
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -410,6 +410,28 @@ Commit:
 
 ```text
 Add product pipeline API contract
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarPulseProductPipelineApiContractTests"
+
+result:
+  4 passed, 0 failed, 0 skipped
+
+dotnet build RadarPulse.sln -c Release --no-restore
+
+result:
+  succeeded, 0 warnings, 0 errors
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+  --no-restore
+  --filter "FullyQualifiedName~RadarPulseProductPipelineApiContractTests"
+
+result:
+  4 passed, 0 failed, 0 skipped
 ```
 
 ## Slice 7: Documentation, Gate Evidence, And Handoff
