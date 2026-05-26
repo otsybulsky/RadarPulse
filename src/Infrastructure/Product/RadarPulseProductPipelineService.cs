@@ -20,6 +20,13 @@ public sealed class RadarPulseProductPipelineService
         this.historyStore = historyStore ?? new RadarPulseProductInMemoryRunHistoryStore();
     }
 
+    public static RadarPulseProductPipelineService CreateWithFileHistory(
+        string historyPath,
+        RadarProcessingProductionPipelineRunner? runner = null) =>
+        new(
+            runner,
+            new RadarPulseProductFileRunHistoryStore(historyPath));
+
     public int Count => historyStore.Count;
 
     public RadarPulseProductRunHistoryReadiness HistoryReadiness =>
