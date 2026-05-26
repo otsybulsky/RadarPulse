@@ -4,8 +4,8 @@
 
 Milestone 027 has started as the selected production integration milestone
 after milestone 026 closeout. The architecture/concept document,
-implementation plan, and slice 1 production pipeline configuration contract
-are complete.
+implementation plan, slice 1 production pipeline configuration contract, and
+slice 2 pipeline operator summary/readiness contract are complete.
 
 Stop point:
 
@@ -39,7 +39,7 @@ Milestone 027 planned slices:
 
 ```text
 1. Production pipeline profile and configuration contract [complete]
-2. Pipeline operator summary and readiness contract [planned]
+2. Pipeline operator summary and readiness contract [complete]
 3. Archive-shaped pipeline runner [planned]
 4. Durable restart and recovery pipeline gate [planned]
 5. Rollback, fallback, and handler output compatibility [planned]
@@ -52,6 +52,9 @@ Latest verification:
 ```text
 slice 1 focused configuration suite:
   6 passed, 0 failed, 0 skipped
+
+slice 2 focused operator summary suite:
+  7 passed, 0 failed, 0 skipped
 
 Release build:
   succeeded, 0 warnings, 0 errors
@@ -116,8 +119,7 @@ deterministic local file-based adapter
 Current next action:
 
 ```text
-implement milestone 027 slice 2: pipeline operator summary and readiness
-contract
+implement milestone 027 slice 3: archive-shaped pipeline runner
 ```
 
 ## Previous Closed Milestone Context
