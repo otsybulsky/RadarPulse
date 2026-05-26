@@ -12,7 +12,9 @@ if (productHttpOptions.EnableOperatorUiCors &&
     app.UseCors(RadarPulseProductHttpServiceCollectionExtensions.OperatorUiCorsPolicyName);
 }
 
+app.UseRadarPulseOperatorUiStaticFiles(productHttpOptions);
 app.MapRadarPulseProductPipeline();
+app.MapRadarPulseOperatorUiFallback(productHttpOptions);
 app.Run();
 
 public partial class Program;

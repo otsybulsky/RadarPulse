@@ -51,6 +51,85 @@ public sealed class RadarPulseProductHttpHostTests
     }
 
     [Fact]
+    public void OperatorUiStaticAssetRootRequiresEnabledExistingIndex()
+    {
+        using var staticRoot = OperatorUiStaticRoot.Create();
+
+        Assert.True(RadarPulseOperatorUiStaticDeliveryExtensions.TryResolveOperatorUiStaticAssetRoot(
+            new RadarPulseProductHttpOptions
+            {
+                OperatorUiStaticAssetPath = staticRoot.Path
+            },
+            out var resolved));
+        Assert.Equal(System.IO.Path.GetFullPath(staticRoot.Path), resolved);
+
+        Assert.False(RadarPulseOperatorUiStaticDeliveryExtensions.TryResolveOperatorUiStaticAssetRoot(
+            new RadarPulseProductHttpOptions
+            {
+                EnableOperatorUiStaticFiles = false,
+                OperatorUiStaticAssetPath = staticRoot.Path
+            },
+            out _));
+        Assert.False(RadarPulseOperatorUiStaticDeliveryExtensions.TryResolveOperatorUiStaticAssetRoot(
+            new RadarPulseProductHttpOptions
+            {
+                OperatorUiStaticAssetPath = System.IO.Path.Combine(staticRoot.Path, "missing")
+            },
+            out _));
+    }
+
+    [Fact]
+    public async Task OperatorUiFallbackServesIndexForLocalUiRoutes()
+    {
+        using var staticRoot = OperatorUiStaticRoot.Create();
+        var context = CreateHttpContext("/runs/smoke-run");
+
+        await RadarPulseOperatorUiStaticDeliveryExtensions.ServeOperatorUiFallbackAsync(
+            context,
+            new RadarPulseProductHttpOptions
+            {
+                OperatorUiStaticAssetPath = staticRoot.Path
+            });
+
+        var body = await ReadBodyAsync(context);
+
+        Assert.Equal(200, context.Response.StatusCode);
+        Assert.StartsWith("text/html", context.Response.ContentType, StringComparison.Ordinal);
+        Assert.Contains("operator-ui-shell", body);
+    }
+
+    [Fact]
+    public async Task OperatorUiFallbackDoesNotInterceptProductApiRoutes()
+    {
+        using var staticRoot = OperatorUiStaticRoot.Create();
+        var context = CreateHttpContext("/product/pipeline/runs/missing");
+
+        await RadarPulseOperatorUiStaticDeliveryExtensions.ServeOperatorUiFallbackAsync(
+            context,
+            new RadarPulseProductHttpOptions
+            {
+                OperatorUiStaticAssetPath = staticRoot.Path
+            });
+
+        Assert.Equal(404, context.Response.StatusCode);
+    }
+
+    [Fact]
+    public async Task OperatorUiFallbackReturnsNotFoundWhenStaticDeliveryIsUnavailable()
+    {
+        var context = CreateHttpContext("/runs/smoke-run");
+
+        await RadarPulseOperatorUiStaticDeliveryExtensions.ServeOperatorUiFallbackAsync(
+            context,
+            new RadarPulseProductHttpOptions
+            {
+                EnableOperatorUiStaticFiles = false
+            });
+
+        Assert.Equal(404, context.Response.StatusCode);
+    }
+
+    [Fact]
     public async Task ProductHttpServicesAllowLocalOperatorUiCorsByDefault()
     {
         var configuration = new ConfigurationBuilder().Build();
@@ -174,6 +253,66 @@ public sealed class RadarPulseProductHttpHostTests
         Assert.NotNull(response);
         Assert.Equal(context.Response.StatusCode, response!.StatusCode);
         return response;
+    }
+
+    private static DefaultHttpContext CreateHttpContext(
+        string path)
+    {
+        var services = new ServiceCollection();
+        services.AddOptions();
+        services.AddLogging();
+
+        var context = new DefaultHttpContext
+        {
+            RequestServices = services.BuildServiceProvider()
+        };
+        context.Request.Path = path;
+        context.Response.Body = new MemoryStream();
+        return context;
+    }
+
+    private static async Task<string> ReadBodyAsync(
+        DefaultHttpContext context)
+    {
+        context.Response.Body.Position = 0;
+        using var reader = new StreamReader(context.Response.Body, leaveOpen: true);
+        return await reader.ReadToEndAsync();
+    }
+
+    private sealed class OperatorUiStaticRoot :
+        IDisposable
+    {
+        private OperatorUiStaticRoot(
+            string path)
+        {
+            Path = path;
+        }
+
+        public string Path { get; }
+
+        public static OperatorUiStaticRoot Create()
+        {
+            var path = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(),
+                $"radarpulse-operator-ui-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(path);
+            File.WriteAllText(
+                System.IO.Path.Combine(path, "index.html"),
+                "<!doctype html><html><body>operator-ui-shell</body></html>");
+            File.WriteAllText(
+                System.IO.Path.Combine(path, "main.js"),
+                "console.log('operator ui');");
+
+            return new OperatorUiStaticRoot(path);
+        }
+
+        public void Dispose()
+        {
+            if (Directory.Exists(Path))
+            {
+                Directory.Delete(Path, recursive: true);
+            }
+        }
     }
 
     private sealed class RouteBuilderStub :

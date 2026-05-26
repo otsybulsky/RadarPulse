@@ -149,7 +149,7 @@ Add operator UI browser smoke coverage
 
 ## Slice 3: Integrated Static UI Delivery
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -171,6 +171,18 @@ dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
   --no-restore
   --filter "FullyQualifiedName~RadarPulseProductHttpHostTests"
 dotnet build RadarPulse.sln -c Release --no-restore
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+  --no-restore
+  --filter "FullyQualifiedName~RadarPulseProductHttpHostTests"
+  result: 9 passed, 0 failed, 0 skipped
+
+dotnet build RadarPulse.sln -c Release --no-restore
+  result: succeeded, 0 warnings, 0 errors
 ```
 
 Exit criteria:

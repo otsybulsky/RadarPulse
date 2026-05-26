@@ -13,4 +13,18 @@ public sealed class RadarPulseProductHttpOptions
     [
         "http://localhost:4200"
     ];
+
+    public bool EnableOperatorUiStaticFiles { get; set; } = true;
+
+    public string OperatorUiStaticAssetPath { get; set; } =
+        Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "..",
+            "..",
+            "..",
+            "..",
+            "OperatorUi",
+            "dist",
+            "OperatorUi",
+            "browser"));
 }
