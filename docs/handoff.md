@@ -6,13 +6,12 @@ Milestone 029 has been selected after milestone 028 closeout. The
 architecture/concept document, implementation plan, product history store
 contract, file-backed product history store, persistent history service
 integration, HTTP host route mapping, HTTP control/failure posture, gate
-evidence, and handoff update are complete.
+evidence, decision trace, and handoff update are complete.
 
 Stop point:
 
 ```text
-milestone 029 implementation and focused Release gate complete; stop before
-decision trace
+milestone 029 decision trace written; closeout not written
 ```
 
 Most recently closed milestone:
@@ -41,6 +40,7 @@ Milestone 029 documents:
 docs/milestones/029-product-http-host-and-persistent-run-history.md
 docs/milestones/029-product-http-host-and-persistent-run-history-plan.md
 docs/milestones/029-product-http-host-and-persistent-run-history-gate.md
+docs/milestones/029-product-http-host-and-persistent-run-history-decision-trace.md
 ```
 
 Milestone 029 planned slices:
@@ -121,13 +121,18 @@ throughput certification, or exactly-once production delivery.
 Current next action:
 
 ```text
-review milestone 029 implementation and gate evidence before decision trace
+write milestone 029 closeout if the decision trace is accepted
 ```
 
 Decision trace:
 
 ```text
-milestone 029 decision trace has not been written
+milestone 029 decision trace written:
+  accepted with scoped warnings for product HTTP host and persistent run
+  history over deterministic archive-shaped workloads
+
+recommended next milestone input:
+  product operator UI over the HTTP host
 ```
 
 Closeout:
