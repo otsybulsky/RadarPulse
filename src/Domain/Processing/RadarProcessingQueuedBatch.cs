@@ -9,7 +9,9 @@ public sealed class RadarProcessingQueuedBatch
         RadarEventBatch batch,
         TimeSpan ownedSnapshotTime = default,
         long ownedSnapshotAllocatedBytes = 0,
-        long enqueuedTimestamp = 0)
+        long enqueuedTimestamp = 0,
+        long? payloadValueCount = null,
+        long? rawValueChecksum = null)
     {
         ArgumentNullException.ThrowIfNull(batch);
         if (batch.Lifetime != RadarEventBatchLifetime.Owned)
@@ -24,16 +26,33 @@ public sealed class RadarProcessingQueuedBatch
 
         ArgumentOutOfRangeException.ThrowIfNegative(ownedSnapshotAllocatedBytes);
         ArgumentOutOfRangeException.ThrowIfNegative(enqueuedTimestamp);
+        if (payloadValueCount.HasValue != rawValueChecksum.HasValue)
+        {
+            throw new ArgumentException(
+                "Payload value count and raw value checksum must be supplied together.",
+                nameof(payloadValueCount));
+        }
+
+        if (payloadValueCount.HasValue)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegative(payloadValueCount.Value);
+            ArgumentOutOfRangeException.ThrowIfNegative(rawValueChecksum!.Value);
+        }
 
         Sequence = sequence;
         Batch = batch;
         OwnedSnapshotTime = ownedSnapshotTime;
         OwnedSnapshotAllocatedBytes = ownedSnapshotAllocatedBytes;
         EnqueuedTimestamp = enqueuedTimestamp;
-        if (batch.TryGetPayloadMetrics(out var payloadValueCount, out var rawValueChecksum))
+        if (payloadValueCount.HasValue)
         {
-            PayloadValueCount = payloadValueCount;
-            RawValueChecksum = rawValueChecksum;
+            PayloadValueCount = payloadValueCount.Value;
+            RawValueChecksum = rawValueChecksum!.Value;
+        }
+        else if (batch.TryGetPayloadMetrics(out var computedPayloadValueCount, out var computedRawValueChecksum))
+        {
+            PayloadValueCount = computedPayloadValueCount;
+            RawValueChecksum = computedRawValueChecksum;
         }
     }
 

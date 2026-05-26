@@ -89,7 +89,7 @@ public sealed class RadarProcessingDurableEnvelopeSnapshot
 
     public bool IsReleased => State == RadarProcessingDurableEnvelopeState.Released;
 
-    internal static void EnsureKnownState(
+    public static void EnsureKnownState(
         RadarProcessingDurableEnvelopeState state)
     {
         if (state is not RadarProcessingDurableEnvelopeState.Pending and

@@ -1,6 +1,6 @@
 # Milestone 026: Persistent Durable Adapter Readiness Implementation Plan
 
-Status: planned.
+Status: in progress.
 
 This plan implements the milestone 026 architecture defined in
 `026-persistent-durable-adapter-readiness.md`.
@@ -44,7 +44,7 @@ is a contract and restart-recovery gate, not a production broker claim.
 
 ## Slice 1: Persistent Envelope Schema And Adapter Contract
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -80,6 +80,21 @@ Commit:
 
 ```text
 Add persistent durable envelope schema
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingPersistentDurableEnvelopeStoreTests"
+
+result:
+  4 passed, 0 failed, 0 skipped
+
+dotnet build RadarPulse.sln -c Release --no-restore
+
+result:
+  succeeded, 0 warnings, 0 errors
 ```
 
 ## Slice 2: File-Backed Durable Envelope Queue
