@@ -7,12 +7,13 @@ after milestone 026 closeout. The architecture/concept document,
 implementation plan, slice 1 production pipeline configuration contract, and
 slice 2 pipeline operator summary/readiness contract, and slice 3
 archive-shaped pipeline runner, and slice 4 durable restart/recovery pipeline
-gate, and slice 5 rollback/fallback diagnostics are complete.
+gate, slice 5 rollback/fallback diagnostics, and slice 6 representative
+capacity/gate evidence are complete. Decision trace has not been written.
 
 Stop point:
 
 ```text
-milestone 027 implementation in progress
+milestone 027 pre-decision review point
 ```
 
 Current milestone:
@@ -35,6 +36,7 @@ Milestone 027 documents:
 ```text
 docs/milestones/027-production-pipeline-integration.md
 docs/milestones/027-production-pipeline-integration-plan.md
+docs/milestones/027-production-pipeline-integration-gate.md
 ```
 
 Milestone 027 planned slices:
@@ -45,8 +47,8 @@ Milestone 027 planned slices:
 3. Archive-shaped pipeline runner [complete]
 4. Durable restart and recovery pipeline gate [complete]
 5. Rollback, fallback, and handler output compatibility [complete]
-6. Representative capacity and gate evidence [planned]
-7. Pre-decision trace review point [planned]
+6. Representative capacity and gate evidence [complete]
+7. Pre-decision trace review point [pending]
 ```
 
 Latest verification:
@@ -66,6 +68,12 @@ slice 4 focused durable recovery suite:
 
 slice 5 focused rollback/fallback suite:
   5 passed, 0 failed, 0 skipped
+
+slice 6 focused capacity evidence suite:
+  2 passed, 0 failed, 0 skipped
+
+focused milestone 027 Release gate:
+  28 passed, 0 failed, 0 skipped
 
 Release build:
   succeeded, 0 warnings, 0 errors
@@ -130,7 +138,7 @@ deterministic local file-based adapter
 Current next action:
 
 ```text
-implement milestone 027 slice 6: representative capacity and gate evidence
+stop before milestone 027 decision trace for review
 ```
 
 ## Previous Closed Milestone Context

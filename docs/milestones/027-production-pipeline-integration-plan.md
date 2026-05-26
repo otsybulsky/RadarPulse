@@ -334,7 +334,7 @@ result:
 
 ## Slice 6: Representative Capacity And Gate Evidence
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -374,9 +374,31 @@ Commit:
 Capture production pipeline integration gate
 ```
 
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingProductionPipelineGateTests"
+
+result:
+  2 passed, 0 failed, 0 skipped
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+  --no-restore
+  --filter "FullyQualifiedName~RadarProcessingProductionPipelineConfigurationTests|FullyQualifiedName~RadarProcessingProductionPipelineSummaryTests|FullyQualifiedName~RadarProcessingProductionPipelineRunnerTests|FullyQualifiedName~RadarProcessingProductionPipelineRecoveryTests|FullyQualifiedName~RadarProcessingProductionPipelineFallbackTests|FullyQualifiedName~RadarProcessingProductionPipelineGateTests"
+
+result:
+  28 passed, 0 failed, 0 skipped
+
+dotnet build RadarPulse.sln -c Release --no-restore
+
+result:
+  succeeded, 0 warnings, 0 errors
+```
+
 ## Slice 7: Pre-Decision Trace Review Point
 
-Status: planned.
+Status: pending.
 
 Implementation:
 
