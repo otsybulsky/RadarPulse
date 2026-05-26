@@ -77,6 +77,27 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
             cancellationToken);
     }
 
+    public async ValueTask<RadarProcessingMvpRuntimeResult> RunMvpProcessingAsync(
+        Func<IArchiveRadarEventBatchPublisher, CancellationToken, ArchiveRadarEventBatchPublishResult> produce,
+        RadarProcessingCore core,
+        RadarProcessingOrderedConcurrencyOptions? orderedConcurrencyOptions = null,
+        RadarProcessingArchiveQueuedOverlapOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(produce);
+        ArgumentNullException.ThrowIfNull(core);
+
+        var plan = RadarProcessingMvpRuntimePlan.Create(core, orderedConcurrencyOptions);
+        var result = await RunProcessingAsync(
+                produce,
+                core,
+                plan.EffectiveOrderedConcurrencyOptions,
+                options,
+                cancellationToken)
+            .ConfigureAwait(false);
+        return new RadarProcessingMvpRuntimeResult(plan, result);
+    }
+
     public async ValueTask<RadarProcessingArchiveQueuedOverlapResult> RunAsync(
         Func<IArchiveRadarEventBatchPublisher, CancellationToken, ArchiveRadarEventBatchPublishResult> produce,
         Func<RadarProcessingOwnedBatchQueue, CancellationToken, ValueTask<RadarProcessingQueuedSessionResult>> consume,
