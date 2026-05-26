@@ -136,7 +136,7 @@ result:
 
 ## Slice 3: BFF Application Surface
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -165,6 +165,21 @@ Exit criteria:
 ```text
 a future frontend has a stable backend contract for the first MVP processing
 results and diagnostics
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingBffReadModelStoreTests"
+
+result:
+  4 passed, 0 failed, 0 skipped
+
+dotnet build RadarPulse.sln -c Release --no-restore
+
+result:
+  succeeded, 0 warnings, 0 errors
 ```
 
 ## Slice 4: Handler Execution Posture Gate
