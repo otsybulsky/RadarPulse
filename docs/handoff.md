@@ -1,10 +1,11 @@
-# Handoff: Milestone 025 Full-Cache Handler Matrix Optimized
+# Handoff: Milestone 025 Decision Trace Written
 
 ## Current State
 
 Milestone 024 is complete. Milestone 025 implementation slices,
 pre-decision gate evidence, the requested full-cache handler performance
-matrix, and the follow-up merge-state optimization are complete.
+matrix, the follow-up merge-state optimization, and the decision trace are
+complete. Closeout is not written.
 
 RadarPulse has accepted the scoped MVP output/BFF readiness surface for
 deterministic archive-shaped workloads. The current milestone is the handler
@@ -37,8 +38,10 @@ handler-heavy performance gate: complete
 pre-decision trace gate: captured
 full-cache handler performance matrix: captured
 merge-state optimization: captured
-decision trace: not written
-planned stop point: stop before decision trace for discussion
+decision trace: written
+closeout: not written
+planned stop point: proceed to closeout or next milestone planning after
+  review
 ```
 
 Milestone 025 documents:
@@ -48,6 +51,7 @@ docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics.md
 docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics-plan.md
 docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics-gate.md
 docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics-full-cache-performance-matrix.md
+docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics-decision-trace.md
 ```
 
 Milestone 025 goal:
@@ -119,6 +123,14 @@ full Release test project:
 
 known allocation-sensitive synthetic test isolated rerun:
   result: 1 passed, 0 failed, 0 skipped
+
+milestone 025 decision trace:
+  docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics-decision-trace.md
+  decision:
+    accepted with scoped warnings for handler delta/merge contract and fast
+    custom analytics over deterministic archive-shaped MVP workloads
+  recommended next milestone input:
+    persistent durable adapter readiness
 ```
 
 Milestone 025 key scope:
@@ -156,9 +168,10 @@ docs/milestones/024-custom-handler-output-contract-and-bff-readiness-closeout.md
 Historical MVP planning decision:
 
 ```text
-defer persistent durable adapter readiness until after RadarPulse has a
-custom handler output contract and backend-for-frontend read model for a
-future UI
+the earlier reason to defer persistent durable adapter readiness is now
+satisfied: milestone 024 added custom handler output/BFF read models, and
+milestone 025 added fast handler delta/merge semantics. The recommended next
+milestone input is persistent durable adapter readiness.
 ```
 
 Milestone 023 historical closeout documents:

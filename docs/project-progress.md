@@ -1,7 +1,7 @@
 # RadarPulse Project Progress
 
-Status: current during milestone 025 pre-decision trace review with
-optimized full-cache handler matrix evidence captured.
+Status: current during milestone 025 after decision trace with optimized
+full-cache handler matrix evidence accepted.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -19,8 +19,8 @@ concurrent runtime/archive processing milestone, the ordered
 rebalance/topology commit milestone, the durable/cross-process runtime
 readiness milestone, and the custom handler output contract and BFF readiness
 milestone. Milestone 025 handler delta/merge implementation slices, gate
-evidence, full-cache handler performance matrix, and merge-state optimization
-are captured; the decision trace is intentionally not written yet.
+evidence, full-cache handler performance matrix, merge-state optimization,
+and decision trace are captured. Closeout is not written yet.
 
 Current state:
 
@@ -32,7 +32,8 @@ active milestone status:
   pre-decision gate captured
   full-cache handler matrix captured
   merge-state optimization captured
-  decision trace not written
+  decision trace written
+  closeout not written
 
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive
@@ -79,16 +80,15 @@ current runtime/live posture:
   sets on the local full cache, and optimized active=4 handler delta/merge
   elapsed time is flat versus active=1 handler-aware rows; allocation remains
   higher than active=1 and stays a scoped warning unless parity is required
-  persistent durable adapter readiness remains deferred to a later reliability
-  milestone while the immediate MVP analytics path addresses handler
-  delta/merge first
+  persistent durable adapter readiness is now the recommended next milestone
+  input because the immediate MVP analytics handler delta/merge path has a
+  decision trace
   true live network ingestion and production deployment/rollback/operator
   surfaces are not implemented yet
 
 current next action:
-  review milestone 025 gate plus optimized full-cache handler matrix evidence
-  and write the decision trace only after the scoped warnings and readiness
-  posture are agreed
+  write milestone 025 closeout, then start the recommended persistent durable
+  adapter readiness milestone
 ```
 
 The current accepted direct benchmark contour is:
@@ -833,7 +833,7 @@ startup prewarm, worker telemetry, release health, processing completeness,
 and retained pressure cleanup are visible
 ```
 
-Still not implemented:
+Still not implemented at milestone 024 closeout:
 
 ```text
 durable queues or brokers
@@ -1076,7 +1076,8 @@ MVP runtime integration and fallback policy complete
 BFF compatibility and diagnostics complete
 handler-heavy performance gate complete
 pre-decision gate captured
-decision trace not written
+full-cache handler matrix captured and optimized
+decision trace written
 closeout not written
 ```
 
@@ -1086,6 +1087,8 @@ Milestone documents:
 docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics.md
 docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics-plan.md
 docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics-gate.md
+docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics-full-cache-performance-matrix.md
+docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics-decision-trace.md
 ```
 
 Goal:
@@ -1122,6 +1125,16 @@ full Release test project:
   890 passed, 1 failed, 3 skipped
   known allocation-sensitive synthetic benchmark caveat isolated rerun:
     1 passed, 0 failed, 0 skipped
+
+optimized full-cache handler matrix:
+  counter-checksum active=4:
+    61_588.17 ms, 8_188_695_464 allocated bytes
+  counter-checksum-heavy active=4:
+    62_687.17 ms, 12_209_454_512 allocated bytes
+  correctness:
+    4/4 rows completed
+    processing completeness succeeded
+    terminal retained pressure: 0
 ```
 
 Prepared by milestone 025 implementation:
@@ -1150,20 +1163,29 @@ milestone 023 provides durable retry/recovery semantics that future handler
 delta work must not contradict
 ```
 
-Proposed decision-trace warnings:
+Decision trace:
 
 ```text
+accepted with scoped warnings for handler delta/merge contract and fast
+custom analytics over deterministic archive-shaped MVP workloads
+
+warnings:
 the fast path applies only to explicitly mergeable handlers
 mergeable handlers must provide deterministic handler-owned merge semantics
 delta serialization is an in-process/versioned contract gate, not production
   persistent adapter proof
 the performance gate is deterministic in-process evidence, not cross-machine
   or production throughput certification
+optimized full-cache active=4 elapsed time is flat versus active=1, but
+  allocation remains higher than active=1
 persistent durable adapter readiness remains future reliability work
 true live network ingestion remains future work
 production HTTP BFF host, frontend, deployment, rollback, autoscaling,
   alerts, and runbooks remain future work
 exactly-once production delivery is not claimed
+
+recommended next milestone input:
+  persistent durable adapter readiness
 ```
 
 Out of scope unless explicitly pulled forward:
@@ -1179,8 +1201,8 @@ exactly-once production delivery claims
 
 ### 14. Persistent Durable Adapter Readiness
 
-Future reliability milestone after the immediate handler delta/merge MVP
-analytics slice unless priorities change.
+Recommended next reliability milestone after milestone 025 closeout unless
+priorities change.
 
 Goal:
 
@@ -1302,7 +1324,8 @@ workflows still need their own milestone gates
 [done] durable/cross-process runtime
 [done] custom handler output contract and BFF readiness
 [active] handler delta/merge contract for fast custom analytics
-[later] persistent durable adapter readiness
+  (decision trace written; closeout pending)
+[recommended next] persistent durable adapter readiness
 [later] production pipeline integration
 [later] product-facing completion
 ```

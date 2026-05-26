@@ -1,6 +1,6 @@
 # Milestone 025: Full-Cache Handler Performance Matrix
 
-Status: captured and optimized before decision trace.
+Status: captured, optimized, and referenced by decision trace.
 
 This document records the requested full-cache performance matrix for the
 milestone 025 handler delta/merge runtime path and the follow-up merge-state

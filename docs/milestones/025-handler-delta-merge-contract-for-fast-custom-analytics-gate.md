@@ -1,10 +1,12 @@
 # Milestone 025: Handler Delta/Merge Contract For Fast Custom Analytics Gate
 
-Status: captured and optimized before decision trace; milestone implementation
-slices are complete.
+Status: captured and referenced by decision trace; milestone implementation
+slices are complete and closeout is not written.
 
-This document records pre-decision gate evidence for milestone 025. It does
-not record the decision trace and does not close the milestone.
+This document records gate evidence for milestone 025. The decision trace is
+written in
+`025-handler-delta-merge-contract-for-fast-custom-analytics-decision-trace.md`.
+This document does not close the milestone.
 
 ## Scope Under Gate
 
@@ -243,9 +245,9 @@ handler-heavy deterministic gate captures parity, retained cleanup, elapsed,
   and allocation evidence
 ```
 
-## Proposed Decision Trace Warnings
+## Decision Trace Warnings
 
-The decision trace should discuss these scoped warnings:
+The decision trace records these scoped warnings:
 
 ```text
 the accepted fast path applies only to explicitly mergeable handlers
@@ -269,8 +271,6 @@ the known allocation-sensitive synthetic benchmark caveat remains outside
 
 ## Stop Point
 
-Milestone 025 is ready for decision trace discussion.
+Milestone 025 decision trace is written.
 
-Do not write
-`025-handler-delta-merge-contract-for-fast-custom-analytics-decision-trace.md`
-until the decision trace posture and warnings are reviewed.
+Closeout remains pending.

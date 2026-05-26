@@ -1,6 +1,6 @@
 # Milestone 025: Handler Delta/Merge Contract For Fast Custom Analytics Implementation Plan
 
-Status: planned.
+Status: complete through decision trace; closeout not written.
 
 This plan implements the milestone 025 architecture defined in
 `025-handler-delta-merge-contract-for-fast-custom-analytics.md`.
@@ -395,7 +395,7 @@ Implementation:
 capture gate evidence in a milestone 025 gate document
 summarize implementation results, accepted warnings, and any residual risks
 update handoff and project progress with current status
-stop before writing the decision trace
+stop before writing the decision trace for review
 ```
 
 Verification:
@@ -415,7 +415,7 @@ full Release test project:
     1 passed, 0 failed, 0 skipped
 ```
 
-Exit criteria:
+Exit criteria at original stop point:
 
 ```text
 the milestone is ready for a decision trace discussion, but the decision is
@@ -430,23 +430,29 @@ Capture milestone 025 gate evidence
 
 ## Stop Point
 
-The planned stop point is before
+The original planned stop point before
 `025-handler-delta-merge-contract-for-fast-custom-analytics-decision-trace.md`
-is written.
+has been passed after review.
 
 Current status:
 
 ```text
-stop point reached
-decision trace not written
+implementation complete
+pre-decision trace gate captured
+full-cache handler matrix captured and optimized
+decision trace written
+closeout not written
 ```
 
-At that point, the expected handoff should include:
+Decision trace:
 
 ```text
-implemented slices
-focused and Release gate results
-handler-heavy performance evidence
-accepted warnings proposed for decision trace
-open questions requiring decision before closeout
+docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics-decision-trace.md
+
+decision:
+  accepted with scoped warnings for handler delta/merge contract and fast
+  custom analytics over deterministic archive-shaped MVP workloads
+
+recommended next milestone input:
+  persistent durable adapter readiness
 ```
