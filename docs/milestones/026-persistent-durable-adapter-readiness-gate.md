@@ -25,7 +25,7 @@ existing milestone 025 handler delta contract/merge suites
 Excluded:
 
 ```text
-production broker adapter
+external broker/database adapter
 true live network ingestion
 production HTTP BFF host
 frontend application
@@ -165,8 +165,8 @@ readiness remains blocked when adapter-backed durable state has a failed
 ```text
 the accepted adapter is deterministic local file-based persistence; milestone
   026 stops at this adapter
-Kafka, RabbitMQ, cloud queue, and database-backed adapters are not included
-  and require a separate future milestone decision
+external broker/cloud queue/database adapters are not included and are not
+  planned for this project
 the file-backed adapter is a restart-recovery and serialization gate, not a
   cross-machine throughput or broker retention certification
 completed-envelope recovery recomputes scoped processing completion material

@@ -68,9 +68,10 @@ the pipeline can be validated without claiming broker durability,
   exactly-once production delivery
 ```
 
-This is an integration milestone. It is not a Kafka, RabbitMQ, cloud queue,
-database adapter, frontend, production HTTP BFF host, deployment platform, or
-exactly-once delivery milestone.
+This is an integration milestone. It is not an external broker/cloud
+queue/database adapter, frontend, production HTTP BFF host, deployment
+platform, or exactly-once delivery milestone. External broker/database
+adapters are not planned for this project.
 
 ## Architecture Boundary
 
@@ -104,8 +105,8 @@ silently changing RadarProcessingCoreOptions.Default
 silently changing the accepted queued-owned provider/execution defaults
 silently changing ordered commit semantics for processing, rebalance, or
   handler merge
-silently replacing the file-based durable adapter with Kafka, RabbitMQ,
-  cloud queue, or database-backed persistence
+silently replacing the file-based durable adapter with external
+  broker/cloud queue/database persistence
 claiming production broker retention or cross-machine delivery from local
   file persistence
 claiming exactly-once production delivery without downstream idempotency,
@@ -120,7 +121,8 @@ retrying claimed envelopes after restart without explicit policy posture
 Out of scope for this milestone:
 
 ```text
-Kafka, RabbitMQ, cloud queue, or database-backed production adapter
+external broker/cloud queue/database production adapter; these adapters are
+  not planned for this project
 production broker operations or retention certification
 production HTTP BFF host
 frontend application
@@ -379,7 +381,7 @@ The expected acceptable answer is likely:
 
 ```text
 yes with scoped warnings for deterministic archive-shaped production
-pipeline integration; no external broker adapter, true live network
+pipeline integration; no external broker/database adapter, true live network
 ingestion, production HTTP host, frontend, cross-machine delivery,
 autoscaling/runbook certification, or exactly-once production delivery is
 claimed

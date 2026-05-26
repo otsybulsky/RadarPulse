@@ -43,9 +43,9 @@ durable harness
 The accepted warnings and limits are:
 
 ```text
-production broker adapters:
-  not implemented; milestone 023 proves the RadarPulse-owned contract, not a
-  concrete broker or storage adapter
+external broker/database adapters:
+  not implemented and not planned for this project; milestone 023 proves the
+  RadarPulse-owned contract, not an external adapter
 
 production durability:
   not claimed; the deterministic in-process harness is a contract gate, not
@@ -62,7 +62,7 @@ handler-state delta/merge:
   not implemented; durable ordered runtime remains handler-free
 
 exactly-once production delivery:
-  not claimed; future adapter/storage/downstream idempotency gates are needed
+  not claimed; future storage/downstream idempotency gates are needed
 
 full-suite allocation sensitivity:
   one synthetic benchmark allocation-threshold test remains sensitive in the
@@ -108,7 +108,7 @@ Implemented:
 
 Not implemented here:
 
-- Production broker adapters.
+- External broker/database adapters.
 - Concrete persistent storage adapter.
 - Process-crash persistence proof.
 - Broker lease or visibility timeout behavior.
@@ -360,10 +360,10 @@ durable harness
 Recommended next milestone input:
 
 ```text
-persistent durable adapter readiness. Validate one concrete persistent or
-broker-like adapter against the milestone 023 durable envelope contract,
-including serialization compatibility, restart recovery, duplicate delivery,
-lease or abandoned-attempt recovery, poison/dead-letter mapping,
-provider-sequence ordered commit, retained ownership cleanup, and
-operator-readable adapter state.
+persistent durable adapter readiness. Validate one concrete persistent local
+adapter against the milestone 023 durable envelope contract, including
+serialization compatibility, restart recovery, duplicate delivery, lease or
+abandoned-attempt recovery, poison/dead-letter mapping, provider-sequence
+ordered commit, retained ownership cleanup, and operator-readable adapter
+state.
 ```

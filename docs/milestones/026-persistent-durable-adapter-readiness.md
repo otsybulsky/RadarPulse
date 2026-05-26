@@ -40,8 +40,8 @@ question. The detailed implementation sequence will be recorded in
 
 ## Milestone Goal
 
-Milestone 026 should validate one concrete persistent or broker-like adapter
-against the milestone 023 durable envelope contract, while preserving the
+Milestone 026 should validate one concrete persistent local adapter against
+the milestone 023 durable envelope contract, while preserving the
 milestone 025 handler delta identity, idempotency, replay, and ordered merge
 semantics.
 
@@ -94,8 +94,8 @@ add focused tests and Release gates over adapter-backed durable workloads
 Not safe in milestone 026 unless explicitly reprioritized:
 
 ```text
-adding Kafka, RabbitMQ, a cloud queue, or a database server as a mandatory
-  dependency for the local test gate
+adding an external broker/cloud queue/database dependency for the local test
+  gate; these adapters are not planned for this project
 claiming production broker durability from a local deterministic adapter
 claiming exactly-once delivery without downstream idempotency and production
   storage evidence
@@ -112,7 +112,8 @@ introducing silent borrowed-provider fallback after adapter failure
 Out of scope for this milestone:
 
 ```text
-Kafka, RabbitMQ, cloud queue, or database-backed production adapter
+external broker/cloud queue/database production adapter; these adapters are
+  not planned for this project
 production HTTP BFF host
 frontend application
 true live network ingestion
@@ -168,18 +169,15 @@ accepted for milestone 026:
   restart recovery and serialization proof
   adapter-backed ordered commit and handler delta replay proof
 
-not pulled into milestone 026:
-  Kafka adapter
-  RabbitMQ adapter
-  cloud queue adapter
-  database-backed adapter
+not pulled into milestone 026 or this project:
+  external broker/cloud queue/database adapter
   production broker operations or retention certification
 ```
 
 The file-based adapter is not a production broker claim. It is the accepted
-persistent contract adapter for this milestone. Later Kafka, RabbitMQ, cloud
-queue, or database adapter work should require a new explicit milestone
-decision instead of being treated as automatic continuation of milestone 026.
+persistent contract adapter for this project. External broker/cloud
+queue/database adapter work should not be treated as automatic continuation of
+milestone 026 and is no longer part of the RadarPulse project plan.
 
 ## Persistence Model
 
@@ -211,9 +209,8 @@ Unknown future versions should fail closed with a compatibility diagnostic
 rather than silently interpreting incompatible state.
 
 For milestone 026, local serialized payload storage is accepted for the
-file-based adapter because the purpose is recovery proof. Later production
-adapters can replace this with broker payload references, object storage
-references, or database rows only after a separate scope decision.
+file-based adapter because the purpose is recovery proof. This project does
+not plan external broker/cloud queue/database adapters.
 
 ## Restart Recovery
 

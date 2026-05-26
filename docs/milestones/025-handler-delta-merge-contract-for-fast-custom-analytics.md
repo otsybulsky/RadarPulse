@@ -109,7 +109,8 @@ Out of scope for this milestone:
 frontend application implementation
 production HTTP BFF host
 persistent durable adapter implementation
-Kafka, RabbitMQ, cloud queue, or database-backed runtime adapter
+external broker/cloud queue/database runtime adapter; these adapters are not
+  planned for this project
 true live network ingestion
 production deployment, rollback, autoscaling, alerting, and runbooks
 exactly-once production delivery claims
@@ -216,14 +217,16 @@ by milestones 021 and 022.
 ## Serialization And Versioning
 
 Milestone 025 does not need a production storage adapter, but it must define
-the serialization boundary a future durable adapter will preserve.
+the serialization boundary the accepted local persistent adapter path will
+preserve.
 
 The milestone should define:
 
 ```text
 stable handler contract id or version
 stable delta schema version
-serialization-compatible delta payload shape for tests and future adapters
+serialization-compatible delta payload shape for tests and the accepted local
+  persistent adapter path
 deserialization failure diagnostics
 version mismatch diagnostics
 forward-compatible rejection behavior for unknown required fields

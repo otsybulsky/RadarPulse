@@ -107,8 +107,7 @@ production deployment and operations:
   remain future work
 
 exactly-once production delivery:
-  not claimed; future adapter/storage/downstream idempotency gates are still
-  required
+  not claimed; future storage/downstream idempotency gates are still required
 ```
 
 ## Decision Explanations
@@ -453,7 +452,8 @@ high-volume custom analytics performance readiness
 concrete frontend application
 production HTTP BFF host
 persistent durable adapter implementation
-Kafka, RabbitMQ, cloud queue, or database-backed runtime adapter
+external broker/cloud queue/database runtime adapter; these adapters are not
+  planned for this project
 true live network ingestion
 production deployment, rollback, autoscaling, alerting, or runbooks
 exactly-once production delivery

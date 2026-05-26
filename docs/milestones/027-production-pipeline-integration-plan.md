@@ -10,9 +10,10 @@ The plan is scoped to a deterministic archive-shaped operational backend
 pipeline. It composes the accepted runtime/archive provider baseline,
 ordered processing and rebalance commit contracts, durable file-based
 adapter, handler output/BFF read models, and handler delta/merge semantics.
-It does not introduce Kafka, RabbitMQ, cloud queue, database-backed
-persistence, a production HTTP host, a frontend application, or exactly-once
-production delivery claims.
+It does not introduce external broker/cloud queue/database persistence, a
+production HTTP host, a frontend application, or exactly-once production
+delivery claims. External broker/database adapters are not planned for this
+project.
 
 ## Goal
 
@@ -42,10 +43,11 @@ Scope note:
 
 ```text
 milestone 027 validates production-shaped integration over deterministic
-archive-shaped workloads. True live network ingestion, external broker or
-database adapters, production HTTP hosting, frontend workflows, deployment
-automation, cross-machine throughput certification, and exactly-once
-production delivery remain future work unless explicitly selected later.
+archive-shaped workloads. True live network ingestion, production HTTP
+hosting, frontend workflows, deployment automation, cross-machine throughput
+certification, and exactly-once production delivery remain future work unless
+explicitly selected later. External broker/database adapters are outside the
+RadarPulse project plan.
 ```
 
 ## Slice 1: Production Pipeline Profile And Configuration Contract

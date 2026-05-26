@@ -26,9 +26,10 @@ rollback/fallback actions explicit, and capture local representative capacity
 evidence.
 
 The decision deliberately does not claim true live network ingestion,
-production HTTP hosting, frontend implementation, Kafka/RabbitMQ/cloud
+production HTTP hosting, frontend implementation, external broker/cloud
 queue/database adapter readiness, deployment platform automation,
 cross-machine throughput certification, or exactly-once production delivery.
+External broker/database adapters are not planned for this project.
 The focused capacity evidence is accepted for the archive-shaped runtime
 pipeline. Durable adapter evidence is accepted as restart/recovery-focused;
 it is not accepted as a durable-backed broker throughput row.
@@ -104,8 +105,8 @@ true live network ingestion:
   not implemented; deterministic archive-shaped workloads remain the gate
   input
 
-Kafka/RabbitMQ/cloud queue/database adapter:
-  not implemented; future adapter milestones require separate decisions
+external broker/cloud queue/database adapter:
+  not implemented and not planned for this project
 
 production HTTP BFF host:
   not implemented; milestone 024 read models remain application contracts
@@ -118,8 +119,7 @@ deployment and operations:
   alert routing, and operator procedures remain future work
 
 exactly-once production delivery:
-  not claimed; future storage, adapter, and downstream idempotency gates are
-  required
+  not claimed; future storage and downstream idempotency gates are required
 ```
 
 ## Decision Explanations
@@ -256,8 +256,8 @@ milestone into a different execution path and capacity claim; leaving
 recovery only in milestone 026 would not prove pipeline-level diagnostics.
 
 Trade-offs/debt: durable evidence is restart/recovery-focused. A future
-milestone is required if durable-backed throughput, broker throughput, or
-cross-process delivery becomes the question.
+milestone is required if durable-backed throughput or cross-process delivery
+becomes the question.
 
 Review explanation: "The production pipeline can recover durable state; this
 does not certify broker throughput."
@@ -307,18 +307,19 @@ production throughput, broker durability, or multi-machine scaling.
 Review explanation: "The capacity row describes this backend pipeline shape;
 it is not a production SLA."
 
-### Keep Live, Broker, HTTP, Frontend, And Operations Deferred
+### Keep Live, External Adapters, HTTP, Frontend, And Operations Scoped Out
 
-Decision: keep true live network ingestion, broker/database adapters,
-production HTTP BFF hosting, frontend implementation, deployment operations,
-and exactly-once delivery outside milestone 027.
+Decision: keep true live network ingestion, external broker/database
+adapters, production HTTP BFF hosting, frontend implementation, deployment
+operations, and exactly-once delivery outside milestone 027. External
+broker/database adapters are also outside the current project plan.
 
 Why chosen: milestone 027 integrates the backend pipeline. Each deferred
 surface has a separate failure model, acceptance gate, and operational
 contract.
 
 Alternatives: combine production pipeline integration with live network
-ingestion, broker selection, HTTP hosting, frontend, deployment, or
+ingestion, external adapter selection, HTTP hosting, frontend, deployment, or
 exactly-once claims.
 
 Rejected because: combining these would blur the accepted backend result and
@@ -358,10 +359,7 @@ Excluded:
 
 ```text
 true live network ingestion
-Kafka adapter
-RabbitMQ adapter
-cloud queue adapter
-database-backed adapter
+external broker/cloud queue/database adapter
 production broker operations and retention certification
 durable-backed throughput certification
 production HTTP BFF host
@@ -533,7 +531,8 @@ milestone 027 validates deterministic archive-shaped production pipeline
 the normal pipeline capacity row measures the archive-shaped runtime path,
   not durable-backed broker throughput
 the file durable adapter remains the local restart/recovery baseline
-Kafka, RabbitMQ, cloud queue, and database-backed adapters are not included
+external broker/cloud queue/database adapters are not included and are not
+  planned for this project
 production broker durability, broker retention, and cross-machine delivery
   are not claimed
 production HTTP BFF host and frontend remain future work
@@ -554,8 +553,7 @@ operator diagnostics, handler output posture, rollback/fallback vocabulary,
 and capacity evidence to build the selected product-facing surface. The next
 milestone should decide whether the immediate product slice is an HTTP/API
 host, frontend application, operator console, product workflow, or another
-explicit delivery surface. Do not silently expand that milestone into
-Kafka/RabbitMQ/cloud queue/database adapter certification, true live network
-ingestion, deployment automation, or exactly-once delivery unless those
-decisions are explicitly selected.
+explicit delivery surface. Do not expand that milestone into external
+broker/cloud queue/database adapter certification, true live network
+ingestion, deployment automation, or exactly-once delivery.
 ```

@@ -44,8 +44,8 @@ recovery and cleanup stage:
 ```
 
 The in-process durable harness is the milestone gate adapter. It should obey
-the same contract a future broker adapter must obey, but it does not claim
-production broker durability.
+the same contract the accepted local persistent adapter path must obey, but it
+does not claim production broker durability.
 
 ## Why This Direction
 
@@ -70,13 +70,14 @@ silent borrowed fallback after durable failure:
   failures behind a different ownership path
 
 exactly-once production claim:
-  too broad without a real broker adapter, durable storage contract, and
-  idempotent downstream integration evidence
+  too broad without a durable storage contract and idempotent downstream
+  integration evidence
 ```
 
-The chosen approach proves the RadarPulse-owned contract first. A production
-broker adapter can later be judged against the same envelope states and
-readiness gates.
+The chosen approach proves the RadarPulse-owned contract first. This project
+does not plan external broker/database adapters; the contract is
+carried forward by the accepted local persistent adapter and production
+pipeline.
 
 ## Required Invariants
 
@@ -168,7 +169,7 @@ and cleanup semantics pass focused tests.
 Milestone 023 does not implement:
 
 ```text
-production broker adapters
+external broker/database adapters
 true live network ingestion
 production deployment, rollback, autoscaling, or runbooks
 handler-state delta/merge

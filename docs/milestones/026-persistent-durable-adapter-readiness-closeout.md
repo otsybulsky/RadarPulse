@@ -34,9 +34,9 @@ The important milestone result is:
     state can survive adapter/session recreation while preserving explicit
     recovery policy, ordered commit, handler delta replay, terminal release
     behavior, and operator-visible blocking diagnostics.
-026 deliberately stops at the file-based adapter and does not pull broker,
-    database, cloud queue, live ingestion, API host, frontend, or production
-    operations scope into this milestone.
+026 deliberately stops at the file-based adapter and does not pull external
+    broker/cloud queue/database, live ingestion, API host, frontend, or
+    production operations scope into this milestone or this project plan.
 ```
 
 Final readiness posture:
@@ -53,9 +53,8 @@ The accepted warnings and limits are:
 file-based adapter boundary:
   milestone 026 stops at deterministic local file-based persistence
 
-broker/database/cloud adapters:
-  Kafka, RabbitMQ, cloud queue, and database-backed adapters are not included
-  and require a separate future milestone decision
+external broker/cloud queue/database adapters:
+  not included and not planned for this project
 
 production broker durability:
   broker retention, broker operations, cross-machine delivery, and broker
@@ -79,8 +78,8 @@ production operations:
   deployment, rollback, autoscaling, alerts, and runbooks are not implemented
 
 exactly-once production delivery:
-  not claimed; future storage, adapter, and downstream idempotency gates would
-  be required for that claim
+  not claimed; future storage and downstream idempotency gates would be
+  required for that claim
 ```
 
 ## Final Outcome
@@ -115,10 +114,7 @@ Implemented:
 
 Not implemented here:
 
-- Kafka adapter.
-- RabbitMQ adapter.
-- Cloud queue adapter.
-- Database-backed durable adapter.
+- External broker/cloud queue/database durable adapter.
 - Production broker operations or retention certification.
 - Production HTTP BFF host.
 - Frontend application.
@@ -139,8 +135,8 @@ Still rejected:
 
 ```text
 silently treating file-based persistence as production broker certification
-automatically continuing milestone 026 into Kafka, RabbitMQ, cloud queue, or
-  database adapter work
+automatically continuing milestone 026 into external broker/cloud
+  queue/database adapter work
 silently retrying claimed envelopes after restart without explicit recovery
   policy
 treating worker completion as ordered commit
@@ -385,7 +381,7 @@ commit contracts, durable file-based adapter, custom handler output/BFF read
 models, and handler delta/merge semantics to connect RadarPulse into an
 end-to-end operational backend pipeline with configuration defaults,
 diagnostics, representative workload gates, restart/recovery validation,
-rollback/fallback posture, and capacity evidence. Do not silently expand the
-next milestone into Kafka/RabbitMQ/cloud queue/database adapter work unless
-that adapter decision is explicitly selected first.
+rollback/fallback posture, and capacity evidence. Do not expand the next
+milestone into external broker/cloud queue/database adapter work; those
+adapters are not planned for this project.
 ```

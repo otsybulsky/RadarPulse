@@ -85,8 +85,8 @@ current runtime/live posture:
   file-based persistent durable adapter readiness is accepted with scoped
   warnings over deterministic archive-shaped MVP workloads
   deterministic local file-based persistence is accepted as the milestone 026
-  adapter boundary; Kafka, RabbitMQ, cloud queue, and database-backed adapters
-  require a separate future milestone decision
+  adapter boundary; Kafka/RabbitMQ/database-backed adapters are not planned
+  for this project
   production pipeline integration is accepted with scoped warnings over
   deterministic archive-shaped backend workloads
   the production pipeline profile resolves accepted backend defaults with
@@ -95,12 +95,23 @@ current runtime/live posture:
   and expose operator readiness, first blockers, handler posture,
   file-durable recovery posture, rollback/fallback posture, and local
   representative capacity evidence
-  true live network ingestion, Kafka/RabbitMQ/cloud queue/database adapter
-  certification, production HTTP BFF host, frontend application, deployment
-  automation, and exactly-once production delivery are not implemented yet
+  true live network ingestion, production HTTP BFF host, frontend application,
+  deployment automation, and exactly-once production delivery remain outside
+  the accepted implementation; external broker/database adapter certification
+  is not planned for this project
 
 current next action:
   start the recommended product-facing completion milestone
+```
+
+Current project scope decision:
+
+```text
+Kafka/RabbitMQ/database-backed adapters will not be implemented in this
+project. Future milestones should not plan external broker, cloud queue, or
+database adapter certification. The accepted persistence boundary for this
+project is the deterministic local file-based durable adapter plus the
+production-shaped pipeline built on top of it.
 ```
 
 The current accepted direct benchmark contour is:
@@ -261,9 +272,9 @@ adapter posture:
   order after restart
 
 boundary:
-  this is not Kafka, RabbitMQ, cloud queue, database-backed adapter,
-  production broker durability, cross-machine delivery, or exactly-once
-  production delivery certification
+  this is not an external broker/cloud queue/database adapter, production
+  broker durability, cross-machine delivery, or exactly-once production
+  delivery certification
 ```
 
 The current accepted readiness answers are:
@@ -362,9 +373,9 @@ BFF and frontend boundary:
 
 persistent adapter boundary:
   milestone 026 accepts deterministic local file-based persistence only;
-  Kafka, RabbitMQ, cloud queue, database-backed adapters, production broker
-  durability, cross-machine delivery, and exactly-once production delivery
-  remain future decisions and gates
+  external broker/cloud queue/database adapters are not planned for this
+  project, and production broker durability, cross-machine delivery, and
+  exactly-once production delivery are not claimed
 
 callback attribution:
   full-cache milestone 020 rows did not regress end-to-end, but queued-owned
@@ -976,7 +987,7 @@ attribution, and processing-completeness guardrails can inform durable design
 Still not implemented:
 
 ```text
-production broker adapters
+external broker/database adapters are not planned for this project
 true live network ingestion
 production deployment/rollback/runbooks
 handler-state delta/merge
@@ -1299,8 +1310,8 @@ docs/milestones/026-persistent-durable-adapter-readiness-closeout.md
 Goal:
 
 ```text
-validate one concrete persistent or broker-like adapter against the milestone
-023 durable envelope contract while preserving milestone 025 handler delta
+validate one concrete persistent local adapter against the milestone 023
+durable envelope contract while preserving milestone 025 handler delta
 identity, idempotency, replay, and ordered merge semantics
 ```
 
@@ -1346,8 +1357,8 @@ deterministic local file-based adapter
 
 warnings:
 milestone 026 stops at deterministic local file-based persistence
-Kafka, RabbitMQ, cloud queue, and database-backed adapters are not included
-  and require a separate future milestone decision
+external broker/cloud queue/database adapters are not included and are not
+  planned for this project
 broker retention, broker operations, cross-machine delivery, and broker
   durability certification are not claimed
 completed-envelope recovery recomputes scoped processing completion material
@@ -1474,7 +1485,8 @@ milestone 027 validates deterministic archive-shaped production pipeline
 the normal pipeline capacity row measures the archive-shaped runtime path,
   not durable-backed broker throughput
 the file durable adapter remains the local restart/recovery baseline
-Kafka, RabbitMQ, cloud queue, and database-backed adapters are not included
+external broker/cloud queue/database adapters are not included and are not
+  planned for this project
 production broker durability, broker retention, and cross-machine delivery
   are not claimed
 production HTTP BFF host and frontend remain future work
@@ -1502,8 +1514,9 @@ handler posture, durable recovery posture, rollback/fallback posture, and
 capacity evidence from the pipeline surface
 product-facing work can build on accepted BFF read models and operator
 diagnostics without inventing a new backend orchestration path
-future adapter, live ingestion, deployment, and exactly-once work remains
-explicitly separated instead of silently inherited from this milestone
+live ingestion, deployment, and exactly-once work remains explicitly
+separated instead of silently inherited from this milestone; external
+broker/database adapters are outside the project plan
 ```
 
 Recommended next milestone input:

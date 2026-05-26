@@ -83,7 +83,7 @@ production operations:
   deployment, rollback, autoscaling, alerts, and runbooks are not implemented
 
 exactly-once production delivery:
-  not claimed; future adapter/storage/downstream idempotency gates are needed
+  not claimed; future storage/downstream idempotency gates are needed
 
 known full-suite residual risk:
   one allocation-sensitive synthetic benchmark caveat remains outside the
@@ -126,7 +126,8 @@ Not implemented here:
 
 - Arbitrary stateful handler concurrency without mergeable opt-in.
 - Production persistent durable adapter implementation.
-- Kafka, RabbitMQ, cloud queue, or database-backed runtime adapter.
+- External broker/cloud queue/database runtime adapter; these adapters are
+  not planned for this project.
 - Production HTTP BFF host.
 - Frontend application.
 - True live network ingestion.
@@ -476,9 +477,9 @@ persistent durable adapter readiness.
 
 Use the accepted milestone 023 durable envelope contract together with the
 milestone 025 handler delta identity, idempotency, replay, and ordered merge
-semantics to validate one concrete persistent/broker-backed adapter shape.
-The next milestone should prove storage or broker ownership, claim/retry,
-recovery, poison handling, ordered commit after restart, handler delta replay,
-release cleanup, operator diagnostics, and failure visibility without
-claiming true live ingestion or exactly-once production delivery prematurely.
+semantics to validate one concrete persistent local adapter shape. The next
+milestone should prove local storage ownership, claim/retry, recovery, poison
+handling, ordered commit after restart, handler delta replay, release cleanup,
+operator diagnostics, and failure visibility without claiming true live
+ingestion or exactly-once production delivery prematurely.
 ```

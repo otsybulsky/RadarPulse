@@ -100,7 +100,8 @@ Out of scope for this milestone:
 
 ```text
 persistent durable adapter implementation
-Kafka, RabbitMQ, cloud queue, or database-backed runtime adapter
+external broker/cloud queue/database runtime adapter; these adapters are not
+  planned for this project
 true live network ingestion
 frontend UI implementation
 production deployment, rollback, autoscaling, alerting, and runbooks

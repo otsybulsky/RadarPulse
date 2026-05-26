@@ -24,7 +24,7 @@ representative capacity evidence row
 Excluded:
 
 ```text
-Kafka, RabbitMQ, cloud queue, or database-backed adapter
+external broker/cloud queue/database adapter
 production broker operations or retention certification
 true live network ingestion
 production HTTP BFF host
@@ -169,8 +169,9 @@ blocked capacity evidence preserves first blocking reason
 ```text
 milestone 027 validates deterministic archive-shaped production pipeline
 integration, not true live network ingestion
-the file durable adapter remains the local persistence baseline; Kafka,
-RabbitMQ, cloud queue, and database-backed adapters are not included
+the file durable adapter remains the local persistence baseline; external
+broker/cloud queue/database adapters are not included and are not planned for
+this project
 the production pipeline runner composes accepted in-process backend surfaces;
 it is not a production HTTP BFF host or frontend implementation
 rollback/fallback posture is operator-visible and explicit; hidden borrowed

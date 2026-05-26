@@ -94,9 +94,10 @@ Milestone 027 scope boundary:
 the accepted pipeline is deterministic and archive-shaped. milestone 027
 connects the accepted backend runtime posture into one production-shaped
 operational application surface, but it does not claim true live network
-ingestion, Kafka/RabbitMQ/cloud queue/database adapter certification,
-production HTTP hosting, frontend implementation, deployment automation,
-cross-machine throughput certification, or exactly-once production delivery.
+ingestion, external broker/database adapter certification, production HTTP
+hosting, frontend implementation, deployment automation, cross-machine
+throughput certification, or exactly-once production delivery.
+Kafka/RabbitMQ/database-backed adapters are not planned for this project.
 ```
 
 Milestone 027 key implementation carried forward:
@@ -474,8 +475,7 @@ milestone 020 provider/execution baseline remains closed
 milestone 021 non-mutating processing delta plus ordered commit remains the
   foundation
 milestone 022 ordered rebalance/topology commit remains the foundation
-production broker adapters are not implemented in this milestone unless a
-  later decision explicitly changes scope
+external broker/database adapters are not planned for this project
 true live network ingestion, production deployment/rollback/runbooks,
 handler-state delta/merge, cross-machine performance certification, and
 exactly-once production delivery claims remain future work
@@ -496,7 +496,7 @@ the broker-neutral durable envelope contract and deterministic in-process
 durable harness
 
 warnings:
-  production broker adapters are not implemented
+  external broker/database adapters are not planned for this project
   in-process durable harness is a contract gate, not a production durability
     claim
   true live network ingestion is not implemented
@@ -529,8 +529,9 @@ durable harness
 
 recommended next milestone input:
   persistent durable adapter readiness. Validate one concrete persistent or
-  broker-like adapter against the milestone 023 durable envelope contract,
-  including serialization compatibility, restart recovery, duplicate delivery,
+  local file-backed adapter against the milestone 023 durable envelope
+  contract, including serialization compatibility, restart recovery,
+  duplicate delivery,
   lease or abandoned-attempt recovery, poison/dead-letter mapping,
   provider-sequence ordered commit, retained ownership cleanup, and
   operator-readable adapter state.

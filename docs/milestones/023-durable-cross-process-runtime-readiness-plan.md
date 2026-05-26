@@ -41,8 +41,9 @@ Scope note:
 
 ```text
 milestone 023 proves RadarPulse durable/cross-process contracts before adding
-a production broker adapter. The in-process durable harness is a gate adapter,
-not a production durability claim.
+the accepted local persistent adapter. The in-process durable harness is a
+gate adapter, not a production durability claim. External broker/database
+adapters are not planned for this project.
 ```
 
 ## Slice 1: Durable Envelope Contract And Queue Harness

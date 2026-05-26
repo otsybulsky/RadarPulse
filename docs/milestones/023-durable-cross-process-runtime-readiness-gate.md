@@ -116,7 +116,7 @@ operator-readable readiness summary reports blocking reason, release
 Warnings to carry into decision-trace discussion:
 
 ```text
-production broker adapters are not implemented
+external broker/database adapters are not planned for this project
 the in-process durable harness is a contract gate, not a production
   durability claim
 true live network ingestion is not implemented

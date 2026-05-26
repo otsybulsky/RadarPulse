@@ -39,9 +39,10 @@ The important milestone result is:
     representative capacity evidence are connected into one operational
     application surface.
 027 deliberately stops at deterministic archive-shaped production pipeline
-    integration and does not pull live network ingestion, broker/database/cloud
-    adapter certification, production HTTP hosting, frontend, deployment
-    automation, or exactly-once delivery scope into this milestone.
+    integration and does not pull live network ingestion, external
+    broker/cloud queue/database adapter certification, production HTTP
+    hosting, frontend, deployment automation, or exactly-once delivery scope
+    into this milestone or this project plan.
 ```
 
 Final readiness posture:
@@ -65,9 +66,8 @@ capacity evidence:
 file durable adapter:
   the file durable adapter remains the local restart/recovery baseline
 
-broker/database/cloud adapters:
-  Kafka, RabbitMQ, cloud queue, and database-backed adapters are not included
-  and require separate future milestone decisions
+external broker/cloud queue/database adapters:
+  not included and not planned for this project
 
 production broker durability:
   broker retention, broker operations, cross-machine delivery, and broker
@@ -85,8 +85,8 @@ rollback/fallback:
   borrowed-provider fallback remains rejected
 
 exactly-once production delivery:
-  not claimed; future storage, adapter, and downstream idempotency gates would
-  be required for that claim
+  not claimed; future storage and downstream idempotency gates would be
+  required for that claim
 ```
 
 ## Final Outcome
@@ -128,10 +128,7 @@ Implemented:
 
 Not implemented here:
 
-- Kafka adapter.
-- RabbitMQ adapter.
-- Cloud queue adapter.
-- Database-backed durable adapter.
+- External broker/cloud queue/database durable adapter.
 - Durable-backed broker throughput row.
 - Production broker operations or retention certification.
 - Production HTTP BFF host.
@@ -156,8 +153,8 @@ Still rejected:
 silently treating archive-shaped pipeline integration as true live network
   ingestion
 silently treating file-based persistence as production broker certification
-automatically continuing milestone 027 into Kafka, RabbitMQ, cloud queue, or
-  database adapter certification
+automatically continuing milestone 027 into external broker/cloud
+  queue/database adapter certification
 claiming durable-backed throughput from the archive-shaped runtime capacity row
 hiding rollback/fallback by borrowing another provider or adapter without an
   explicit validated configuration
@@ -382,8 +379,7 @@ operator diagnostics, handler output posture, rollback/fallback vocabulary,
 and capacity evidence to build the selected product-facing surface. The next
 milestone should decide whether the immediate product slice is an HTTP/API
 host, frontend application, operator console, product workflow, or another
-explicit delivery surface. Do not silently expand that milestone into
-Kafka/RabbitMQ/cloud queue/database adapter certification, true live network
-ingestion, deployment automation, or exactly-once delivery unless those
-decisions are explicitly selected.
+explicit delivery surface. Do not expand that milestone into external
+broker/cloud queue/database adapter certification, true live network
+ingestion, deployment automation, or exactly-once delivery.
 ```

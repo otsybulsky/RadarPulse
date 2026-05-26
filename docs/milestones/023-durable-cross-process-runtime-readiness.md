@@ -89,8 +89,8 @@ add explicit durable runtime contracts for accepted envelopes, queue state,
   worker claims, completion, failure, retry, and cleanup
 add a deterministic in-process durable harness that exercises the same
   contracts without requiring an external broker service
-add broker-neutral result and telemetry types that can later be backed by a
-  production broker adapter
+add storage-neutral result and telemetry types that can be consumed by the
+  accepted local persistence path without depending on an external broker
 compose durable envelope consumption with the accepted ordered processing and
   ordered rebalance runtime/archive paths
 record recovery semantics for pending, claimed, completed, failed, canceled,
@@ -106,8 +106,7 @@ Not safe in milestone 023 unless explicitly reprioritized:
 ```text
 adding a mandatory external broker dependency to the test suite
 claiming production deployment readiness from an in-process durable harness
-claiming exactly-once broker semantics without a real broker adapter and
-  durable storage guarantee
+claiming exactly-once production delivery from the in-process harness
 allowing worker completion order to become externally visible commit order
 silently retrying through a borrowed provider path after queued-owned failure
 hiding retained payload prewarm or durable recovery allocation in steady-state
@@ -118,7 +117,8 @@ weakening milestone 021 or milestone 022 ordered commit invariants
 Out of scope for this milestone:
 
 ```text
-Kafka, RabbitMQ, cloud queue, or database-backed adapter implementation
+external broker/cloud queue/database adapter implementation; these adapters
+  are not planned for this project
 production deployment, rollback, autoscaling, and operator runbooks
 true live network ingestion
 product-facing radar workflows
@@ -284,12 +284,12 @@ the broker-neutral contract and deterministic in-process durable harness
 Expected warnings to carry:
 
 ```text
-production broker adapters are not implemented
+external broker/database adapters are not planned for this project
 true live network ingestion is still not implemented
 production deployment, autoscaling, rollback, and runbooks are still not
   implemented
 handler-state delta/merge is still not implemented
 exactly-once production delivery is not claimed
-broader default promotion still depends on workload breadth, recovery
-variance, and real broker adapter evidence
+broader default promotion still depends on workload breadth and recovery
+variance
 ```

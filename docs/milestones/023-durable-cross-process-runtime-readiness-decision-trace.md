@@ -18,16 +18,17 @@ readiness state. Worker completion may happen out of provider order, but
 processing commit and rebalance/topology commit remain provider-sequence
 ordered.
 
-The decision does not accept production broker adapters, production
+The decision does not accept external broker/database adapters, production
 durability, true live network ingestion, deployment/rollback/autoscaling
 readiness, handler-state delta/merge, exactly-once production delivery, or
-product-facing workflow readiness. Those remain future surfaces that must
-prove their own persistence, ownership, recovery, retry, replay, operator,
-and compatibility boundaries.
+product-facing workflow readiness. External broker/database adapters are not
+planned for this project; the other surfaces must prove their own persistence,
+ownership, recovery, retry, replay, operator, and compatibility boundaries if
+selected.
 
 The milestone is a scoped durable-runtime contract acceptance, not a
 production deployment claim. It proves the state machine and ordered commit
-semantics that a future persistent store or broker adapter must implement.
+semantics that the accepted persistent local adapter path must preserve.
 
 ## Decision Matrix
 
@@ -64,8 +65,8 @@ operator-readable readiness summary:
   abandoned, retry, released, first blocking envelope, blocking reason,
   release failure, and terminal retained pressure fields are visible
 
-production broker adapters:
-  not implemented; future broker/storage adapter gate required
+external broker/database adapters:
+  not implemented and not planned for this project
 
 production durability:
   not claimed; the in-process harness is a contract gate, not proof of
@@ -84,7 +85,7 @@ handler-state delta/merge:
   not implemented; durable ordered runtime remains handler-free
 
 exactly-once production delivery:
-  not claimed; future adapter/storage/downstream idempotency gate required
+  not claimed; future storage/downstream idempotency gate required
 
 full-suite residual risk:
   accepted as known allocation-sensitive synthetic benchmark caveat; isolated
@@ -107,19 +108,20 @@ provider sequences, attempt counters, envelope states, worker identity, and
 operator-visible diagnostics.
 
 Alternatives: treat the existing in-memory owned batch queue as the durable
-contract, start with an external broker adapter before defining RadarPulse
-semantics, or expose worker completion directly as commit.
+contract, start with an external infrastructure adapter before defining
+RadarPulse semantics, or expose worker completion directly as commit.
 
 Rejected because: process-local queue semantics do not define restart,
-retry, abandon, poison, or recovery; an external broker-first milestone would
-mix infrastructure with the contract decision; and worker completion cannot
-replace provider-sequence ordered commit.
+retry, abandon, poison, or recovery; an external infrastructure-first
+milestone would mix infrastructure with the contract decision; and worker
+completion cannot replace provider-sequence ordered commit.
 
-Trade-offs/debt: the contract is storage-neutral. A production store or
-broker still needs its own adapter gate.
+Trade-offs/debt: the contract is storage-neutral. This project carries it
+forward through the deterministic local persistent adapter instead of an
+external broker/database adapter.
 
-Review explanation: "The durable boundary is now explicit; storage and broker
-backing remain the next proof."
+Review explanation: "The durable boundary is now explicit; local persistent
+backing remains the next proof."
 
 ### Accept Deterministic In-Process Harness As Contract Gate
 
@@ -132,13 +134,13 @@ deployment, retention, and failure injection dominate the work. The harness
 exercises accept, claim, complete, fail, abandon, retry, poison, commit,
 release, summary, and cleanup operations under controlled tests.
 
-Alternatives: require Kafka, RabbitMQ, cloud queues, or a database adapter in
+Alternatives: require an external broker/cloud queue/database adapter in
 milestone 023, or skip the harness and move directly to production
 integration.
 
 Rejected because: external infrastructure would make the milestone harder to
 review and less deterministic; skipping the harness would leave the contract
-untested before adapter work.
+untested before local persistent adapter work.
 
 Trade-offs/debt: the in-process harness does not prove process crash,
 replication, fsync, broker leases, multi-process contention, or network
@@ -245,29 +247,28 @@ input for future operator surfaces.
 
 Review explanation: "The runtime now says what blocks progress and where."
 
-### Keep Production Broker And Durability Claims Deferred
+### Keep External Adapter And Durability Claims Out Of Scope
 
-Decision: do not claim production broker adapter readiness or production
-durability in milestone 023.
+Decision: do not claim external broker/database adapter readiness or
+production durability in milestone 023.
 
 Why chosen: the milestone proves contract semantics, not external storage or
-broker behavior. Real broker/storage adapters must prove serialization,
-restart recovery, lease/visibility timeout behavior, duplicate delivery,
-multi-worker contention, dead-letter mapping, and adapter-level operator
-state.
+broker behavior. External broker/database adapters are no longer planned for
+this project; the accepted path is a deterministic local persistent adapter
+that must preserve the same contract.
 
 Alternatives: imply that the in-process harness is durable enough, or bundle
-one production broker adapter into the same milestone.
+external adapter implementation into the same milestone.
 
 Rejected because: implying production durability would overstate the
-evidence; bundling adapter work would mix contract acceptance with
-infrastructure-specific failure modes.
+evidence; bundling external adapter work would mix contract acceptance with
+infrastructure-specific failure modes that are outside this project.
 
-Trade-offs/debt: the next milestone should validate a persistent or broker
-adapter against this contract.
+Trade-offs/debt: the next milestone should validate a deterministic local
+persistent adapter against this contract.
 
-Review explanation: "The contract is ready for an adapter; the adapter is not
-implemented yet."
+Review explanation: "The contract is ready for local persistence; external
+adapters are not project scope."
 
 ### Keep Live Ingestion And Production Operations Deferred
 
@@ -329,11 +330,11 @@ Alternatives: market the current stable identity and ordered commit as
 exactly-once, or block the milestone on exactly-once production proof.
 
 Rejected because: stable identity is necessary but insufficient; exactly-once
-is a future adapter/storage/downstream integration decision.
+is a future storage/downstream integration decision.
 
-Trade-offs/debt: a future adapter milestone must choose a defensible delivery
-contract such as at-least-once with idempotent commit, effectively-once for a
-bounded surface, or true exactly-once if the storage stack supports it.
+Trade-offs/debt: a future delivery milestone would need a defensible delivery
+contract such as at-least-once with idempotent commit or effectively-once for
+a bounded surface.
 
 Review explanation: "The contract supports idempotency work, but exactly-once
 is not claimed."
@@ -416,7 +417,7 @@ full Release test project plus isolated rerun of known allocation caveat
 Excluded:
 
 ```text
-production broker adapters
+external broker/database adapters
 production durable storage claim
 process-crash persistence proof
 broker lease or visibility timeout behavior
@@ -574,7 +575,7 @@ operator-readable blocking state under the deterministic in-process harness
 Named warnings:
 
 ```text
-production broker adapters are not implemented
+external broker/database adapters are not planned for this project
 in-process durable harness is a contract gate, not a production durability
   claim
 true live network ingestion is not implemented
@@ -588,10 +589,10 @@ known full-suite allocation-sensitive synthetic benchmark caveat remains
 Recommended next milestone input:
 
 ```text
-persistent durable adapter readiness. Validate one concrete persistent or
-broker-like adapter against the milestone 023 durable envelope contract,
-including serialization compatibility, restart recovery, duplicate delivery,
-lease or abandoned-attempt recovery, poison/dead-letter mapping,
-provider-sequence ordered commit, retained ownership cleanup, and
-operator-readable adapter state.
+persistent durable adapter readiness. Validate one concrete persistent local
+adapter against the milestone 023 durable envelope contract, including
+serialization compatibility, restart recovery, duplicate delivery, lease or
+abandoned-attempt recovery, poison/dead-letter mapping, provider-sequence
+ordered commit, retained ownership cleanup, and operator-readable adapter
+state.
 ```

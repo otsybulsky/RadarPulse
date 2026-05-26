@@ -76,7 +76,7 @@ production operations:
   deployment, rollback, autoscaling, alerts, and runbooks are not implemented
 
 exactly-once production delivery:
-  not claimed; future adapter/storage/downstream idempotency gates are needed
+  not claimed; future storage/downstream idempotency gates are needed
 ```
 
 ## Final Outcome
@@ -123,7 +123,8 @@ Not implemented here:
 - Concrete frontend application.
 - Production HTTP BFF host.
 - Persistent durable adapter implementation.
-- Kafka, RabbitMQ, cloud queue, or database-backed runtime adapter.
+- External broker/cloud queue/database runtime adapter; these adapters are
+  not planned for this project.
 - True live network ingestion.
 - Production deployment, rollback, autoscaling, alerting, or runbooks.
 - Exactly-once production delivery.
