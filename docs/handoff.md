@@ -3,13 +3,14 @@
 ## Current State
 
 Milestone 027 has started as the selected production integration milestone
-after milestone 026 closeout. The architecture/concept document and
-implementation plan are written. Implementation has not started.
+after milestone 026 closeout. The architecture/concept document,
+implementation plan, and slice 1 production pipeline configuration contract
+are complete.
 
 Stop point:
 
 ```text
-milestone 027 planned
+milestone 027 implementation in progress
 ```
 
 Current milestone:
@@ -37,7 +38,7 @@ docs/milestones/027-production-pipeline-integration-plan.md
 Milestone 027 planned slices:
 
 ```text
-1. Production pipeline profile and configuration contract [planned]
+1. Production pipeline profile and configuration contract [complete]
 2. Pipeline operator summary and readiness contract [planned]
 3. Archive-shaped pipeline runner [planned]
 4. Durable restart and recovery pipeline gate [planned]
@@ -49,7 +50,11 @@ Milestone 027 planned slices:
 Latest verification:
 
 ```text
-not run for milestone 027 yet; current changes are documentation-only
+slice 1 focused configuration suite:
+  6 passed, 0 failed, 0 skipped
+
+Release build:
+  succeeded, 0 warnings, 0 errors
 ```
 
 Most recently closed milestone:
@@ -111,8 +116,8 @@ deterministic local file-based adapter
 Current next action:
 
 ```text
-implement milestone 027 slice 1: production pipeline profile and
-configuration contract
+implement milestone 027 slice 2: pipeline operator summary and readiness
+contract
 ```
 
 ## Previous Closed Milestone Context

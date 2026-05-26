@@ -1,6 +1,6 @@
 # Milestone 027: Production Pipeline Integration Implementation Plan
 
-Status: planned.
+Status: in progress.
 
 This plan implements the milestone 027 architecture defined in
 `027-production-pipeline-integration.md`.
@@ -49,7 +49,7 @@ production delivery remain future work unless explicitly selected later.
 
 ## Slice 1: Production Pipeline Profile And Configuration Contract
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -89,6 +89,21 @@ Commit:
 
 ```text
 Add production pipeline configuration profile
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingProductionPipelineConfigurationTests"
+
+result:
+  6 passed, 0 failed, 0 skipped
+
+dotnet build RadarPulse.sln -c Release --no-restore
+
+result:
+  succeeded, 0 warnings, 0 errors
 ```
 
 ## Slice 2: Pipeline Operator Summary And Readiness Contract
