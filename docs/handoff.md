@@ -1,19 +1,15 @@
-# Handoff: Milestone 028 Complete
+# Handoff: Milestone 029 In Progress
 
 ## Current State
 
-Milestone 028 has been selected after milestone 027 closeout. The
-architecture/concept document, implementation plan, slice 1 product DTO and
-mapping contract, slice 2 product pipeline run service, and slice 3 product
-read query surface, and slice 4 product operator control surface are
-complete. Slice 5 console product workflow, slice 6 API-facing contract, and
-slice 7 documentation/gate evidence are complete. Decision trace and closeout
-are written.
+Milestone 029 has been selected after milestone 028 closeout. The
+architecture/concept document and implementation plan are written. No
+implementation slices have been started yet.
 
 Stop point:
 
 ```text
-milestone 028 closeout written; next milestone selection pending
+milestone 029 plan written; start implementation slice 1
 ```
 
 Most recently closed milestone:
@@ -22,121 +18,71 @@ Most recently closed milestone:
 028 Product-Facing Pipeline Console And API
 ```
 
-Closed milestone goal:
+Current milestone:
 
 ```text
-turn the accepted production-shaped backend pipeline into a usable
-product-facing console/API surface for deterministic archive-shaped radar
-workflows, with stable DTOs, run/read/control workflows, operator
-diagnostics, handler output visibility, documentation, and focused gates
+029 Product HTTP Host And Persistent Run History
 ```
 
-Milestone 028 documents:
+Milestone 029 goal:
 
 ```text
-docs/milestones/028-product-facing-pipeline-console-and-api.md
-docs/milestones/028-product-facing-pipeline-console-and-api-plan.md
-docs/milestones/028-product-facing-pipeline-console-and-api-gate.md
-docs/milestones/028-product-facing-pipeline-console-and-api-decision-trace.md
-docs/milestones/028-product-facing-pipeline-console-and-api-closeout.md
+expose the accepted milestone 028 product pipeline contract through a thin
+local HTTP host and persist product run history through deterministic local
+file-backed storage for archive-shaped workflows
 ```
 
-Milestone 028 planned slices:
+Milestone 029 documents:
 
 ```text
-1. Product DTO and mapping contract [complete]
-2. Product pipeline run service [complete]
-3. Product read query surface [complete]
-4. Product operator control surface [complete]
-5. Console product workflow [complete]
-6. API-facing contract or thin host [complete]
-7. Documentation, gate evidence, and handoff [complete]
+docs/milestones/029-product-http-host-and-persistent-run-history.md
+docs/milestones/029-product-http-host-and-persistent-run-history-plan.md
+```
+
+Milestone 029 planned slices:
+
+```text
+1. Product run history store contract [planned]
+2. File-backed product run history store [planned]
+3. Persistent history service integration [planned]
+4. Product HTTP host project and route mapping [planned]
+5. HTTP control and failure posture [planned]
+6. Documentation, gate evidence, and handoff [planned]
 ```
 
 Latest verification:
 
 ```text
-slice 1 focused product DTO suite:
-  3 passed, 0 failed, 0 skipped
-
-slice 1 focused product DTO Release suite:
-  3 passed, 0 failed, 0 skipped
-
-slice 2 focused product service suite:
-  6 passed, 0 failed, 0 skipped
-
-slice 2 focused product service Release suite:
-  6 passed, 0 failed, 0 skipped
-
-slice 3 focused product query suite:
-  4 passed, 0 failed, 0 skipped
-
-slice 3 focused product query Release suite:
-  4 passed, 0 failed, 0 skipped
-
-slice 4 focused product control suite:
-  5 passed, 0 failed, 0 skipped
-
-slice 4 focused product control Release suite:
-  5 passed, 0 failed, 0 skipped
-
-slice 5 focused product CLI suite:
-  4 passed, 0 failed, 0 skipped
-
-slice 5 focused product CLI Release suite:
-  4 passed, 0 failed, 0 skipped
-
-slice 6 focused product API contract suite:
-  4 passed, 0 failed, 0 skipped
-
-slice 6 focused product API contract Release suite:
-  4 passed, 0 failed, 0 skipped
-
-focused milestone 028 Release gate:
-  26 passed, 0 failed, 0 skipped
-
-Release build:
-  succeeded, 0 warnings, 0 errors
-
 latest closed milestone verification is milestone 028:
   focused milestone 028 Release gate:
     26 passed, 0 failed, 0 skipped
   Release build:
     succeeded, 0 warnings, 0 errors
+
+milestone 029:
+  no implementation gate captured yet
 ```
 
-Previously closed milestone:
+Current implementation direction:
 
 ```text
-027 Production Pipeline Integration
+add an injectable product history store behind RadarPulseProductPipelineService
+preserve in-memory history as the default milestone 028-compatible behavior
+add deterministic local file-backed product history persistence
+add a thin local HTTP host over RadarPulseProductPipelineApiContract/product
+  service routes
+capture route, persistence, restart, readiness, failure, and control gates
 ```
 
-Milestone 027 scope boundary:
+Milestone 029 scope boundary:
 
 ```text
-the accepted pipeline is deterministic and archive-shaped. milestone 027
-connects the accepted backend runtime posture into one production-shaped
-operational application surface, but it does not claim true live network
-ingestion, external broker/database adapter certification, production HTTP
-hosting, frontend implementation, deployment automation, cross-machine
-throughput certification, or exactly-once production delivery.
-Kafka/RabbitMQ/database-backed adapters are not planned for this project.
-```
-
-Milestone 027 key implementation carried forward:
-
-```text
-named production pipeline profile and resolved configuration provenance
-fail-closed production pipeline validation
-pipeline operator summary with first blocker and fallback recommendation
-archive-shaped production pipeline runner over RadarEventBatch input
-BFF read-model publication for production pipeline runs
-handler-free, mergeable, snapshot-only, and unsupported handler posture
-file-durable pipeline recovery runner with completed commit and visible
-  claimed/failed/poison/incompatible blockers
-rollback/fallback controls for stop-accepting, drain-accepted,
-  cancel-open/release, and reject-unsafe-fallback posture
-capacity evidence for local representative archive-shaped pipeline runs
+do not reopen accepted runtime/default/durable/handler/product decisions from
+milestones 020-028. Do not expand this milestone into frontend SPA
+implementation, true live network ingestion, external broker/cloud
+queue/database adapter certification, deployment automation, public hosted
+production readiness, auth/TLS/CORS hardening, cross-machine throughput
+certification, or exactly-once production delivery.
 ```
 
 Milestone 028 accepted product surface:
@@ -163,21 +109,21 @@ throughput certification, or exactly-once production delivery.
 Current next action:
 
 ```text
-start the recommended product HTTP host and persistent run history milestone
+start slice 1: product run history store contract
 ```
 
 Decision trace:
 
 ```text
-milestone 028 decision trace written:
-  accepted with scoped warnings for product-facing pipeline console/API
-  completion over deterministic archive-shaped workloads
+milestone 029 decision trace has not been written
 ```
 
 Closeout:
 
 ```text
-milestone 028 closeout written:
+milestone 029 closeout has not been written
+
+milestone 028 closeout remains the latest closed milestone:
   accepted with scoped warnings for product-facing pipeline console/API
   completion over deterministic archive-shaped workloads
 
