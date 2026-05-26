@@ -192,6 +192,32 @@ public sealed class RadarProcessingCore
         return Valid(telemetry, workerTelemetry);
     }
 
+    internal RadarProcessingResult CommitValidatedProcessingDeltaWithMergedHandlerValueGroups(
+        RadarProcessingBatchDelta delta,
+        IReadOnlyList<IReadOnlyList<RadarProcessingHandlerDeltaValue>> mergedHandlerValueGroups,
+        RadarProcessingWorkerTelemetrySummary? workerTelemetry = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(delta);
+        ArgumentNullException.ThrowIfNull(mergedHandlerValueGroups);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (delta.Route.TopologyVersion != Topology.Version)
+        {
+            throw new InvalidOperationException(
+                "Processing delta topology version must match the current processing topology.");
+        }
+
+        stateStore.ApplyDeltaWithoutHandlers(delta);
+        stateStore.ApplyMergedHandlerValueGroups(mergedHandlerValueGroups);
+        processedBatchCount = checked(processedBatchCount + 1);
+
+        var telemetry = Options.ExecutionMode == RadarProcessingExecutionMode.Sequential
+            ? null
+            : RadarProcessingTelemetry.FromRoute(Options.ExecutionMode, delta.Route);
+        return Valid(telemetry, workerTelemetry);
+    }
+
     internal RadarProcessingResult? ValidateBatchForProcessing(
         RadarEventBatch batch,
         CancellationToken cancellationToken)

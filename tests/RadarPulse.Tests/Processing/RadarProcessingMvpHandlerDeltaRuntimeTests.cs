@@ -83,6 +83,44 @@ public sealed class RadarProcessingMvpHandlerDeltaRuntimeTests
     }
 
     [Fact]
+    public async Task OrderedDeltaMergeWithBenchmarkAccumulatorHandlersMatchesSequentialFallbackOutput()
+    {
+        var universe = CreateUniverse(sourceCount: 2);
+        var mergeCore = CreateCore(
+            universe,
+            RadarProcessingBenchmarkHandlers.Create(RadarProcessingBenchmarkHandlerSet.CounterChecksumHeavy));
+        var sequentialCore = CreateCore(
+            universe,
+            RadarProcessingBenchmarkHandlers.Create(RadarProcessingBenchmarkHandlerSet.CounterChecksumHeavy));
+        var runner = new RadarProcessingArchiveQueuedOverlapRunner();
+        var batches = new[]
+        {
+            CreateBatch(universe.Version, [0, 1], messageTimestampBase: 100),
+            CreateBatch(universe.Version, [1], messageTimestampBase: 200),
+            CreateBatch(universe.Version, [0], messageTimestampBase: 300)
+        };
+
+        var merge = await runner.RunMvpProcessingAsync(
+            CreateProducer(universe, batches),
+            mergeCore,
+            new RadarProcessingOrderedConcurrencyOptions(activeBatchCapacity: 4));
+        var sequential = await runner.RunMvpProcessingAsync(
+            CreateProducer(universe, batches),
+            sequentialCore,
+            RadarProcessingOrderedConcurrencyOptions.Sequential);
+
+        Assert.True(merge.Plan.AllowsOrderedConcurrentHandlerDeltaMerge);
+        Assert.True(sequential.Plan.HandlerOutputContract.AllowsOrderedConcurrentHandlerDeltaMerge);
+        Assert.Equal(
+            sequentialCore.CreateSourceSnapshots(),
+            mergeCore.CreateSourceSnapshots());
+        Assert.Equal(
+            sequentialCore.CreateSourceHandlerSnapshots().SelectMany(static snapshot => snapshot.Values),
+            mergeCore.CreateSourceHandlerSnapshots().SelectMany(static snapshot => snapshot.Values));
+        Assert.Equal(sequentialCore.CreateMetrics(), mergeCore.CreateMetrics());
+    }
+
+    [Fact]
     public async Task UnsupportedHandlerSetFailsClosedBeforeMvpProcessingStarts()
     {
         var universe = CreateUniverse(sourceCount: 1);
@@ -104,13 +142,18 @@ public sealed class RadarProcessingMvpHandlerDeltaRuntimeTests
     private static RadarProcessingCore CreateCore(
         RadarSourceUniverse universe,
         IRadarSourceProcessingHandler handler) =>
+        CreateCore(universe, new[] { handler });
+
+    private static RadarProcessingCore CreateCore(
+        RadarSourceUniverse universe,
+        IReadOnlyList<IRadarSourceProcessingHandler> handlers) =>
         new(
             universe,
             new RadarProcessingCoreOptions(
                 RadarProcessingExecutionMode.AsyncShardTransport,
                 partitionCount: Math.Min(2, universe.SourceCount),
                 shardCount: Math.Min(2, universe.SourceCount),
-                handlers: new[] { handler },
+                handlers: handlers,
                 asyncExecution: new RadarProcessingAsyncExecutionOptions(workerCount: 2, queueCapacity: 4)));
 
     private static Func<IArchiveRadarEventBatchPublisher, CancellationToken, ArchiveRadarEventBatchPublishResult> CreateProducer(

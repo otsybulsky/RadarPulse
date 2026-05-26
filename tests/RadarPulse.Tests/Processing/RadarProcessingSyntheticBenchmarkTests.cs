@@ -115,6 +115,8 @@ public sealed class RadarProcessingSyntheticBenchmarkTests
                     metadata.ExecutionClassification);
                 var merger = Assert.IsAssignableFrom<IRadarProcessingHandlerDeltaMerger>(handler);
                 Assert.Equal(handler.Descriptor.Name, merger.HandlerName);
+                var factory = Assert.IsAssignableFrom<IRadarProcessingHandlerDeltaAccumulatorFactory>(handler);
+                Assert.NotNull(factory.CreateAccumulator());
             });
         var fieldNames = handlers
             .SelectMany(static handler => handler.Descriptor.SnapshotFields)

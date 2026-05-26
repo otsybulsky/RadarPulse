@@ -320,6 +320,34 @@ public sealed class RadarSourceProcessingStateStore
         }
     }
 
+    internal void ApplyMergedHandlerValueGroups(
+        IReadOnlyList<IReadOnlyList<RadarProcessingHandlerDeltaValue>> valueGroups)
+    {
+        ArgumentNullException.ThrowIfNull(valueGroups);
+        if (!handlerSlotLayout.HasHandlers)
+        {
+            if (valueGroups.Any(static group => group.Count != 0))
+            {
+                throw new ArgumentException(
+                    "Merged handler values require a processing core with handlers.",
+                    nameof(valueGroups));
+            }
+
+            return;
+        }
+
+        for (var groupIndex = 0; groupIndex < valueGroups.Count; groupIndex++)
+        {
+            var group = valueGroups[groupIndex];
+            for (var valueIndex = 0; valueIndex < group.Count; valueIndex++)
+            {
+                var value = group[valueIndex];
+                EnsureSourceId(value.SourceId);
+                ApplyMergedHandlerValue(value);
+            }
+        }
+    }
+
     private void EnsureSourceId(int sourceId)
     {
         if ((uint)sourceId < (uint)SourceCount)

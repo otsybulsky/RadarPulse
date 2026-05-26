@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Diagnostics;
 using RadarPulse.Application.Processing;
 using RadarPulse.Domain.Processing;
@@ -757,21 +758,11 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
                 "Ordered handler delta/merge requires all handlers to be mergeable.");
         }
 
-        var tempCore = new RadarProcessingCore(
-            core.SourceUniverse,
-            new RadarProcessingCoreOptions(
-                RadarProcessingExecutionMode.Sequential,
-                partitionCount: 1,
-                shardCount: 1,
-                enableValidation: core.Options.EnableValidation,
-                handlers: core.Options.Handlers));
-        var processingResult = tempCore.Process(queuedBatch.Batch, cancellationToken);
-        if (!processingResult.IsValid)
-        {
-            throw new InvalidOperationException(processingResult.Validation.Message);
-        }
-
-        var snapshots = tempCore.CreateSourceHandlerSnapshots();
+        var handlerDeltaValues = CreateHandlerDeltaValues(
+            queuedBatch.Batch,
+            processingDelta,
+            core.Options,
+            cancellationToken);
         var result = new RadarProcessingHandlerDelta[contract.Handlers.Count];
         for (var handlerIndex = 0; handlerIndex < contract.Handlers.Count; handlerIndex++)
         {
@@ -788,7 +779,7 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
                     $"Mergeable handler '{descriptor.Name}' merger name does not match its descriptor.");
             }
 
-            result[handlerIndex] = RadarProcessingHandlerDelta.Create(
+            result[handlerIndex] = RadarProcessingHandlerDelta.CreateWithOwnedValues(
                 descriptor.Name,
                 merger.HandlerContractVersion,
                 queuedBatch.Sequence,
@@ -797,48 +788,187 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
                 core.SourceCount,
                 queuedBatch.PayloadValueCount,
                 queuedBatch.RawValueChecksum,
-                CreateHandlerDeltaValues(descriptor, snapshots, processingDelta.TouchedSourceIds));
+                handlerDeltaValues[descriptor.HandlerIndex]);
         }
 
         return Array.AsReadOnly(result);
     }
 
-    private static IReadOnlyList<RadarProcessingHandlerDeltaValue> CreateHandlerDeltaValues(
-        RadarProcessingHandlerOutputDescriptor descriptor,
-        IReadOnlyList<RadarSourceProcessingHandlerSnapshot> snapshots,
-        ReadOnlySpan<int> touchedSourceIds)
+    private static RadarProcessingHandlerDeltaValue[][] CreateHandlerDeltaValues(
+        RadarEventBatch batch,
+        RadarProcessingBatchDelta processingDelta,
+        RadarProcessingCoreOptions options,
+        CancellationToken cancellationToken)
     {
-        var result = new List<RadarProcessingHandlerDeltaValue>(
-            checked(descriptor.Fields.Count * touchedSourceIds.Length));
-        foreach (var sourceId in touchedSourceIds)
+        var slotLayout = options.HandlerSlotLayout;
+        var touchedSourceIds = processingDelta.TouchedSourceIds;
+        var result = new RadarProcessingHandlerDeltaValue[slotLayout.Assignments.Count][];
+        if (slotLayout.Assignments.Count == 0)
         {
-            var snapshot = snapshots[sourceId];
-            foreach (var field in descriptor.Fields)
-            {
-                if (!snapshot.TryGetValue(field.Name, out var value))
-                {
-                    throw new InvalidOperationException(
-                        $"Handler snapshot is missing field '{field.Name}'.");
-                }
+            return result;
+        }
 
-                result.Add(value.Type switch
-                {
-                    RadarSourceProcessingSnapshotFieldType.Int64 =>
-                        RadarProcessingHandlerDeltaValue.ForInt64(
-                            snapshot.SourceId,
-                            field.Name,
-                            value.Int64Value),
-                    RadarSourceProcessingSnapshotFieldType.Double =>
-                        RadarProcessingHandlerDeltaValue.ForDouble(
-                            snapshot.SourceId,
-                            field.Name,
-                            value.DoubleValue),
-                    _ => throw new InvalidOperationException("Unsupported handler snapshot field type.")
-                });
+        var sourceIndexById = ArrayPool<int>.Shared.Rent(processingDelta.SourceCount);
+        var int64Slots = slotLayout.TotalInt64SlotCount == 0
+            ? Array.Empty<long>()
+            : new long[checked(touchedSourceIds.Length * slotLayout.TotalInt64SlotCount)];
+        var doubleSlots = slotLayout.TotalDoubleSlotCount == 0
+            ? Array.Empty<double>()
+            : new double[checked(touchedSourceIds.Length * slotLayout.TotalDoubleSlotCount)];
+
+        try
+        {
+            for (var i = 0; i < touchedSourceIds.Length; i++)
+            {
+                sourceIndexById[touchedSourceIds[i]] = i;
             }
+
+            ApplyHandlersToDenseState(
+                batch,
+                processingDelta,
+                slotLayout,
+                sourceIndexById,
+                int64Slots,
+                doubleSlots,
+                cancellationToken);
+
+            foreach (var assignment in slotLayout.Assignments)
+            {
+                result[assignment.HandlerIndex] = CreateHandlerDeltaValues(
+                    assignment,
+                    touchedSourceIds,
+                    int64Slots,
+                    doubleSlots,
+                    slotLayout.TotalInt64SlotCount,
+                    slotLayout.TotalDoubleSlotCount);
+            }
+        }
+        finally
+        {
+            for (var i = 0; i < touchedSourceIds.Length; i++)
+            {
+                sourceIndexById[touchedSourceIds[i]] = 0;
+            }
+
+            ArrayPool<int>.Shared.Return(sourceIndexById);
         }
 
         return result;
+    }
+
+    private static void ApplyHandlersToDenseState(
+        RadarEventBatch batch,
+        RadarProcessingBatchDelta processingDelta,
+        RadarSourceProcessingHandlerSlotLayout slotLayout,
+        int[] sourceIndexById,
+        long[] int64Slots,
+        double[] doubleSlots,
+        CancellationToken cancellationToken)
+    {
+        var events = batch.Events.Span;
+        var payload = batch.Payload.Span;
+        var routedEvents = processingDelta.Route.RoutedEvents.Span;
+        var touchedSourceIds = processingDelta.TouchedSourceIds;
+        for (var i = 0; i < routedEvents.Length; i++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var routed = routedEvents[i];
+            var streamEvent = events[routed.EventIndex];
+            var denseSourceIndex = sourceIndexById[streamEvent.SourceId];
+            if ((uint)denseSourceIndex >= (uint)touchedSourceIds.Length ||
+                touchedSourceIds[denseSourceIndex] != streamEvent.SourceId)
+            {
+                throw new InvalidOperationException(
+                    "Handler delta dense source map did not contain a routed source.");
+            }
+
+            var context = new RadarSourceProcessingHandlerContext(
+                streamEvent,
+                payload.Slice(streamEvent.PayloadOffset, streamEvent.PayloadLength),
+                routed.PayloadMetrics);
+            foreach (var assignment in slotLayout.Assignments)
+            {
+                assignment.Handler.Process(
+                    context,
+                    CreateDenseHandlerState(
+                        denseSourceIndex,
+                        assignment,
+                        int64Slots,
+                        doubleSlots,
+                        slotLayout.TotalInt64SlotCount,
+                        slotLayout.TotalDoubleSlotCount));
+            }
+        }
+    }
+
+    private static RadarSourceProcessingState CreateDenseHandlerState(
+        int denseSourceIndex,
+        RadarSourceProcessingHandlerSlotAssignment assignment,
+        long[] int64Slots,
+        double[] doubleSlots,
+        int totalInt64SlotCount,
+        int totalDoubleSlotCount)
+    {
+        var int64Span = assignment.Descriptor.Int64SlotCount == 0
+            ? Span<long>.Empty
+            : int64Slots.AsSpan(
+                checked((denseSourceIndex * totalInt64SlotCount) + assignment.Int64SlotOffset),
+                assignment.Descriptor.Int64SlotCount);
+        var doubleSpan = assignment.Descriptor.DoubleSlotCount == 0
+            ? Span<double>.Empty
+            : doubleSlots.AsSpan(
+                checked((denseSourceIndex * totalDoubleSlotCount) + assignment.DoubleSlotOffset),
+                assignment.Descriptor.DoubleSlotCount);
+        return new RadarSourceProcessingState(int64Span, doubleSpan);
+    }
+
+    private static RadarProcessingHandlerDeltaValue[] CreateHandlerDeltaValues(
+        RadarSourceProcessingHandlerSlotAssignment assignment,
+        ReadOnlySpan<int> touchedSourceIds,
+        long[] int64Slots,
+        double[] doubleSlots,
+        int totalInt64SlotCount,
+        int totalDoubleSlotCount)
+    {
+        var fields = assignment.Descriptor.SnapshotFields;
+        if (fields.Count == 0 || touchedSourceIds.IsEmpty)
+        {
+            return [];
+        }
+
+        var values = new RadarProcessingHandlerDeltaValue[
+            checked(touchedSourceIds.Length * fields.Count)];
+        var valueIndex = 0;
+        for (var denseSourceIndex = 0; denseSourceIndex < touchedSourceIds.Length; denseSourceIndex++)
+        {
+            var sourceId = touchedSourceIds[denseSourceIndex];
+            foreach (var field in fields)
+            {
+                values[valueIndex++] = field.Type switch
+                {
+                    RadarSourceProcessingSnapshotFieldType.Int64 =>
+                        RadarProcessingHandlerDeltaValue.ForInt64(
+                            sourceId,
+                            field.Name,
+                            int64Slots[
+                                checked((denseSourceIndex * totalInt64SlotCount) +
+                                        assignment.Int64SlotOffset +
+                                        field.SlotIndex)]),
+                    RadarSourceProcessingSnapshotFieldType.Double =>
+                        RadarProcessingHandlerDeltaValue.ForDouble(
+                            sourceId,
+                            field.Name,
+                            doubleSlots[
+                                checked((denseSourceIndex * totalDoubleSlotCount) +
+                                        assignment.DoubleSlotOffset +
+                                        field.SlotIndex)]),
+                    _ => throw new InvalidOperationException("Unsupported handler snapshot field type.")
+                };
+            }
+        }
+
+        return values;
     }
 
     private static IReadOnlyDictionary<string, RadarProcessingHandlerDeltaMergeCoordinator> CreateHandlerDeltaMergeCoordinators(
@@ -1228,6 +1358,7 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
                     return processingResult;
                 }
 
+                List<IReadOnlyList<RadarProcessingHandlerDeltaValue>>? changedHandlerValueGroups = null;
                 foreach (var handlerDelta in handlerDeltas)
                 {
                     if (!handlerMergeCoordinators.TryGetValue(
@@ -1240,7 +1371,7 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
                         return processingResult;
                     }
 
-                    var mergeResult = coordinator.Complete(handlerDelta);
+                    var mergeResult = coordinator.CompleteForCommit(handlerDelta);
                     if (mergeResult.IsRejected || mergeResult.IsBlocked)
                     {
                         processingResult = RadarProcessingQueuedBatchProcessingResult.FailedProcessing(
@@ -1248,14 +1379,20 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
                             mergeResult.Message);
                         return processingResult;
                     }
+
+                    if (mergeResult.AppliedValues.Count != 0)
+                    {
+                        changedHandlerValueGroups ??= new List<IReadOnlyList<RadarProcessingHandlerDeltaValue>>(
+                            handlerDeltas.Count);
+                        changedHandlerValueGroups.Add(mergeResult.AppliedValues);
+                    }
                 }
 
-                var mergedHandlerValues = handlerMergeCoordinators.Values
-                    .SelectMany(static coordinator => coordinator.CreateSummary().MergedValues)
-                    .ToArray();
-                var handlerResult = core.CommitValidatedProcessingDeltaWithMergedHandlerValues(
+                var handlerResult = core.CommitValidatedProcessingDeltaWithMergedHandlerValueGroups(
                     delta,
-                    mergedHandlerValues,
+                    changedHandlerValueGroups is null
+                        ? Array.Empty<IReadOnlyList<RadarProcessingHandlerDeltaValue>>()
+                        : changedHandlerValueGroups,
                     workerTelemetry,
                     cancellationToken);
                 processingResult = handlerResult.IsValid

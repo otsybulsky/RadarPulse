@@ -3,6 +3,7 @@ namespace RadarPulse.Domain.Processing;
 public sealed class RadarProcessingHandlerDeltaMergeCoordinator
 {
     private readonly IRadarProcessingHandlerDeltaMerger merger;
+    private readonly IRadarProcessingHandlerDeltaAccumulator? accumulator;
     private readonly SortedDictionary<long, RadarProcessingHandlerDelta> pendingBySequence = new();
     private readonly Dictionary<RadarProcessingHandlerDeltaId, RadarProcessingHandlerDelta> completedById = new();
     private IReadOnlyList<RadarProcessingHandlerDeltaValue> mergedValues =
@@ -20,20 +21,36 @@ public sealed class RadarProcessingHandlerDeltaMergeCoordinator
         ArgumentException.ThrowIfNullOrWhiteSpace(merger.HandlerContractVersion);
 
         this.merger = merger;
+        accumulator = merger is IRadarProcessingHandlerDeltaAccumulatorFactory factory
+            ? factory.CreateAccumulator()
+            : null;
         nextProviderSequence = initialProviderSequence ?? RadarProcessingQueuedBatchSequence.Initial;
     }
 
     public RadarProcessingHandlerDeltaMergeSummary CreateSummary() =>
+        CreateSummary(captureMergedValues: true);
+
+    private RadarProcessingHandlerDeltaMergeSummary CreateSummary(
+        bool captureMergedValues) =>
         new(
             nextProviderSequence,
             pendingBySequence.Count,
             completedById.Count,
-            mergedValues,
+            captureMergedValues ? CreateMergedValuesSnapshot() : Array.Empty<RadarProcessingHandlerDeltaValue>(),
             CreateFirstBlockingSequence(),
             CreateFirstBlockingReason());
 
     public RadarProcessingHandlerDeltaMergeResult Complete(
-        RadarProcessingHandlerDelta delta)
+        RadarProcessingHandlerDelta delta) =>
+        Complete(delta, captureMergedValuesInSummary: true);
+
+    internal RadarProcessingHandlerDeltaCommitMergeResult CompleteForCommit(
+        RadarProcessingHandlerDelta delta) =>
+        CompleteForCommitCore(delta);
+
+    private RadarProcessingHandlerDeltaMergeResult Complete(
+        RadarProcessingHandlerDelta delta,
+        bool captureMergedValuesInSummary)
     {
         ArgumentNullException.ThrowIfNull(delta);
 
@@ -41,7 +58,7 @@ public sealed class RadarProcessingHandlerDeltaMergeCoordinator
         {
             return new RadarProcessingHandlerDeltaMergeResult(
                 RadarProcessingHandlerDeltaMergeStatus.Blocked,
-                CreateSummary(),
+                CreateSummary(captureMergedValuesInSummary),
                 appliedDeltaCount: 0,
                 permanentBlockingReason);
         }
@@ -52,7 +69,7 @@ public sealed class RadarProcessingHandlerDeltaMergeCoordinator
             Block(delta.ProviderSequence, validationError);
             return new RadarProcessingHandlerDeltaMergeResult(
                 RadarProcessingHandlerDeltaMergeStatus.Rejected,
-                CreateSummary(),
+                CreateSummary(captureMergedValuesInSummary),
                 appliedDeltaCount: 0,
                 validationError);
         }
@@ -63,7 +80,7 @@ public sealed class RadarProcessingHandlerDeltaMergeCoordinator
             {
                 return new RadarProcessingHandlerDeltaMergeResult(
                     RadarProcessingHandlerDeltaMergeStatus.Duplicate,
-                    CreateSummary(),
+                    CreateSummary(captureMergedValuesInSummary),
                     appliedDeltaCount: 0,
                     "Duplicate handler delta was ignored.");
             }
@@ -72,7 +89,7 @@ public sealed class RadarProcessingHandlerDeltaMergeCoordinator
             Block(delta.ProviderSequence, conflict);
             return new RadarProcessingHandlerDeltaMergeResult(
                 RadarProcessingHandlerDeltaMergeStatus.Rejected,
-                CreateSummary(),
+                CreateSummary(captureMergedValuesInSummary),
                 appliedDeltaCount: 0,
                 conflict);
         }
@@ -84,7 +101,7 @@ public sealed class RadarProcessingHandlerDeltaMergeCoordinator
             Block(delta.ProviderSequence, message);
             return new RadarProcessingHandlerDeltaMergeResult(
                 RadarProcessingHandlerDeltaMergeStatus.Rejected,
-                CreateSummary(),
+                CreateSummary(captureMergedValuesInSummary),
                 appliedDeltaCount: 0,
                 message);
         }
@@ -95,7 +112,7 @@ public sealed class RadarProcessingHandlerDeltaMergeCoordinator
             {
                 return new RadarProcessingHandlerDeltaMergeResult(
                     RadarProcessingHandlerDeltaMergeStatus.Duplicate,
-                    CreateSummary(),
+                    CreateSummary(captureMergedValuesInSummary),
                     appliedDeltaCount: 0,
                     "Duplicate pending handler delta was ignored.");
             }
@@ -104,18 +121,100 @@ public sealed class RadarProcessingHandlerDeltaMergeCoordinator
             Block(delta.ProviderSequence, message);
             return new RadarProcessingHandlerDeltaMergeResult(
                 RadarProcessingHandlerDeltaMergeStatus.Rejected,
-                CreateSummary(),
+                CreateSummary(captureMergedValuesInSummary),
                 appliedDeltaCount: 0,
                 message);
         }
 
         pendingBySequence.Add(sequence, delta);
-        var appliedCount = DrainReadyDeltas();
+        var drain = DrainReadyDeltas();
         return new RadarProcessingHandlerDeltaMergeResult(
             RadarProcessingHandlerDeltaMergeStatus.Accepted,
-            CreateSummary(),
-            appliedCount,
-            appliedCount == 0
+            CreateSummary(captureMergedValuesInSummary),
+            drain.AppliedDeltaCount,
+            drain.AppliedDeltaCount == 0
+                ? "Handler delta accepted and is waiting for earlier provider sequence."
+                : "Handler delta accepted and ready deltas were merged.",
+            drain.AppliedValues);
+    }
+
+    private RadarProcessingHandlerDeltaCommitMergeResult CompleteForCommitCore(
+        RadarProcessingHandlerDelta delta)
+    {
+        ArgumentNullException.ThrowIfNull(delta);
+
+        if (permanentBlockingSequence is not null)
+        {
+            return new RadarProcessingHandlerDeltaCommitMergeResult(
+                RadarProcessingHandlerDeltaMergeStatus.Blocked,
+                appliedDeltaCount: 0,
+                message: permanentBlockingReason);
+        }
+
+        var validationError = ValidateDelta(delta);
+        if (validationError.Length != 0)
+        {
+            Block(delta.ProviderSequence, validationError);
+            return new RadarProcessingHandlerDeltaCommitMergeResult(
+                RadarProcessingHandlerDeltaMergeStatus.Rejected,
+                appliedDeltaCount: 0,
+                message: validationError);
+        }
+
+        if (completedById.TryGetValue(delta.DeltaId, out var completed))
+        {
+            if (AreEquivalent(completed, delta))
+            {
+                return new RadarProcessingHandlerDeltaCommitMergeResult(
+                    RadarProcessingHandlerDeltaMergeStatus.Duplicate,
+                    appliedDeltaCount: 0,
+                    message: "Duplicate handler delta was ignored.");
+            }
+
+            var conflict = "Duplicate handler delta id carried different payload.";
+            Block(delta.ProviderSequence, conflict);
+            return new RadarProcessingHandlerDeltaCommitMergeResult(
+                RadarProcessingHandlerDeltaMergeStatus.Rejected,
+                appliedDeltaCount: 0,
+                message: conflict);
+        }
+
+        var sequence = delta.ProviderSequence.Value;
+        if (sequence < nextProviderSequence.Value)
+        {
+            var message = "Handler delta provider sequence has already passed the merge boundary.";
+            Block(delta.ProviderSequence, message);
+            return new RadarProcessingHandlerDeltaCommitMergeResult(
+                RadarProcessingHandlerDeltaMergeStatus.Rejected,
+                appliedDeltaCount: 0,
+                message: message);
+        }
+
+        if (pendingBySequence.TryGetValue(sequence, out var pending))
+        {
+            if (AreEquivalent(pending, delta))
+            {
+                return new RadarProcessingHandlerDeltaCommitMergeResult(
+                    RadarProcessingHandlerDeltaMergeStatus.Duplicate,
+                    appliedDeltaCount: 0,
+                    message: "Duplicate pending handler delta was ignored.");
+            }
+
+            var message = "Conflicting handler deltas completed for the same provider sequence.";
+            Block(delta.ProviderSequence, message);
+            return new RadarProcessingHandlerDeltaCommitMergeResult(
+                RadarProcessingHandlerDeltaMergeStatus.Rejected,
+                appliedDeltaCount: 0,
+                message: message);
+        }
+
+        pendingBySequence.Add(sequence, delta);
+        var drain = DrainReadyDeltas();
+        return new RadarProcessingHandlerDeltaCommitMergeResult(
+            RadarProcessingHandlerDeltaMergeStatus.Accepted,
+            drain.AppliedDeltaCount,
+            drain.AppliedValues,
+            drain.AppliedDeltaCount == 0
                 ? "Handler delta accepted and is waiting for earlier provider sequence."
                 : "Handler delta accepted and ready deltas were merged.");
     }
@@ -141,14 +240,27 @@ public sealed class RadarProcessingHandlerDeltaMergeCoordinator
         return string.Empty;
     }
 
-    private int DrainReadyDeltas()
+    private DrainReadyDeltasResult DrainReadyDeltas()
     {
         var appliedCount = 0;
+        IReadOnlyList<RadarProcessingHandlerDeltaValue> appliedValues =
+            Array.Empty<RadarProcessingHandlerDeltaValue>();
+        List<RadarProcessingHandlerDeltaValue>? combinedAppliedValues = null;
         while (pendingBySequence.Remove(nextProviderSequence.Value, out var delta))
         {
+            if (appliedCount > 0 &&
+                appliedValues.Count != 0 &&
+                combinedAppliedValues is null)
+            {
+                combinedAppliedValues = new List<RadarProcessingHandlerDeltaValue>(appliedValues.Count);
+                combinedAppliedValues.AddRange(appliedValues);
+                appliedValues = Array.Empty<RadarProcessingHandlerDeltaValue>();
+            }
+
+            IReadOnlyList<RadarProcessingHandlerDeltaValue> deltaAppliedValues;
             try
             {
-                mergedValues = CopyValues(merger.Merge(mergedValues, delta));
+                deltaAppliedValues = MergeDelta(delta);
             }
             catch (Exception exception) when (exception is ArgumentException or ArgumentOutOfRangeException or InvalidOperationException)
             {
@@ -156,13 +268,44 @@ public sealed class RadarProcessingHandlerDeltaMergeCoordinator
                 break;
             }
 
+            if (deltaAppliedValues.Count != 0)
+            {
+                if (combinedAppliedValues is null)
+                {
+                    appliedValues = deltaAppliedValues;
+                }
+                else
+                {
+                    combinedAppliedValues.AddRange(deltaAppliedValues);
+                }
+            }
+
             completedById.Add(delta.DeltaId, delta);
             appliedCount++;
             nextProviderSequence = nextProviderSequence.Next();
         }
 
-        return appliedCount;
+        return new DrainReadyDeltasResult(
+            appliedCount,
+            combinedAppliedValues ?? appliedValues);
     }
+
+    private IReadOnlyList<RadarProcessingHandlerDeltaValue> MergeDelta(
+        RadarProcessingHandlerDelta delta)
+    {
+        if (accumulator is not null)
+        {
+            return accumulator.Merge(delta);
+        }
+
+        mergedValues = CopyValues(merger.Merge(mergedValues, delta));
+        return mergedValues;
+    }
+
+    private IReadOnlyList<RadarProcessingHandlerDeltaValue> CreateMergedValuesSnapshot() =>
+        accumulator is null
+            ? mergedValues
+            : CopyValues(accumulator.CreateMergedValuesSnapshot());
 
     private RadarProcessingQueuedBatchSequence? CreateFirstBlockingSequence()
     {
@@ -221,4 +364,8 @@ public sealed class RadarProcessingHandlerDeltaMergeCoordinator
         first.DeltaId == second.DeltaId &&
         first.SchemaVersion == second.SchemaVersion &&
         first.Values.SequenceEqual(second.Values);
+
+    private readonly record struct DrainReadyDeltasResult(
+        int AppliedDeltaCount,
+        IReadOnlyList<RadarProcessingHandlerDeltaValue> AppliedValues);
 }

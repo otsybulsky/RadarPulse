@@ -1,7 +1,7 @@
 # RadarPulse Project Progress
 
 Status: current during milestone 025 pre-decision trace review with
-full-cache handler matrix evidence captured.
+optimized full-cache handler matrix evidence captured.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -19,8 +19,8 @@ concurrent runtime/archive processing milestone, the ordered
 rebalance/topology commit milestone, the durable/cross-process runtime
 readiness milestone, and the custom handler output contract and BFF readiness
 milestone. Milestone 025 handler delta/merge implementation slices, gate
-evidence, and full-cache handler performance matrix are captured; the decision
-trace is intentionally not written yet.
+evidence, full-cache handler performance matrix, and merge-state optimization
+are captured; the decision trace is intentionally not written yet.
 
 Current state:
 
@@ -31,6 +31,7 @@ active milestone status:
   implementation slices complete
   pre-decision gate captured
   full-cache handler matrix captured
+  merge-state optimization captured
   decision trace not written
 
 current accepted benchmark/default posture:
@@ -75,9 +76,9 @@ current runtime/live posture:
   delta/merge implementation, pre-decision gate evidence, and full-cache
   handler matrix evidence
   high-volume custom analytics correctness is proven for benchmark handler
-  sets on the local full cache, but active=4 handler delta/merge is not yet
-  performance-ready as an accepted fast default because allocation and elapsed
-  time regress materially versus active=1 handler-aware rows
+  sets on the local full cache, and optimized active=4 handler delta/merge
+  elapsed time is flat versus active=1 handler-aware rows; allocation remains
+  higher than active=1 and stays a scoped warning unless parity is required
   persistent durable adapter readiness remains deferred to a later reliability
   milestone while the immediate MVP analytics path addresses handler
   delta/merge first
@@ -85,9 +86,9 @@ current runtime/live posture:
   surfaces are not implemented yet
 
 current next action:
-  review milestone 025 gate plus full-cache handler matrix evidence and write
-  the decision trace only after the scoped warnings and readiness posture are
-  agreed
+  review milestone 025 gate plus optimized full-cache handler matrix evidence
+  and write the decision trace only after the scoped warnings and readiness
+  posture are agreed
 ```
 
 The current accepted direct benchmark contour is:

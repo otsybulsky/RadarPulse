@@ -45,6 +45,8 @@ public sealed class RadarProcessingBatchDelta : IDisposable
 
     public int TouchedSourceCount => touchedSourceCount;
 
+    internal int SourceCount => sourceCount;
+
     internal ReadOnlySpan<int> TouchedSourceIds => touchedSourceIds.AsSpan(0, TouchedSourceCount);
 
     internal long GetEventCount(int sourceId) => eventCounts[sourceId];

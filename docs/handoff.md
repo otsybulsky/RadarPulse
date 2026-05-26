@@ -1,10 +1,10 @@
-# Handoff: Milestone 025 Full-Cache Handler Matrix Captured
+# Handoff: Milestone 025 Full-Cache Handler Matrix Optimized
 
 ## Current State
 
 Milestone 024 is complete. Milestone 025 implementation slices,
-pre-decision gate evidence, and the requested full-cache handler performance
-matrix are complete.
+pre-decision gate evidence, the requested full-cache handler performance
+matrix, and the follow-up merge-state optimization are complete.
 
 RadarPulse has accepted the scoped MVP output/BFF readiness surface for
 deterministic archive-shaped workloads. The current milestone is the handler
@@ -36,6 +36,7 @@ BFF compatibility and diagnostics: complete
 handler-heavy performance gate: complete
 pre-decision trace gate: captured
 full-cache handler performance matrix: captured
+merge-state optimization: captured
 decision trace: not written
 planned stop point: stop before decision trace for discussion
 ```
@@ -81,28 +82,31 @@ Release build:
   dotnet build RadarPulse.sln -c Release --no-restore
   result: succeeded, 0 warnings, 0 errors
 
-focused handler/full-cache CLI Release suite:
+focused handler/full-cache CLI Release suite after merge-state optimization:
   dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
-    --no-restore --no-build
-    --filter "FullyQualifiedName~RadarProcessingSyntheticBenchmarkTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingMvpHandlerDeltaRuntimeTests|FullyQualifiedName~RadarProcessingHandlerDeltaPerformanceGateTests"
-  result: 45 passed, 0 failed, 0 skipped
+    --no-build
+    --filter "FullyQualifiedName~RadarProcessingHandlerDeltaMergeCoordinatorTests|FullyQualifiedName~RadarProcessingMvpHandlerDeltaRuntimeTests|FullyQualifiedName~RadarProcessingSyntheticBenchmarkTests|FullyQualifiedName~RadarProcessingHandlerDeltaPerformanceGateTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+  result: 53 passed, 0 failed, 0 skipped
 
-full-cache handler performance matrix:
+optimized full-cache handler performance matrix:
   cache: data\nexrad
   rows:
-    counter-checksum active=1: 69_464.65 ms, 4_676_870_544 allocated bytes
-    counter-checksum active=4: 78_480.75 ms, 33_636_660_120 allocated bytes
-    counter-checksum-heavy active=1: 69_075.00 ms, 4_671_167_384 allocated bytes
-    counter-checksum-heavy active=4: 82_884.73 ms, 56_545_129_088 allocated bytes
+    counter-checksum active=1: 61_373.01 ms, 4_671_386_960 allocated bytes
+    counter-checksum active=4: 61_588.17 ms, 8_188_695_464 allocated bytes
+    counter-checksum-heavy active=1: 62_806.15 ms, 4_675_001_328 allocated bytes
+    counter-checksum-heavy active=4: 62_687.17 ms, 12_209_454_512 allocated bytes
+  active=4 optimization versus previous matrix:
+    counter-checksum elapsed 0.785x, allocation 0.243x
+    counter-checksum-heavy elapsed 0.756x, allocation 0.216x
   correctness:
     4/4 rows completed
     processing completeness succeeded
     processing validation failed batches: 0
     terminal retained pressure: 0
   decision-trace warning:
-    active=4 handler delta/merge is correct but not performance-ready as a
-    high-volume accepted default because allocation and elapsed time regress
-    materially versus active=1 handler-aware rows
+    optimized active=4 handler delta/merge is correct and full-cache elapsed
+    time is flat versus active=1; allocation remains higher than active=1
+    and should stay a scoped warning unless parity is required
 
 full Release test project:
   dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release

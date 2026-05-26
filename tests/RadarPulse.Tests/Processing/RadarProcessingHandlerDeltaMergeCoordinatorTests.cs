@@ -105,6 +105,22 @@ public sealed class RadarProcessingHandlerDeltaMergeCoordinatorTests
     }
 
     [Fact]
+    public void AccumulatorMergeReturnsChangedValuesAndKeepsFullSummary()
+    {
+        var coordinator = new RadarProcessingHandlerDeltaMergeCoordinator(new AccumulatingSummingMerger());
+
+        var first = coordinator.Complete(CreateDelta(sequence: 0, sourceId: 0, events: 2));
+        var second = coordinator.Complete(CreateDelta(sequence: 1, sourceId: 0, events: 3));
+
+        Assert.True(first.IsAccepted);
+        Assert.Equal(2, Assert.Single(first.AppliedValues).Int64Value);
+        Assert.Equal(2, Assert.Single(first.Summary.MergedValues).Int64Value);
+        Assert.True(second.IsAccepted);
+        Assert.Equal(5, Assert.Single(second.AppliedValues).Int64Value);
+        Assert.Equal(5, Assert.Single(second.Summary.MergedValues).Int64Value);
+    }
+
+    [Fact]
     public void SummaryDoesNotExposeMutableCoordinatorState()
     {
         var coordinator = new RadarProcessingHandlerDeltaMergeCoordinator(new SummingMerger());
@@ -170,6 +186,57 @@ public sealed class RadarProcessingHandlerDeltaMergeCoordinatorTests
                     pair.Key.FieldName,
                     pair.Value))
                 .ToArray();
+        }
+    }
+
+    private sealed class AccumulatingSummingMerger :
+        IRadarProcessingHandlerDeltaMerger,
+        IRadarProcessingHandlerDeltaAccumulatorFactory
+    {
+        public string HandlerName => "analytics";
+
+        public string HandlerContractVersion => "v1";
+
+        public IReadOnlyList<RadarProcessingHandlerDeltaValue> Merge(
+            IReadOnlyList<RadarProcessingHandlerDeltaValue> currentValues,
+            RadarProcessingHandlerDelta delta) =>
+            new SummingMerger().Merge(currentValues, delta);
+
+        public IRadarProcessingHandlerDeltaAccumulator CreateAccumulator() =>
+            new Accumulator();
+
+        private sealed class Accumulator : IRadarProcessingHandlerDeltaAccumulator
+        {
+            private readonly Dictionary<(int SourceId, string FieldName), long> values = new();
+
+            public IReadOnlyList<RadarProcessingHandlerDeltaValue> Merge(
+                RadarProcessingHandlerDelta delta)
+            {
+                var changed = new RadarProcessingHandlerDeltaValue[delta.Values.Count];
+                for (var i = 0; i < delta.Values.Count; i++)
+                {
+                    var value = delta.Values[i];
+                    var key = (value.SourceId, value.FieldName);
+                    var next = values.GetValueOrDefault(key) + value.Int64Value;
+                    values[key] = next;
+                    changed[i] = RadarProcessingHandlerDeltaValue.ForInt64(
+                        value.SourceId,
+                        value.FieldName,
+                        next);
+                }
+
+                return changed;
+            }
+
+            public IReadOnlyList<RadarProcessingHandlerDeltaValue> CreateMergedValuesSnapshot() =>
+                values
+                    .OrderBy(static pair => pair.Key.SourceId)
+                    .ThenBy(static pair => pair.Key.FieldName, StringComparer.Ordinal)
+                    .Select(static pair => RadarProcessingHandlerDeltaValue.ForInt64(
+                        pair.Key.SourceId,
+                        pair.Key.FieldName,
+                        pair.Value))
+                    .ToArray();
         }
     }
 }

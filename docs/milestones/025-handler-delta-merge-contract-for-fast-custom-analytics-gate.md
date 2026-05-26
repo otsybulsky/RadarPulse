@@ -1,7 +1,7 @@
 # Milestone 025: Handler Delta/Merge Contract For Fast Custom Analytics Gate
 
-Status: captured before decision trace; milestone implementation slices are
-complete.
+Status: captured and optimized before decision trace; milestone implementation
+slices are complete.
 
 This document records pre-decision gate evidence for milestone 025. It does
 not record the decision trace and does not close the milestone.
@@ -135,6 +135,17 @@ result:
   succeeded, 0 warnings, 0 errors
 ```
 
+Merge-state optimization focused Release suite:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+  --no-build
+  --filter "FullyQualifiedName~RadarProcessingHandlerDeltaMergeCoordinatorTests|FullyQualifiedName~RadarProcessingMvpHandlerDeltaRuntimeTests|FullyQualifiedName~RadarProcessingSyntheticBenchmarkTests|FullyQualifiedName~RadarProcessingHandlerDeltaPerformanceGateTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
+
+result:
+  53 passed, 0 failed, 0 skipped
+```
+
 ## Full-Cache Handler Matrix
 
 Additional full-cache handler performance evidence was captured after the
@@ -158,16 +169,17 @@ active batch capacities:
   1
   4
 
-result:
+optimized result:
   4/4 rows completed
   processing completeness succeeded
   processing validation failed batches: 0
   terminal retained pressure: 0
 
 warning:
-  active=4 handler delta/merge is correct but not performance-ready as a
-  high-volume accepted default; allocation reached 33_636_660_120 bytes for
-  counter-checksum and 56_545_129_088 bytes for counter-checksum-heavy
+  optimized active=4 handler delta/merge is correct and no longer an
+  elapsed-time blocker in the full-cache matrix; allocation remains above
+  active=1 at 8_188_695_464 bytes for counter-checksum and 12_209_454_512
+  bytes for counter-checksum-heavy
 ```
 
 ## Full Test Project
@@ -243,8 +255,8 @@ delta serialization is an in-process/versioned contract gate, not a
 the performance gate is deterministic in-process evidence, not cross-machine
   or production throughput certification
 full-cache handler delta/merge correctness is proven for the benchmark handler
-  sets, but active=4 allocation and elapsed time regress materially versus the
-  sequential handler-aware rows
+  sets, and optimized active=4 elapsed time is flat versus the sequential
+  handler-aware rows; active=4 allocation remains higher than active=1
 persistent durable adapter readiness remains future reliability work
 true live network ingestion remains future work
 production HTTP BFF host and frontend remain future work

@@ -2,11 +2,14 @@ namespace RadarPulse.Domain.Processing;
 
 public sealed class RadarProcessingHandlerDeltaMergeResult
 {
+    private readonly IReadOnlyList<RadarProcessingHandlerDeltaValue> appliedValues;
+
     public RadarProcessingHandlerDeltaMergeResult(
         RadarProcessingHandlerDeltaMergeStatus status,
         RadarProcessingHandlerDeltaMergeSummary summary,
         int appliedDeltaCount,
-        string message = "")
+        string message = "",
+        IReadOnlyList<RadarProcessingHandlerDeltaValue>? appliedValues = null)
     {
         EnsureKnownStatus(status);
         ArgumentNullException.ThrowIfNull(summary);
@@ -17,6 +20,9 @@ public sealed class RadarProcessingHandlerDeltaMergeResult
         Summary = summary;
         AppliedDeltaCount = appliedDeltaCount;
         Message = message;
+        this.appliedValues = appliedValues is null || appliedValues.Count == 0
+            ? Array.Empty<RadarProcessingHandlerDeltaValue>()
+            : Array.AsReadOnly(appliedValues.ToArray());
     }
 
     public RadarProcessingHandlerDeltaMergeStatus Status { get; }
@@ -26,6 +32,8 @@ public sealed class RadarProcessingHandlerDeltaMergeResult
     public int AppliedDeltaCount { get; }
 
     public string Message { get; }
+
+    public IReadOnlyList<RadarProcessingHandlerDeltaValue> AppliedValues => appliedValues;
 
     public bool IsAccepted =>
         Status == RadarProcessingHandlerDeltaMergeStatus.Accepted;

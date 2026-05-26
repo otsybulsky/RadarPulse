@@ -1,11 +1,11 @@
 # Milestone 025: Full-Cache Handler Performance Matrix
 
-Status: captured before decision trace.
+Status: captured and optimized before decision trace.
 
 This document records the requested full-cache performance matrix for the
-milestone 025 handler delta/merge runtime path. It uses the local `data\nexrad`
-cache and runs standard benchmark handlers together with the heavier custom
-benchmark handler.
+milestone 025 handler delta/merge runtime path and the follow-up merge-state
+optimization. It uses the local `data\nexrad` cache and runs standard
+benchmark handlers together with the heavier custom benchmark handler.
 
 ## Scope
 
@@ -55,15 +55,15 @@ result:
   succeeded, 0 warnings, 0 errors
 ```
 
-Focused Release suite:
+Focused Release suite after merge-state optimization:
 
 ```text
 dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
-  --no-restore --no-build
-  --filter "FullyQualifiedName~RadarProcessingSyntheticBenchmarkTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests|FullyQualifiedName~RadarProcessingMvpHandlerDeltaRuntimeTests|FullyQualifiedName~RadarProcessingHandlerDeltaPerformanceGateTests"
+  --no-build
+  --filter "FullyQualifiedName~RadarProcessingHandlerDeltaMergeCoordinatorTests|FullyQualifiedName~RadarProcessingMvpHandlerDeltaRuntimeTests|FullyQualifiedName~RadarProcessingSyntheticBenchmarkTests|FullyQualifiedName~RadarProcessingHandlerDeltaPerformanceGateTests|FullyQualifiedName~RadarPulseCliRebalanceBenchmarkTests"
 
 result:
-  45 passed, 0 failed, 0 skipped
+  53 passed, 0 failed, 0 skipped
 ```
 
 ## Workload
@@ -136,21 +136,28 @@ End-to-end result:
 
 | Handler set | Active batches | Processing path | Elapsed ms | Ratio vs same handler active=1 | Allocated bytes | Allocation ratio vs same handler active=1 |
 | --- | ---: | --- | ---: | ---: | ---: | ---: |
-| counter-checksum | 1 | sequential handler-aware drain | 69_464.65 | 1.000x | 4_676_870_544 | 1.000x |
-| counter-checksum | 4 | handler delta/merge | 78_480.75 | 1.130x | 33_636_660_120 | 7.192x |
-| counter-checksum-heavy | 1 | sequential handler-aware drain | 69_075.00 | 1.000x | 4_671_167_384 | 1.000x |
-| counter-checksum-heavy | 4 | handler delta/merge | 82_884.73 | 1.200x | 56_545_129_088 | 12.105x |
+| counter-checksum | 1 | sequential handler-aware drain | 61_373.01 | 1.000x | 4_671_386_960 | 1.000x |
+| counter-checksum | 4 | optimized handler delta/merge | 61_588.17 | 1.004x | 8_188_695_464 | 1.753x |
+| counter-checksum-heavy | 1 | sequential handler-aware drain | 62_806.15 | 1.000x | 4_675_001_328 | 1.000x |
+| counter-checksum-heavy | 4 | optimized handler delta/merge | 62_687.17 | 0.998x | 12_209_454_512 | 2.612x |
+
+Active=4 comparison against the pre-optimization matrix:
+
+| Handler set | Before elapsed ms | Optimized elapsed ms | Optimized/before elapsed | Before allocated bytes | Optimized allocated bytes | Optimized/before allocation |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| counter-checksum | 78_480.75 | 61_588.17 | 0.785x | 33_636_660_120 | 8_188_695_464 | 0.243x |
+| counter-checksum-heavy | 82_884.73 | 62_687.17 | 0.756x | 56_545_129_088 | 12_209_454_512 | 0.216x |
 
 Cross-handler comparison:
 
 ```text
 counter-checksum-heavy active=1 vs counter-checksum active=1:
-  elapsed: 0.994x
-  allocation: 0.999x
+  elapsed: 1.023x
+  allocation: 1.001x
 
 counter-checksum-heavy active=4 vs counter-checksum active=4:
-  elapsed: 1.056x
-  allocation: 1.681x
+  elapsed: 1.018x
+  allocation: 1.491x
 ```
 
 Correctness and lifecycle:
@@ -177,19 +184,19 @@ all rows:
 
 Retained pressure and pool health:
 
-| Handler set | Active batches | Queue depth high watermark | Active retained batches high watermark | Active retained payload bytes high watermark | Combined retained batches high watermark | Combined retained payload bytes high watermark | Retained pool misses |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| counter-checksum | 1 | 1 | 1 | 54_413_280 | 1 | 54_413_280 | 0 |
-| counter-checksum | 4 | 1 | 4 | 213_402_240 | 4 | 213_402_240 | 0 |
-| counter-checksum-heavy | 1 | 1 | 1 | 54_413_280 | 1 | 54_413_280 | 0 |
-| counter-checksum-heavy | 4 | 1 | 4 | 213_402_240 | 5 | 257_538_240 | 2 |
+```text
+all rows:
+  retained payload pool misses: 0
+  terminal combined retained batches: 0
+  terminal combined retained payload bytes: 0
+```
 
 Worker telemetry for sequential handler-aware rows:
 
 | Handler set | Active batches | Worker execution ms | Worker barrier wait ms | Worker failed batches/items |
 | --- | ---: | ---: | ---: | --- |
-| counter-checksum | 1 | 1_941.45 | 2_072.96 | 0/0 |
-| counter-checksum-heavy | 1 | 5_152.33 | 5_310.93 | 0/0 |
+| counter-checksum | 1 | 1_787.58 | 1_837.10 | 0/0 |
+| counter-checksum-heavy | 1 | 4_745.21 | 4_896.30 | 0/0 |
 
 ## Interpretation
 
@@ -201,19 +208,26 @@ The active=1 rows remained archive-producer dominated. The heavier handler was
 visible in worker execution time, but the end-to-end elapsed result stayed flat
 inside normal run noise.
 
-The active=4 handler delta/merge rows are correct but not performance-ready as
-an accepted high-volume default. They increased end-to-end elapsed time and
-allocation materially, with the heavy handler row reaching
-`56_545_129_088` allocated bytes and `12.105x` allocation versus its
-active=1 row.
+The optimized active=4 handler delta/merge rows are no longer an elapsed-time
+blocker in this full-cache evidence. `counter-checksum` active=4 measured
+`1.004x` elapsed versus active=1, and `counter-checksum-heavy` active=4
+measured `0.998x` elapsed versus active=1.
 
-The implementation now emits handler delta values only for touched sources,
-which makes the full-cache run feasible. The remaining cost is the current
-merge coordinator/value-application shape: merged value snapshots are rebuilt
-and re-applied repeatedly as touched source coverage grows. The next
-performance optimization target is an incremental per-handler/per-source merge
-state that avoids dictionary rebuilds and repeated full merged-value
-application on every committed batch.
+The merge-state optimization materially reduced the active=4 cost. The
+standard handler row dropped to `0.785x` of the previous elapsed time and
+`0.243x` of the previous allocation. The heavy handler row dropped to `0.756x`
+of the previous elapsed time and `0.216x` of the previous allocation.
+
+The optimization combines handler-owned accumulator merge state, a lightweight
+commit merge result, direct sparse delta export for touched sources, and
+grouped handler-value commit. It avoids rebuilding and reapplying broad merged
+snapshots on every committed batch.
+
+Allocation remains above the active=1 handler-aware rows: `1.753x` for
+`counter-checksum` active=4 and `2.612x` for `counter-checksum-heavy` active=4.
+That overhead is now a scoped performance warning rather than a full-cache
+elapsed blocker. If allocation parity is required, the next target is further
+reducing per-batch sparse-state and applied-value materialization.
 
 ## Decision Trace Carry-Forward
 
@@ -221,7 +235,7 @@ The milestone 025 decision trace should carry this warning:
 
 ```text
 full-cache handler delta/merge correctness is proven for the benchmark handler
-sets, but active=4 high-volume handler delta/merge is not yet accepted as a
-fast default because allocation and elapsed time regress materially versus the
-sequential handler-aware row
+sets, and optimized active=4 elapsed time is flat versus the active=1
+handler-aware rows in this matrix; allocation remains higher than active=1
+and should be accepted only as a scoped warning unless parity is required
 ```

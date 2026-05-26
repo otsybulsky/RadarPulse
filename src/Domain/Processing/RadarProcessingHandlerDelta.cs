@@ -20,6 +20,35 @@ public sealed class RadarProcessingHandlerDelta
         RadarProcessingHandlerDeltaId deltaId,
         IReadOnlyList<RadarProcessingHandlerDeltaValue>? values = null,
         int schemaVersion = CurrentSchemaVersion)
+        : this(
+            handlerName,
+            handlerContractVersion,
+            providerSequence,
+            durableBatchId,
+            eventCount,
+            sourceCount,
+            payloadValueCount,
+            inputChecksum,
+            deltaId,
+            values,
+            schemaVersion,
+            copyValues: true)
+    {
+    }
+
+    private RadarProcessingHandlerDelta(
+        string handlerName,
+        string handlerContractVersion,
+        RadarProcessingQueuedBatchSequence providerSequence,
+        RadarProcessingDurableBatchId? durableBatchId,
+        int eventCount,
+        int sourceCount,
+        long payloadValueCount,
+        long inputChecksum,
+        RadarProcessingHandlerDeltaId deltaId,
+        IReadOnlyList<RadarProcessingHandlerDeltaValue>? values,
+        int schemaVersion,
+        bool copyValues)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(handlerName);
         ArgumentException.ThrowIfNullOrWhiteSpace(handlerContractVersion);
@@ -60,7 +89,7 @@ public sealed class RadarProcessingHandlerDelta
         InputChecksum = inputChecksum;
         DeltaId = deltaId;
         SchemaVersion = schemaVersion;
-        this.values = CopyValues(values, sourceCount);
+        this.values = CopyValues(values, sourceCount, copyValues);
     }
 
     public string HandlerName { get; }
@@ -115,6 +144,38 @@ public sealed class RadarProcessingHandlerDelta
                 inputChecksum),
             values);
 
+    internal static RadarProcessingHandlerDelta CreateWithOwnedValues(
+        string handlerName,
+        string handlerContractVersion,
+        RadarProcessingQueuedBatchSequence providerSequence,
+        RadarProcessingDurableBatchId? durableBatchId,
+        int eventCount,
+        int sourceCount,
+        long payloadValueCount,
+        long inputChecksum,
+        RadarProcessingHandlerDeltaValue[]? values = null) =>
+        new(
+            handlerName,
+            handlerContractVersion,
+            providerSequence,
+            durableBatchId,
+            eventCount,
+            sourceCount,
+            payloadValueCount,
+            inputChecksum,
+            CreateId(
+                handlerName,
+                handlerContractVersion,
+                providerSequence,
+                durableBatchId,
+                eventCount,
+                sourceCount,
+                payloadValueCount,
+                inputChecksum),
+            values,
+            CurrentSchemaVersion,
+            copyValues: false);
+
     public static RadarProcessingHandlerDeltaId CreateId(
         string handlerName,
         string handlerContractVersion,
@@ -147,14 +208,20 @@ public sealed class RadarProcessingHandlerDelta
 
     private static IReadOnlyList<RadarProcessingHandlerDeltaValue> CopyValues(
         IReadOnlyList<RadarProcessingHandlerDeltaValue>? values,
-        int sourceCount)
+        int sourceCount,
+        bool copyValues)
     {
         if (values is null || values.Count == 0)
         {
             return Array.Empty<RadarProcessingHandlerDeltaValue>();
         }
 
-        var result = new RadarProcessingHandlerDeltaValue[values.Count];
+        var result = copyValues
+            ? new RadarProcessingHandlerDeltaValue[values.Count]
+            : values as RadarProcessingHandlerDeltaValue[] ??
+              throw new ArgumentException(
+                  "Owned handler delta values must be provided as an array.",
+                  nameof(values));
         var seen = new HashSet<(int SourceId, string FieldName)>();
         for (var i = 0; i < values.Count; i++)
         {
@@ -172,7 +239,10 @@ public sealed class RadarProcessingHandlerDelta
                     nameof(values));
             }
 
-            result[i] = value;
+            if (copyValues)
+            {
+                result[i] = value;
+            }
         }
 
         return Array.AsReadOnly(result);
