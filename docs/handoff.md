@@ -4,12 +4,13 @@
 
 Milestone 028 has been selected after milestone 027 closeout. The
 architecture/concept document, implementation plan, slice 1 product DTO and
-mapping contract, and slice 2 product pipeline run service are complete.
+mapping contract, slice 2 product pipeline run service, and slice 3 product
+read query surface are complete.
 
 Stop point:
 
 ```text
-milestone 028 slice 2 complete
+milestone 028 slice 3 complete
 ```
 
 Current milestone:
@@ -39,7 +40,7 @@ Milestone 028 planned slices:
 ```text
 1. Product DTO and mapping contract [complete]
 2. Product pipeline run service [complete]
-3. Product read query surface [planned]
+3. Product read query surface [complete]
 4. Product operator control surface [planned]
 5. Console product workflow [planned]
 6. API-facing contract or thin host [planned]
@@ -60,6 +61,12 @@ slice 2 focused product service suite:
 
 slice 2 focused product service Release suite:
   6 passed, 0 failed, 0 skipped
+
+slice 3 focused product query suite:
+  4 passed, 0 failed, 0 skipped
+
+slice 3 focused product query Release suite:
+  4 passed, 0 failed, 0 skipped
 
 Release build:
   succeeded, 0 warnings, 0 errors
@@ -129,7 +136,7 @@ throughput certification, or exactly-once production delivery.
 Current next action:
 
 ```text
-start slice 3: product read query surface
+start slice 4: product operator control surface
 ```
 
 Stop-before-decision-trace instruction:

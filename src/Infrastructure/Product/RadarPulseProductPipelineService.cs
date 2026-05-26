@@ -169,6 +169,123 @@ public sealed class RadarPulseProductPipelineService
         }
     }
 
+    public RadarPulseProductQueryResult<IReadOnlyList<RadarPulseProductBatch>> ListBatches(
+        string runId)
+    {
+        var run = TryGetRun(runId);
+        return run.Found
+            ? RadarPulseProductQueryResult<IReadOnlyList<RadarPulseProductBatch>>.FromValue(run.Value!.Batches)
+            : RadarPulseProductQueryResult<IReadOnlyList<RadarPulseProductBatch>>.NotFound(run.Message);
+    }
+
+    public RadarPulseProductQueryResult<RadarPulseProductBatch> TryGetBatch(
+        string runId,
+        long providerSequence)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(providerSequence);
+
+        var run = TryGetRun(runId);
+        if (!run.Found)
+        {
+            return RadarPulseProductQueryResult<RadarPulseProductBatch>.NotFound(run.Message);
+        }
+
+        foreach (var batch in run.Value!.Batches)
+        {
+            if (batch.ProviderSequence == providerSequence)
+            {
+                return RadarPulseProductQueryResult<RadarPulseProductBatch>.FromValue(batch);
+            }
+        }
+
+        return RadarPulseProductQueryResult<RadarPulseProductBatch>.NotFound(
+            $"Product run '{runId}' does not contain batch sequence {providerSequence}.");
+    }
+
+    public RadarPulseProductQueryResult<IReadOnlyList<RadarPulseProductSource>> ListSources(
+        string runId)
+    {
+        var run = TryGetRun(runId);
+        return run.Found
+            ? RadarPulseProductQueryResult<IReadOnlyList<RadarPulseProductSource>>.FromValue(run.Value!.Sources)
+            : RadarPulseProductQueryResult<IReadOnlyList<RadarPulseProductSource>>.NotFound(run.Message);
+    }
+
+    public RadarPulseProductQueryResult<RadarPulseProductSource> TryGetSource(
+        string runId,
+        int sourceId)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(sourceId);
+
+        var run = TryGetRun(runId);
+        if (!run.Found)
+        {
+            return RadarPulseProductQueryResult<RadarPulseProductSource>.NotFound(run.Message);
+        }
+
+        foreach (var source in run.Value!.Sources)
+        {
+            if (source.Identity.SourceId == sourceId)
+            {
+                return RadarPulseProductQueryResult<RadarPulseProductSource>.FromValue(source);
+            }
+        }
+
+        return RadarPulseProductQueryResult<RadarPulseProductSource>.NotFound(
+            $"Product run '{runId}' does not contain source {sourceId}.");
+    }
+
+    public RadarPulseProductQueryResult<RadarPulseProductHandlerOutput> TryGetHandlerOutput(
+        string runId,
+        int sourceId,
+        string fieldName)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(sourceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(fieldName);
+
+        var source = TryGetSource(runId, sourceId);
+        if (!source.Found)
+        {
+            return RadarPulseProductQueryResult<RadarPulseProductHandlerOutput>.NotFound(source.Message);
+        }
+
+        foreach (var value in source.Value!.HandlerValues)
+        {
+            if (string.Equals(value.Name, fieldName, StringComparison.Ordinal))
+            {
+                return RadarPulseProductQueryResult<RadarPulseProductHandlerOutput>.FromValue(value);
+            }
+        }
+
+        return RadarPulseProductQueryResult<RadarPulseProductHandlerOutput>.NotFound(
+            $"Product run '{runId}' source {sourceId} does not contain handler field '{fieldName}'.");
+    }
+
+    public RadarPulseProductQueryResult<RadarPulseProductDiagnostics> TryGetDiagnostics(
+        string runId)
+    {
+        var run = TryGetRun(runId);
+        if (!run.Found)
+        {
+            return RadarPulseProductQueryResult<RadarPulseProductDiagnostics>.NotFound(run.Message);
+        }
+
+        return run.Value!.Diagnostics is { } diagnostics
+            ? RadarPulseProductQueryResult<RadarPulseProductDiagnostics>.FromValue(diagnostics)
+            : RadarPulseProductQueryResult<RadarPulseProductDiagnostics>.NotFound(
+                $"Product run '{runId}' does not have diagnostics.");
+    }
+
+    public RadarPulseProductQueryResult<RadarPulseProductCapacityEvidence> TryGetCapacityEvidence(
+        string runId)
+    {
+        var run = TryGetRun(runId);
+        return run.Found
+            ? RadarPulseProductQueryResult<RadarPulseProductCapacityEvidence>.FromValue(
+                run.Value!.CapacityEvidence)
+            : RadarPulseProductQueryResult<RadarPulseProductCapacityEvidence>.NotFound(run.Message);
+    }
+
     private async ValueTask<RadarPulseProductRunDetail> RunBatchesAsync(
         string runId,
         RadarSourceUniverse sourceUniverse,
