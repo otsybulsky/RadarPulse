@@ -8,6 +8,7 @@ public sealed record RadarProcessingArchiveOrderedProcessingBenchmarkResult(
     DateOnly? Date,
     string? RadarId,
     string Decompressor,
+    RadarProcessingBenchmarkHandlerSet HandlerSet,
     int Iterations,
     int WarmupIterations,
     int DegreeOfParallelism,

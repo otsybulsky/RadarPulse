@@ -224,13 +224,7 @@ public sealed class RadarProcessingSyntheticBenchmark
 
     private static IReadOnlyList<IRadarSourceProcessingHandler> CreateHandlers(
         RadarProcessingBenchmarkHandlerSet handlerSet) =>
-        handlerSet switch
-        {
-            RadarProcessingBenchmarkHandlerSet.None => Array.Empty<IRadarSourceProcessingHandler>(),
-            RadarProcessingBenchmarkHandlerSet.CounterChecksum =>
-                new IRadarSourceProcessingHandler[] { new CounterChecksumBenchmarkHandler() },
-            _ => throw new ArgumentOutOfRangeException(nameof(handlerSet))
-        };
+        RadarProcessingBenchmarkHandlers.Create(handlerSet);
 
     private static async ValueTask<ProcessingIterationResult> ProcessAndValidateIterationAsync(
         RadarProcessingCore core,
@@ -438,11 +432,7 @@ public sealed class RadarProcessingSyntheticBenchmark
 
     private static void EnsureKnownHandlerSet(RadarProcessingBenchmarkHandlerSet handlerSet)
     {
-        if (handlerSet is not RadarProcessingBenchmarkHandlerSet.None and
-            not RadarProcessingBenchmarkHandlerSet.CounterChecksum)
-        {
-            throw new ArgumentOutOfRangeException(nameof(handlerSet));
-        }
+        RadarProcessingBenchmarkHandlers.EnsureKnown(handlerSet);
     }
 
     private static void EnsureKnownExecutionMode(RadarProcessingExecutionMode executionMode)
@@ -528,36 +518,4 @@ public sealed class RadarProcessingSyntheticBenchmark
             ActiveSourceCount == other.ActiveSourceCount;
     }
 
-    private sealed class CounterChecksumBenchmarkHandler : IRadarSourceProcessingHandler
-    {
-        public RadarSourceProcessingHandlerDescriptor Descriptor { get; } =
-            new(
-                "benchmark.counter_checksum",
-                int64SlotCount: 3,
-                doubleSlotCount: 0,
-                new[]
-                {
-                    new RadarSourceProcessingSnapshotFieldDescriptor(
-                        "benchmark.events",
-                        RadarSourceProcessingSnapshotFieldType.Int64,
-                        slotIndex: 0),
-                    new RadarSourceProcessingSnapshotFieldDescriptor(
-                        "benchmark.payload_values",
-                        RadarSourceProcessingSnapshotFieldType.Int64,
-                        slotIndex: 1),
-                    new RadarSourceProcessingSnapshotFieldDescriptor(
-                        "benchmark.raw_checksum",
-                        RadarSourceProcessingSnapshotFieldType.Int64,
-                        slotIndex: 2)
-                });
-
-        public void Process(
-            in RadarSourceProcessingHandlerContext context,
-            RadarSourceProcessingState state)
-        {
-            state.AddInt64(slotIndex: 0, value: 1);
-            state.AddInt64(slotIndex: 1, context.PayloadMetrics.PayloadValueCount);
-            state.AddInt64(slotIndex: 2, context.PayloadMetrics.RawValueChecksum);
-        }
-    }
 }

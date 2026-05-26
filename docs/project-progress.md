@@ -1,6 +1,7 @@
 # RadarPulse Project Progress
 
-Status: current during milestone 025 pre-decision trace review.
+Status: current during milestone 025 pre-decision trace review with
+full-cache handler matrix evidence captured.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -17,8 +18,9 @@ runtime/archive owned-construction integration milestone, the scoped ordered
 concurrent runtime/archive processing milestone, the ordered
 rebalance/topology commit milestone, the durable/cross-process runtime
 readiness milestone, and the custom handler output contract and BFF readiness
-milestone. Milestone 025 handler delta/merge implementation slices and gate
-evidence are captured; the decision trace is intentionally not written yet.
+milestone. Milestone 025 handler delta/merge implementation slices, gate
+evidence, and full-cache handler performance matrix are captured; the decision
+trace is intentionally not written yet.
 
 Current state:
 
@@ -28,6 +30,7 @@ active milestone: 025 handler delta/merge contract for fast custom analytics
 active milestone status:
   implementation slices complete
   pre-decision gate captured
+  full-cache handler matrix captured
   decision trace not written
 
 current accepted benchmark/default posture:
@@ -69,9 +72,12 @@ current runtime/live posture:
   snapshot-only stateful handler output keeps committed snapshot export and
   explicit sequential fallback
   explicitly mergeable stateful handlers now have scoped in-process handler
-  delta/merge implementation and pre-decision gate evidence
-  high-volume custom analytics performance readiness is under decision-trace
-  review and is not accepted until milestone 025 decision trace is written
+  delta/merge implementation, pre-decision gate evidence, and full-cache
+  handler matrix evidence
+  high-volume custom analytics correctness is proven for benchmark handler
+  sets on the local full cache, but active=4 handler delta/merge is not yet
+  performance-ready as an accepted fast default because allocation and elapsed
+  time regress materially versus active=1 handler-aware rows
   persistent durable adapter readiness remains deferred to a later reliability
   milestone while the immediate MVP analytics path addresses handler
   delta/merge first
@@ -79,8 +85,9 @@ current runtime/live posture:
   surfaces are not implemented yet
 
 current next action:
-  review milestone 025 gate evidence and write the decision trace only after
-  the scoped warnings and readiness posture are agreed
+  review milestone 025 gate plus full-cache handler matrix evidence and write
+  the decision trace only after the scoped warnings and readiness posture are
+  agreed
 ```
 
 The current accepted direct benchmark contour is:

@@ -181,14 +181,14 @@ static int PrintUsage()
     Console.WriteLine("  radarpulse archive benchmark replay-publish --file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse archive benchmark replay-publish --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
     Console.WriteLine("  radarpulse archive benchmark stream (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
-    Console.WriteLine("  radarpulse processing benchmark synthetic [--mode sequential|partitioned|async] [--sources n] [--batches n] [--events-per-batch n] [--payload-values n] [--partitions n] [--shards n] [--workers n] [--queue-capacity n] [--handlers none|counter-checksum] [--iterations n] [--warmup-iterations n]");
+    Console.WriteLine("  radarpulse processing benchmark synthetic [--mode sequential|partitioned|async] [--sources n] [--batches n] [--events-per-batch n] [--payload-values n] [--partitions n] [--shards n] [--workers n] [--queue-capacity n] [--handlers none|counter-checksum|counter-checksum-heavy] [--iterations n] [--warmup-iterations n]");
     Console.WriteLine("  radarpulse processing benchmark rebalance-synthetic [--workload balanced|hot-shard|intrinsic-hot|oscillating|cooldown-storm|quarantine-ttl-retry|quarantine-cooling-clear|quarantine-pressure-change-retry|quarantine-retry-reentry|quarantine-successful-relief-clear|long-no-hot-shard|long-cooldown-rejection|long-unsafe-target-rejection|long-mixed-skipped-reasons|counters-only-retention|all] [--mode static|sampling|rebalance|ordered-rebalance|all] [--active-batches n] [--execution sync|async] [--workers n] [--queue-capacity n] [--validation-profile off|essential|diagnostic|benchmark] [--quarantine-ttl-evaluations n] [--quarantine-sustained-cooling-samples n] [--quarantine-material-pressure-change n] [--iterations n] [--warmup-iterations n]");
     Console.WriteLine("  radarpulse processing benchmark rebalance-archive (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--mode static|sampling|rebalance|all] [--provider blocking-borrowed|queued-owned] [--provider-overlap none|producer-consumer] [--retention-strategy snapshot-copy|pooled-copy|builder-transfer] [--execution sync|async] [--workers n] [--queue-capacity n] [--queue-timeout-ms n] [--queue-retained-bytes n] [--queue-telemetry none|summary|recent] [--overlap-telemetry none|summary|recent] [--overlap-consumer-delay-ms n] [--partitions n] [--shards n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress] [--validation-profile off|essential|diagnostic|benchmark] [--quarantine-ttl-evaluations n] [--quarantine-sustained-cooling-samples n] [--quarantine-material-pressure-change n] [--retention-mode counters|recent|diagnostic] [--max-retained-decisions n] [--max-retained-transitions n] [--max-retained-accepted-moves n] [--max-retained-validation-failures n] [--skew-profile none|hot-shard|rotating-hot-shard|hot-partition|target-starvation|budget-storm] [--skew-factor n] [--skew-period n]");
-    Console.WriteLine("  radarpulse processing benchmark ordered-archive-processing (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--active-batches n] [--partitions n] [--shards n] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress] [--queue-telemetry none|summary|recent] [--overlap-telemetry none|summary|recent]");
+    Console.WriteLine("  radarpulse processing benchmark ordered-archive-processing (--file data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06 | --cache data/nexrad [--date yyyy-MM-dd] [--radar KTLX] [--max-files n]) [--active-batches n] [--partitions n] [--shards n] [--handlers none|counter-checksum|counter-checksum-heavy] [--iterations n] [--warmup-iterations n] [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress] [--queue-telemetry none|summary|recent] [--overlap-telemetry none|summary|recent]");
     Console.WriteLine("    rebalance-archive omitted-provider default: queued-owned + pooled-copy + producer-consumer, async workers 4, queue capacity 8, retained-byte budget 536870912, retained-payload prewarm on.");
     Console.WriteLine("    rebalance-archive fallback/oracle: use --provider blocking-borrowed for the borrowed path and same-run comparison.");
     Console.WriteLine("    rebalance-archive direct MeasureFile()/MeasureCache() defaults use the same queued-owned rollout contour.");
-    Console.WriteLine("    ordered-archive-processing uses RunProcessingAsync with ordered active-batch commit over the runtime/archive baseline.");
+    Console.WriteLine("    ordered-archive-processing uses the runtime/archive MVP path; handler-free rows use RunProcessingAsync and handler rows use RunMvpProcessingAsync.");
     Console.WriteLine("    --overlap-consumer-delay-ms is controlled mechanics proof, not natural rollout evidence.");
     Console.WriteLine("  radarpulse archive validate decompress (--file path | --cache data/nexrad [--radar KTLX] [--max-files n])");
     Console.WriteLine("  radarpulse archive validate replay-shape (--file path | --cache data/nexrad [--radar KTLX] [--max-files n]) [--parallelism n] [--decompressor radarpulse|sharpziplib|sharpcompress]");
@@ -551,7 +551,8 @@ static int BenchmarkProcessingOrderedArchiveProcessing(string[] args)
             options.ShardCount,
             options.Parallelism,
             options.ActiveBatchCapacity,
-            CancellationToken.None)
+            CancellationToken.None,
+            options.HandlerSet)
         : benchmark.MeasureFile(
             options.FilePath ?? throw new InvalidOperationException("--file is required when --cache is not provided."),
             options.Iterations,
@@ -560,7 +561,8 @@ static int BenchmarkProcessingOrderedArchiveProcessing(string[] args)
             options.ShardCount,
             options.Parallelism,
             options.ActiveBatchCapacity,
-            CancellationToken.None);
+            CancellationToken.None,
+            options.HandlerSet);
 
     PrintProcessingArchiveOrderedProcessingBenchmarkResult(result, options);
     return 0;
@@ -994,7 +996,12 @@ static void PrintProcessingArchiveOrderedProcessingBenchmarkResult(
     Console.WriteLine(result.IsCache
         ? "Processing benchmark: ordered-archive-processing cache"
         : "Processing benchmark: ordered-archive-processing");
-    Console.WriteLine("Measured contour: Archive replay to RadarEventBatch through RunProcessingAsync ordered active-batch drain");
+    Console.WriteLine("Measured contour: Archive replay to RadarEventBatch through runtime/archive MVP processing path");
+    Console.WriteLine(result.HandlerSet == RadarProcessingBenchmarkHandlerSet.None
+        ? "Processing path: RunProcessingAsync ordered active-batch drain"
+        : result.ActiveBatchCapacity == 1
+            ? "Processing path: RunMvpProcessingAsync sequential handler-aware drain"
+            : "Processing path: RunMvpProcessingAsync handler delta/merge");
     Console.WriteLine("Processing-only timing: provider/consumer overlap result around ordered processing drain");
     Console.WriteLine("Batch lifetime: leased batches are converted to owned snapshots before provider queue enqueue");
     if (result.IsCache)
@@ -1016,6 +1023,7 @@ static void PrintProcessingArchiveOrderedProcessingBenchmarkResult(
     }
 
     Console.WriteLine($"Decompressor: {result.Decompressor}");
+    Console.WriteLine($"Handler set: {FormatProcessingHandlerSet(result.HandlerSet)}");
     Console.WriteLine($"Archive parallelism: {FormatNumber(result.DegreeOfParallelism)}");
     Console.WriteLine($"Provider mode: {FormatProcessingArchiveProviderMode(RadarProcessingArchiveProviderMode.QueuedOwned)}");
     Console.WriteLine($"Provider queue capacity: {FormatNumber(RadarProcessingArchiveRebalanceRolloutDefaults.ProviderQueueCapacity)}");
@@ -1475,6 +1483,7 @@ static string FormatProcessingHandlerSet(RadarProcessingBenchmarkHandlerSet hand
     {
         RadarProcessingBenchmarkHandlerSet.None => "none",
         RadarProcessingBenchmarkHandlerSet.CounterChecksum => "counter-checksum",
+        RadarProcessingBenchmarkHandlerSet.CounterChecksumHeavy => "counter-checksum-heavy",
         _ => handlerSet.ToString()
     };
 
@@ -2897,6 +2906,8 @@ internal sealed record ProcessingBenchmarkSyntheticOptions(
         {
             "none" => RadarProcessingBenchmarkHandlerSet.None,
             "counter-checksum" => RadarProcessingBenchmarkHandlerSet.CounterChecksum,
+            "counter-checksum-heavy" or "counter-checksum+heavy" or "standard-heavy" =>
+                RadarProcessingBenchmarkHandlerSet.CounterChecksumHeavy,
             _ => throw new ArgumentException($"Unknown processing benchmark handler set: {value}")
         };
 
@@ -3950,6 +3961,7 @@ public sealed record ProcessingBenchmarkOrderedArchiveProcessingOptions(
     int WarmupIterations,
     int Parallelism,
     string Decompressor,
+    RadarProcessingBenchmarkHandlerSet HandlerSet,
     ProcessingBenchmarkProviderQueueTelemetryOutput QueueTelemetryOutput =
         ProcessingBenchmarkProviderQueueTelemetryOutput.Summary,
     ProcessingBenchmarkProviderOverlapTelemetryOutput OverlapTelemetryOutput =
@@ -3970,6 +3982,7 @@ public sealed record ProcessingBenchmarkOrderedArchiveProcessingOptions(
         var warmupIterations = 0;
         var parallelism = 1;
         var decompressor = ArchiveBZip2Decompressors.DefaultName;
+        var handlerSet = RadarProcessingBenchmarkHandlerSet.None;
         var queueTelemetryOutput = ProcessingBenchmarkProviderQueueTelemetryOutput.Summary;
         var overlapTelemetryOutput = ProcessingBenchmarkProviderOverlapTelemetryOutput.Summary;
 
@@ -4014,6 +4027,9 @@ public sealed record ProcessingBenchmarkOrderedArchiveProcessingOptions(
                     break;
                 case "--decompressor":
                     decompressor = RequireValue(args, ref i, "--decompressor");
+                    break;
+                case "--handlers":
+                    handlerSet = ParseHandlerSet(RequireValue(args, ref i, "--handlers"));
                     break;
                 case "--queue-telemetry":
                     queueTelemetryOutput = ParseQueueTelemetryOutput(RequireValue(args, ref i, "--queue-telemetry"));
@@ -4079,6 +4095,7 @@ public sealed record ProcessingBenchmarkOrderedArchiveProcessingOptions(
         }
 
         ArchiveBZip2Decompressors.Create(decompressor);
+        RadarProcessingBenchmarkHandlers.EnsureKnown(handlerSet);
         _ = new RadarProcessingOrderedConcurrencyOptions(activeBatchCapacity);
 
         return new ProcessingBenchmarkOrderedArchiveProcessingOptions(
@@ -4094,9 +4111,20 @@ public sealed record ProcessingBenchmarkOrderedArchiveProcessingOptions(
             warmupIterations,
             parallelism,
             decompressor,
+            handlerSet,
             queueTelemetryOutput,
             overlapTelemetryOutput);
     }
+
+    private static RadarProcessingBenchmarkHandlerSet ParseHandlerSet(string value) =>
+        value.ToLowerInvariant() switch
+        {
+            "none" => RadarProcessingBenchmarkHandlerSet.None,
+            "counter-checksum" => RadarProcessingBenchmarkHandlerSet.CounterChecksum,
+            "counter-checksum-heavy" or "counter-checksum+heavy" or "standard-heavy" =>
+                RadarProcessingBenchmarkHandlerSet.CounterChecksumHeavy,
+            _ => throw new ArgumentException($"Unknown ordered archive processing handler set: {value}")
+        };
 
     private static ProcessingBenchmarkProviderQueueTelemetryOutput ParseQueueTelemetryOutput(string value) =>
         value.ToLowerInvariant() switch

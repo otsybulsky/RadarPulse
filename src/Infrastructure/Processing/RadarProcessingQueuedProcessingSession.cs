@@ -607,7 +607,7 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
             }
 
             var delta = core.ComputeProcessingDeltaForHandlerDeltaMerge(queuedBatch.Batch, cancellationToken);
-            var handlerDeltas = CreateHandlerDeltas(queuedBatch, cancellationToken);
+            var handlerDeltas = CreateHandlerDeltas(queuedBatch, delta, cancellationToken);
             return OrderedConcurrentBatchCompletion.FromHandlerDeltas(
                 queuedBatch.Sequence,
                 delta,
@@ -745,8 +745,11 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
 
     private IReadOnlyList<RadarProcessingHandlerDelta> CreateHandlerDeltas(
         RadarProcessingQueuedBatch queuedBatch,
+        RadarProcessingBatchDelta processingDelta,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(processingDelta);
+
         var contract = RadarProcessingHandlerOutputContract.FromOptions(core.Options);
         if (!contract.AllowsOrderedConcurrentHandlerDeltaMerge)
         {
@@ -794,7 +797,7 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
                 core.SourceCount,
                 queuedBatch.PayloadValueCount,
                 queuedBatch.RawValueChecksum,
-                CreateHandlerDeltaValues(descriptor, snapshots));
+                CreateHandlerDeltaValues(descriptor, snapshots, processingDelta.TouchedSourceIds));
         }
 
         return Array.AsReadOnly(result);
@@ -802,12 +805,14 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
 
     private static IReadOnlyList<RadarProcessingHandlerDeltaValue> CreateHandlerDeltaValues(
         RadarProcessingHandlerOutputDescriptor descriptor,
-        IReadOnlyList<RadarSourceProcessingHandlerSnapshot> snapshots)
+        IReadOnlyList<RadarSourceProcessingHandlerSnapshot> snapshots,
+        ReadOnlySpan<int> touchedSourceIds)
     {
         var result = new List<RadarProcessingHandlerDeltaValue>(
-            checked(descriptor.Fields.Count * snapshots.Count));
-        foreach (var snapshot in snapshots)
+            checked(descriptor.Fields.Count * touchedSourceIds.Length));
+        foreach (var sourceId in touchedSourceIds)
         {
+            var snapshot = snapshots[sourceId];
             foreach (var field in descriptor.Fields)
             {
                 if (!snapshot.TryGetValue(field.Name, out var value))

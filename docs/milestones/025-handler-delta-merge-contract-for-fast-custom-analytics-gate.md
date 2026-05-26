@@ -135,6 +135,41 @@ result:
   succeeded, 0 warnings, 0 errors
 ```
 
+## Full-Cache Handler Matrix
+
+Additional full-cache handler performance evidence was captured after the
+pre-decision gate:
+
+```text
+docs/milestones/025-handler-delta-merge-contract-for-fast-custom-analytics-full-cache-performance-matrix.md
+```
+
+Summary:
+
+```text
+cache:
+  data\nexrad
+
+handler sets:
+  counter-checksum
+  counter-checksum-heavy
+
+active batch capacities:
+  1
+  4
+
+result:
+  4/4 rows completed
+  processing completeness succeeded
+  processing validation failed batches: 0
+  terminal retained pressure: 0
+
+warning:
+  active=4 handler delta/merge is correct but not performance-ready as a
+  high-volume accepted default; allocation reached 33_636_660_120 bytes for
+  counter-checksum and 56_545_129_088 bytes for counter-checksum-heavy
+```
+
 ## Full Test Project
 
 Full Release test project:
@@ -207,6 +242,9 @@ delta serialization is an in-process/versioned contract gate, not a
   production persistent adapter proof
 the performance gate is deterministic in-process evidence, not cross-machine
   or production throughput certification
+full-cache handler delta/merge correctness is proven for the benchmark handler
+  sets, but active=4 allocation and elapsed time regress materially versus the
+  sequential handler-aware rows
 persistent durable adapter readiness remains future reliability work
 true live network ingestion remains future work
 production HTTP BFF host and frontend remain future work

@@ -30,9 +30,11 @@ public sealed class RadarProcessingArchiveOrderedProcessingBenchmark
         int shardCount,
         int degreeOfParallelism,
         int activeBatchCapacity,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        RadarProcessingBenchmarkHandlerSet handlerSet = RadarProcessingBenchmarkHandlerSet.None)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        RadarProcessingBenchmarkHandlers.EnsureKnown(handlerSet);
         ValidateCommon(
             iterations,
             warmupIterations,
@@ -62,6 +64,7 @@ public sealed class RadarProcessingArchiveOrderedProcessingBenchmark
                 partitionCount,
                 shardCount,
                 activeBatchCapacity,
+                handlerSet,
                 cancellationToken);
         }
 
@@ -79,6 +82,7 @@ public sealed class RadarProcessingArchiveOrderedProcessingBenchmark
                 partitionCount,
                 shardCount,
                 activeBatchCapacity,
+                handlerSet,
                 cancellationToken);
             if (expectedIteration.HasValue &&
                 !expectedIteration.Value.HasSameStableTotals(iterationTelemetry))
@@ -106,6 +110,7 @@ public sealed class RadarProcessingArchiveOrderedProcessingBenchmark
             partitionCount,
             shardCount,
             activeBatchCapacity,
+            handlerSet,
             stopwatch.Elapsed,
             ExcludeStartupPrewarmAllocation(allocatedBytes, measurement.RetainedPayloadPrewarm, iterations));
     }
@@ -121,10 +126,12 @@ public sealed class RadarProcessingArchiveOrderedProcessingBenchmark
         int shardCount,
         int degreeOfParallelism,
         int activeBatchCapacity,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        RadarProcessingBenchmarkHandlerSet handlerSet = RadarProcessingBenchmarkHandlerSet.None)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(cachePath);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxFiles);
+        RadarProcessingBenchmarkHandlers.EnsureKnown(handlerSet);
         ValidateCommon(
             iterations,
             warmupIterations,
@@ -165,6 +172,7 @@ public sealed class RadarProcessingArchiveOrderedProcessingBenchmark
                 partitionCount,
                 shardCount,
                 activeBatchCapacity,
+                handlerSet,
                 cancellationToken);
         }
 
@@ -185,6 +193,7 @@ public sealed class RadarProcessingArchiveOrderedProcessingBenchmark
                 partitionCount,
                 shardCount,
                 activeBatchCapacity,
+                handlerSet,
                 cancellationToken);
             if (expectedIteration.HasValue &&
                 !expectedIteration.Value.HasSameStableTotals(iterationTelemetry))
@@ -212,6 +221,7 @@ public sealed class RadarProcessingArchiveOrderedProcessingBenchmark
             partitionCount,
             shardCount,
             activeBatchCapacity,
+            handlerSet,
             stopwatch.Elapsed,
             ExcludeStartupPrewarmAllocation(allocatedBytes, measurement.RetainedPayloadPrewarm, iterations));
     }
@@ -239,21 +249,22 @@ public sealed class RadarProcessingArchiveOrderedProcessingBenchmark
         int partitionCount,
         int shardCount,
         int activeBatchCapacity,
+        RadarProcessingBenchmarkHandlerSet handlerSet,
         CancellationToken cancellationToken)
     {
+        var handlers = RadarProcessingBenchmarkHandlers.Create(handlerSet);
         var core = RadarProcessingRuntimeArchiveBaseline.CreateCore(
             sourceUniverse,
             partitionCount,
-            shardCount);
+            shardCount,
+            handlers: handlers);
         var runner = new RadarProcessingArchiveQueuedOverlapRunner();
-        var result = runner.RunProcessingAsync(
+        var result = RunOrderedProcessing(
                 (publisher, token) => archiveSession.PublishFile(fileInfo.FullName, publisher, token),
                 core,
-                new RadarProcessingOrderedConcurrencyOptions(activeBatchCapacity),
-                cancellationToken: cancellationToken)
-            .AsTask()
-            .GetAwaiter()
-            .GetResult();
+                runner,
+                activeBatchCapacity,
+                cancellationToken);
 
         if (!result.IsCompleted)
         {
@@ -278,16 +289,19 @@ public sealed class RadarProcessingArchiveOrderedProcessingBenchmark
         int partitionCount,
         int shardCount,
         int activeBatchCapacity,
+        RadarProcessingBenchmarkHandlerSet handlerSet,
         CancellationToken cancellationToken)
     {
         var selection = SelectCacheArchiveFiles(directoryInfo, date, radarId, maxFiles, cancellationToken);
         var publishedTotals = selection.Totals;
+        var handlers = RadarProcessingBenchmarkHandlers.Create(handlerSet);
         var runner = new RadarProcessingArchiveQueuedOverlapRunner();
         var core = RadarProcessingRuntimeArchiveBaseline.CreateCore(
             sourceUniverse,
             partitionCount,
-            shardCount);
-        var result = runner.RunProcessingAsync(
+            shardCount,
+            handlers: handlers);
+        var result = RunOrderedProcessing(
                 (publisher, token) =>
                 {
                     var totals = selection.Totals;
@@ -306,11 +320,9 @@ public sealed class RadarProcessingArchiveOrderedProcessingBenchmark
                         : CreateCacheAggregatePublishResult(directoryInfo.FullName, totals, lastPublishResult);
                 },
                 core,
-                new RadarProcessingOrderedConcurrencyOptions(activeBatchCapacity),
-                cancellationToken: cancellationToken)
-            .AsTask()
-            .GetAwaiter()
-            .GetResult();
+                runner,
+                activeBatchCapacity,
+                cancellationToken);
 
         if (!result.IsCompleted)
         {
@@ -318,6 +330,37 @@ public sealed class RadarProcessingArchiveOrderedProcessingBenchmark
         }
 
         return OrderedProcessingIterationTelemetry.FromResult(publishedTotals, result);
+    }
+
+    private static RadarProcessingArchiveQueuedOverlapResult RunOrderedProcessing(
+        Func<IArchiveRadarEventBatchPublisher, CancellationToken, ArchiveRadarEventBatchPublishResult> produce,
+        RadarProcessingCore core,
+        RadarProcessingArchiveQueuedOverlapRunner runner,
+        int activeBatchCapacity,
+        CancellationToken cancellationToken)
+    {
+        var orderedOptions = new RadarProcessingOrderedConcurrencyOptions(activeBatchCapacity);
+        if (core.Options.Handlers.Count == 0)
+        {
+            return runner.RunProcessingAsync(
+                    produce,
+                    core,
+                    orderedOptions,
+                    cancellationToken: cancellationToken)
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+        }
+
+        return runner.RunMvpProcessingAsync(
+                produce,
+                core,
+                orderedOptions,
+                cancellationToken: cancellationToken)
+            .AsTask()
+            .GetAwaiter()
+            .GetResult()
+            .OverlapResult;
     }
 
     private static RadarProcessingArchiveOrderedProcessingBenchmarkResult CreateResult(
@@ -333,6 +376,7 @@ public sealed class RadarProcessingArchiveOrderedProcessingBenchmark
         int partitionCount,
         int shardCount,
         int activeBatchCapacity,
+        RadarProcessingBenchmarkHandlerSet handlerSet,
         TimeSpan elapsed,
         long allocatedBytes) =>
         new(
@@ -341,6 +385,7 @@ public sealed class RadarProcessingArchiveOrderedProcessingBenchmark
             date,
             radarId,
             measurement.Decompressor,
+            handlerSet,
             iterations,
             warmupIterations,
             degreeOfParallelism,
