@@ -1,6 +1,6 @@
 # Milestone 027: Production Pipeline Integration Implementation Plan
 
-Status: in progress.
+Status: decision trace written.
 
 This plan implements the milestone 027 architecture defined in
 `027-production-pipeline-integration.md`.
@@ -398,27 +398,30 @@ result:
 
 ## Slice 7: Pre-Decision Trace Review Point
 
-Status: pending.
+Status: complete.
 
 Implementation:
 
 ```text
-review completed slices, gate evidence, warnings, and scope boundary
-stop before writing the decision trace
-prepare open questions or blocker list if the evidence is not sufficient
+reviewed completed slices, gate evidence, warnings, and scope boundary
+fixed gate-review findings before decision trace:
+  added unsupported-handler focused coverage
+  corrected handler-conflict blocker priority
+  updated handoff title and gate counts
+decision trace written after review
+closeout remains pending
 ```
 
 Exit criteria:
 
 ```text
-implementation and gate evidence are complete, handoff is current, and the
-next action is explicit review before decision trace
+decision trace is written and closeout document has not been created
 ```
 
 Commit:
 
 ```text
-not applicable; stop before decision trace unless review requests changes
+Write production pipeline integration decision trace
 ```
 
 ## Gate Command Shape
@@ -440,7 +443,10 @@ they appear outside the focused pipeline gate.
 
 ## Stop Rule
 
-Stop before writing the decision trace.
+The original implementation stop point was before decision trace. After
+pre-decision review, the decision trace was requested and written.
+
+Stop before writing the closeout.
 
 The milestone should stop with:
 
@@ -448,8 +454,16 @@ The milestone should stop with:
 027-production-pipeline-integration.md
 027-production-pipeline-integration-plan.md
 027-production-pipeline-integration-gate.md
+027-production-pipeline-integration-decision-trace.md
 implementation slices complete
 handoff updated
-decision trace not written
+decision trace written
+closeout not written
+```
+
+Current status:
+
+```text
+decision trace written after review
 closeout not written
 ```

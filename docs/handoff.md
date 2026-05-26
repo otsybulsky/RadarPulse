@@ -1,4 +1,4 @@
-# Handoff: Milestone 027 Pre-Decision Review
+# Handoff: Milestone 027 Decision Trace Written
 
 ## Current State
 
@@ -8,12 +8,13 @@ implementation plan, slice 1 production pipeline configuration contract, and
 slice 2 pipeline operator summary/readiness contract, and slice 3
 archive-shaped pipeline runner, and slice 4 durable restart/recovery pipeline
 gate, slice 5 rollback/fallback diagnostics, and slice 6 representative
-capacity/gate evidence are complete. Decision trace has not been written.
+capacity/gate evidence are complete. Decision trace is written. Closeout has
+not been written.
 
 Stop point:
 
 ```text
-milestone 027 pre-decision review point
+milestone 027 decision trace written
 ```
 
 Current milestone:
@@ -37,6 +38,7 @@ Milestone 027 documents:
 docs/milestones/027-production-pipeline-integration.md
 docs/milestones/027-production-pipeline-integration-plan.md
 docs/milestones/027-production-pipeline-integration-gate.md
+docs/milestones/027-production-pipeline-integration-decision-trace.md
 ```
 
 Milestone 027 planned slices:
@@ -48,7 +50,7 @@ Milestone 027 planned slices:
 4. Durable restart and recovery pipeline gate [complete]
 5. Rollback, fallback, and handler output compatibility [complete]
 6. Representative capacity and gate evidence [complete]
-7. Pre-decision trace review point [pending]
+7. Pre-decision trace review point [complete]
 ```
 
 Latest verification:
@@ -116,9 +118,9 @@ adapter-backed handler delta identity, duplicate replay, conflict rejection,
 Decision trace:
 
 ```text
-accepted with scoped warnings for persistent durable adapter readiness over
-deterministic archive-shaped MVP workloads, stopping milestone 026 at the
-deterministic local file-based adapter
+milestone 027 decision trace written:
+  accepted with scoped warnings for production pipeline integration over
+  deterministic archive-shaped backend workloads
 ```
 
 Recommended next milestone input:
@@ -138,7 +140,7 @@ deterministic local file-based adapter
 Current next action:
 
 ```text
-stop before milestone 027 decision trace for review
+write milestone 027 closeout if the decision trace is accepted
 ```
 
 ## Previous Closed Milestone Context
