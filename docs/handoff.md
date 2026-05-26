@@ -1,16 +1,16 @@
-# Handoff: Milestone 030 Planned
+# Handoff: Milestone 030 Decision Trace Written
 
 ## Current State
 
 Milestone 030 has been selected after milestone 029 closeout. The
 architecture/concept document, implementation plan, Angular operator UI
-implementation slices, gate evidence, and handoff update are complete.
-Decision trace has not been written.
+implementation slices, gate evidence, decision trace, and handoff update are
+complete. Closeout has not been written.
 
 Stop point:
 
 ```text
-milestone 030 implementation and gate captured; stop before decision trace
+milestone 030 decision trace written; closeout pending
 ```
 
 Most recently closed milestone:
@@ -52,6 +52,7 @@ Milestone 030 documents:
 docs/milestones/030-product-operator-angular-spa.md
 docs/milestones/030-product-operator-angular-spa-plan.md
 docs/milestones/030-product-operator-angular-spa-gate.md
+docs/milestones/030-product-operator-angular-spa-decision-trace.md
 ```
 
 Milestone 030 planned slices:
@@ -144,16 +145,18 @@ deterministic local file-backed product run history that survives service
 Current next action:
 
 ```text
-refresh the browser UI after the local CORS bridge fix, then review
-milestone 030 gate evidence and decide whether to write decision trace
+write milestone 030 closeout if the decision trace is accepted
 ```
 
 Decision trace:
 
 ```text
-milestone 030 decision trace is not written
-stop before decision trace after implementation, gate evidence, and handoff
-are complete
+milestone 030 decision trace written:
+  accepted with scoped warnings for product operator Angular SPA over the
+  local product HTTP host for deterministic archive-shaped workflows
+
+recommended next milestone input:
+  operator UI hardening and integrated local delivery
 ```
 
 Closeout:
