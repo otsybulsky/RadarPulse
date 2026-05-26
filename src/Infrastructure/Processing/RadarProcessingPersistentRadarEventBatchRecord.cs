@@ -8,7 +8,7 @@ public sealed class RadarProcessingPersistentRadarEventBatchRecord
         int streamSchemaVersion,
         long dictionaryVersion,
         int sourceUniverseVersion,
-        IReadOnlyList<RadarProcessingPersistentRadarStreamEventRecord> events,
+        RadarProcessingPersistentRadarStreamEventRecord[] events,
         byte[] payload)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(streamSchemaVersion);
@@ -17,8 +17,8 @@ public sealed class RadarProcessingPersistentRadarEventBatchRecord
         ArgumentNullException.ThrowIfNull(events);
         ArgumentNullException.ThrowIfNull(payload);
 
-        var eventCopy = new RadarProcessingPersistentRadarStreamEventRecord[events.Count];
-        for (var i = 0; i < events.Count; i++)
+        var eventCopy = new RadarProcessingPersistentRadarStreamEventRecord[events.Length];
+        for (var i = 0; i < events.Length; i++)
         {
             eventCopy[i] = events[i] ?? throw new ArgumentException(
                 "Persistent radar event batch records must not contain null events.",

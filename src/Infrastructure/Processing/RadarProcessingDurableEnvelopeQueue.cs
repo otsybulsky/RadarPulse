@@ -9,7 +9,35 @@ public sealed class RadarProcessingDurableEnvelopeQueue
     private readonly object sync = new();
     private readonly Dictionary<RadarProcessingDurableBatchId, EnvelopeEntry> byBatchId = [];
     private readonly SortedDictionary<long, EnvelopeEntry> bySequence = [];
+    private readonly IRadarProcessingPersistentDurableEnvelopeStore? persistentStore;
+    private RadarProcessingDurableAdapterCompatibilityStatus adapterCompatibilityStatus =
+        RadarProcessingDurableAdapterCompatibilityStatus.Compatible;
+    private string adapterStorageMessage = string.Empty;
     private long nextSequence;
+
+    public RadarProcessingDurableEnvelopeQueue()
+    {
+    }
+
+    public RadarProcessingDurableEnvelopeQueue(
+        IRadarProcessingPersistentDurableEnvelopeStore persistentStore)
+    {
+        ArgumentNullException.ThrowIfNull(persistentStore);
+
+        this.persistentStore = persistentStore;
+        var load = persistentStore.Load();
+        adapterCompatibilityStatus = load.Status;
+        adapterStorageMessage = load.Message;
+        if (!load.IsCompatible)
+        {
+            throw new InvalidOperationException(
+                string.IsNullOrWhiteSpace(load.Message)
+                    ? $"Persistent durable adapter '{persistentStore.StorageIdentity}' could not load compatible state."
+                    : load.Message);
+        }
+
+        Restore(load.Records);
+    }
 
     public int Count
     {
@@ -61,6 +89,25 @@ public sealed class RadarProcessingDurableEnvelopeQueue
         }
     }
 
+    public RadarProcessingDurableAdapterSummary CreateAdapterSummary()
+    {
+        var queueSummary = CreateSummary();
+        if (persistentStore is null)
+        {
+            return new RadarProcessingDurableAdapterSummary(
+                "in-memory",
+                RadarProcessingPersistentDurableEnvelopeRecord.CurrentSchemaVersion,
+                "memory://durable-envelope-queue",
+                RadarProcessingDurableAdapterCompatibilityStatus.Compatible,
+                queueSummary: queueSummary);
+        }
+
+        return persistentStore.CreateSummary(
+            queueSummary,
+            adapterCompatibilityStatus,
+            adapterStorageMessage);
+    }
+
     public RadarProcessingDurableQueueOperationResult Accept(
         RadarProcessingDurableBatchId batchId,
         RadarEventBatch batch,
@@ -103,6 +150,7 @@ public sealed class RadarProcessingDurableEnvelopeQueue
             byBatchId.Add(batchId, entry);
             bySequence.Add(sequence.Value, entry);
             nextSequence = checked(nextSequence + 1);
+            PersistLocked();
 
             return RadarProcessingDurableQueueOperationResult.Accepted(entry.ToSnapshot());
         }
@@ -131,6 +179,7 @@ public sealed class RadarProcessingDurableEnvelopeQueue
                 entry.WorkerId = workerId;
                 entry.Message = string.Empty;
                 entry.ClaimedTimestamp = Stopwatch.GetTimestamp();
+                PersistLocked();
 
                 var snapshot = entry.ToSnapshot();
                 return RadarProcessingDurableQueueOperationResult.Claimed(
@@ -220,6 +269,7 @@ public sealed class RadarProcessingDurableEnvelopeQueue
             entry.CompletedTimestamp = 0;
             entry.CommittedTimestamp = 0;
             entry.ReleasedTimestamp = 0;
+            PersistLocked();
             return RadarProcessingDurableQueueOperationResult.Retried(entry.ToSnapshot());
         }
     }
@@ -404,6 +454,11 @@ public sealed class RadarProcessingDurableEnvelopeQueue
                 canceled++;
             }
 
+            if (canceled > 0)
+            {
+                PersistLocked();
+            }
+
             return canceled;
         }
     }
@@ -427,6 +482,11 @@ public sealed class RadarProcessingDurableEnvelopeQueue
                 entry.Message = message;
                 entry.ReleasedTimestamp = Stopwatch.GetTimestamp();
                 released++;
+            }
+
+            if (released > 0)
+            {
+                PersistLocked();
             }
 
             return released;
@@ -461,6 +521,7 @@ public sealed class RadarProcessingDurableEnvelopeQueue
             entry.State = targetState;
             entry.Message = message;
             applyTimestamp(entry);
+            PersistLocked();
 
             var snapshot = entry.ToSnapshot();
             return status switch
@@ -507,6 +568,77 @@ public sealed class RadarProcessingDurableEnvelopeQueue
                 : entry.Message,
             _ => string.Empty
         };
+
+    private void Restore(
+        IReadOnlyList<RadarProcessingPersistentDurableEnvelopeRecord> records)
+    {
+        if (records.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var record in records.OrderBy(static item => item.ProviderSequence))
+        {
+            if (!record.IsCurrentSchema)
+            {
+                throw new InvalidOperationException(
+                    $"Persistent durable envelope schema {record.SchemaVersion} is not supported.");
+            }
+
+            var batchId = new RadarProcessingDurableBatchId(record.BatchId);
+            if (byBatchId.ContainsKey(batchId))
+            {
+                throw new InvalidOperationException(
+                    $"Persistent durable envelope '{record.BatchId}' is duplicated.");
+            }
+
+            if (bySequence.ContainsKey(record.ProviderSequence))
+            {
+                throw new InvalidOperationException(
+                    $"Persistent durable provider sequence {record.ProviderSequence} is duplicated.");
+            }
+
+            var entry = new EnvelopeEntry(
+                batchId,
+                record.ToQueuedBatch(),
+                record.AcceptedTimestamp)
+            {
+                Attempt = record.Attempt,
+                State = record.State,
+                WorkerId = record.WorkerId,
+                Message = record.Message,
+                ClaimedTimestamp = record.ClaimedTimestamp,
+                CompletedTimestamp = record.CompletedTimestamp,
+                CommittedTimestamp = record.CommittedTimestamp,
+                ReleasedTimestamp = record.ReleasedTimestamp
+            };
+
+            byBatchId.Add(batchId, entry);
+            bySequence.Add(record.ProviderSequence, entry);
+            nextSequence = Math.Max(nextSequence, checked(record.ProviderSequence + 1));
+        }
+    }
+
+    private void PersistLocked()
+    {
+        if (persistentStore is null)
+        {
+            return;
+        }
+
+        var records = new RadarProcessingPersistentDurableEnvelopeRecord[bySequence.Count];
+        var index = 0;
+        foreach (var entry in bySequence.Values)
+        {
+            records[index++] = RadarProcessingPersistentDurableEnvelopeRecord.From(
+                entry.ToSnapshot(),
+                entry.QueuedBatch);
+        }
+
+        persistentStore.Save(Array.AsReadOnly(records));
+        adapterCompatibilityStatus = RadarProcessingDurableAdapterCompatibilityStatus.Compatible;
+        adapterStorageMessage = string.Empty;
+    }
 
     private sealed class EnvelopeEntry
     {
