@@ -142,6 +142,45 @@ public sealed class RadarProcessingDurableProcessingSession : IDisposable, IAsyn
             : Array.AsReadOnly(published.ToArray());
     }
 
+    public async ValueTask<int> RecoverCompletedAsync(
+        CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+
+        var recovered = 0;
+        foreach (var snapshot in queue.CreateSnapshots())
+        {
+            if (snapshot.State != RadarProcessingDurableEnvelopeState.Completed)
+            {
+                continue;
+            }
+
+            lock (sync)
+            {
+                if (faulted || canceled || pendingCompletions.ContainsKey(snapshot.ProviderSequence.Value))
+                {
+                    continue;
+                }
+            }
+
+            if (!queue.TryGetQueuedBatch(snapshot.BatchId, out var queuedBatch))
+            {
+                MarkFaulted($"Durable envelope '{snapshot.BatchId}' was not found during recovery.");
+                break;
+            }
+
+            var completion = await ComputeCompletionAsync(
+                    snapshot.BatchId,
+                    queuedBatch!,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            AddCompletion(completion);
+            recovered++;
+        }
+
+        return recovered;
+    }
+
     public async ValueTask<RadarProcessingDurableProcessingSessionResult> DrainAsync(
         string workerId = "durable-local-worker",
         CancellationToken cancellationToken = default)
@@ -326,46 +365,11 @@ public sealed class RadarProcessingDurableProcessingSession : IDisposable, IAsyn
     {
         try
         {
-            if (cancellationToken.IsCancellationRequested)
-            {
-                return DurableProcessingCompletion.FromProcessingResult(
+            return await ComputeCompletionAsync(
                     claimedEnvelope.BatchId,
-                    RadarProcessingQueuedBatchProcessingResult.Canceled(
-                        claimedEnvelope.ProviderSequence,
-                        "Durable processing batch was canceled."));
-            }
-
-            var invalid = core.ValidateBatchForProcessing(
-                claimedEnvelope.QueuedBatch.Batch,
-                cancellationToken);
-            if (invalid is not null)
-            {
-                return DurableProcessingCompletion.FromProcessingResult(
-                    claimedEnvelope.BatchId,
-                    RadarProcessingQueuedBatchProcessingResult.FailedValidation(
-                        claimedEnvelope.ProviderSequence,
-                        invalid.Validation.Message,
-                        invalid));
-            }
-
-            if (asyncCoreSession is not null)
-            {
-                var asyncDelta = await asyncCoreSession
-                    .ComputeDeltaAsync(claimedEnvelope.QueuedBatch.Batch, cancellationToken)
-                    .ConfigureAwait(false);
-                return DurableProcessingCompletion.FromAsyncDelta(
-                    claimedEnvelope.BatchId,
-                    claimedEnvelope.ProviderSequence,
-                    asyncDelta);
-            }
-
-            var delta = core.ComputeProcessingDelta(
-                claimedEnvelope.QueuedBatch.Batch,
-                cancellationToken);
-            return DurableProcessingCompletion.FromDelta(
-                claimedEnvelope.BatchId,
-                claimedEnvelope.ProviderSequence,
-                delta);
+                    claimedEnvelope.QueuedBatch,
+                    cancellationToken)
+                .ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -395,6 +399,86 @@ public sealed class RadarProcessingDurableProcessingSession : IDisposable, IAsyn
                 claimedEnvelope.BatchId,
                 RadarProcessingQueuedBatchProcessingResult.FailedProcessing(
                     claimedEnvelope.ProviderSequence,
+                    exception.Message));
+        }
+    }
+
+    private async ValueTask<DurableProcessingCompletion> ComputeCompletionAsync(
+        RadarProcessingDurableBatchId batchId,
+        RadarProcessingQueuedBatch queuedBatch,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return DurableProcessingCompletion.FromProcessingResult(
+                    batchId,
+                    RadarProcessingQueuedBatchProcessingResult.Canceled(
+                        queuedBatch.Sequence,
+                        "Durable processing batch was canceled."));
+            }
+
+            var invalid = core.ValidateBatchForProcessing(
+                queuedBatch.Batch,
+                cancellationToken);
+            if (invalid is not null)
+            {
+                return DurableProcessingCompletion.FromProcessingResult(
+                    batchId,
+                    RadarProcessingQueuedBatchProcessingResult.FailedValidation(
+                        queuedBatch.Sequence,
+                        invalid.Validation.Message,
+                        invalid));
+            }
+
+            if (asyncCoreSession is not null)
+            {
+                var asyncDelta = await asyncCoreSession
+                    .ComputeDeltaAsync(queuedBatch.Batch, cancellationToken)
+                    .ConfigureAwait(false);
+                return DurableProcessingCompletion.FromAsyncDelta(
+                    batchId,
+                    queuedBatch.Sequence,
+                    asyncDelta);
+            }
+
+            var delta = core.ComputeProcessingDelta(
+                queuedBatch.Batch,
+                cancellationToken);
+            return DurableProcessingCompletion.FromDelta(
+                batchId,
+                queuedBatch.Sequence,
+                delta);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return DurableProcessingCompletion.FromProcessingResult(
+                batchId,
+                RadarProcessingQueuedBatchProcessingResult.Canceled(
+                    queuedBatch.Sequence,
+                    "Durable processing batch was canceled."));
+        }
+        catch (RadarProcessingBatchDeltaValidationException exception)
+        {
+            var result = core.CreateInvalidProcessingResult(
+                exception.Error,
+                exception.SourceId,
+                exception.EventIndex,
+                exception.Message);
+            return DurableProcessingCompletion.FromProcessingResult(
+                batchId,
+                RadarProcessingQueuedBatchProcessingResult.FailedValidation(
+                    queuedBatch.Sequence,
+                    exception.Message,
+                    result));
+        }
+        catch (Exception exception)
+        {
+            return DurableProcessingCompletion.FromProcessingResult(
+                batchId,
+                RadarProcessingQueuedBatchProcessingResult.FailedProcessing(
+                    queuedBatch.Sequence,
                     exception.Message));
         }
     }

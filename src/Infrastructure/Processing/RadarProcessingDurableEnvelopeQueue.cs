@@ -69,6 +69,25 @@ public sealed class RadarProcessingDurableEnvelopeQueue
         }
     }
 
+    public bool TryGetQueuedBatch(
+        RadarProcessingDurableBatchId batchId,
+        out RadarProcessingQueuedBatch? queuedBatch)
+    {
+        EnsureValidBatchId(batchId);
+
+        lock (sync)
+        {
+            if (byBatchId.TryGetValue(batchId, out var entry))
+            {
+                queuedBatch = entry.QueuedBatch;
+                return true;
+            }
+
+            queuedBatch = null;
+            return false;
+        }
+    }
+
     public IReadOnlyList<RadarProcessingDurableEnvelopeSnapshot> CreateSnapshots()
     {
         lock (sync)

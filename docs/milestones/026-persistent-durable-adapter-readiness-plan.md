@@ -218,7 +218,7 @@ result:
 
 ## Slice 4: Adapter-Backed Ordered Processing Commit
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -254,6 +254,27 @@ Commit:
 
 ```text
 Preserve ordered processing with persistent durable adapter
+```
+
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingPersistentDurableProcessingSessionTests"
+
+result:
+  4 passed, 0 failed, 0 skipped
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingDurableProcessingSessionTests|FullyQualifiedName~RadarProcessingPersistentDurableProcessingSessionTests"
+
+result:
+  10 passed, 0 failed, 0 skipped
+
+dotnet build RadarPulse.sln -c Release --no-restore
+
+result:
+  succeeded, 0 warnings, 0 errors
 ```
 
 ## Slice 5: Handler Delta Replay Compatibility
