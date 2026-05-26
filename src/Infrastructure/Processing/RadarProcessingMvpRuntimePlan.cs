@@ -47,6 +47,17 @@ public sealed class RadarProcessingMvpRuntimePlan
         var requested = requestedOrderedConcurrencyOptions ??
                         RadarProcessingRuntimeArchiveBaseline.OrderedConcurrencyOptions;
         var handlerContract = RadarProcessingHandlerOutputContract.FromOptions(core.Options);
+        if (handlerContract.IsUnsupported)
+        {
+            return new RadarProcessingMvpRuntimePlan(
+                handlerContract,
+                requested,
+                RadarProcessingOrderedConcurrencyOptions.Sequential,
+                usedSequentialFallback: false,
+                handlerContract.FirstBlockingReason ??
+                "Unsupported handler output blocks MVP processing.");
+        }
+
         if (handlerContract.RequiresSequentialFallback)
         {
             return new RadarProcessingMvpRuntimePlan(
@@ -57,6 +68,16 @@ public sealed class RadarProcessingMvpRuntimePlan
                 "Stateful handler output uses committed snapshots; MVP processing uses sequential fallback until handler delta/merge exists.");
         }
 
+        if (handlerContract.AllowsOrderedConcurrentHandlerDeltaMerge)
+        {
+            return new RadarProcessingMvpRuntimePlan(
+                handlerContract,
+                requested,
+                RadarProcessingOrderedConcurrencyOptions.Sequential,
+                usedSequentialFallback: true,
+                "Mergeable handler output is classified, but MVP processing uses sequential fallback until ordered handler delta/merge runtime integration exists.");
+        }
+
         return new RadarProcessingMvpRuntimePlan(
             handlerContract,
             requested,
@@ -65,4 +86,3 @@ public sealed class RadarProcessingMvpRuntimePlan
             "Handler-free MVP processing can use the requested ordered concurrency options.");
     }
 }
-

@@ -8,13 +8,18 @@ public sealed class RadarProcessingHandlerOutputContract
         "Handler-free processing can use ordered concurrent delta compute.";
     private const string StatefulSnapshotMessage =
         "Stateful handler output uses committed snapshots and requires sequential fallback until a handler delta/merge contract exists.";
+    private const string MergeableMessage =
+        "Mergeable handler output is eligible for ordered handler delta/merge once the runtime path is wired.";
+    private const string UnsupportedMessage =
+        "Unsupported handler output cannot participate in the MVP runtime surface.";
 
     private readonly IReadOnlyList<RadarProcessingHandlerOutputDescriptor> handlers;
 
     private RadarProcessingHandlerOutputContract(
         RadarProcessingHandlerStatePosture statePosture,
         IReadOnlyList<RadarProcessingHandlerOutputDescriptor> handlers,
-        string message)
+        string message,
+        string? firstBlockingReason = null)
     {
         EnsureKnownPosture(statePosture);
         ArgumentNullException.ThrowIfNull(handlers);
@@ -23,6 +28,7 @@ public sealed class RadarProcessingHandlerOutputContract
         StatePosture = statePosture;
         this.handlers = handlers;
         Message = message;
+        FirstBlockingReason = firstBlockingReason;
     }
 
     public RadarProcessingHandlerStatePosture StatePosture { get; }
@@ -31,13 +37,23 @@ public sealed class RadarProcessingHandlerOutputContract
 
     public string Message { get; }
 
+    public string? FirstBlockingReason { get; }
+
     public bool HasHandlers => handlers.Count != 0;
+
+    public bool IsBlocked => FirstBlockingReason is not null;
+
+    public bool IsUnsupported =>
+        StatePosture == RadarProcessingHandlerStatePosture.UnsupportedHandlerSet;
 
     public bool RequiresSequentialFallback =>
         StatePosture == RadarProcessingHandlerStatePosture.StatefulSnapshotSequentialFallback;
 
     public bool AllowsOrderedConcurrentDelta =>
         StatePosture == RadarProcessingHandlerStatePosture.HandlerFreeOrderedConcurrent;
+
+    public bool AllowsOrderedConcurrentHandlerDeltaMerge =>
+        StatePosture == RadarProcessingHandlerStatePosture.MergeableHandlerDeltaMergeEligible;
 
     public static RadarProcessingHandlerOutputContract FromOptions(
         RadarProcessingCoreOptions options)
@@ -58,17 +74,40 @@ public sealed class RadarProcessingHandlerOutputContract
         }
 
         var descriptors = CreateHandlerDescriptors(handlers);
+        var unsupported = descriptors.FirstOrDefault(static descriptor =>
+            descriptor.ExecutionClassification == RadarSourceProcessingHandlerExecutionClassification.Unsupported);
+        if (unsupported is not null)
+        {
+            return new RadarProcessingHandlerOutputContract(
+                RadarProcessingHandlerStatePosture.UnsupportedHandlerSet,
+                descriptors,
+                UnsupportedMessage,
+                $"Unsupported handler '{unsupported.Name}' blocks MVP processing.");
+        }
+
+        var snapshotOnly = descriptors.FirstOrDefault(static descriptor =>
+            descriptor.ExecutionClassification == RadarSourceProcessingHandlerExecutionClassification.SnapshotOnly);
+        if (snapshotOnly is not null)
+        {
+            return new RadarProcessingHandlerOutputContract(
+                RadarProcessingHandlerStatePosture.StatefulSnapshotSequentialFallback,
+                descriptors,
+                $"{StatefulSnapshotMessage} First snapshot-only handler: '{snapshotOnly.Name}'.");
+        }
+
         return new RadarProcessingHandlerOutputContract(
-            RadarProcessingHandlerStatePosture.StatefulSnapshotSequentialFallback,
+            RadarProcessingHandlerStatePosture.MergeableHandlerDeltaMergeEligible,
             descriptors,
-            StatefulSnapshotMessage);
+            MergeableMessage);
     }
 
     internal static void EnsureKnownPosture(
         RadarProcessingHandlerStatePosture statePosture)
     {
         if (statePosture is not RadarProcessingHandlerStatePosture.HandlerFreeOrderedConcurrent and
-            not RadarProcessingHandlerStatePosture.StatefulSnapshotSequentialFallback)
+            not RadarProcessingHandlerStatePosture.StatefulSnapshotSequentialFallback and
+            not RadarProcessingHandlerStatePosture.MergeableHandlerDeltaMergeEligible and
+            not RadarProcessingHandlerStatePosture.UnsupportedHandlerSet)
         {
             throw new ArgumentOutOfRangeException(nameof(statePosture));
         }
@@ -85,6 +124,7 @@ public sealed class RadarProcessingHandlerOutputContract
         {
             var handler = handlers[handlerIndex] ?? throw new ArgumentNullException(nameof(handlers));
             var descriptor = handler.Descriptor ?? throw new ArgumentNullException(nameof(handlers));
+            var executionClassification = GetExecutionClassification(handler);
             if (!handlerNames.Add(descriptor.Name))
             {
                 throw new ArgumentException(
@@ -116,10 +156,23 @@ public sealed class RadarProcessingHandlerOutputContract
                 descriptor.Name,
                 descriptor.Int64SlotCount,
                 descriptor.DoubleSlotCount,
-                fields);
+                fields,
+                executionClassification);
         }
 
         return Array.AsReadOnly(result);
     }
-}
 
+    private static RadarSourceProcessingHandlerExecutionClassification GetExecutionClassification(
+        IRadarSourceProcessingHandler handler)
+    {
+        if (handler is not IRadarSourceProcessingHandlerExecutionMetadata metadata)
+        {
+            return RadarSourceProcessingHandlerExecutionClassification.SnapshotOnly;
+        }
+
+        var executionClassification = metadata.ExecutionClassification;
+        RadarProcessingHandlerOutputDescriptor.EnsureKnownExecutionClassification(executionClassification);
+        return executionClassification;
+    }
+}

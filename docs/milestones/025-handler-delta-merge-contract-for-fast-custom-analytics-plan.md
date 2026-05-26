@@ -43,7 +43,7 @@ handler delta compute.
 
 ## Slice 1: Handler Classification Contract
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -87,7 +87,13 @@ Verification:
 dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
   --filter "FullyQualifiedName~RadarProcessingHandlerDeltaClassificationTests|FullyQualifiedName~RadarProcessingHandlerOutputContractTests"
 
+result:
+  11 passed, 0 failed, 0 skipped
+
 dotnet build RadarPulse.sln -c Release --no-restore
+
+result:
+  succeeded, 0 warnings, 0 errors
 ```
 
 Commit:

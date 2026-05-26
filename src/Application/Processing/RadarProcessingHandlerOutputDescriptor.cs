@@ -1,3 +1,5 @@
+using RadarPulse.Domain.Processing;
+
 namespace RadarPulse.Application.Processing;
 
 public sealed class RadarProcessingHandlerOutputDescriptor
@@ -9,17 +11,21 @@ public sealed class RadarProcessingHandlerOutputDescriptor
         string name,
         int int64SlotCount,
         int doubleSlotCount,
-        IReadOnlyList<RadarProcessingHandlerOutputField>? fields = null)
+        IReadOnlyList<RadarProcessingHandlerOutputField>? fields = null,
+        RadarSourceProcessingHandlerExecutionClassification executionClassification =
+            RadarSourceProcessingHandlerExecutionClassification.SnapshotOnly)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(handlerIndex);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentOutOfRangeException.ThrowIfNegative(int64SlotCount);
         ArgumentOutOfRangeException.ThrowIfNegative(doubleSlotCount);
+        EnsureKnownExecutionClassification(executionClassification);
 
         HandlerIndex = handlerIndex;
         Name = name;
         Int64SlotCount = int64SlotCount;
         DoubleSlotCount = doubleSlotCount;
+        ExecutionClassification = executionClassification;
         this.fields = CopyFields(handlerIndex, name, fields);
     }
 
@@ -31,7 +37,20 @@ public sealed class RadarProcessingHandlerOutputDescriptor
 
     public int DoubleSlotCount { get; }
 
+    public RadarSourceProcessingHandlerExecutionClassification ExecutionClassification { get; }
+
     public IReadOnlyList<RadarProcessingHandlerOutputField> Fields => fields;
+
+    internal static void EnsureKnownExecutionClassification(
+        RadarSourceProcessingHandlerExecutionClassification executionClassification)
+    {
+        if (executionClassification is not RadarSourceProcessingHandlerExecutionClassification.Mergeable and
+            not RadarSourceProcessingHandlerExecutionClassification.SnapshotOnly and
+            not RadarSourceProcessingHandlerExecutionClassification.Unsupported)
+        {
+            throw new ArgumentOutOfRangeException(nameof(executionClassification));
+        }
+    }
 
     private static IReadOnlyList<RadarProcessingHandlerOutputField> CopyFields(
         int handlerIndex,
@@ -71,4 +90,3 @@ public sealed class RadarProcessingHandlerOutputDescriptor
         return Array.AsReadOnly(result);
     }
 }
-
