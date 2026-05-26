@@ -217,7 +217,7 @@ Document product demo readiness workflow
 
 ## Slice 4: Packaged Verification Command
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -249,6 +249,28 @@ dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
   --filter "FullyQualifiedName~RadarPulseProductHttpHostTests|FullyQualifiedName~RadarPulseProductHttpControlTests|FullyQualifiedName~RadarPulseProductPipelineApiContractTests"
 
 dotnet build RadarPulse.sln -c Release --no-restore
+```
+
+Verification:
+
+```text
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
+  verify
+  result: passed
+
+packaged verify evidence:
+  Angular unit tests:
+    20 passed, 0 failed
+  Angular production build:
+    succeeded
+  operator UI browser smoke:
+    4 passed, 0 failed
+  hosted same-origin browser smoke:
+    1 passed, 0 failed
+  focused .NET product HTTP/API/readiness Release gate:
+    21 passed, 0 failed, 0 skipped
+  .NET Release build:
+    succeeded, 0 warnings, 0 errors
 ```
 
 Exit criteria:
@@ -370,6 +392,7 @@ The milestone currently has:
 slice 1 product demo readiness surface complete
 slice 2 local demo package script complete
 slice 3 product demo workflow documentation complete
+slice 4 packaged verification command complete
 gate evidence not captured
 decision trace not written
 closeout not written

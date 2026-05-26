@@ -1,6 +1,6 @@
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("help", "paths", "start", "readiness", "demo", "history", "reset-history")]
+    [ValidateSet("help", "paths", "start", "readiness", "demo", "history", "reset-history", "verify")]
     [string]$Command = "help",
 
     [string]$Url = "http://127.0.0.1:5129",
@@ -74,6 +74,7 @@ function Show-Help {
     Write-Host "  powershell -ExecutionPolicy Bypass -File scripts\$scriptName demo [-RunId product-demo]"
     Write-Host "  powershell -ExecutionPolicy Bypass -File scripts\$scriptName history"
     Write-Host "  powershell -ExecutionPolicy Bypass -File scripts\$scriptName reset-history"
+    Write-Host "  powershell -ExecutionPolicy Bypass -File scripts\$scriptName verify"
     Write-Host ""
     Write-Host "Scope:"
     Write-Host "  Local deterministic demo/archive-shaped workflows only."
@@ -112,23 +113,49 @@ function Convert-HandlerSet {
     }
 }
 
+function Resolve-ProcessExecutable {
+    param([string]$Executable)
+
+    $cmdName = "$Executable.cmd"
+    $cmd = Get-Command $cmdName -ErrorAction SilentlyContinue
+    if ($cmd -ne $null -and -not [string]::IsNullOrWhiteSpace($cmd.Source)) {
+        return $cmd.Source
+    }
+
+    $resolved = Get-Command $Executable -ErrorAction SilentlyContinue
+    if ($resolved -ne $null -and -not [string]::IsNullOrWhiteSpace($resolved.Source)) {
+        return $resolved.Source
+    }
+
+    return $Executable
+}
+
 function Invoke-CheckedProcess {
     param(
-        [string]$FilePath,
-        [string[]]$Arguments,
+        [string]$Executable,
+        [string[]]$CommandArguments,
         [string]$WorkingDirectory
     )
 
+    $processFile = Resolve-ProcessExecutable $Executable
     Push-Location $WorkingDirectory
     try {
-        & $FilePath @Arguments
+        Write-Host "Running: $Executable $($CommandArguments -join ' ')"
+        & $processFile @CommandArguments
         if ($LASTEXITCODE -ne 0) {
-            throw "Command failed with exit code $LASTEXITCODE`: $FilePath $($Arguments -join ' ')"
+            throw "Command failed with exit code $LASTEXITCODE`: $Executable $($CommandArguments -join ' ')"
         }
     }
     finally {
         Pop-Location
     }
+}
+
+function Write-VerifyStep {
+    param([string]$Name)
+
+    Write-Host ""
+    Write-Host "== $Name =="
 }
 
 function Invoke-ProductGet {
@@ -178,7 +205,7 @@ function Start-LocalProductHost {
     New-Item -ItemType Directory -Force -Path $Paths.DemoRoot | Out-Null
 
     if (-not $SkipUiBuild) {
-        Invoke-CheckedProcess "npm" @("run", "build") $Paths.OperatorUiProject
+        Invoke-CheckedProcess -Executable "npm" -CommandArguments @("run", "build") -WorkingDirectory $Paths.OperatorUiProject
     }
 
     $env:RadarPulse__ProductHttp__HistoryPath = $Paths.HistoryPath
@@ -285,6 +312,47 @@ function Reset-History {
     }
 }
 
+function Invoke-PackagedVerify {
+    param([pscustomobject]$Paths)
+
+    $testProject = Join-Path $Paths.RepositoryRoot "tests\RadarPulse.Tests\RadarPulse.Tests.csproj"
+    $solution = Join-Path $Paths.RepositoryRoot "RadarPulse.sln"
+    $focusedFilter = "FullyQualifiedName~RadarPulseProductHttpHostTests|FullyQualifiedName~RadarPulseProductHttpControlTests|FullyQualifiedName~RadarPulseProductPipelineApiContractTests"
+
+    Write-VerifyStep "Angular unit tests"
+    Invoke-CheckedProcess -Executable "npm" -CommandArguments @("test", "--", "--watch=false") -WorkingDirectory $Paths.OperatorUiProject
+
+    Write-VerifyStep "Angular production build"
+    Invoke-CheckedProcess -Executable "npm" -CommandArguments @("run", "build") -WorkingDirectory $Paths.OperatorUiProject
+
+    Write-VerifyStep "Operator UI browser smoke"
+    Invoke-CheckedProcess -Executable "npm" -CommandArguments @("run", "smoke") -WorkingDirectory $Paths.OperatorUiProject
+
+    Write-VerifyStep "Hosted same-origin browser smoke"
+    Invoke-CheckedProcess -Executable "npm" -CommandArguments @("run", "smoke:hosted") -WorkingDirectory $Paths.OperatorUiProject
+
+    Write-VerifyStep "Focused .NET product HTTP/API/readiness Release gate"
+    Invoke-CheckedProcess -Executable "dotnet" -CommandArguments @(
+        "test",
+        $testProject,
+        "-c",
+        "Release",
+        "--no-restore",
+        "--filter",
+        $focusedFilter) -WorkingDirectory $Paths.RepositoryRoot
+
+    Write-VerifyStep ".NET Release build"
+    Invoke-CheckedProcess -Executable "dotnet" -CommandArguments @(
+        "build",
+        $solution,
+        "-c",
+        "Release",
+        "--no-restore") -WorkingDirectory $Paths.RepositoryRoot
+
+    Write-Host ""
+    Write-Host "Packaged verification passed."
+}
+
 try {
     $paths = Get-DemoPaths
 
@@ -314,6 +382,10 @@ try {
         }
         "reset-history" {
             Reset-History $paths
+            exit 0
+        }
+        "verify" {
+            Invoke-PackagedVerify $paths
             exit 0
         }
     }

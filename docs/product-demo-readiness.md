@@ -234,9 +234,31 @@ normal startup never clears history implicitly
 Use reset before a clean demo. Skip reset when you want to show persistence
 across host restarts.
 
+## Packaged Verification
+
+Run the packaged milestone 032 verification command from the repository root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 verify
+```
+
+The verify command runs:
+
+```text
+Angular unit tests
+Angular production build
+Operator UI browser smoke
+hosted same-origin browser smoke
+focused .NET product HTTP/API/readiness Release gate
+.NET Release build
+```
+
+It stops at the first failed step and leaves each underlying command visible
+for diagnosis.
+
 ## Manual Verification
 
-Before the packaged verify command is used, the accepted individual gates are:
+The accepted individual gates remain directly runnable:
 
 ```powershell
 cd src\Presentation\OperatorUi
