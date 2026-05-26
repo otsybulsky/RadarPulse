@@ -230,7 +230,7 @@ result:
 
 ## Slice 5: Archive-Shaped MVP Gate
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -258,9 +258,45 @@ RadarPulse can produce and serve MVP processing results for a future frontend
 over deterministic archive-shaped input
 ```
 
+Verification:
+
+```text
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
+  --filter "FullyQualifiedName~RadarProcessingMvpArchiveGateTests"
+
+result:
+  1 passed, 0 failed, 0 skipped
+
+dotnet build RadarPulse.sln -c Release --no-restore
+
+result:
+  succeeded, 0 warnings, 0 errors
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+  --no-restore
+  --filter "FullyQualifiedName~RadarProcessingHandlerOutputContractTests|FullyQualifiedName~RadarProcessingRunReadModelTests|FullyQualifiedName~RadarProcessingBffReadModelStoreTests|FullyQualifiedName~RadarProcessingMvpRuntimePlanTests|FullyQualifiedName~RadarProcessingMvpArchiveGateTests"
+
+result:
+  17 passed, 0 failed, 0 skipped
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+  --no-restore --no-build
+
+result:
+  865 passed, 0 failed, 3 skipped
+```
+
 ## Slice 6: Decision Trace And Closeout
 
 Status: planned.
+
+Stop point:
+
+```text
+slice 1 through slice 5 are implemented and gated. Per milestone planning
+instructions, stop before writing decision trace and closeout so the accepted
+readiness answer can be discussed.
+```
 
 Documentation:
 

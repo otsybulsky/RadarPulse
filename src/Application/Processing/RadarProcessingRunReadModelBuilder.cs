@@ -11,7 +11,8 @@ public static class RadarProcessingRunReadModelBuilder
         RadarProcessingCore core,
         RadarProcessingQueuedSessionResult? sessionResult = null,
         RadarProcessingDurableRuntimeReadinessSummary? readiness = null,
-        IReadOnlyList<string>? warnings = null)
+        IReadOnlyList<string>? warnings = null,
+        RadarProcessingProviderQueueTelemetrySummary? queueTelemetry = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(runId);
         ArgumentNullException.ThrowIfNull(sourceUniverse);
@@ -22,10 +23,11 @@ public static class RadarProcessingRunReadModelBuilder
         var batches = sessionResult is null
             ? Array.Empty<RadarProcessingBatchReadModel>()
             : CreateBatches(sessionResult);
+        var effectiveQueueTelemetry = queueTelemetry ?? sessionResult?.Telemetry;
         var diagnostics = new RadarProcessingRunDiagnosticsReadModel(
-            ProcessingCompletenessPassed(sessionResult),
+            ProcessingCompletenessPassed(sessionResult, effectiveQueueTelemetry),
             core.CreateMetrics(),
-            sessionResult?.Telemetry,
+            effectiveQueueTelemetry,
             readiness,
             warnings);
 
@@ -162,16 +164,21 @@ public static class RadarProcessingRunReadModelBuilder
     }
 
     private static bool ProcessingCompletenessPassed(
-        RadarProcessingQueuedSessionResult? sessionResult)
+        RadarProcessingQueuedSessionResult? sessionResult,
+        RadarProcessingProviderQueueTelemetrySummary? queueTelemetry)
     {
         if (sessionResult is null)
         {
             return true;
         }
 
+        var acceptedCount = (long)sessionResult.EnqueueResults.Count(static result => result.IsAccepted);
+        if (acceptedCount == 0 && queueTelemetry is not null)
+        {
+            acceptedCount = queueTelemetry.EnqueuedBatchCount;
+        }
+
         return sessionResult.IsCompleted &&
-               sessionResult.EnqueueResults.Count(static result => result.IsAccepted) ==
-               sessionResult.ProcessingResults.Count(static result => result.IsSuccessful);
+               acceptedCount == sessionResult.ProcessingResults.Count(static result => result.IsSuccessful);
     }
 }
-

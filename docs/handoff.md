@@ -248,6 +248,66 @@ processing result read models, BFF query surfaces, diagnostics, and
 archive-shaped MVP gates for a future frontend.
 ```
 
+Milestone 024 current status:
+
+```text
+implementation: complete through slice 5
+slice 1 handler output contract audit: complete
+slice 2 processing output read models: complete
+slice 3 BFF application read surface: complete
+slice 4 handler execution posture gate: complete
+slice 5 archive-shaped MVP gate: complete
+slice 6 decision trace and closeout: not started
+
+stop point:
+  stopped before decision trace and closeout per planning instruction
+```
+
+Milestone 024 implemented surfaces:
+
+```text
+RadarProcessingHandlerOutputContract
+RadarProcessingHandlerOutputDescriptor
+RadarProcessingHandlerOutputField
+RadarProcessingHandlerStatePosture
+RadarProcessingRunReadModel
+RadarProcessingBatchReadModel
+RadarProcessingSourceOutputReadModel
+RadarProcessingHandlerOutputValueReadModel
+RadarProcessingRunDiagnosticsReadModel
+RadarProcessingRunReadModelBuilder
+RadarProcessingBffReadModelStore
+RadarProcessingMvpRuntimePlan
+RadarProcessingMvpRuntimeResult
+RadarProcessingArchiveQueuedOverlapRunner.RunMvpProcessingAsync
+```
+
+Milestone 024 latest verification:
+
+```text
+focused Debug slice suites:
+  RadarProcessingHandlerOutputContractTests: 5 passed
+  RadarProcessingRunReadModelTests: 4 passed
+  RadarProcessingBffReadModelStoreTests: 4 passed
+  RadarProcessingMvpRuntimePlanTests: 3 passed
+  RadarProcessingMvpArchiveGateTests: 1 passed
+
+Release build:
+  dotnet build RadarPulse.sln -c Release --no-restore
+  result: succeeded, 0 warnings, 0 errors
+
+focused milestone 024 Release gate:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+    --no-restore
+    --filter "FullyQualifiedName~RadarProcessingHandlerOutputContractTests|FullyQualifiedName~RadarProcessingRunReadModelTests|FullyQualifiedName~RadarProcessingBffReadModelStoreTests|FullyQualifiedName~RadarProcessingMvpRuntimePlanTests|FullyQualifiedName~RadarProcessingMvpArchiveGateTests"
+  result: 17 passed, 0 failed, 0 skipped
+
+full Release test project:
+  dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+    --no-restore --no-build
+  result: 865 passed, 0 failed, 3 skipped
+```
+
 ## Milestone 022 Complete Baseline
 
 Milestone 022 is complete. The primary milestone documents are:
