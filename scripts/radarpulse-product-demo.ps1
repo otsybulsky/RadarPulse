@@ -78,6 +78,9 @@ function Show-Help {
     Write-Host "Scope:"
     Write-Host "  Local deterministic demo/archive-shaped workflows only."
     Write-Host "  This is not public production deployment, auth/TLS hardening, external adapter certification, or exactly-once delivery."
+    Write-Host ""
+    Write-Host "Docs:"
+    Write-Host "  docs/product-demo-readiness.md"
 }
 
 function Write-Paths {

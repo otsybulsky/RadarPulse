@@ -127,6 +127,21 @@ npm run smoke:hosted
 Run `npm run build` before `npm run smoke:hosted` so the hosted path has a
 fresh Angular bundle to serve.
 
+## Product Demo/Readiness Package
+
+Milestone 032 adds a repository-level local product demo/readiness workflow
+over this same-origin host:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 help
+```
+
+The full operator workflow is documented in:
+
+```text
+docs/product-demo-readiness.md
+```
+
 ## Operator Workflow
 
 The UI supports:

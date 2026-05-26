@@ -161,7 +161,7 @@ Add local product demo script
 
 ## Slice 3: Product Demo Workflow Documentation
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -187,6 +187,18 @@ powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
   help
 powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
   paths
+```
+
+Verification:
+
+```text
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
+  help
+  result: passed, includes docs/product-demo-readiness.md pointer
+
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
+  paths
+  result: passed
 ```
 
 Exit criteria:
@@ -357,6 +369,7 @@ The milestone currently has:
 032-product-demo-readiness-packaging-plan.md
 slice 1 product demo readiness surface complete
 slice 2 local demo package script complete
+slice 3 product demo workflow documentation complete
 gate evidence not captured
 decision trace not written
 closeout not written
