@@ -225,7 +225,7 @@ result:
 
 ## Slice 4: Product HTTP Host Project And Route Mapping
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -282,7 +282,13 @@ Verification:
 dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj --no-restore
   --filter "FullyQualifiedName~RadarPulseProductHttpHostTests"
 
+result:
+  4 passed, 0 failed, 0 skipped
+
 dotnet build RadarPulse.sln -c Release --no-restore
+
+result:
+  succeeded, 0 warnings, 0 errors
 ```
 
 ## Slice 5: HTTP Control And Failure Posture

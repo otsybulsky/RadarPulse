@@ -8,6 +8,7 @@
     </PackageReference>
     <ProjectReference Include="..\..\src\Domain\RadarPulse.Domain.csproj" />
     <ProjectReference Include="..\..\src\Infrastructure\RadarPulse.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Presentation.Http\RadarPulse.Http.csproj" />
     <ProjectReference Include="..\..\src\Presentation\RadarPulse.Cli.csproj" />
   </ItemGroup>
   <PropertyGroup>

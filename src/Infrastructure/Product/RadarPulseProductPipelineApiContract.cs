@@ -58,9 +58,25 @@ public sealed class RadarPulseProductPipelineApiContract
         string runId) =>
         FromQuery(service.ListBatches(runId));
 
+    public RadarPulseProductApiResponse<RadarPulseProductBatch> GetBatch(
+        string runId,
+        long providerSequence) =>
+        FromQuery(service.TryGetBatch(runId, providerSequence));
+
     public RadarPulseProductApiResponse<IReadOnlyList<RadarPulseProductSource>> ListSources(
         string runId) =>
         FromQuery(service.ListSources(runId));
+
+    public RadarPulseProductApiResponse<RadarPulseProductSource> GetSource(
+        string runId,
+        int sourceId) =>
+        FromQuery(service.TryGetSource(runId, sourceId));
+
+    public RadarPulseProductApiResponse<RadarPulseProductHandlerOutput> GetHandlerOutput(
+        string runId,
+        int sourceId,
+        string fieldName) =>
+        FromQuery(service.TryGetHandlerOutput(runId, sourceId, fieldName));
 
     public RadarPulseProductApiResponse<RadarPulseProductDiagnostics> GetDiagnostics(
         string runId) =>
