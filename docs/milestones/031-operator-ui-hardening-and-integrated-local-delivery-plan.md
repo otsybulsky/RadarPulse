@@ -43,7 +43,7 @@ hardening, cross-machine delivery, or exactly-once delivery.
 
 ## Slice 1: URL State And Validation Hardening
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -68,6 +68,16 @@ Angular tests cover invalid HTTP base URL rejection
 Angular tests cover archive and handler lookup validation
 Angular tests cover disabled/loading control posture
 npm run build succeeds
+```
+
+Verification:
+
+```text
+npm test -- --watch=false
+  result: 18 passed, 0 failed
+
+npm run build
+  result: succeeded, 0 warnings
 ```
 
 Exit criteria:

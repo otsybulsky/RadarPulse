@@ -203,6 +203,14 @@ dd {
   color: #9d2d21;
 }
 
+.inline-error {
+  max-width: 280px;
+  color: #9d2d21;
+  font-size: 0.78rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
 .run-highlight {
   display: flex;
   align-items: center;

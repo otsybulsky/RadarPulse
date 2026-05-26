@@ -3,13 +3,13 @@
 ## Current State
 
 Milestone 031 has been selected after milestone 030 closeout. The
-architecture/concept document and implementation plan are written. Milestone
-031 implementation has not started yet.
+architecture/concept document and implementation plan are written. Slice 1
+URL state and validation hardening is complete.
 
 Stop point:
 
 ```text
-milestone 031 plan written; start implementation slice 1
+milestone 031 slice 1 complete; start implementation slice 2
 ```
 
 Most recently closed milestone:
@@ -57,7 +57,7 @@ docs/milestones/031-operator-ui-hardening-and-integrated-local-delivery-plan.md
 Milestone 031 planned slices:
 
 ```text
-1. URL state and validation hardening [planned]
+1. URL state and validation hardening [complete]
 2. Browser smoke harness [planned]
 3. Integrated static UI delivery [planned]
 4. Same-origin smoke and local workflow docs [planned]
@@ -67,10 +67,12 @@ Milestone 031 planned slices:
 Latest verification:
 
 ```text
-inherited from milestone 030:
+milestone 031 slice 1:
   Angular gate:
-    13 passed, 0 failed
-    production build succeeded, 0 warnings, 0 errors
+    18 passed, 0 failed
+    production build succeeded, 0 warnings
+
+inherited from milestone 030:
   focused .NET product HTTP/API Release gate:
     14 passed, 0 failed, 0 skipped
   post-refactor focused presentation Release gate:
@@ -103,6 +105,7 @@ Milestone 031 planned implementation:
 URL-restorable selected run and active detail tab
 input validation for product HTTP base URL, archive run, and handler lookup
 control disabled/loading/rejected/blocked posture hardening
+selected run not-found posture from URL state
 Playwright-style browser smoke coverage for critical operator workflows
 RadarPulse.Http local static delivery for the built Angular SPA
 route fallback that does not intercept /product/pipeline API routes
@@ -152,8 +155,8 @@ visualization.
 Current next action:
 
 ```text
-implement slice 1:
-  URL state and validation hardening
+implement slice 2:
+  Browser smoke harness
 ```
 
 Decision trace posture:

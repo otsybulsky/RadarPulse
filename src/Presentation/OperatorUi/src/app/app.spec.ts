@@ -18,6 +18,7 @@ describe('App', () => {
 
   beforeEach(async () => {
     localStorage.removeItem(RADARPULSE_PRODUCT_API_BASE_URL_STORAGE_KEY);
+    history.replaceState(null, '', '/');
     api = new ProductApiStub();
 
     await TestBed.configureTestingModule({
@@ -96,6 +97,67 @@ describe('App', () => {
     expect(localStorage.getItem(RADARPULSE_PRODUCT_API_BASE_URL_STORAGE_KEY)).toBe('http://localhost:6117');
   });
 
+  it('rejects invalid API base URL without refreshing host state', async () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const readinessRequests = api.readinessRequestCount;
+    const input = fixture.nativeElement.querySelector('input[name="apiBaseUrl"]') as HTMLInputElement;
+    input.value = 'localhost:6117';
+    input.dispatchEvent(new Event('input'));
+    clickButton(fixture.nativeElement, 'Apply URL');
+    fixture.detectChanges();
+
+    expect(api.readinessRequestCount).toBe(readinessRequests);
+    expect(localStorage.getItem(RADARPULSE_PRODUCT_API_BASE_URL_STORAGE_KEY)).toBeNull();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+      'Use an absolute http:// or https:// URL.',
+    );
+  });
+
+  it('loads selected run and active tab from URL state', async () => {
+    history.replaceState(null, '', '/?runId=deep-run&tab=diagnostics');
+
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(api.requestedRunId).toBe('deep-run');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('ordered merge');
+  });
+
+  it('updates URL state when selecting a run and tab', async () => {
+    api.runs = [summary('run-url')];
+    api.latest = detail('run-url');
+
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    clickButton(fixture.nativeElement, 'run-url');
+    clickButton(fixture.nativeElement, 'Capacity');
+
+    const url = new URL(location.href);
+    expect(url.searchParams.get('runId')).toBe('run-url');
+    expect(url.searchParams.get('tab')).toBe('capacity');
+  });
+
+  it('shows not-found posture when URL state selects a missing run', async () => {
+    history.replaceState(null, '', '/?runId=missing-run&tab=sources');
+    api.missingRunIds.add('missing-run');
+
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('missing-run');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Run was not found.');
+  });
+
   it('renders run inspection tabs for diagnostics and capacity evidence', async () => {
     api.runs = [summary('run-detail')];
     api.latest = detail('run-detail');
@@ -137,6 +199,41 @@ describe('App', () => {
     fixture.detectChanges();
 
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Handler output was not found.');
+  });
+
+  it('validates archive and handler lookup inputs before HTTP requests', async () => {
+    api.runs = [summary('run-handler')];
+    api.latest = detail('run-handler');
+
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const archiveForm = fixture.nativeElement.querySelector('.archive-form') as HTMLFormElement;
+    archiveForm.dispatchEvent(new Event('submit'));
+    fixture.detectChanges();
+
+    expect(api.archiveRunRequested).toBe(false);
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+      'Archive file path is required.',
+    );
+
+    clickButton(fixture.nativeElement, 'Handlers');
+    fixture.detectChanges();
+
+    const handlerField = fixture.nativeElement.querySelector(
+      'input[name="handlerField"]',
+    ) as HTMLInputElement;
+    handlerField.value = '';
+    handlerField.dispatchEvent(new Event('input'));
+    clickButton(fixture.nativeElement, 'Load handler output');
+    fixture.detectChanges();
+
+    expect(api.handlerOutputRequested).toBe(false);
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+      'Handler field name is required.',
+    );
   });
 
   it('sends operator controls and renders unsafe fallback rejection', async () => {
@@ -193,7 +290,12 @@ class ProductApiStub {
   runs: readonly ProductRunSummary[] = [];
   latest: ProductRunDetail | null = null;
   readinessError: HttpErrorResponse | null = null;
+  missingRunIds = new Set<string>();
+  readinessRequestCount = 0;
   demoRunRequested = false;
+  archiveRunRequested = false;
+  handlerOutputRequested = false;
+  requestedRunId = '';
   lastControlAction = '';
   handlerOutput: ProductHandlerOutput | null = {
     handlerIndex: 0,
@@ -205,6 +307,7 @@ class ProductApiStub {
   };
 
   getHistoryReadiness() {
+    this.readinessRequestCount += 1;
     if (this.readinessError) {
       return throwError(() => this.readinessError);
     }
@@ -240,6 +343,19 @@ class ProductApiStub {
   }
 
   getRun(runId: string) {
+    this.requestedRunId = runId;
+    if (this.missingRunIds.has(runId)) {
+      return throwError(() => new HttpErrorResponse({
+        status: 404,
+        error: {
+          statusCode: 404,
+          isSuccess: false,
+          body: null,
+          message: 'Run was not found.',
+        },
+      }));
+    }
+
     return of(ok(detail(runId)));
   }
 
@@ -255,10 +371,12 @@ class ProductApiStub {
   }
 
   runArchive() {
+    this.archiveRunRequested = true;
     return of(ok(detail('archive-created')));
   }
 
   getHandlerOutput() {
+    this.handlerOutputRequested = true;
     return this.handlerOutput
       ? of(ok(this.handlerOutput))
       : throwError(() => new HttpErrorResponse({

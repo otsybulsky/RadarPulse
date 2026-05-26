@@ -19,6 +19,9 @@
       <span class="connection" [class.connection-ok]="readiness()?.kind === 'success'">
         {{ readinessLabel() }}
       </span>
+      @if (apiBaseUrlValidationMessage()) {
+        <span class="inline-error">{{ apiBaseUrlValidationMessage() }}</span>
+      }
     </div>
   </header>
 
@@ -133,10 +136,14 @@
           Archive file
           <input name="archivePath" [(ngModel)]="archiveFilePath" autocomplete="off" />
         </label>
-        <button type="submit" class="secondary" [disabled]="runLoading() || !archiveFilePath.trim()">
+        <button type="submit" class="secondary" [disabled]="archiveRunDisabled()">
           Run archive
         </button>
       </form>
+
+      @if (runValidationMessage()) {
+        <p class="callout blocked-text">{{ runValidationMessage() }}</p>
+      }
 
       @if (runCommand(); as state) {
         <p class="callout" [class.blocked-text]="state.kind !== 'success'" [class.good-text]="state.kind === 'success'">
@@ -164,7 +171,7 @@
                 [class.selected]="selectedRunId() === run.runId"
                 (click)="selectRun(run.runId)">
                 <span>{{ run.runId }}</span>
-                <small>{{ enumLabel(run.state, 'state') }} · {{ run.committedBatchCount }}/{{ run.acceptedBatchCount }}</small>
+                <small>{{ enumLabel(run.state, 'state') }} - {{ run.committedBatchCount }}/{{ run.acceptedBatchCount }}</small>
               </button>
             </li>
           }
@@ -343,10 +350,14 @@
                   Field
                   <input name="handlerField" [(ngModel)]="handlerFieldName" autocomplete="off" />
                 </label>
-                <button type="button" (click)="loadHandlerOutput()" [disabled]="handlerOutputLoading()">
+                <button type="button" (click)="loadHandlerOutput()" [disabled]="handlerLookupDisabled()">
                   Load handler output
                 </button>
               </div>
+
+              @if (handlerLookupValidationMessage()) {
+                <p class="callout blocked-text">{{ handlerLookupValidationMessage() }}</p>
+              }
 
               @if (handlerOutputLoading()) {
                 <p class="muted">Loading handler output...</p>
@@ -463,6 +474,11 @@
             }
           }
         }
+      } @else if (selectedRun(); as state) {
+        <div class="empty-detail">
+          <h2>{{ selectedRunId() || 'No run selected' }}</h2>
+          <p>{{ state.message || state.firstBlockingReason || 'Selected run is unavailable.' }}</p>
+        </div>
       } @else {
         <div class="empty-detail">
           <h2>No run selected</h2>
@@ -512,6 +528,10 @@
       <p class="callout blocked-text">Controls are disabled until the product HTTP host is reachable.</p>
     } @else if (readiness()?.kind === 'blocked') {
       <p class="callout blocked-text">Controls are disabled while product history readiness is blocked.</p>
+    } @else if (!readiness()) {
+      <p class="callout blocked-text">Controls are disabled until host readiness has loaded.</p>
+    } @else if (readiness()?.kind !== 'success') {
+      <p class="callout blocked-text">Controls are disabled while host readiness is unavailable.</p>
     } @else if (!controlTargetRunId()) {
       <p class="callout blocked-text">Controls require a selected or latest run.</p>
     } @else if (!durableStorePath.trim()) {

@@ -25,6 +25,15 @@ import {
 type DetailTab = 'summary' | 'batches' | 'sources' | 'handlers' | 'diagnostics' | 'capacity';
 type EnumKind = 'state' | 'handlerMode' | 'fallback';
 
+const detailTabs = new Set<DetailTab>([
+  'summary',
+  'batches',
+  'sources',
+  'handlers',
+  'diagnostics',
+  'capacity',
+]);
+
 @Component({
   selector: 'app-root',
   imports: [FormsModule],
@@ -51,6 +60,9 @@ export class App implements OnInit {
   protected readonly controlOutcome = signal<ProductRequestState<ProductControlSummary> | null>(null);
   protected readonly selectedRunId = signal<string>('');
   protected readonly activeTab = signal<DetailTab>('summary');
+  protected readonly apiBaseUrlValidationMessage = signal('');
+  protected readonly runValidationMessage = signal('');
+  protected readonly handlerLookupValidationMessage = signal('');
 
   protected readonly readinessLoading = signal(false);
   protected readonly runsLoading = signal(false);
@@ -73,6 +85,7 @@ export class App implements OnInit {
   constructor(private readonly api: RadarPulseProductApiClient) {}
 
   ngOnInit(): void {
+    this.applyInitialUrlState();
     this.refreshAll();
   }
 
@@ -83,17 +96,33 @@ export class App implements OnInit {
   }
 
   protected applyApiBaseUrl(): void {
+    const validationMessage = validateProductApiBaseUrl(this.apiBaseUrl);
+
+    if (validationMessage) {
+      this.apiBaseUrlValidationMessage.set(validationMessage);
+      return;
+    }
+
+    this.apiBaseUrlValidationMessage.set('');
     this.apiBaseUrl = storeRadarPulseProductApiBaseUrl(this.apiBaseUrl);
     this.refreshAll();
   }
 
   protected runDemo(): void {
+    const validationMessage = this.validateDemoRun();
+
+    if (validationMessage) {
+      this.runValidationMessage.set(validationMessage);
+      return;
+    }
+
+    this.runValidationMessage.set('');
     this.runLoading.set(true);
     this.api.runDemo({
       runId: this.demoRunId.trim() || this.createRunId('demo'),
-      sourceCount: this.demoSourceCount,
-      batchCount: this.demoBatchCount,
-      eventsPerBatch: this.demoEventsPerBatch,
+      sourceCount: Number(this.demoSourceCount),
+      batchCount: Number(this.demoBatchCount),
+      eventsPerBatch: Number(this.demoEventsPerBatch),
       handlerSet: ProductHandlerSet.counterChecksum,
     }).subscribe({
       next: response => this.handleRunCreated(mapProductApiResponse(response)),
@@ -105,9 +134,11 @@ export class App implements OnInit {
     const filePath = this.archiveFilePath.trim();
 
     if (!filePath) {
+      this.runValidationMessage.set('Archive file path is required.');
       return;
     }
 
+    this.runValidationMessage.set('');
     this.runLoading.set(true);
     this.api.runArchive({
       runId: this.createRunId('archive'),
@@ -119,11 +150,21 @@ export class App implements OnInit {
     });
   }
 
-  protected selectRun(runId: string): void {
-    this.selectedRunId.set(runId);
+  protected selectRun(runId: string, updateUrl = true): void {
+    const selectedRunId = runId.trim();
+
+    if (!selectedRunId) {
+      return;
+    }
+
+    this.selectedRunId.set(selectedRunId);
+    if (updateUrl) {
+      this.updateUrlState();
+    }
+
     this.selectedRunLoading.set(true);
     this.handlerOutput.set(null);
-    this.api.getRun(runId).subscribe({
+    this.api.getRun(selectedRunId).subscribe({
       next: response => {
         this.selectedRun.set(mapProductApiResponse(response));
         this.selectedRunLoading.set(false);
@@ -181,18 +222,23 @@ export class App implements OnInit {
 
   protected selectTab(tab: DetailTab): void {
     this.activeTab.set(tab);
+    this.updateUrlState();
   }
 
   protected loadHandlerOutput(): void {
     const runId = this.selectedRunId();
+    const sourceId = Number(this.handlerSourceId);
     const fieldName = this.handlerFieldName.trim();
+    const validationMessage = validateHandlerLookup(runId, sourceId, fieldName);
 
-    if (!runId || !fieldName) {
+    if (validationMessage) {
+      this.handlerLookupValidationMessage.set(validationMessage);
       return;
     }
 
+    this.handlerLookupValidationMessage.set('');
     this.handlerOutputLoading.set(true);
-    this.api.getHandlerOutput(runId, this.handlerSourceId, fieldName).subscribe({
+    this.api.getHandlerOutput(runId, sourceId, fieldName).subscribe({
       next: response => {
         this.handlerOutput.set(mapProductApiResponse(response));
         this.handlerOutputLoading.set(false);
@@ -225,12 +271,28 @@ export class App implements OnInit {
   }
 
   protected controlsDisabled(): boolean {
+    const readiness = this.readiness();
+
     return (
       this.controlLoading() ||
-      this.readiness()?.kind === 'network-error' ||
-      this.readiness()?.kind === 'blocked' ||
+      this.readinessLoading() ||
+      !readiness ||
+      readiness.kind !== 'success' ||
       this.controlTargetRunId().trim().length === 0 ||
       this.durableStorePath.trim().length === 0
+    );
+  }
+
+  protected archiveRunDisabled(): boolean {
+    return this.runLoading() || this.archiveFilePath.trim().length === 0;
+  }
+
+  protected handlerLookupDisabled(): boolean {
+    return (
+      this.handlerOutputLoading() ||
+      this.handlerFieldName.trim().length === 0 ||
+      !Number.isInteger(Number(this.handlerSourceId)) ||
+      Number(this.handlerSourceId) < 0
     );
   }
 
@@ -334,6 +396,7 @@ export class App implements OnInit {
       this.demoRunId = this.createRunId('demo');
       this.selectedRunId.set(state.body.runId);
       this.selectedRun.set(state);
+      this.updateUrlState();
       this.refreshAll();
     }
   }
@@ -382,4 +445,120 @@ export class App implements OnInit {
 
     return `${prefix}-${timestamp}`;
   }
+
+  private applyInitialUrlState(): void {
+    const url = readCurrentUrl();
+
+    if (!url) {
+      return;
+    }
+
+    const tab = parseDetailTab(url.searchParams.get('tab'));
+    this.activeTab.set(tab);
+
+    const runId = url.searchParams.get('runId')?.trim() || '';
+    if (runId) {
+      this.selectRun(runId, false);
+    }
+  }
+
+  private updateUrlState(): void {
+    const url = readCurrentUrl();
+
+    if (!url || !globalThis.history?.replaceState) {
+      return;
+    }
+
+    const runId = this.selectedRunId().trim();
+    if (runId) {
+      url.searchParams.set('runId', runId);
+    } else {
+      url.searchParams.delete('runId');
+    }
+
+    const tab = this.activeTab();
+    if (tab === 'summary') {
+      url.searchParams.delete('tab');
+    } else {
+      url.searchParams.set('tab', tab);
+    }
+
+    globalThis.history.replaceState(
+      globalThis.history.state,
+      '',
+      `${url.pathname}${url.search}${url.hash}`,
+    );
+  }
+
+  private validateDemoRun(): string {
+    if (!isPositiveInteger(this.demoSourceCount)) {
+      return 'Demo source count must be a positive whole number.';
+    }
+
+    if (!isPositiveInteger(this.demoBatchCount)) {
+      return 'Demo batch count must be a positive whole number.';
+    }
+
+    if (!isPositiveInteger(this.demoEventsPerBatch)) {
+      return 'Demo event count must be a positive whole number.';
+    }
+
+    return '';
+  }
+}
+
+function parseDetailTab(value: string | null): DetailTab {
+  return detailTabs.has(value as DetailTab) ? value as DetailTab : 'summary';
+}
+
+function readCurrentUrl(): URL | null {
+  try {
+    return new URL(globalThis.location.href);
+  } catch {
+    return null;
+  }
+}
+
+function validateProductApiBaseUrl(value: string): string {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return 'HTTP host URL is required.';
+  }
+
+  try {
+    const url = new URL(trimmed);
+
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return 'Use an absolute http:// or https:// URL.';
+    }
+
+    return '';
+  } catch {
+    return 'Use an absolute http:// or https:// URL.';
+  }
+}
+
+function validateHandlerLookup(
+  runId: string,
+  sourceId: number,
+  fieldName: string,
+): string {
+  if (!runId.trim()) {
+    return 'Select a run before loading handler output.';
+  }
+
+  if (!Number.isInteger(sourceId) || sourceId < 0) {
+    return 'Handler source id must be zero or a positive whole number.';
+  }
+
+  if (!fieldName.trim()) {
+    return 'Handler field name is required.';
+  }
+
+  return '';
+}
+
+function isPositiveInteger(value: number): boolean {
+  return Number.isInteger(Number(value)) && Number(value) > 0;
 }
