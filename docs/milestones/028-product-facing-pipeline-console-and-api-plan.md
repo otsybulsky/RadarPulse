@@ -523,7 +523,7 @@ request.
 
 ## Completion State
 
-The milestone is stopped before decision trace as requested.
+The milestone is complete through closeout.
 
 The milestone currently has:
 
@@ -532,8 +532,9 @@ The milestone currently has:
 028-product-facing-pipeline-console-and-api-plan.md
 028-product-facing-pipeline-console-and-api-gate.md
 028-product-facing-pipeline-console-and-api-decision-trace.md
+028-product-facing-pipeline-console-and-api-closeout.md
 implementation slices complete
 handoff updated
 decision trace written
-closeout not written
+closeout written
 ```

@@ -1,7 +1,7 @@
 # RadarPulse Project Progress
 
-Status: current after milestone 027 closeout with production pipeline
-integration accepted for deterministic archive-shaped backend workloads.
+Status: current after milestone 028 closeout with product-facing pipeline
+console/API completion accepted for deterministic archive-shaped workloads.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -19,23 +19,23 @@ concurrent runtime/archive processing milestone, the ordered
 rebalance/topology commit milestone, the durable/cross-process runtime
 readiness milestone, the custom handler output contract and BFF readiness
 milestone, the handler delta/merge contract for fast custom analytics
-milestone, the persistent durable adapter readiness milestone, and the
-production pipeline integration milestone. Milestone 027 is complete through
-closeout.
+milestone, the persistent durable adapter readiness milestone, the production
+pipeline integration milestone, and the product-facing pipeline console/API
+milestone. Milestone 028 is complete through closeout.
 
 Current state:
 
 ```text
-completed milestones: 001-027
+completed milestones: 001-028
 latest completed milestone:
-  027 production pipeline integration
+  028 product-facing pipeline console/API
 latest completed milestone status:
   implementation slices complete
   focused Release gate captured
   decision trace written
   closeout written
 recommended next milestone input:
-  product-facing completion
+  product HTTP host and persistent run history
 
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive
@@ -95,13 +95,20 @@ current runtime/live posture:
   and expose operator readiness, first blockers, handler posture,
   file-durable recovery posture, rollback/fallback posture, and local
   representative capacity evidence
-  true live network ingestion, production HTTP BFF host, frontend application,
-  deployment automation, and exactly-once production delivery remain outside
-  the accepted implementation; external broker/database adapter certification
-  is not planned for this project
+  product-facing pipeline console/API completion is accepted with scoped
+  warnings over deterministic archive-shaped workloads
+  stable product DTOs, product run/read/control workflows, product CLI
+  commands, and an API-facing response contract now expose the accepted
+  production-shaped backend pipeline in product vocabulary
+  product run history is in-memory for milestone 028
+  true live network ingestion, production HTTP host/deployed API, frontend
+  application, deployment automation, and exactly-once production delivery
+  remain outside the accepted implementation; external broker/database
+  adapter certification is not planned for this project
 
 current next action:
-  start the recommended product-facing completion milestone
+  start the recommended product HTTP host and persistent run history
+  milestone
 ```
 
 Current project scope decision:
@@ -1525,37 +1532,122 @@ Recommended next milestone input:
 product-facing completion
 ```
 
-### 16. Product-Facing Completion
+### 16. Product-Facing Pipeline Console And API
 
-Recommended next milestone after milestone 027 closeout.
+Status:
+
+```text
+complete as milestone 028
+architecture/concept document written
+implementation plan written
+product DTO and mapping contract complete
+product pipeline run service complete
+product read query surface complete
+product operator control surface complete
+console product workflow complete
+API-facing contract complete
+focused Release gate captured
+decision trace written
+closeout written
+```
+
+Milestone documents:
+
+```text
+docs/milestones/028-product-facing-pipeline-console-and-api.md
+docs/milestones/028-product-facing-pipeline-console-and-api-plan.md
+docs/milestones/028-product-facing-pipeline-console-and-api-gate.md
+docs/milestones/028-product-facing-pipeline-console-and-api-decision-trace.md
+docs/milestones/028-product-facing-pipeline-console-and-api-closeout.md
+```
 
 Goal:
 
 ```text
-turn the processing pipeline into the intended user-facing RadarPulse product
-surface
+turn the accepted production-shaped backend pipeline into a usable
+product-facing console/API surface for deterministic archive-shaped radar
+workflows, with stable DTOs, run/read/control workflows, operator
+diagnostics, handler output visibility, documentation, and focused gates
 ```
 
-Likely required work:
+Implemented work:
 
 ```text
-product-facing radar workflows
-higher-level analysis outputs
-visualization or inspection surfaces if selected
-user-facing operational controls
-end-to-end acceptance criteria
-documentation and release packaging
+stable product DTOs for run detail, run summary, configuration, operator
+  summary, capacity evidence, diagnostics, batches, sources, handler output,
+  query results, API responses, and controls
+mapping from production pipeline results and BFF read models into product
+  contracts
+product pipeline service for deterministic synthetic/demo input,
+  archive-file shaped input, in-memory product history, read queries, and
+  controls
+product read queries for runs, batches, sources, handler output,
+  diagnostics, and capacity evidence
+product controls for stop-accepting, drain-accepted, cancel-open/release,
+  and reject-unsafe-fallback posture
+product CLI commands for demo and archive-file pipeline runs
+API-facing response wrapper and contract methods over the product service
 ```
 
-Prepared by current state:
+Verification summary:
 
 ```text
-the backend data, replay, processing, rebalance, direct benchmark, and
-runtime default-baseline foundations are stable enough for product-facing
-work, and milestone 027 has connected the accepted backend runtime, BFF read
-models, operator diagnostics, rollback/fallback posture, and capacity evidence
-into one production-shaped application surface; full product workflows still
-need their own milestone gates
+focused milestone 028 Release gate:
+  26 passed, 0 failed, 0 skipped
+
+Release build:
+  succeeded, 0 warnings, 0 errors
+```
+
+Decision trace:
+
+```text
+accepted with scoped warnings for product-facing pipeline console/API
+completion over deterministic archive-shaped workloads
+
+warnings:
+milestone 028 validates deterministic synthetic/demo and archive-file shaped
+  product workflows, not true live network ingestion
+the API-facing contract is transport-stable service/API shape, not a
+  production HTTP deployment claim
+the console workflow is a product command surface, not a frontend SPA or
+  rich radar visualization
+product run history is in-memory for this milestone
+the file durable adapter remains the local restart/recovery baseline
+external broker/cloud queue/database adapters are not included and are not
+  planned for this project
+deployment automation, autoscaling, alert routing, runbooks, cross-machine
+  throughput certification, and exactly-once delivery are not claimed
+```
+
+Closeout:
+
+```text
+accepted with scoped warnings for product-facing pipeline console/API
+completion over deterministic archive-shaped workloads
+```
+
+Prepared by milestone 028 implementation:
+
+```text
+RadarPulse now has a product-facing contract over the accepted
+production-shaped backend pipeline instead of only backend/BFF runtime
+objects
+CLI users can run product demo/archive workflows and inspect readiness,
+diagnostics, handler output, capacity evidence, first blockers, and fallback
+recommendations in product vocabulary
+future HTTP or UI work can build on stable product DTOs, query/control
+methods, and the API-facing response contract without redefining pipeline
+semantics
+live ingestion, frontend SPA, deployed HTTP hosting, persistent product
+history, deployment operations, and exactly-once work remain explicitly
+separated instead of silently inherited from this milestone
+```
+
+Recommended next milestone input:
+
+```text
+product HTTP host and persistent run history
 ```
 
 ## Project Chain Summary
@@ -1580,7 +1672,8 @@ need their own milestone gates
 [done] handler delta/merge contract for fast custom analytics
 [done] persistent durable adapter readiness
 [done] production pipeline integration
-[recommended next] product-facing completion
+[done] product-facing pipeline console/API
+[recommended next] product HTTP host and persistent run history
 ```
 
 ## Update Rules
