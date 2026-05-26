@@ -1,62 +1,55 @@
-# Handoff: Milestone 026 Complete
+# Handoff: Milestone 027 Planned
 
 ## Current State
 
-Milestone 026 is complete as the selected reliability milestone after
-milestone 025 closeout. The architecture/concept document, implementation
-plan, implementation slices, focused Release gate, decision trace, closeout,
-and handoff update are complete.
+Milestone 027 has started as the selected production integration milestone
+after milestone 026 closeout. The architecture/concept document and
+implementation plan are written. Implementation has not started.
 
 Stop point:
 
 ```text
-milestone 026 complete
+milestone 027 planned
 ```
 
 Current milestone:
 
 ```text
-026 Persistent Durable Adapter Readiness
+027 Production Pipeline Integration
 ```
 
 Current milestone goal:
 
 ```text
-validate one concrete persistent or broker-like adapter against the
-milestone 023 durable envelope contract while preserving milestone 025
-handler delta identity, idempotency, replay, and ordered merge semantics
+connect the accepted runtime provider posture into an end-to-end operational
+backend pipeline with deployable defaults, diagnostics, representative
+workload gates, restart/recovery validation, rollback/fallback posture, and
+capacity evidence
 ```
 
-Milestone 026 documents:
+Milestone 027 documents:
 
 ```text
-docs/milestones/026-persistent-durable-adapter-readiness.md
-docs/milestones/026-persistent-durable-adapter-readiness-plan.md
-docs/milestones/026-persistent-durable-adapter-readiness-gate.md
-docs/milestones/026-persistent-durable-adapter-readiness-decision-trace.md
-docs/milestones/026-persistent-durable-adapter-readiness-closeout.md
+docs/milestones/027-production-pipeline-integration.md
+docs/milestones/027-production-pipeline-integration-plan.md
 ```
 
-Milestone 026 planned slices:
+Milestone 027 planned slices:
 
 ```text
-1. Persistent envelope schema and adapter contract [complete]
-2. File-backed durable envelope queue [complete]
-3. Restart recovery transitions [complete]
-4. Adapter-backed ordered processing commit [complete]
-5. Handler delta replay compatibility [complete]
-6. Operator summary and Release gate [complete]
-7. Pre-decision trace review point [complete]
+1. Production pipeline profile and configuration contract [planned]
+2. Pipeline operator summary and readiness contract [planned]
+3. Archive-shaped pipeline runner [planned]
+4. Durable restart and recovery pipeline gate [planned]
+5. Rollback, fallback, and handler output compatibility [planned]
+6. Representative capacity and gate evidence [planned]
+7. Pre-decision trace review point [planned]
 ```
 
 Latest verification:
 
 ```text
-focused milestone 026 Release gate:
-  57 passed, 0 failed, 0 skipped
-
-Release build:
-  succeeded, 0 warnings, 0 errors
+not run for milestone 027 yet; current changes are documentation-only
 ```
 
 Most recently closed milestone:
@@ -78,7 +71,7 @@ future milestone decision instead of automatic continuation from milestone
 026.
 ```
 
-Milestone 026 key implementation:
+Milestone 026 key implementation carried forward:
 
 ```text
 versioned persistent durable envelope schema
@@ -107,7 +100,7 @@ Recommended next milestone input:
 production pipeline integration
 ```
 
-Closeout:
+Milestone 026 closeout:
 
 ```text
 accepted with scoped warnings for persistent durable adapter readiness over
@@ -118,7 +111,8 @@ deterministic local file-based adapter
 Current next action:
 
 ```text
-start the recommended production pipeline integration milestone
+implement milestone 027 slice 1: production pipeline profile and
+configuration contract
 ```
 
 ## Previous Closed Milestone Context
