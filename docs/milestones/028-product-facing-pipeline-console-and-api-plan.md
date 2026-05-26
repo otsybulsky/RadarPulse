@@ -531,8 +531,9 @@ The milestone currently has:
 028-product-facing-pipeline-console-and-api.md
 028-product-facing-pipeline-console-and-api-plan.md
 028-product-facing-pipeline-console-and-api-gate.md
+028-product-facing-pipeline-console-and-api-decision-trace.md
 implementation slices complete
 handoff updated
-decision trace not written
+decision trace written
 closeout not written
 ```

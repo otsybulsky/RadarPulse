@@ -1,4 +1,4 @@
-# Handoff: Milestone 028 Gate Review
+# Handoff: Milestone 028 Decision Trace Written
 
 ## Current State
 
@@ -7,14 +7,13 @@ architecture/concept document, implementation plan, slice 1 product DTO and
 mapping contract, slice 2 product pipeline run service, and slice 3 product
 read query surface, and slice 4 product operator control surface are
 complete. Slice 5 console product workflow, slice 6 API-facing contract, and
-slice 7 documentation/gate evidence are complete. The milestone is stopped
-before decision trace as requested.
+slice 7 documentation/gate evidence are complete. Decision trace is written.
+Closeout has not been written yet.
 
 Stop point:
 
 ```text
-milestone 028 implementation and gate evidence complete; stopped before
-decision trace
+milestone 028 decision trace written; closeout pending
 ```
 
 Current milestone:
@@ -38,6 +37,7 @@ Milestone 028 documents:
 docs/milestones/028-product-facing-pipeline-console-and-api.md
 docs/milestones/028-product-facing-pipeline-console-and-api-plan.md
 docs/milestones/028-product-facing-pipeline-console-and-api-gate.md
+docs/milestones/028-product-facing-pipeline-console-and-api-decision-trace.md
 ```
 
 Milestone 028 planned slices:
@@ -162,15 +162,15 @@ throughput certification, or exactly-once production delivery.
 Current next action:
 
 ```text
-review milestone 028 gate evidence, then decide whether to write decision
-trace
+review milestone 028 decision trace, then decide whether to write closeout
 ```
 
-Stop-before-decision-trace instruction:
+Decision trace:
 
 ```text
-complete implementation slices, gate evidence, and handoff updates, then stop
-before writing milestone 028 decision trace
+milestone 028 decision trace written:
+  accepted with scoped warnings for product-facing pipeline console/API
+  completion over deterministic archive-shaped workloads
 ```
 
 ## Previous Closed Milestone Context
