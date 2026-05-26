@@ -166,7 +166,7 @@ Add product HTTP client for operator UI
 
 ## Slice 3: Operator Shell, Readiness, Run Creation, And Run List
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -194,6 +194,15 @@ Angular component tests cover readiness rendering
 Angular component tests cover run list rendering and empty state
 Angular component tests cover demo run action success and failure mapping
 Angular production build succeeds
+```
+
+Verification:
+
+```text
+npm test -- --watch=false
+  result: 7 passed, 0 failed
+npm run build
+  result: succeeded
 ```
 
 Exit criteria:

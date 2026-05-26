@@ -66,7 +66,13 @@ export function mapProductHttpError(error: unknown): ProductRequestState<never> 
     const message = response?.message || error.message || 'HTTP request failed.';
 
     return {
-      kind: error.status === 0 ? 'network-error' : error.status === 404 ? 'not-found' : 'failure',
+      kind: error.status === 0
+        ? 'network-error'
+        : error.status === 404
+          ? 'not-found'
+          : error.status === 400
+            ? 'bad-request'
+            : 'failure',
       statusCode: error.status || null,
       isSuccess: false,
       body: null,
