@@ -25,12 +25,12 @@ Milestone 025 current status:
 ```text
 architecture/concept document: written
 implementation plan: written
-implementation: slice 4 complete
+implementation: slice 5 complete
 handler classification contract: complete
 per-batch handler delta contract: complete
 deterministic ordered merge coordinator: complete
 MVP runtime integration and fallback policy: complete
-BFF compatibility and diagnostics: not started
+BFF compatibility and diagnostics: complete
 handler-heavy performance gate: not started
 decision trace: not written
 planned stop point: stop before decision trace for discussion
@@ -57,7 +57,7 @@ Milestone 025 planned slices:
 2. Per-batch handler delta contract [complete]
 3. Deterministic ordered merge coordinator [complete]
 4. MVP runtime integration and fallback policy [complete]
-5. BFF compatibility and diagnostics
+5. BFF compatibility and diagnostics [complete]
 6. Handler-heavy performance gate
 7. Pre-decision trace review point
 ```

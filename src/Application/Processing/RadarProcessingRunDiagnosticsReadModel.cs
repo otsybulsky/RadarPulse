@@ -11,12 +11,20 @@ public sealed class RadarProcessingRunDiagnosticsReadModel
         RadarProcessingMetrics metrics,
         RadarProcessingProviderQueueTelemetrySummary? queueTelemetry = null,
         RadarProcessingDurableRuntimeReadinessSummary? readiness = null,
-        IReadOnlyList<string>? warnings = null)
+        IReadOnlyList<string>? warnings = null,
+        RadarProcessingHandlerOutputProvenance handlerOutputProvenance =
+            RadarProcessingHandlerOutputProvenance.HandlerFreeOrderedConcurrent,
+        string handlerOutputBlockingReason = "")
     {
+        EnsureKnownProvenance(handlerOutputProvenance);
+        ArgumentNullException.ThrowIfNull(handlerOutputBlockingReason);
+
         ProcessingCompletenessPassed = processingCompletenessPassed;
         Metrics = metrics;
         QueueTelemetry = queueTelemetry ?? RadarProcessingProviderQueueTelemetrySummary.Empty;
         Readiness = readiness ?? RadarProcessingDurableRuntimeReadinessSummary.Empty;
+        HandlerOutputProvenance = handlerOutputProvenance;
+        HandlerOutputBlockingReason = handlerOutputBlockingReason;
         this.warnings = CopyWarnings(warnings);
     }
 
@@ -28,11 +36,29 @@ public sealed class RadarProcessingRunDiagnosticsReadModel
 
     public RadarProcessingDurableRuntimeReadinessSummary Readiness { get; }
 
-    public bool IsReady => ProcessingCompletenessPassed && Readiness.IsReady;
+    public RadarProcessingHandlerOutputProvenance HandlerOutputProvenance { get; }
+
+    public string HandlerOutputBlockingReason { get; }
+
+    public bool UsesOrderedHandlerDeltaMerge =>
+        HandlerOutputProvenance == RadarProcessingHandlerOutputProvenance.OrderedHandlerDeltaMerge;
+
+    public bool UsesSequentialHandlerFallback =>
+        HandlerOutputProvenance == RadarProcessingHandlerOutputProvenance.StatefulSequentialFallback;
+
+    public bool HandlerOutputBlocked =>
+        HandlerOutputProvenance == RadarProcessingHandlerOutputProvenance.UnsupportedHandlerSet;
+
+    public bool IsReady =>
+        ProcessingCompletenessPassed &&
+        Readiness.IsReady &&
+        !HandlerOutputBlocked;
 
     public string BlockingReason =>
         !ProcessingCompletenessPassed
             ? "processing completeness failed"
+            : HandlerOutputBlocked
+                ? HandlerOutputBlockingReason
             : Readiness.BlockingReason;
 
     public long ReleaseFailureCount => Readiness.ReleaseFailureCount;
@@ -48,6 +74,18 @@ public sealed class RadarProcessingRunDiagnosticsReadModel
         QueueTelemetry.CurrentCombinedRetainedPayloadBytes;
 
     public IReadOnlyList<string> Warnings => warnings;
+
+    internal static void EnsureKnownProvenance(
+        RadarProcessingHandlerOutputProvenance handlerOutputProvenance)
+    {
+        if (handlerOutputProvenance is not RadarProcessingHandlerOutputProvenance.HandlerFreeOrderedConcurrent and
+            not RadarProcessingHandlerOutputProvenance.StatefulSequentialFallback and
+            not RadarProcessingHandlerOutputProvenance.OrderedHandlerDeltaMerge and
+            not RadarProcessingHandlerOutputProvenance.UnsupportedHandlerSet)
+        {
+            throw new ArgumentOutOfRangeException(nameof(handlerOutputProvenance));
+        }
+    }
 
     private static IReadOnlyList<string> CopyWarnings(
         IReadOnlyList<string>? warnings)
@@ -68,4 +106,3 @@ public sealed class RadarProcessingRunDiagnosticsReadModel
         return Array.AsReadOnly(result);
     }
 }
-

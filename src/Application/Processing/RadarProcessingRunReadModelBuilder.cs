@@ -24,12 +24,15 @@ public static class RadarProcessingRunReadModelBuilder
             ? Array.Empty<RadarProcessingBatchReadModel>()
             : CreateBatches(sessionResult);
         var effectiveQueueTelemetry = queueTelemetry ?? sessionResult?.Telemetry;
+        var handlerOutputProvenance = CreateHandlerOutputProvenance(handlerContract);
         var diagnostics = new RadarProcessingRunDiagnosticsReadModel(
             ProcessingCompletenessPassed(sessionResult, effectiveQueueTelemetry),
             core.CreateMetrics(),
             effectiveQueueTelemetry,
             readiness,
-            warnings);
+            warnings,
+            handlerOutputProvenance,
+            handlerContract.FirstBlockingReason ?? string.Empty);
 
         return new RadarProcessingRunReadModel(
             runId,
@@ -161,6 +164,25 @@ public static class RadarProcessingRunReadModelBuilder
         }
 
         return Array.AsReadOnly(batches);
+    }
+
+    private static RadarProcessingHandlerOutputProvenance CreateHandlerOutputProvenance(
+        RadarProcessingHandlerOutputContract handlerContract)
+    {
+        ArgumentNullException.ThrowIfNull(handlerContract);
+
+        return handlerContract.StatePosture switch
+        {
+            RadarProcessingHandlerStatePosture.HandlerFreeOrderedConcurrent =>
+                RadarProcessingHandlerOutputProvenance.HandlerFreeOrderedConcurrent,
+            RadarProcessingHandlerStatePosture.StatefulSnapshotSequentialFallback =>
+                RadarProcessingHandlerOutputProvenance.StatefulSequentialFallback,
+            RadarProcessingHandlerStatePosture.MergeableHandlerDeltaMergeEligible =>
+                RadarProcessingHandlerOutputProvenance.OrderedHandlerDeltaMerge,
+            RadarProcessingHandlerStatePosture.UnsupportedHandlerSet =>
+                RadarProcessingHandlerOutputProvenance.UnsupportedHandlerSet,
+            _ => throw new ArgumentOutOfRangeException(nameof(handlerContract))
+        };
     }
 
     private static bool ProcessingCompletenessPassed(
