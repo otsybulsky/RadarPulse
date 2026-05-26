@@ -1,20 +1,20 @@
-# Handoff: Milestone 027 Decision Trace Written
+# Handoff: Milestone 027 Complete
 
 ## Current State
 
-Milestone 027 has started as the selected production integration milestone
+Milestone 027 is complete as the selected production integration milestone
 after milestone 026 closeout. The architecture/concept document,
 implementation plan, slice 1 production pipeline configuration contract, and
 slice 2 pipeline operator summary/readiness contract, and slice 3
 archive-shaped pipeline runner, and slice 4 durable restart/recovery pipeline
 gate, slice 5 rollback/fallback diagnostics, and slice 6 representative
-capacity/gate evidence are complete. Decision trace is written. Closeout has
-not been written.
+capacity/gate evidence are complete. Gate review evidence was tightened,
+decision trace is written, and closeout is written.
 
 Stop point:
 
 ```text
-milestone 027 decision trace written
+milestone 027 closeout written
 ```
 
 Current milestone:
@@ -39,6 +39,7 @@ docs/milestones/027-production-pipeline-integration.md
 docs/milestones/027-production-pipeline-integration-plan.md
 docs/milestones/027-production-pipeline-integration-gate.md
 docs/milestones/027-production-pipeline-integration-decision-trace.md
+docs/milestones/027-production-pipeline-integration-closeout.md
 ```
 
 Milestone 027 planned slices:
@@ -84,35 +85,34 @@ Release build:
 Most recently closed milestone:
 
 ```text
-026 Persistent Durable Adapter Readiness
+027 Production Pipeline Integration
 ```
 
-Milestone 026 scope boundary:
+Milestone 027 scope boundary:
 
 ```text
-the selected adapter is deterministic local file-based persistence.
-milestone 026 stops at this file-based adapter as the accepted persistent
-contract and restart-recovery gate. It does not claim production broker
-durability, true live ingestion, deployment readiness, cross-machine
-throughput certification, or exactly-once production delivery.
-Kafka, RabbitMQ, cloud queue, and database-backed adapters require a separate
-future milestone decision instead of automatic continuation from milestone
-026.
+the accepted pipeline is deterministic and archive-shaped. milestone 027
+connects the accepted backend runtime posture into one production-shaped
+operational application surface, but it does not claim true live network
+ingestion, Kafka/RabbitMQ/cloud queue/database adapter certification,
+production HTTP hosting, frontend implementation, deployment automation,
+cross-machine throughput certification, or exactly-once production delivery.
 ```
 
-Milestone 026 key implementation carried forward:
+Milestone 027 key implementation carried forward:
 
 ```text
-versioned persistent durable envelope schema
-local file-backed durable envelope store
-optional persistent backend for RadarProcessingDurableEnvelopeQueue
-restart recovery for pending, claimed, completed, failed, abandoned, poison,
-  canceled, and released states
-completed-envelope recovery hook for ordered processing commit after
-  adapter/session recreation
-persistent adapter summary composed with durable runtime readiness summary
-adapter-backed handler delta identity, duplicate replay, conflict rejection,
-  and ordered merge compatibility tests
+named production pipeline profile and resolved configuration provenance
+fail-closed production pipeline validation
+pipeline operator summary with first blocker and fallback recommendation
+archive-shaped production pipeline runner over RadarEventBatch input
+BFF read-model publication for production pipeline runs
+handler-free, mergeable, snapshot-only, and unsupported handler posture
+file-durable pipeline recovery runner with completed commit and visible
+  claimed/failed/poison/incompatible blockers
+rollback/fallback controls for stop-accepting, drain-accepted,
+  cancel-open/release, and reject-unsafe-fallback posture
+capacity evidence for local representative archive-shaped pipeline runs
 ```
 
 Decision trace:
@@ -126,21 +126,20 @@ milestone 027 decision trace written:
 Recommended next milestone input:
 
 ```text
-production pipeline integration
+product-facing completion
 ```
 
-Milestone 026 closeout:
+Milestone 027 closeout:
 
 ```text
-accepted with scoped warnings for persistent durable adapter readiness over
-deterministic archive-shaped MVP workloads, stopping milestone 026 at the
-deterministic local file-based adapter
+accepted with scoped warnings for production pipeline integration over
+deterministic archive-shaped backend workloads
 ```
 
 Current next action:
 
 ```text
-write milestone 027 closeout if the decision trace is accepted
+start the recommended product-facing completion milestone
 ```
 
 ## Previous Closed Milestone Context

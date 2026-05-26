@@ -1,7 +1,7 @@
 # RadarPulse Project Progress
 
-Status: current after milestone 026 closeout with file-based persistent
-durable adapter readiness accepted.
+Status: current after milestone 027 closeout with production pipeline
+integration accepted for deterministic archive-shaped backend workloads.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -19,22 +19,23 @@ concurrent runtime/archive processing milestone, the ordered
 rebalance/topology commit milestone, the durable/cross-process runtime
 readiness milestone, the custom handler output contract and BFF readiness
 milestone, the handler delta/merge contract for fast custom analytics
-milestone, and the persistent durable adapter readiness milestone. Milestone
-026 is complete through closeout.
+milestone, the persistent durable adapter readiness milestone, and the
+production pipeline integration milestone. Milestone 027 is complete through
+closeout.
 
 Current state:
 
 ```text
-completed milestones: 001-026
+completed milestones: 001-027
 latest completed milestone:
-  026 persistent durable adapter readiness
+  027 production pipeline integration
 latest completed milestone status:
   implementation slices complete
   focused Release gate captured
   decision trace written
   closeout written
 recommended next milestone input:
-  production pipeline integration
+  product-facing completion
 
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive
@@ -86,11 +87,20 @@ current runtime/live posture:
   deterministic local file-based persistence is accepted as the milestone 026
   adapter boundary; Kafka, RabbitMQ, cloud queue, and database-backed adapters
   require a separate future milestone decision
-  true live network ingestion and production deployment/rollback/operator
-  surfaces are not implemented yet
+  production pipeline integration is accepted with scoped warnings over
+  deterministic archive-shaped backend workloads
+  the production pipeline profile resolves accepted backend defaults with
+  explicit provenance and fail-closed validation
+  the archive-shaped production pipeline runner can publish BFF read models
+  and expose operator readiness, first blockers, handler posture,
+  file-durable recovery posture, rollback/fallback posture, and local
+  representative capacity evidence
+  true live network ingestion, Kafka/RabbitMQ/cloud queue/database adapter
+  certification, production HTTP BFF host, frontend application, deployment
+  automation, and exactly-once production delivery are not implemented yet
 
 current next action:
-  start the recommended production pipeline integration milestone
+  start the recommended product-facing completion milestone
 ```
 
 The current accepted direct benchmark contour is:
@@ -1383,7 +1393,31 @@ production pipeline integration
 
 ### 15. Production Pipeline Integration
 
-Recommended next milestone after milestone 026 closeout.
+Status:
+
+```text
+complete as milestone 027
+architecture/concept document written
+implementation plan written
+production pipeline profile and configuration contract complete
+pipeline operator summary and readiness contract complete
+archive-shaped pipeline runner complete
+durable restart and recovery pipeline gate complete
+rollback/fallback diagnostics complete
+representative capacity and gate evidence captured
+decision trace written
+closeout written
+```
+
+Milestone documents:
+
+```text
+docs/milestones/027-production-pipeline-integration.md
+docs/milestones/027-production-pipeline-integration-plan.md
+docs/milestones/027-production-pipeline-integration-gate.md
+docs/milestones/027-production-pipeline-integration-decision-trace.md
+docs/milestones/027-production-pipeline-integration-closeout.md
+```
 
 Goal:
 
@@ -1394,32 +1428,93 @@ gates, restart/recovery validation, rollback/fallback posture, and capacity
 evidence
 ```
 
-Likely required work:
+Implemented work:
 
 ```text
-live archive/runtime ingestion path
-configuration defaults and override policy
-deployment/operator profile
-observability, telemetry, diagnostics, and alerting
-end-to-end validation on representative workloads
-rollback and fallback procedures
-performance budget and capacity planning
+named production pipeline profile
+resolved configuration with value provenance, warnings, first invalid option,
+  and first invalid reason
+fail-closed validation for invalid capacities, unsupported durable adapter
+  kinds, unsafe borrowed-provider fallback requests, and unsupported handler
+  posture combinations
+operator summary with configuration validity, durable readiness, retained
+  pressure, processing completeness, handler posture, first blocker, and
+  fallback recommendation
+archive-shaped production pipeline runner over deterministic RadarEventBatch
+  input
+BFF read-model publication for production pipeline runs
+handler-free, mergeable handler, snapshot-only handler, and unsupported
+  handler posture through the pipeline
+file-durable pipeline recovery runner with completed commit and visible
+  claimed/failed/poison/incompatible blockers
+rollback/fallback controls for stop-accepting, drain-accepted,
+  cancel-open/release, and reject-unsafe-fallback posture
+capacity evidence for local representative archive-shaped pipeline runs
 ```
 
-Prepared by current state:
+Verification summary:
 
 ```text
-runtime/archive provider defaults, ordered processing/rebalance commit
-contracts, durable file-based adapter readiness, custom handler output/BFF
-read models, and handler delta/merge semantics are accepted as the backend
-foundation; production integration still needs separate surface evidence and
-must not silently expand into Kafka, RabbitMQ, cloud queue, or database
-adapter work unless that adapter decision is explicitly selected first
+focused milestone 027 Release gate:
+  29 passed, 0 failed, 0 skipped
+
+Release build:
+  succeeded, 0 warnings, 0 errors
+```
+
+Decision trace:
+
+```text
+accepted with scoped warnings for production pipeline integration over
+deterministic archive-shaped backend workloads
+
+warnings:
+milestone 027 validates deterministic archive-shaped production pipeline
+  integration, not true live network ingestion
+the normal pipeline capacity row measures the archive-shaped runtime path,
+  not durable-backed broker throughput
+the file durable adapter remains the local restart/recovery baseline
+Kafka, RabbitMQ, cloud queue, and database-backed adapters are not included
+production broker durability, broker retention, and cross-machine delivery
+  are not claimed
+production HTTP BFF host and frontend remain future work
+deployment platform automation, rollback runbooks, autoscaling, alert
+  routing, and operator procedures remain future work
+rollback/fallback posture is explicit and operator-visible; hidden borrowed
+  provider fallback remains rejected
+exactly-once production delivery is not claimed
+```
+
+Closeout:
+
+```text
+accepted with scoped warnings for production pipeline integration over
+deterministic archive-shaped backend workloads
+```
+
+Prepared by milestone 027 implementation:
+
+```text
+RadarPulse now has one production-shaped backend application surface instead
+of separate lower-level runtime, durability, handler, and BFF readiness pieces
+operators can inspect configuration provenance, readiness, first blockers,
+handler posture, durable recovery posture, rollback/fallback posture, and
+capacity evidence from the pipeline surface
+product-facing work can build on accepted BFF read models and operator
+diagnostics without inventing a new backend orchestration path
+future adapter, live ingestion, deployment, and exactly-once work remains
+explicitly separated instead of silently inherited from this milestone
+```
+
+Recommended next milestone input:
+
+```text
+product-facing completion
 ```
 
 ### 16. Product-Facing Completion
 
-Future milestone after production pipeline integration.
+Recommended next milestone after milestone 027 closeout.
 
 Goal:
 
@@ -1443,9 +1538,11 @@ Prepared by current state:
 
 ```text
 the backend data, replay, processing, rebalance, direct benchmark, and
-runtime default-baseline foundations are increasingly stable, and milestone
-024 has added the first MVP-facing backend output contract; full product
-workflows still need their own milestone gates
+runtime default-baseline foundations are stable enough for product-facing
+work, and milestone 027 has connected the accepted backend runtime, BFF read
+models, operator diagnostics, rollback/fallback posture, and capacity evidence
+into one production-shaped application surface; full product workflows still
+need their own milestone gates
 ```
 
 ## Project Chain Summary
@@ -1469,8 +1566,8 @@ workflows still need their own milestone gates
 [done] custom handler output contract and BFF readiness
 [done] handler delta/merge contract for fast custom analytics
 [done] persistent durable adapter readiness
-[recommended next] production pipeline integration
-[later] product-facing completion
+[done] production pipeline integration
+[recommended next] product-facing completion
 ```
 
 ## Update Rules

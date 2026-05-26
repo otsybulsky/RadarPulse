@@ -1,9 +1,10 @@
 # Milestone 027: Production Pipeline Integration Implementation Plan
 
-Status: decision trace written.
+Status: complete.
 
 This plan implements the milestone 027 architecture defined in
-`027-production-pipeline-integration.md`.
+`027-production-pipeline-integration.md`. Implementation slices, focused
+Release gate evidence, decision trace, and closeout are complete.
 
 The plan is scoped to a deterministic archive-shaped operational backend
 pipeline. It composes the accepted runtime/archive provider baseline,
@@ -409,13 +410,13 @@ fixed gate-review findings before decision trace:
   corrected handler-conflict blocker priority
   updated handoff title and gate counts
 decision trace written after review
-closeout remains pending
+closeout written after decision acceptance
 ```
 
 Exit criteria:
 
 ```text
-decision trace is written and closeout document has not been created
+decision trace and closeout are written
 ```
 
 Commit:
@@ -441,29 +442,28 @@ runtime behavior beyond the new pipeline orchestration surface. Historical
 allocation-sensitive benchmark caveats should remain attributed separately if
 they appear outside the focused pipeline gate.
 
-## Stop Rule
+## Completion State
 
 The original implementation stop point was before decision trace. After
-pre-decision review, the decision trace was requested and written.
+pre-decision review, the decision trace was requested and written. The
+milestone is now closed.
 
-Stop before writing the closeout.
-
-The milestone should stop with:
+The milestone closes with:
 
 ```text
 027-production-pipeline-integration.md
 027-production-pipeline-integration-plan.md
 027-production-pipeline-integration-gate.md
 027-production-pipeline-integration-decision-trace.md
+027-production-pipeline-integration-closeout.md
 implementation slices complete
 handoff updated
 decision trace written
-closeout not written
+closeout written
 ```
 
 Current status:
 
 ```text
-decision trace written after review
-closeout not written
+complete after closeout
 ```
