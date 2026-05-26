@@ -1,5 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <Compile Remove="OperatorUi\**" />
+    <EmbeddedResource Remove="OperatorUi\**" />
+    <None Remove="OperatorUi\**" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Application\RadarPulse.Application.csproj" />
     <ProjectReference Include="..\Infrastructure\RadarPulse.Infrastructure.csproj" />
   </ItemGroup>
