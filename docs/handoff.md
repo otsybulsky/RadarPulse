@@ -1,4 +1,4 @@
-# Handoff: Milestone 029 In Progress
+# Handoff: Milestone 029 Complete
 
 ## Current State
 
@@ -6,21 +6,15 @@ Milestone 029 has been selected after milestone 028 closeout. The
 architecture/concept document, implementation plan, product history store
 contract, file-backed product history store, persistent history service
 integration, HTTP host route mapping, HTTP control/failure posture, gate
-evidence, decision trace, and handoff update are complete.
+evidence, decision trace, closeout, and handoff update are complete.
 
 Stop point:
 
 ```text
-milestone 029 decision trace written; closeout not written
+milestone 029 closeout written; next milestone selection pending
 ```
 
 Most recently closed milestone:
-
-```text
-028 Product-Facing Pipeline Console And API
-```
-
-Current milestone:
 
 ```text
 029 Product HTTP Host And Persistent Run History
@@ -41,6 +35,7 @@ docs/milestones/029-product-http-host-and-persistent-run-history.md
 docs/milestones/029-product-http-host-and-persistent-run-history-plan.md
 docs/milestones/029-product-http-host-and-persistent-run-history-gate.md
 docs/milestones/029-product-http-host-and-persistent-run-history-decision-trace.md
+docs/milestones/029-product-http-host-and-persistent-run-history-closeout.md
 ```
 
 Milestone 029 planned slices:
@@ -57,7 +52,7 @@ Milestone 029 planned slices:
 Latest verification:
 
 ```text
-latest closed milestone verification is milestone 028:
+previous closed milestone verification is milestone 028:
   focused milestone 028 Release gate:
     26 passed, 0 failed, 0 skipped
   Release build:
@@ -121,7 +116,7 @@ throughput certification, or exactly-once production delivery.
 Current next action:
 
 ```text
-write milestone 029 closeout if the decision trace is accepted
+start the recommended product operator UI over the HTTP host milestone
 ```
 
 Decision trace:
@@ -138,14 +133,12 @@ recommended next milestone input:
 Closeout:
 
 ```text
-milestone 029 closeout has not been written
-
-milestone 028 closeout remains the latest closed milestone:
-  accepted with scoped warnings for product-facing pipeline console/API
-  completion over deterministic archive-shaped workloads
+milestone 029 closeout written:
+  accepted with scoped warnings for product HTTP host and persistent run
+  history over deterministic archive-shaped workloads
 
 recommended next milestone input:
-  product HTTP host and persistent run history
+  product operator UI over the HTTP host
 ```
 
 ## Previous Closed Milestone Context

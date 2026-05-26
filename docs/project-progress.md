@@ -1,7 +1,7 @@
 # RadarPulse Project Progress
 
-Status: current after milestone 028 closeout with product-facing pipeline
-console/API completion accepted for deterministic archive-shaped workloads.
+Status: current after milestone 029 closeout with product HTTP host and
+persistent run history accepted for deterministic archive-shaped workloads.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -20,22 +20,23 @@ rebalance/topology commit milestone, the durable/cross-process runtime
 readiness milestone, the custom handler output contract and BFF readiness
 milestone, the handler delta/merge contract for fast custom analytics
 milestone, the persistent durable adapter readiness milestone, the production
-pipeline integration milestone, and the product-facing pipeline console/API
-milestone. Milestone 028 is complete through closeout.
+pipeline integration milestone, the product-facing pipeline console/API
+milestone, and the product HTTP host and persistent run history milestone.
+Milestone 029 is complete through closeout.
 
 Current state:
 
 ```text
-completed milestones: 001-028
+completed milestones: 001-029
 latest completed milestone:
-  028 product-facing pipeline console/API
+  029 product HTTP host and persistent run history
 latest completed milestone status:
   implementation slices complete
   focused Release gate captured
   decision trace written
   closeout written
 recommended next milestone input:
-  product HTTP host and persistent run history
+  product operator UI over the HTTP host
 
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive
@@ -100,15 +101,21 @@ current runtime/live posture:
   stable product DTOs, product run/read/control workflows, product CLI
   commands, and an API-facing response contract now expose the accepted
   production-shaped backend pipeline in product vocabulary
-  product run history is in-memory for milestone 028
-  true live network ingestion, production HTTP host/deployed API, frontend
-  application, deployment automation, and exactly-once production delivery
-  remain outside the accepted implementation; external broker/database
-  adapter certification is not planned for this project
+  product HTTP host and persistent run history is accepted with scoped
+  warnings over deterministic archive-shaped workloads
+  product run history can use deterministic local file-backed JSON
+  persistence and can reload product run summaries, details, diagnostics,
+  handler output, and capacity evidence after service recreation
+  RadarPulse.Http is accepted as a thin local hosted delivery adapter over
+  the product API contract and service
+  true live network ingestion, public/deployed production HTTP API, frontend
+  application, deployment automation, production security hardening, and
+  exactly-once production delivery remain outside the accepted implementation;
+  external broker/database adapter certification is not planned for this
+  project
 
 current next action:
-  start the recommended product HTTP host and persistent run history
-  milestone
+  start the recommended product operator UI over the HTTP host milestone
 ```
 
 Current project scope decision:
@@ -118,7 +125,8 @@ Kafka/RabbitMQ/database-backed adapters will not be implemented in this
 project. Future milestones should not plan external broker, cloud queue, or
 database adapter certification. The accepted persistence boundary for this
 project is the deterministic local file-based durable adapter plus the
-production-shaped pipeline built on top of it.
+production-shaped pipeline built on top of it, and deterministic local
+file-backed product run history for product-level run records.
 ```
 
 The current accepted direct benchmark contour is:
@@ -1650,6 +1658,124 @@ Recommended next milestone input:
 product HTTP host and persistent run history
 ```
 
+### 17. Product HTTP Host And Persistent Run History
+
+Status:
+
+```text
+complete as milestone 029
+architecture/concept document written
+implementation plan written
+product run history store contract complete
+file-backed product run history store complete
+persistent history service integration complete
+product HTTP host project and route mapping complete
+HTTP control and failure posture complete
+focused Release gate captured
+decision trace written
+closeout written
+```
+
+Milestone documents:
+
+```text
+docs/milestones/029-product-http-host-and-persistent-run-history.md
+docs/milestones/029-product-http-host-and-persistent-run-history-plan.md
+docs/milestones/029-product-http-host-and-persistent-run-history-gate.md
+docs/milestones/029-product-http-host-and-persistent-run-history-decision-trace.md
+docs/milestones/029-product-http-host-and-persistent-run-history-closeout.md
+```
+
+Goal:
+
+```text
+expose the accepted milestone 028 product pipeline contract through a thin
+local HTTP host and persist product run history through deterministic local
+file-backed storage for archive-shaped workflows
+```
+
+Implemented work:
+
+```text
+IRadarPulseProductRunHistoryStore product history boundary
+RadarPulseProductRunHistoryReadiness and storage kind reporting
+RadarPulseProductInMemoryRunHistoryStore milestone 028-compatible default
+RadarPulseProductFileRunHistoryStore deterministic local JSON persistence
+versioned product history reload after store/service recreation
+blocked history readiness for corrupt JSON, unsupported schema, invalid path,
+  and conflicting duplicate run identity
+RadarPulseProductPipelineService history-store injection and file-history
+  factory
+RadarPulseProductPipelineApiContract history readiness, batch, source, and
+  handler-output query methods
+RadarPulse.Http local ASP.NET Core host project
+HTTP routes for demo/archive runs, run list/latest/detail, batches, sources,
+  handler output, diagnostics, capacity evidence, readiness, and controls
+HTTP control routes for stop-accepting, drain-accepted, cancel-open/release,
+  and reject-unsafe-fallback
+```
+
+Verification summary:
+
+```text
+focused milestone 029 Release gate:
+  27 passed, 0 failed, 0 skipped
+
+Release build:
+  succeeded, 0 warnings, 0 errors
+```
+
+Decision trace:
+
+```text
+accepted with scoped warnings for product HTTP host and persistent run
+history over deterministic archive-shaped workloads
+
+warnings:
+the HTTP host is a local hosted delivery adapter, not production deployment
+  automation
+product run history persistence is deterministic local file-backed storage,
+  not external broker, cloud queue, or database durability
+the hosted workflows remain deterministic demo/archive-shaped product
+  workflows, not true live network ingestion
+auth, authorization, TLS termination, CORS hardening, public internet
+  exposure, autoscaling, alert routing, operator runbooks, cross-machine
+  throughput certification, and exactly-once delivery are not claimed
+frontend SPA or rich radar visualization is not implemented
+accepted milestone 020-028 runtime, durable, handler, BFF, production
+  pipeline, and product contract decisions are not reopened
+```
+
+Closeout:
+
+```text
+accepted with scoped warnings for product HTTP host and persistent run
+history over deterministic archive-shaped workloads
+```
+
+Prepared by milestone 029 implementation:
+
+```text
+RadarPulse now has a local hosted product delivery surface over the accepted
+product service/API contract
+product run history can survive service recreation through deterministic
+local file-backed storage
+future UI work can call product HTTP routes instead of reaching into CLI or
+lower-level backend objects
+operator-facing UI can consume readiness, first blockers, diagnostics,
+handler output, capacity evidence, and explicit controls through HTTP
+live ingestion, public production deployment, auth/TLS/CORS hardening,
+external broker/database adapters, operations automation, and exactly-once
+work remain explicitly separated instead of silently inherited from this
+milestone
+```
+
+Recommended next milestone input:
+
+```text
+product operator UI over the HTTP host
+```
+
 ## Project Chain Summary
 
 ```text
@@ -1673,7 +1799,8 @@ product HTTP host and persistent run history
 [done] persistent durable adapter readiness
 [done] production pipeline integration
 [done] product-facing pipeline console/API
-[recommended next] product HTTP host and persistent run history
+[done] product HTTP host and persistent run history
+[recommended next] product operator UI over the HTTP host
 ```
 
 ## Update Rules
