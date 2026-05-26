@@ -122,6 +122,55 @@ describe('App', () => {
 
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Handler output was not found.');
   });
+
+  it('sends operator controls and renders unsafe fallback rejection', async () => {
+    api.runs = [summary('run-control')];
+    api.latest = detail('run-control');
+
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const durableInput = fixture.nativeElement.querySelector(
+      'input[name="durableStorePath"]',
+    ) as HTMLInputElement;
+    durableInput.value = 'durable.json';
+    durableInput.dispatchEvent(new Event('input'));
+
+    clickButton(fixture.nativeElement, 'Stop accepting');
+    await fixture.whenStable();
+    expect(api.lastControlAction).toBe('StopAccepting');
+
+    clickButton(fixture.nativeElement, 'Drain accepted');
+    await fixture.whenStable();
+    expect(api.lastControlAction).toBe('DrainAccepted');
+
+    clickButton(fixture.nativeElement, 'Cancel and release');
+    await fixture.whenStable();
+    expect(api.lastControlAction).toBe('CancelOpenAndRelease');
+
+    clickButton(fixture.nativeElement, 'Reject unsafe fallback');
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(api.lastControlAction).toBe('RejectUnsafeFallback');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('borrowed fallback requested');
+  });
+
+  it('disables operator controls while the host is unreachable', async () => {
+    api.readinessError = new HttpErrorResponse({ status: 0 });
+    api.runs = [summary('run-control')];
+    api.latest = detail('run-control');
+
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const rejectButton = findButton(fixture.nativeElement, 'Reject unsafe fallback');
+    expect(rejectButton.disabled).toBe(true);
+  });
 });
 
 class ProductApiStub {
@@ -129,6 +178,7 @@ class ProductApiStub {
   latest: ProductRunDetail | null = null;
   readinessError: HttpErrorResponse | null = null;
   demoRunRequested = false;
+  lastControlAction = '';
   handlerOutput: ProductHandlerOutput | null = {
     handlerIndex: 0,
     handlerName: 'counter-checksum',
@@ -205,6 +255,40 @@ class ProductApiStub {
         },
       }));
   }
+
+  stopAccepting() {
+    return this.control('StopAccepting');
+  }
+
+  drainAccepted() {
+    return this.control('DrainAccepted');
+  }
+
+  cancelOpenAndRelease() {
+    return this.control('CancelOpenAndRelease');
+  }
+
+  rejectUnsafeFallback() {
+    return this.control('RejectUnsafeFallback', false, 'borrowed fallback requested');
+  }
+
+  private control(action: string, ready = true, warning = '') {
+    this.lastControlAction = action;
+    return of(ok({
+      runId: 'run-control',
+      action,
+      operatorSummary: {
+        ...operatorSummary(),
+        isReady: ready,
+        firstBlockingReason: ready ? '' : warning,
+        warnings: warning ? [warning] : [],
+      },
+      canceledOpenCount: action === 'CancelOpenAndRelease' ? 1 : 0,
+      releasedCanceledCount: action === 'CancelOpenAndRelease' ? 1 : 0,
+      drainedProcessingCount: action === 'DrainAccepted' ? 1 : 0,
+      message: '',
+    }));
+  }
 }
 
 function ok<T>(body: T): ProductApiResponse<T> {
@@ -254,23 +338,7 @@ function detail(runId: string): ProductRunDetail {
       values: [],
       warnings: [],
     },
-    operatorSummary: {
-      runState: 4,
-      isReady: true,
-      processingComplete: true,
-      handlerMode: 3,
-      hasHandlerConflict: false,
-      handlerBlockingReason: '',
-      firstBlockingReason: '',
-      fallbackRecommendation: 1,
-      firstBlockingBatchId: null,
-      firstBlockingSequence: null,
-      firstBlockingState: null,
-      currentRetainedBatchCount: 0,
-      currentRetainedPayloadBytes: 0,
-      releaseHealthy: true,
-      warnings: [],
-    },
+    operatorSummary: operatorSummary(),
     capacityEvidence: {
       runId,
       profileName: 'production',
@@ -367,6 +435,10 @@ function detail(runId: string): ProductRunDetail {
 }
 
 function clickButton(root: Element, label: string): void {
+  findButton(root, label).dispatchEvent(new Event('click'));
+}
+
+function findButton(root: Element, label: string): HTMLButtonElement {
   const buttons = Array.from(root.querySelectorAll('button'));
   const button = buttons.find(candidate => candidate.textContent?.trim() === label);
 
@@ -374,5 +446,25 @@ function clickButton(root: Element, label: string): void {
     throw new Error(`Button not found: ${label}`);
   }
 
-  button.dispatchEvent(new Event('click'));
+  return button;
+}
+
+function operatorSummary() {
+  return {
+    runState: 4,
+    isReady: true,
+    processingComplete: true,
+    handlerMode: 3,
+    hasHandlerConflict: false,
+    handlerBlockingReason: '',
+    firstBlockingReason: '',
+    fallbackRecommendation: 1,
+    firstBlockingBatchId: null,
+    firstBlockingSequence: null,
+    firstBlockingState: null,
+    currentRetainedBatchCount: 0,
+    currentRetainedPayloadBytes: 0,
+    releaseHealthy: true,
+    warnings: [],
+  };
 }

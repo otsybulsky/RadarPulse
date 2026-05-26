@@ -242,6 +242,30 @@ input {
   margin-top: 16px;
 }
 
+.controls-panel {
+  max-width: 1440px;
+  margin: 16px auto 0;
+  border: 1px solid #d9e1ea;
+  border-radius: 8px;
+  padding: 18px;
+  background: #fff;
+}
+
+.controls-grid {
+  display: grid;
+  grid-template-columns: minmax(200px, 280px) minmax(260px, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.control-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .run-list {
   min-height: 420px;
   border: 1px solid #d9e1ea;
@@ -382,8 +406,13 @@ tr:last-child td {
 
 @media (max-width: 1100px) {
   .overview-grid,
-  .workspace {
+  .workspace,
+  .controls-grid {
     grid-template-columns: 1fr;
+  }
+
+  .control-buttons {
+    justify-content: flex-start;
   }
 
   .metric-grid,

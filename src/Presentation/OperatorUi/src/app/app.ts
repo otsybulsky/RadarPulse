@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 
 import { RadarPulseProductApiClient } from './product/product-api.client';
 import {
+  ProductControlSummary,
   ProductHandlerSet,
   ProductHandlerOutput,
   ProductRunDetail,
@@ -32,6 +33,7 @@ export class App implements OnInit {
   protected demoBatchCount = 2;
   protected demoEventsPerBatch = 2;
   protected archiveFilePath = '';
+  protected durableStorePath = '';
   protected handlerSourceId = 0;
   protected handlerFieldName = 'benchmark.events';
 
@@ -41,6 +43,7 @@ export class App implements OnInit {
   protected readonly selectedRun = signal<ProductRequestState<ProductRunDetail> | null>(null);
   protected readonly runCommand = signal<ProductRequestState<ProductRunDetail> | null>(null);
   protected readonly handlerOutput = signal<ProductRequestState<ProductHandlerOutput> | null>(null);
+  protected readonly controlOutcome = signal<ProductRequestState<ProductControlSummary> | null>(null);
   protected readonly selectedRunId = signal<string>('');
   protected readonly activeTab = signal<DetailTab>('summary');
 
@@ -50,6 +53,7 @@ export class App implements OnInit {
   protected readonly selectedRunLoading = signal(false);
   protected readonly runLoading = signal(false);
   protected readonly handlerOutputLoading = signal(false);
+  protected readonly controlLoading = signal(false);
 
   protected readonly isBusy = computed(() =>
     this.readinessLoading() ||
@@ -57,7 +61,8 @@ export class App implements OnInit {
     this.latestLoading() ||
     this.selectedRunLoading() ||
     this.runLoading() ||
-    this.handlerOutputLoading(),
+    this.handlerOutputLoading() ||
+    this.controlLoading(),
   );
 
   constructor(private readonly api: RadarPulseProductApiClient) {}
@@ -189,6 +194,36 @@ export class App implements OnInit {
     });
   }
 
+  protected stopAccepting(): void {
+    this.applyControl('stop');
+  }
+
+  protected drainAccepted(): void {
+    this.applyControl('drain');
+  }
+
+  protected cancelOpenAndRelease(): void {
+    this.applyControl('cancel');
+  }
+
+  protected rejectUnsafeFallback(): void {
+    this.applyControl('reject');
+  }
+
+  protected controlTargetRunId(): string {
+    return this.selectedRunId() || this.latestRun()?.body?.runId || '';
+  }
+
+  protected controlsDisabled(): boolean {
+    return (
+      this.controlLoading() ||
+      this.readiness()?.kind === 'network-error' ||
+      this.readiness()?.kind === 'blocked' ||
+      this.controlTargetRunId().trim().length === 0 ||
+      this.durableStorePath.trim().length === 0
+    );
+  }
+
   protected enumLabel(value: ProductEnumValue, kind: EnumKind): string {
     if (typeof value === 'string') {
       return value;
@@ -291,6 +326,42 @@ export class App implements OnInit {
       this.selectedRun.set(state);
       this.refreshAll();
     }
+  }
+
+  private applyControl(action: 'stop' | 'drain' | 'cancel' | 'reject'): void {
+    const runId = this.controlTargetRunId().trim();
+    const durableStorePath = this.durableStorePath.trim();
+
+    if (!runId || !durableStorePath) {
+      return;
+    }
+
+    const request = {
+      runId,
+      durableStorePath,
+      sourceCount: this.demoSourceCount,
+      handlerSet: ProductHandlerSet.counterChecksum,
+    };
+    const controlCall = action === 'stop'
+      ? this.api.stopAccepting(request)
+      : action === 'drain'
+        ? this.api.drainAccepted(request)
+        : action === 'cancel'
+          ? this.api.cancelOpenAndRelease(request)
+          : this.api.rejectUnsafeFallback(request);
+
+    this.controlLoading.set(true);
+    controlCall.subscribe({
+      next: response => {
+        this.controlOutcome.set(mapProductApiResponse(response));
+        this.controlLoading.set(false);
+        this.refreshAll();
+      },
+      error: error => {
+        this.controlOutcome.set(mapProductHttpError(error) as ProductRequestState<ProductControlSummary>);
+        this.controlLoading.set(false);
+      },
+    });
   }
 
   private createRunId(prefix: string): string {

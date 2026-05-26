@@ -273,7 +273,7 @@ Add operator run inspection views
 
 ## Slice 5: Operator Controls And Failure Posture
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -299,6 +299,15 @@ Angular tests cover each control route action
 Angular tests cover unsafe fallback rejection rendering
 Angular tests cover blocked/unreachable host disabling local controls
 Angular production build succeeds
+```
+
+Verification:
+
+```text
+npm test -- --watch=false
+  result: 11 passed, 0 failed
+npm run build
+  result: succeeded, 0 warnings
 ```
 
 Exit criteria:
