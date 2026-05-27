@@ -184,6 +184,27 @@ local product URL:
   http://127.0.0.1:5129
 ```
 
+Source navigation after the milestone 034 restructuring:
+
+```text
+product API/application models:
+  src/Application/Product/Pipeline
+  src/Application/Product/History
+
+product pipeline/history implementations:
+  src/Infrastructure/Product/Pipeline
+  src/Infrastructure/Product/History
+
+local HTTP host adapter:
+  src/Presentation/RadarPulse.Http/Hosting
+  src/Presentation/RadarPulse.Http/Product
+
+product-focused tests:
+  tests/RadarPulse.Tests/Product/Pipeline
+  tests/RadarPulse.Tests/Product/History
+  tests/RadarPulse.Tests/Product/Http
+```
+
 ## Start Local Product Host
 
 Start the local same-origin product host:

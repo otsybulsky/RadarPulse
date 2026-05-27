@@ -60,6 +60,17 @@ The UI defaults to:
 http://localhost:5000
 ```
 
+Current HTTP host source navigation:
+
+```text
+src/Presentation/RadarPulse.Http/Hosting
+src/Presentation/RadarPulse.Http/Product/Composition
+src/Presentation/RadarPulse.Http/Product/Endpoints
+src/Presentation/RadarPulse.Http/Product/Options
+src/Presentation/RadarPulse.Http/Product/Readiness
+src/Presentation/RadarPulse.Http/Product/StaticDelivery
+```
+
 If the HTTP host runs on a different URL, change the `HTTP host` field in the
 top bar and apply it. The override is stored in browser local storage under:
 

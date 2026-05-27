@@ -602,3 +602,49 @@ when rerun isolated after a full-suite process failure. Responsibility chunk
 gates keep state-sensitive checks isolated while still covering the moved
 processing tests.
 ```
+
+### Change 4: Current Documentation Path Audit
+
+Status: complete.
+
+Intent:
+
+```text
+align current user-facing documentation with the responsibility-first source
+layout after change 3, without rewriting historical milestone evidence
+```
+
+Scope:
+
+```text
+README.md
+docs/product-demo-readiness.md
+src/Presentation/OperatorUi/README.md
+docs/milestones/034-targeted-project-restructuring-and-maintenance.md
+docs/handoff.md
+docs/project-progress.md
+```
+
+Verification:
+
+```text
+current documentation direct-file stale path audit:
+  README.md
+  docs/product-demo-readiness.md
+  src/Presentation/OperatorUi/README.md
+  docs/project-progress.md
+  docs/milestones/034-targeted-project-restructuring-and-maintenance.md
+  no stale direct .cs file paths found
+
+git diff --check
+  passed
+```
+
+Notes:
+
+```text
+README and product demo docs now include current source navigation for the
+responsibility-first structure. Historical lower sections in docs/handoff.md
+still contain older milestone-era file paths as carry-forward evidence and
+are intentionally left unchanged.
+```

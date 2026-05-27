@@ -78,6 +78,9 @@ active milestone completed changes:
   Presentation CLI/HTTP entrypoints, HTTP product adapter files, and
     presentation tests are moved into responsibility folders while preserving
     namespaces
+  current README, product demo/readiness, operator UI README, handoff, and
+    progress docs are audited and aligned with the responsibility-first
+    source layout
 
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive

@@ -36,6 +36,30 @@ workflow:
 The detailed local operator workflow is documented in
 [docs/product-demo-readiness.md](docs/product-demo-readiness.md).
 
+## Repository Layout
+
+Current C# source folders are organized responsibility-first inside the
+existing project/layer boundaries:
+
+```text
+src/Domain
+  Archive, Processing, Streaming
+src/Application
+  Archive, Processing, Product
+src/Infrastructure
+  Archive, Processing, Product
+src/Presentation
+  RadarPulse.Cli, RadarPulse.Http, OperatorUi
+tests/RadarPulse.Tests
+  Archive, Processing, Product, Streaming, Presentation
+```
+
+Inside those areas, files are grouped by capability and then by type where it
+helps navigation, for example `Processing/Rebalance/Policies`,
+`Archive/Nexrad/Publishers`, `Product/Pipeline/Services`, and
+`Streaming/Identity/Models`. The Angular `OperatorUi` keeps its framework
+native app layout.
+
 ## Prerequisites
 
 Use the same local prerequisites on Windows, Linux, and macOS:

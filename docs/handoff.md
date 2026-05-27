@@ -10,7 +10,9 @@ entrypoints. Change 3 has completed the responsibility-first code folder
 structure with namespace-preserving Processing source slices across Domain
 and Infrastructure, the Application Archive/Processing slice, the Archive
 source/test slice, the Product source/test slice, the Streaming source/test
-slice, and the Presentation source/test slice.
+slice, and the Presentation source/test slice. Change 4 has audited current
+documentation paths and added source navigation for the new structure while
+leaving historical carry-forward evidence unchanged.
 
 RadarPulse remains in freeze mode for the accepted portfolio-ready local
 product demo boundary. Milestone 034 is not a new architecture milestone and
@@ -19,9 +21,8 @@ does not start with a detailed implementation plan.
 Stop point:
 
 ```text
-milestone 034 change 3 complete; Presentation entrypoints/product HTTP
-adapter code and presentation tests moved out of flat roots after Processing,
-Application, Archive, Product, and Streaming slices
+milestone 034 change 4 complete; current README/demo/operator docs audited
+and aligned with the responsibility-first source layout
 ```
 
 Most recently closed milestone:
@@ -66,6 +67,7 @@ Milestone 034 completed changes:
 3. Code responsibility folder structure, Processing source slices plus
    Application Archive/Processing, Archive, Product, Streaming, and
    Presentation slices
+4. Current documentation path audit
 ```
 
 Milestone 033 goal:
@@ -112,6 +114,17 @@ Milestone 033 planned slices:
 Latest verification:
 
 ```text
+milestone 034 change 4 documentation path audit:
+  current documentation direct-file stale path audit:
+    README.md
+    docs/product-demo-readiness.md
+    src/Presentation/OperatorUi/README.md
+    docs/project-progress.md
+    docs/milestones/034-targeted-project-restructuring-and-maintenance.md
+    no stale direct .cs file paths found
+  whitespace check:
+    git diff --check passed
+
 milestone 034 change 3 Presentation slice:
   Release build:
     dotnet build RadarPulse.sln -c Release --no-restore
