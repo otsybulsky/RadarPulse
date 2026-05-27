@@ -8,7 +8,8 @@ cleanup, documentation corrections, and maintenance fixes. Change 2 has
 added separate Windows PowerShell and native Linux/macOS/WSL2 Bash demo
 entrypoints. Change 3 has started the responsibility-first backend folder
 structure with namespace-preserving Processing source slices across Domain
-and Infrastructure plus the Application Archive/Processing slice.
+and Infrastructure, the Application Archive/Processing slice, and the Archive
+source/test slice.
 
 RadarPulse remains in freeze mode for the accepted portfolio-ready local
 product demo boundary. Milestone 034 is not a new architecture milestone and
@@ -17,9 +18,9 @@ does not start with a detailed implementation plan.
 Stop point:
 
 ```text
-milestone 034 change 3 Application slice complete; Application Archive and
-Processing files moved out of flat folders after the Domain/Infrastructure
-Processing source slices
+milestone 034 change 3 Archive slice complete; Domain/Infrastructure Archive
+files and archive tests moved out of flat roots after Processing and
+Application slices
 ```
 
 Most recently closed milestone:
@@ -62,7 +63,7 @@ Milestone 034 completed changes:
 1. Open maintenance milestone
 2. Cross-platform demo entrypoints
 3. Backend responsibility folder structure, Processing source slices plus
-   Application Archive/Processing slice
+   Application Archive/Processing and Archive slices
 ```
 
 Milestone 033 goal:
@@ -109,6 +110,20 @@ Milestone 033 planned slices:
 Latest verification:
 
 ```text
+milestone 034 change 3 Archive slice:
+  Release build:
+    dotnet build RadarPulse.sln -c Release --no-restore
+    passed, 0 warnings, 0 errors
+  focused archive gate:
+    Archive/Nexrad/Historical filter
+    160 passed, 0 failed, 3 skipped
+  moved source/test shape:
+    src/Infrastructure/Archive has 42 .cs files under responsibility folders
+    src/Domain/Archive has 23 .cs files under responsibility folders
+    tests/RadarPulse.Tests/Archive has 17 .cs files under responsibility
+      folders
+    no .cs files remain directly under the flat archive roots
+
 milestone 034 change 3 Application Archive/Processing slice:
   Release build:
     dotnet build RadarPulse.sln -c Release --no-restore

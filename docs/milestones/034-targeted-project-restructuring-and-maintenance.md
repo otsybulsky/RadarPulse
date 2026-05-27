@@ -246,7 +246,7 @@ both directions.
 
 ### Change 3: Backend Responsibility Folder Structure
 
-Status: in progress; Processing and application slices complete.
+Status: in progress; Processing, application, and archive slices complete.
 
 Intent:
 
@@ -377,6 +377,28 @@ src/Application/Processing folder into:
   src/Application/Processing/Services
 ```
 
+Slice 5 scope:
+
+```text
+physically move archive code out of flat roots into responsibility folders:
+  src/Infrastructure/Archive/Archive2
+  src/Infrastructure/Archive/Compression
+  src/Infrastructure/Archive/Contracts
+  src/Infrastructure/Archive/Historical
+  src/Infrastructure/Archive/Nexrad
+  src/Domain/Archive/Archive2
+  src/Domain/Archive/Benchmarks
+  src/Domain/Archive/Historical
+  src/Domain/Archive/Nexrad
+  src/Domain/Archive/Publish
+
+physically move archive tests out of the flat tests archive root into:
+  tests/RadarPulse.Tests/Archive/Archive2
+  tests/RadarPulse.Tests/Archive/Historical
+  tests/RadarPulse.Tests/Archive/Integration
+  tests/RadarPulse.Tests/Archive/Nexrad
+```
+
 Slice 1 verification:
 
 ```text
@@ -452,6 +474,18 @@ dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
   --no-restore --no-build
   --filter "FullyQualifiedName~HistoricalArchiveManifestSelector|FullyQualifiedName~RunReadModel|FullyQualifiedName~BffReadModelStore|FullyQualifiedName~HandlerOutputContract|FullyQualifiedName~HandlerDeltaBffCompatibility|FullyQualifiedName~HandlerDeltaClassification|FullyQualifiedName~MvpArchiveGate"
   passed: 27, failed: 0, skipped: 0
+```
+
+Slice 5 verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore
+  passed, 0 warnings, 0 errors
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+  --no-restore --no-build
+  --filter "FullyQualifiedName~Archive|FullyQualifiedName~Nexrad|FullyQualifiedName~Historical"
+  passed: 160, failed: 0, skipped: 3
 ```
 
 Notes:

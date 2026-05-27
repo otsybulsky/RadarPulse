@@ -69,6 +69,8 @@ active milestone completed changes:
     into responsibility folders
   Application Archive and Application Processing files are also moved into
     responsibility/type folders while preserving namespaces
+  Domain Archive, Infrastructure Archive, and archive tests are moved into
+    responsibility folders while preserving namespaces
 
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive
