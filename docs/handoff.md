@@ -1,19 +1,17 @@
-# Handoff: Milestone 032 Complete
+# Handoff: Milestone 033 In Progress
 
 ## Current State
 
-Milestone 032 has been selected after milestone 031 closeout. The
-architecture/concept document and detailed implementation plan are written.
-Slice 1 product demo readiness surface is complete. Slice 2 local demo
-package script is complete. Slice 3 product demo workflow documentation is
-complete. Slice 4 packaged verification command is complete. Slice 5 gate
-evidence and handoff is complete. The decision trace and closeout are
-written.
+Milestone 033 has been selected after milestone 032 closeout. The
+architecture/concept document is written. The detailed implementation plan is
+written. Implementation slices have not started. The decision trace and
+closeout are not written.
 
 Stop point:
 
 ```text
-milestone 032 closeout written; next milestone selected but not started
+milestone 033 architecture/concept and detailed implementation plan written;
+implementation not started
 ```
 
 Most recently closed milestone:
@@ -22,74 +20,58 @@ Most recently closed milestone:
 032 Product Demo/Readiness Packaging
 ```
 
-Recommended next milestone:
+Current milestone:
 
 ```text
 033 Product Demo Polish And Portfolio Readiness
 ```
 
-Milestone 032 goal:
+Milestone 033 goal:
 
 ```text
-make RadarPulse repeatable as a local product demo/readiness package over the
-accepted same-origin RadarPulse.Http UI/API host, deterministic product
-workflows, local file-backed history, readiness checks, and packaged
-verification commands
+make RadarPulse understandable, runnable, inspectable, and verifiable as a
+local portfolio product demo over the accepted local product demo/readiness
+package
 ```
 
-Milestone 032 selected implementation direction:
+Milestone 033 selected implementation direction:
 
 ```text
-keep RadarPulse.Http as the local product HTTP host
-keep src/Presentation/OperatorUi as the Angular operator UI
-add product demo/readiness posture over existing history readiness and static
-  UI delivery state
-add repository-local scripts for startup, readiness, deterministic demo run,
-  history inspection/reset, and packaged verification
-document the local first-use, demo, reset, and verify workflow
-preserve the accepted same-origin local delivery path from milestone 031
-do not reopen accepted milestone 020-031 backend or UI boundary decisions
+keep the milestone 032 local product demo/readiness package as the selected
+  delivery path
+add a repository-level portfolio README or project summary
+polish the product demo happy-path walkthrough and package script help/output
+polish operator-facing wording and visual checkpoint guidance where useful
+capture focused gate evidence and update handoff before decision trace review
+preserve the accepted same-origin local delivery path from milestone 031/032
+do not reopen accepted milestone 020-032 backend, product, HTTP, persistence,
+  UI, or demo/readiness packaging boundary decisions
 ```
 
-Milestone 032 documents:
+Milestone 033 documents:
 
 ```text
-docs/milestones/032-product-demo-readiness-packaging.md
-docs/milestones/032-product-demo-readiness-packaging-plan.md
-docs/milestones/032-product-demo-readiness-packaging-gate.md
-docs/milestones/032-product-demo-readiness-packaging-decision-trace.md
-docs/milestones/032-product-demo-readiness-packaging-closeout.md
+docs/milestones/033-product-demo-polish-and-portfolio-readiness.md
+docs/milestones/033-product-demo-polish-and-portfolio-readiness-plan.md
 ```
 
-Milestone 032 planned slices:
+Milestone 033 planned slices:
 
 ```text
-1. Product demo readiness surface [complete]
-2. Local demo package script [complete]
-3. Product demo workflow documentation [complete]
-4. Packaged verification command [complete]
-5. Gate evidence and handoff [complete]
+1. Portfolio entrypoint [planned]
+2. Happy-path demo walkthrough and script help [planned]
+3. Operator wording and visual checkpoints [planned]
+4. Gate evidence and handoff [planned]
 ```
 
 Latest verification:
 
 ```text
-milestone 032 slice 1:
-  focused .NET product HTTP host Release gate:
-    12 passed, 0 failed, 0 skipped
+milestone 033 planning:
+  documentation-only planning updates
+  no runtime gate required before implementation
 
-milestone 032 slice 2:
-  package script smoke:
-    help passed
-    paths passed
-    reset-history passed with absent default demo history
-
-milestone 032 slice 3:
-  package script smoke:
-    help passed with docs/product-demo-readiness.md pointer
-    paths passed
-
-milestone 032 slice 4:
+inherited from milestone 032:
   packaged verify:
     Angular unit tests 20 passed, 0 failed
     Angular production build succeeded
@@ -98,10 +80,6 @@ milestone 032 slice 4:
     focused .NET product HTTP/API/readiness Release gate 21 passed, 0 failed,
       0 skipped
     Release build succeeded, 0 warnings, 0 errors
-
-milestone 032 slice 5:
-  gate evidence:
-    docs/milestones/032-product-demo-readiness-packaging-gate.md written
   package script smoke:
     help passed
     paths passed
@@ -128,21 +106,28 @@ inherited from milestone 030:
     succeeded, 0 warnings, 0 errors
 ```
 
-Milestone 032 expected gate:
+Milestone 033 expected gate:
 
 ```text
-packaged command:
+package script smoke:
   powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
-    verify
+    help
+  powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
+    paths
 
-individual Angular:
+individual Angular gate if UI files change:
   cd src/Presentation/OperatorUi
   npm test -- --watch=false
   npm run build
   npm run smoke
   npm run smoke:hosted
 
-focused .NET product HTTP/API/readiness Release gate:
+packaged command if full local package verification is needed:
+  powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
+    verify
+
+focused .NET product HTTP/API/readiness Release gate if HTTP/API behavior
+changes:
   dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
     --no-restore
     --filter "FullyQualifiedName~RadarPulseProductHttpHostTests|FullyQualifiedName~RadarPulseProductHttpControlTests|FullyQualifiedName~RadarPulseProductPipelineApiContractTests"
@@ -151,23 +136,33 @@ focused .NET product HTTP/API/readiness Release gate:
   dotnet build RadarPulse.sln -c Release --no-restore
 ```
 
-Milestone 032 planned implementation:
+Milestone 033 planned implementation:
 
 ```text
-product demo/readiness HTTP posture over history and UI static asset state
-repository-local product demo script
-scripted same-origin local startup
-readiness inspection command
-deterministic demo run command
-history inspection command
-safe local demo history reset command
-packaged verify command
-product demo/readiness workflow documentation
-OperatorUi README pointer to the product demo/readiness package
-milestone 032 gate evidence
+repository-level portfolio README or project summary
+happy-path local demo walkthrough
+package script help/output first-run polish
+operator wording polish where useful
+visual checkpoint guidance for portfolio review
+milestone 033 gate evidence
+handoff update before decision trace review
 ```
 
-Milestone 031 accepted implementation baseline:
+Milestone 032 accepted package baseline:
+
+```text
+same-origin RadarPulse.Http UI/API delivery
+deterministic local file-backed product run history
+product demo/readiness route and readiness command
+repository-local package script:
+  help, paths, start, readiness, demo, history, reset-history, verify
+product workflow documentation:
+  docs/product-demo-readiness.md
+packaged verification command over Angular, browser smoke, focused .NET, and
+  Release build gates
+```
+
+Milestone 031 accepted UI baseline:
 
 ```text
 Angular 21 operator SPA in src/Presentation/OperatorUi
@@ -200,42 +195,42 @@ deterministic local file-backed product run history that survives service
   recreation
 ```
 
-Milestone 032 scope boundary:
+Milestone 033 scope boundary:
 
 ```text
 do not reopen accepted runtime/default/durable/handler/BFF/production
-pipeline/product/HTTP host/UI decisions from milestones 020-031. Do not
-expand this milestone into true live network ingestion, external broker/cloud
-queue/database adapter certification, deployment automation, public hosted
-production readiness, auth/TLS/production CORS hardening, cross-machine
-throughput certification, exactly-once production delivery, or rich radar
-visualization.
+pipeline/product/HTTP host/UI/demo-readiness packaging decisions from
+milestones 020-032. Do not expand this milestone into true live network
+ingestion, external broker/cloud queue/database adapter certification,
+deployment automation, public hosted production readiness,
+auth/TLS/production CORS hardening, cross-machine throughput certification,
+exactly-once production delivery, or rich radar visualization.
 ```
 
 Current next action:
 
 ```text
-start the recommended Product demo polish and portfolio readiness milestone
+start milestone 033 slice 1: Portfolio entrypoint
 ```
 
 Decision trace and closeout:
 
 ```text
-milestone 032 decision trace has been written
-milestone 032 closeout has been written
-recommended next milestone input:
-  Product demo polish and portfolio readiness
+milestone 033 decision trace has not been written
+milestone 033 closeout has not been written
+stop before decision trace for review after implementation slices and gate
+  evidence are complete
 ```
 
 Previous milestone closeout:
 
 ```text
-milestone 031 closeout written:
-  accepted with scoped warnings for operator UI hardening and integrated local
-  delivery over deterministic archive-shaped workflows
+milestone 032 closeout written:
+  accepted with scoped warnings for product demo/readiness packaging over
+  deterministic archive-shaped workflows
 
 recommended next milestone input:
-  Product demo/readiness packaging
+  Product demo polish and portfolio readiness
 ```
 
 ## Previous Closed Milestone Context
