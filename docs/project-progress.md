@@ -73,6 +73,8 @@ active milestone completed changes:
     responsibility folders while preserving namespaces
   Application Product, Infrastructure Product, and product tests are moved
     into responsibility folders while preserving namespaces
+  Domain Streaming and streaming tests are moved into responsibility folders
+    while preserving namespaces
 
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive

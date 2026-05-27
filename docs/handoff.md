@@ -9,7 +9,8 @@ added separate Windows PowerShell and native Linux/macOS/WSL2 Bash demo
 entrypoints. Change 3 has started the responsibility-first backend folder
 structure with namespace-preserving Processing source slices across Domain
 and Infrastructure, the Application Archive/Processing slice, the Archive
-source/test slice, and the Product source/test slice.
+source/test slice, the Product source/test slice, and the Streaming
+source/test slice.
 
 RadarPulse remains in freeze mode for the accepted portfolio-ready local
 product demo boundary. Milestone 034 is not a new architecture milestone and
@@ -18,9 +19,9 @@ does not start with a detailed implementation plan.
 Stop point:
 
 ```text
-milestone 034 change 3 Product slice complete; Application/Infrastructure
-Product files and product tests moved out of flat roots after Processing,
-Application, and Archive slices
+milestone 034 change 3 Streaming slice complete; Domain Streaming files and
+streaming tests moved out of flat roots after Processing, Application,
+Archive, and Product slices
 ```
 
 Most recently closed milestone:
@@ -63,7 +64,7 @@ Milestone 034 completed changes:
 1. Open maintenance milestone
 2. Cross-platform demo entrypoints
 3. Backend responsibility folder structure, Processing source slices plus
-   Application Archive/Processing, Archive, and Product slices
+   Application Archive/Processing, Archive, Product, and Streaming slices
 ```
 
 Milestone 033 goal:
@@ -110,6 +111,20 @@ Milestone 033 planned slices:
 Latest verification:
 
 ```text
+milestone 034 change 3 Streaming slice:
+  Release build:
+    dotnet build RadarPulse.sln -c Release --no-restore
+    passed, 0 warnings, 0 errors
+  focused streaming gate:
+    Streaming, RadarStream, DenseIdentity, RadarSourceUniverse, and
+      RadarEventBatch filter
+    112 passed, 0 failed, 0 skipped
+  moved source/test shape:
+    src/Domain/Streaming has 31 .cs files under responsibility folders
+    tests/RadarPulse.Tests/Streaming has 8 .cs files under responsibility
+      folders
+    no .cs files remain directly under the flat streaming roots
+
 milestone 034 change 3 Product slice:
   Release build:
     dotnet build RadarPulse.sln -c Release --no-restore

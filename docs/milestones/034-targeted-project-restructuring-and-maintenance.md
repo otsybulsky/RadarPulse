@@ -246,8 +246,8 @@ both directions.
 
 ### Change 3: Backend Responsibility Folder Structure
 
-Status: in progress; Processing, application, archive, and product slices
-complete.
+Status: in progress; Processing, application, archive, product, and streaming
+slices complete.
 
 Intent:
 
@@ -279,6 +279,10 @@ within each layer, group by responsibility/capability first:
   Archive/Archive2
   Product/Pipeline
   Product/History
+  Streaming/Batches
+  Streaming/Identity
+  Streaming/Sources
+  Streaming/Streams
 
 inside a responsibility folder, split by type only when it improves
 navigation:
@@ -415,6 +419,22 @@ physically move product tests out of the flat tests product root into:
   tests/RadarPulse.Tests/Product/Http
 ```
 
+Slice 7 scope:
+
+```text
+physically move streaming domain code out of the flat root into:
+  src/Domain/Streaming/Batches
+  src/Domain/Streaming/Identity
+  src/Domain/Streaming/Sources
+  src/Domain/Streaming/Streams
+
+physically move streaming tests out of the flat tests streaming root into:
+  tests/RadarPulse.Tests/Streaming/Batches
+  tests/RadarPulse.Tests/Streaming/Identity
+  tests/RadarPulse.Tests/Streaming/Sources
+  tests/RadarPulse.Tests/Streaming/Streams
+```
+
 Slice 1 verification:
 
 ```text
@@ -514,6 +534,18 @@ dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
   --no-restore --no-build
   --filter "FullyQualifiedName~Product"
   passed: 86, failed: 0, skipped: 0
+```
+
+Slice 7 verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore
+  passed, 0 warnings, 0 errors
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+  --no-restore --no-build
+  --filter "FullyQualifiedName~Streaming|FullyQualifiedName~RadarStream|FullyQualifiedName~DenseIdentity|FullyQualifiedName~RadarSourceUniverse|FullyQualifiedName~RadarEventBatch"
+  passed: 112, failed: 0, skipped: 0
 ```
 
 Notes:
