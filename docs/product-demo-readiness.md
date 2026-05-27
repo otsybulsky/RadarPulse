@@ -47,6 +47,47 @@ Return to the repository root before using the package script:
 cd C:\projects\ProjectT\Portfolio\Projects\RadarPulse
 ```
 
+## Happy-Path Portfolio Demo
+
+Use this sequence for a clean local portfolio demo:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 paths
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 reset-history
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 start
+```
+
+Open the same-origin operator UI after the host starts:
+
+```text
+http://127.0.0.1:5129
+```
+
+In another terminal, check readiness and create the default deterministic
+demo run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 readiness
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 demo -RunId product-demo
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 history
+```
+
+Use the UI to inspect the latest run, selected run detail, batches, sources,
+handler output, diagnostics, and capacity evidence. For a clean portfolio
+walkthrough, reset history before the demo. To show persistence across host
+restart, skip reset and use the `history` command before opening the UI.
+
+Run the packaged verification command when you want to prove the accepted
+local gates after changes:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 verify
+```
+
+The happy path is intentionally narrow. Blocked readiness, missing UI build
+output, unreachable host, rejected product controls, and warning-only scope
+posture should remain visible instead of being hidden by the package script.
+
 ## Command Surface
 
 The local package entrypoint is:

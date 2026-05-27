@@ -65,8 +65,18 @@ function Get-DemoPaths {
 function Show-Help {
     $scriptName = Split-Path -Leaf $PSCommandPath
     Write-Host "RadarPulse local product demo/readiness package"
+    Write-Host "Default URL: http://127.0.0.1:5129"
     Write-Host ""
-    Write-Host "Usage:"
+    Write-Host "Typical first run:"
+    Write-Host "  1. powershell -ExecutionPolicy Bypass -File scripts\$scriptName paths"
+    Write-Host "  2. powershell -ExecutionPolicy Bypass -File scripts\$scriptName reset-history"
+    Write-Host "  3. powershell -ExecutionPolicy Bypass -File scripts\$scriptName start"
+    Write-Host "  4. open http://127.0.0.1:5129"
+    Write-Host "  5. powershell -ExecutionPolicy Bypass -File scripts\$scriptName readiness"
+    Write-Host "  6. powershell -ExecutionPolicy Bypass -File scripts\$scriptName demo -RunId product-demo"
+    Write-Host "  7. powershell -ExecutionPolicy Bypass -File scripts\$scriptName history"
+    Write-Host ""
+    Write-Host "Commands:"
     Write-Host "  powershell -ExecutionPolicy Bypass -File scripts\$scriptName help"
     Write-Host "  powershell -ExecutionPolicy Bypass -File scripts\$scriptName paths"
     Write-Host "  powershell -ExecutionPolicy Bypass -File scripts\$scriptName start [-SkipUiBuild] [-Url http://127.0.0.1:5129]"
@@ -79,8 +89,10 @@ function Show-Help {
     Write-Host "Scope:"
     Write-Host "  Local deterministic demo/archive-shaped workflows only."
     Write-Host "  This is not public production deployment, auth/TLS hardening, external adapter certification, or exactly-once delivery."
+    Write-Host "  Readiness blockers and warning-only scope posture stay visible."
     Write-Host ""
     Write-Host "Docs:"
+    Write-Host "  README.md"
     Write-Host "  docs/product-demo-readiness.md"
 }
 

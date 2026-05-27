@@ -89,7 +89,7 @@ Add portfolio README
 
 ## Slice 2: Happy-Path Demo Walkthrough And Script Help
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -116,6 +116,19 @@ powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
   help
 powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
   paths
+```
+
+Verification:
+
+```text
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
+  help
+  result: passed; output includes typical first-run order, default URL,
+    README.md, docs/product-demo-readiness.md, and scope boundary
+
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
+  paths
+  result: passed
 ```
 
 Exit criteria:
@@ -305,7 +318,7 @@ The milestone currently has:
 033-product-demo-polish-and-portfolio-readiness.md
 033-product-demo-polish-and-portfolio-readiness-plan.md
 slice 1 portfolio entrypoint complete
-slice 2 happy-path demo walkthrough and script help planned
+slice 2 happy-path demo walkthrough and script help complete
 slice 3 operator wording and visual checkpoints planned
 slice 4 gate evidence and handoff planned
 gate evidence not written
