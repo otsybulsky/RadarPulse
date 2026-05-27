@@ -523,7 +523,7 @@ function validateProductApiBaseUrl(value: string): string {
   const trimmed = value.trim();
 
   if (!trimmed) {
-    return 'HTTP host URL is required.';
+    return 'Product host URL is required.';
   }
 
   try {

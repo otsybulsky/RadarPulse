@@ -142,6 +142,10 @@ The full operator workflow is documented in:
 docs/product-demo-readiness.md
 ```
 
+For portfolio review, start from the repository `README.md`, then use
+`docs/product-demo-readiness.md` for the operational walkthrough and visual
+checkpoints.
+
 ## Operator Workflow
 
 The UI supports:

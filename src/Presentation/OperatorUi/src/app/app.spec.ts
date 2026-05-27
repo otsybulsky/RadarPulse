@@ -91,7 +91,7 @@ describe('App', () => {
     const input = fixture.nativeElement.querySelector('input[name="apiBaseUrl"]') as HTMLInputElement;
     input.value = 'http://localhost:6117/';
     input.dispatchEvent(new Event('input'));
-    clickButton(fixture.nativeElement, 'Apply URL');
+    clickButton(fixture.nativeElement, 'Apply host URL');
     await fixture.whenStable();
 
     expect(localStorage.getItem(RADARPULSE_PRODUCT_API_BASE_URL_STORAGE_KEY)).toBe('http://localhost:6117');
@@ -106,7 +106,7 @@ describe('App', () => {
     const input = fixture.nativeElement.querySelector('input[name="apiBaseUrl"]') as HTMLInputElement;
     input.value = 'localhost:6117';
     input.dispatchEvent(new Event('input'));
-    clickButton(fixture.nativeElement, 'Apply URL');
+    clickButton(fixture.nativeElement, 'Apply host URL');
     fixture.detectChanges();
 
     expect(api.readinessRequestCount).toBe(readinessRequests);

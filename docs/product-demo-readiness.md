@@ -256,6 +256,45 @@ GET /product/pipeline/host/readiness
 GET /product/pipeline/runs
 ```
 
+## Visual Checkpoints
+
+For a portfolio walkthrough, these UI states are the useful checkpoints:
+
+```text
+demo readiness:
+  the top overview shows demo readiness, product history storage, loaded run
+  count, rejected run count, and any first blocker
+
+latest and persisted runs:
+  the latest run panel and persisted run list show the run id, state, batch
+  counts, source counts, and warning count
+
+selected run summary:
+  the selected run view shows input description, handler mode, processing
+  progress, fallback posture, warnings, and first blocking reason
+
+batches and sources:
+  the Batches and Sources tabs show provider sequence, processing status,
+  event counts, payload bytes, source identity, and checksums
+
+handler output:
+  the Handlers tab can load the default counter/checksum output with source
+  id 0 and field benchmark.events
+
+diagnostics and capacity:
+  the Diagnostics and Capacity tabs show readiness, ordered handler posture,
+  release/retained-resource counters, local capacity evidence, and
+  configuration contour
+
+controls:
+  the controls panel shows whether local product controls are idle, accepted,
+  blocked, or rejected for the selected run
+```
+
+These checkpoints are descriptive review targets. They do not add production
+deployment, security, live-ingestion, external-adapter, or exactly-once
+delivery claims.
+
 ## Reset Local Demo History
 
 Reset the default local demo history:

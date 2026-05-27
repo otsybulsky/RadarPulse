@@ -1,17 +1,17 @@
 <main class="operator-shell">
   <header class="topbar">
     <div>
-      <p class="eyebrow">RadarPulse Operator</p>
+      <p class="eyebrow">RadarPulse Local Demo</p>
       <h1>Product Pipeline</h1>
     </div>
 
     <div class="topbar-actions">
       <label class="base-url">
-        HTTP host
+        Product host
         <input name="apiBaseUrl" [(ngModel)]="apiBaseUrl" autocomplete="off" />
       </label>
       <button type="button" class="secondary" (click)="applyApiBaseUrl()" [disabled]="isBusy()">
-        Apply URL
+        Apply host URL
       </button>
       <button type="button" class="secondary" (click)="refreshAll()" [disabled]="isBusy()">
         Refresh
@@ -28,7 +28,7 @@
   <section class="overview-grid" aria-label="Product pipeline overview">
     <article class="status-panel">
       <div class="panel-title">
-        <span>Host readiness</span>
+        <span>Demo readiness</span>
         <strong [class.good]="readiness()?.kind === 'success'" [class.blocked]="readiness()?.kind === 'blocked'">
           {{ readinessStatus() }}
         </strong>
@@ -107,7 +107,7 @@
 
     <article class="status-panel command-panel">
       <div class="panel-title">
-        <span>Run command</span>
+        <span>Create run</span>
         <strong>{{ runCommandState() }}</strong>
       </div>
 
@@ -125,7 +125,7 @@
           <input name="demoBatches" type="number" min="1" [(ngModel)]="demoBatchCount" />
         </label>
         <label>
-          Events
+          Events/batch
           <input name="demoEvents" type="number" min="1" [(ngModel)]="demoEventsPerBatch" />
         </label>
         <button type="submit" [disabled]="runLoading()">Run demo</button>
@@ -156,7 +156,7 @@
   <section class="workspace">
     <aside class="run-list" aria-label="Persisted product runs">
       <div class="section-title">
-        <h2>Runs</h2>
+        <h2>Persisted runs</h2>
         <span>{{ runCountLabel() }}</span>
       </div>
 
@@ -482,7 +482,7 @@
       } @else {
         <div class="empty-detail">
           <h2>No run selected</h2>
-          <p>Start a deterministic run or choose a persisted run from the list.</p>
+          <p>Run the deterministic demo or choose a persisted run from the list.</p>
         </div>
       }
     </section>
@@ -491,7 +491,7 @@
   <section class="controls-panel" aria-label="Operator controls">
     <div class="detail-header">
       <div>
-        <p class="eyebrow">Operator controls</p>
+        <p class="eyebrow">Local operator controls</p>
         <h2>Runtime posture</h2>
       </div>
       <span class="state-pill" [class.blocked]="controlOutcome()?.kind === 'rejected' || controlOutcome()?.kind === 'blocked'">

@@ -147,7 +147,7 @@ Polish product demo walkthrough
 
 ## Slice 3: Operator Wording And Visual Checkpoints
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -179,6 +179,23 @@ npm run build
 run browser smoke gates if rendered workflow behavior changes:
 npm run smoke
 npm run smoke:hosted
+```
+
+Verification:
+
+```text
+cd src\Presentation\OperatorUi
+npm test -- --watch=false
+  result: passed, 20 passed, 0 failed
+
+npm run build
+  result: passed
+
+npm run smoke
+  result: passed, 4 passed, 0 failed
+
+npm run smoke:hosted
+  result: passed, 1 passed, 0 failed
 ```
 
 Exit criteria:
@@ -319,7 +336,7 @@ The milestone currently has:
 033-product-demo-polish-and-portfolio-readiness-plan.md
 slice 1 portfolio entrypoint complete
 slice 2 happy-path demo walkthrough and script help complete
-slice 3 operator wording and visual checkpoints planned
+slice 3 operator wording and visual checkpoints complete
 slice 4 gate evidence and handoff planned
 gate evidence not written
 decision trace not written

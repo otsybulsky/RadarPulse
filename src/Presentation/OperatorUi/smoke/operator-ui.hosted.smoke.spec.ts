@@ -8,7 +8,7 @@ test('serves the built operator UI and product API from one local origin', async
   await page.goto('/');
 
   await expect(page.getByRole('heading', { name: 'Product Pipeline' })).toBeVisible();
-  await expect(page.getByLabel('HTTP host')).toHaveValue('http://127.0.0.1:5129');
+  await expect(page.getByLabel('Product host')).toHaveValue('http://127.0.0.1:5129');
   await expect(page.getByText('History is available for product reads.')).toBeVisible();
 
   await page.getByLabel('Run id').fill('hosted-smoke');
