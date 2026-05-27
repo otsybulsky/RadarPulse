@@ -1,8 +1,8 @@
 # RadarPulse Project Progress
 
-Status: current during milestone 035. Code contract documentation is active
-as a freeze-mode maintenance pass over the accepted local product demo
-boundary.
+Status: current after milestone 035 closeout. Code contract documentation is
+complete as a freeze-mode maintenance pass over the accepted local product
+demo boundary.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -25,23 +25,23 @@ pipeline integration milestone, the product-facing pipeline console/API
 milestone, the product HTTP host and persistent run history milestone, the
 product operator Angular SPA milestone, the operator UI hardening and
 integrated local delivery milestone, the product demo/readiness packaging
-milestone, the product demo polish and portfolio readiness milestone, and the
-targeted project restructuring and maintenance milestone. Milestone 034 is
-complete through closeout. Milestone 035 is active as a code contract
-documentation pass, and the project remains in freeze mode.
+milestone, the product demo polish and portfolio readiness milestone, the
+targeted project restructuring and maintenance milestone, and the code
+contract documentation pass. Milestone 035 is complete through closeout, and
+the project remains in freeze mode.
 
 Current state:
 
 ```text
-completed milestones: 001-034
+completed milestones: 001-035
 latest completed milestone:
-  034 targeted project restructuring and maintenance
+  035 code contract documentation pass
 latest completed milestone status:
-  documentation-level maintenance container complete
-  cross-platform demo entrypoints complete
-  responsibility-first code folder structure complete
-  current documentation path audit complete
-  post-restructure packaged verify captured across Windows and WSL/Bash
+  accepted public and domain-facing C# contracts documented
+  product/API, archive, streaming, processing domain, processing
+    infrastructure, presentation entrypoint, and product history contract
+    surfaces covered
+  final top-level public C# surface audit captured
   closeout written
 post-closeout project mode:
   freeze mode
@@ -50,36 +50,23 @@ post-closeout project mode:
   small portfolio wording polish, targeted refactoring that preserves accepted
   behavior, and maintenance fixes
 active milestone:
-  035 code contract documentation pass
+  none
 latest milestone completed changes:
-  Windows PowerShell and native Linux/macOS/WSL2 Bash demo entrypoints are
-    documented, smoke checked, and covered by packaged verify
-  packaged verify refreshes .NET restore metadata for the current OS before
-    no-restore gates so one checkout can switch between Windows and WSL/Linux
-    in both directions
-  code responsibility folder structure completed with namespace-preserving
-    Processing source slices, moving all Domain and Infrastructure Processing
-    source files into responsibility/type folders and all Processing tests
-    into responsibility folders
-  Application Archive and Application Processing files are also moved into
-    responsibility/type folders while preserving namespaces
-  Domain Archive, Infrastructure Archive, and archive tests are moved into
-    responsibility folders while preserving namespaces
-  Application Product, Infrastructure Product, and product tests are moved
-    into responsibility folders while preserving namespaces
-  Domain Streaming and streaming tests are moved into responsibility folders
-    while preserving namespaces
-  Presentation CLI/HTTP entrypoints, HTTP product adapter files, and
-    presentation tests are moved into responsibility folders while preserving
-    namespaces
-  current README, product demo/readiness, operator UI README, handoff, and
-    progress docs are audited and aligned with the responsibility-first
-    source layout
-  post-restructure packaged verify passed through Windows PowerShell,
-    WSL/Bash, and Windows PowerShell again after WSL restore metadata refresh
+  product/API, HTTP, CLI, product history, and product pipeline contract
+    documentation
+  processing queueing, durable, handler, topology, rebalance, pressure,
+    retention, core, async, worker, benchmark, and infrastructure contract
+    documentation
+  streaming identity, source, stream, batch, validation, and deterministic
+    metric contract documentation
+  archive application, domain, infrastructure, validation, decompression,
+    replay, publishing, and benchmark contract documentation
+  final real-gap sweep over top-level public C# surface and selected public
+    members that carry accepted contracts
+  project-wide XML documentation enforcement intentionally remains disabled
 latest milestone closeout:
-  accepted with scoped warnings for targeted restructuring and maintenance
-    over the accepted local product demo boundary
+  accepted with scoped warnings for code contract documentation over the
+    accepted local product demo boundary
 
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive
@@ -184,8 +171,10 @@ current runtime/live posture:
   broker/database adapter certification is not planned for this project
 
 current next action:
-  complete milestone 035 code descriptions while preserving freeze-mode
-    behavior
+  no active milestone by default; future work should stay in freeze mode
+    unless a targeted documentation, demo asset, portfolio wording polish,
+    behavior-preserving refactoring, or maintenance change is explicitly
+    opened
 ```
 
 Current project scope decision:
@@ -198,14 +187,16 @@ project is the deterministic local file-based durable adapter plus the
 production-shaped pipeline built on top of it, and deterministic local
 file-backed product run history for product-level run records.
 
-After milestone 034, RadarPulse remains portfolio-ready at the deterministic
-local product demo boundary, with cross-platform package entrypoints and a
-responsibility-first C# source layout. Future work should default to freeze
-mode: documentation, screenshots/demo video, small portfolio wording polish,
-targeted refactoring that preserves accepted behavior, and maintenance fixes.
-New runtime architecture, product feature, live-ingestion, deployment,
-external adapter, security, delivery-certification, or namespace-alignment
-milestones are not planned unless explicitly reprioritized.
+After milestone 035, RadarPulse remains portfolio-ready at the deterministic
+local product demo boundary, with cross-platform package entrypoints, a
+responsibility-first C# source layout, and documented accepted code
+contracts. Future work should default to freeze mode: documentation,
+screenshots/demo video, small portfolio wording polish, targeted refactoring
+that preserves accepted behavior, and maintenance fixes. New runtime
+architecture, product feature, live-ingestion, deployment, external adapter,
+security, delivery-certification, namespace-alignment, or project-wide XML
+documentation enforcement milestones are not planned unless explicitly
+reprioritized.
 ```
 
 The current accepted direct benchmark contour is:
@@ -2508,6 +2499,76 @@ future work can stay in freeze mode with no active milestone by default
 namespace alignment remains a separate explicit decision if ever needed
 ```
 
+### 23. Code Contract Documentation Pass
+
+Status:
+
+```text
+complete as milestone 035
+code contract documentation container opened
+product/API and product-facing adapter contracts documented
+processing queueing, durable, handler, topology, rebalance, pressure,
+  retention, core, async, worker, benchmark, and infrastructure contracts
+  documented
+streaming and archive contract surfaces documented
+final top-level public C# surface audit captured
+closeout written
+```
+
+Milestone documents:
+
+```text
+docs/milestones/035-code-contract-documentation-pass.md
+docs/milestones/035-code-contract-documentation-pass-closeout.md
+```
+
+Goal:
+
+```text
+add useful code descriptions to public and domain-facing methods, contracts,
+records, enums, and lifecycle surfaces that carry accepted RadarPulse behavior
+```
+
+Implemented work:
+
+```text
+contract-focused XML documentation for accepted product/API, HTTP, CLI,
+  product history, and product pipeline surfaces
+contract-focused XML documentation for accepted processing domain and
+  infrastructure contracts
+contract-focused XML documentation for accepted streaming and archive
+  contracts
+final real-gap sweep over top-level public C# surface
+explicit decision to keep project-wide XML documentation enforcement out of
+  this milestone
+```
+
+Verification summary:
+
+```text
+top-level public C# surface audit passed
+Release build passed, 0 warnings, 0 errors
+git diff --check passed
+touched-file trailing whitespace check passed
+```
+
+Closeout:
+
+```text
+accepted with scoped warnings for code contract documentation over the
+accepted local product demo boundary
+```
+
+Prepared by milestone 035 implementation:
+
+```text
+RadarPulse code contracts are easier to inspect without reopening accepted
+runtime/product/demo behavior
+future work can stay in freeze mode with no active milestone by default
+project-wide XML documentation enforcement remains a separate explicit
+decision if ever needed
+```
+
 ## Project Chain Summary
 
 ```text
@@ -2537,6 +2598,7 @@ namespace alignment remains a separate explicit decision if ever needed
 [done] product demo/readiness packaging
 [done] product demo polish and portfolio readiness
 [done] targeted project restructuring and maintenance
+[done] code contract documentation pass
 [freeze] documentation, demo assets, targeted refactoring, and maintenance
 ```
 

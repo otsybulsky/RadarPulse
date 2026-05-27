@@ -1,10 +1,10 @@
-# Handoff: Milestone 035 Active
+# Handoff: Freeze Mode After Milestone 035
 
 ## Current State
 
-Milestone 035 is active after milestone 034 closeout as a freeze-mode
-maintenance pass for code contract documentation. It adds XML descriptions to
-accepted public and domain-facing C# contracts without reopening runtime,
+Milestone 035 is closed after milestone 034 closeout as a freeze-mode
+maintenance pass for code contract documentation. It added XML descriptions
+to accepted public and domain-facing C# contracts without reopening runtime,
 product, HTTP, persistence, UI, or demo/readiness decisions.
 
 Milestone 034 is closed after milestone 033 closeout as a documentation-level
@@ -23,21 +23,21 @@ Windows PowerShell again after WSL restore metadata refresh. The closeout is
 written.
 
 RadarPulse remains in freeze mode for the accepted portfolio-ready local
-product demo boundary. Milestone 034 was not a new architecture milestone and
-did not start with a detailed implementation plan.
+product demo boundary. Milestone 035 was a documentation-only maintenance
+milestone and did not start a new architecture track.
 
 Stop point:
 
 ```text
-milestone 035 change 11 final contract documentation gap sweep complete;
-top-level public C# surface audit, Release build, and whitespace checks
-passed; milestone 035 appears ready for closeout review
+milestone 035 closeout complete; top-level public C# surface audit, Release
+build, and whitespace checks passed; project is in freeze mode with no active
+milestone by default
 ```
 
 Most recently closed milestone:
 
 ```text
-034 Targeted Project Restructuring And Maintenance
+035 Code Contract Documentation Pass
 ```
 
 Current project mode:
@@ -49,16 +49,17 @@ freeze mode
 Active milestone:
 
 ```text
-035 Code Contract Documentation Pass
+none
 ```
 
 Milestone 035 documents:
 
 ```text
 docs/milestones/035-code-contract-documentation-pass.md
+docs/milestones/035-code-contract-documentation-pass-closeout.md
 ```
 
-Milestone 035 current scope:
+Milestone 035 completed scope:
 
 ```text
 add concise XML documentation to accepted code contracts
@@ -68,6 +69,23 @@ document accepted product/API, processing queueing/durable, handler,
   product history contracts
 preserve accepted behavior and public DTO/API semantics
 do not enable project-wide XML documentation enforcement yet
+```
+
+Milestone 035 completed changes:
+
+```text
+1. Open code contract documentation milestone
+2. Product API contract documentation
+3. Processing queueing and durable contract documentation
+4. Processing handler contract documentation
+5. Processing rebalance and topology contract documentation
+6. Processing retention and pressure contract documentation
+7. Streaming contract documentation
+8. Archive contract documentation
+9. Processing infrastructure contract documentation
+10. Processing core, async, worker, and benchmark contract documentation
+11. Final contract documentation gap sweep
+12. Closeout
 ```
 
 Milestone 034 accepted posture:
@@ -144,6 +162,16 @@ Milestone 033 planned slices:
 Latest verification:
 
 ```text
+milestone 035 closeout:
+  top-level public C# surface audit:
+    passed
+  Release build:
+    dotnet build RadarPulse.sln -c Release --no-restore
+    passed, 0 warnings, 0 errors
+  whitespace check:
+    git diff --check passed
+    touched-file trailing whitespace check passed
+
 milestone 035 change 11 final contract documentation gap sweep:
   top-level public C# surface audit:
     passed

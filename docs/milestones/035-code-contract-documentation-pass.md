@@ -1,6 +1,6 @@
 # Milestone 035: Code Contract Documentation Pass
 
-Status: in progress.
+Status: complete.
 
 Milestone 035 starts after the closed milestone 034 targeted restructuring
 and maintenance milestone. RadarPulse remains in freeze mode, and this
@@ -195,54 +195,6 @@ touched-file trailing whitespace check
   result: passed
 ```
 
-### Change 11: Final Contract Documentation Gap Sweep
-
-Status: complete.
-
-Intent:
-
-```text
-close remaining real documentation gaps in public entrypoint, product history,
-CLI option, durable readiness, provider queue telemetry, checksum, handler
-merge, and archive rebalance result surfaces while treating private helper
-public members as implementation details
-```
-
-Scope:
-
-```text
-src/Presentation/RadarPulse.Http/Hosting
-src/Presentation/RadarPulse.Cli/EntryPoint
-src/Infrastructure/Product/History
-src/Infrastructure/Archive/Historical/Download
-src/Infrastructure/Processing/ArchiveRuntime/Results
-src/Domain/Processing/Queueing/Telemetry
-src/Domain/Processing/Durable/Models
-src/Domain/Processing/Handlers
-```
-
-Verification:
-
-```text
-top-level public C# surface audit
-  result: passed
-dotnet build RadarPulse.sln -c Release --no-restore
-  result: passed, 0 warnings, 0 errors
-git diff --check
-  result: passed
-touched-file trailing whitespace check
-  result: passed
-```
-
-Notes:
-
-```text
-this change intentionally avoids enabling CS1591 or GenerateDocumentationFile
-as a required project-wide gate; the repository did not previously have broad
-XML documentation coverage, so enforcement should be considered only after
-the important contract surface has descriptions
-```
-
 ### Change 5: Processing Rebalance And Topology Contract Documentation
 
 Status: complete.
@@ -427,4 +379,58 @@ git diff --check
   result: passed
 touched-file trailing whitespace check
   result: passed
+```
+
+### Change 11: Final Contract Documentation Gap Sweep
+
+Status: complete.
+
+Intent:
+
+```text
+close remaining real documentation gaps in public entrypoint, product history,
+CLI option, durable readiness, provider queue telemetry, checksum, handler
+merge, and archive rebalance result surfaces while treating private helper
+public members as implementation details
+```
+
+Scope:
+
+```text
+src/Presentation/RadarPulse.Http/Hosting
+src/Presentation/RadarPulse.Cli/EntryPoint
+src/Infrastructure/Product/History
+src/Infrastructure/Archive/Historical/Download
+src/Infrastructure/Processing/ArchiveRuntime/Results
+src/Domain/Processing/Queueing/Telemetry
+src/Domain/Processing/Durable/Models
+src/Domain/Processing/Handlers
+```
+
+Verification:
+
+```text
+top-level public C# surface audit
+  result: passed
+dotnet build RadarPulse.sln -c Release --no-restore
+  result: passed, 0 warnings, 0 errors
+git diff --check
+  result: passed
+touched-file trailing whitespace check
+  result: passed
+```
+
+Notes:
+
+```text
+this change intentionally avoids enabling CS1591 or GenerateDocumentationFile
+as a required project-wide gate; the repository did not previously have broad
+XML documentation coverage, so enforcement should be considered only after
+the important contract surface has descriptions
+```
+
+## Closeout
+
+```text
+docs/milestones/035-code-contract-documentation-pass-closeout.md
 ```
