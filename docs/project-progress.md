@@ -63,6 +63,10 @@ active milestone completed changes:
   packaged verify refreshes .NET restore metadata for the current OS before
     no-restore gates so one checkout can switch between Windows and WSL/Linux
     in both directions
+  backend responsibility folder structure started with namespace-preserving
+    Processing source slices, moving all Domain and Infrastructure Processing
+    source files into responsibility/type folders and all Processing tests
+    into responsibility folders
 
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive

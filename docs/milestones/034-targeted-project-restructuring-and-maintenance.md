@@ -243,3 +243,201 @@ targets are rejected instead of being removed. Packaged verify refreshes
 keeps the same checkout usable when switching between Windows and WSL/Linux in
 both directions.
 ```
+
+### Change 3: Backend Responsibility Folder Structure
+
+Status: in progress; Processing source slices complete.
+
+Intent:
+
+```text
+make backend code navigation responsibility-first and type-second while
+preserving accepted runtime behavior and avoiding namespace/API churn in the
+initial move slices
+```
+
+Structure rule:
+
+```text
+keep existing project/layer boundaries:
+  Domain
+  Application
+  Infrastructure
+  Presentation
+
+within each layer, group by responsibility/capability first:
+  Processing/Rebalance
+  Processing/Queueing
+  Processing/Topology
+  Processing/Workers
+  Processing/Durable
+  Processing/Retention
+  Processing/Handlers
+  Processing/Pressure
+  Archive/Nexrad
+  Archive/Archive2
+  Product/Pipeline
+  Product/History
+
+inside a responsibility folder, split by type only when it improves
+navigation:
+  Models
+  Options
+  Policies
+  Services
+  Telemetry
+  Validation
+  Results
+  Stores
+  Mappers
+  Runners
+```
+
+Slice 1 scope:
+
+```text
+physically move the domain rebalance code from the flat
+src/Domain/Processing folder into:
+  src/Domain/Processing/Rebalance/Models
+  src/Domain/Processing/Rebalance/Options
+  src/Domain/Processing/Rebalance/Policies
+  src/Domain/Processing/Rebalance/Services
+  src/Domain/Processing/Rebalance/Telemetry
+  src/Domain/Processing/Rebalance/Validation
+  src/Domain/Processing/Rebalance/Results
+
+move matching rebalance tests into:
+  tests/RadarPulse.Tests/Processing/Rebalance
+```
+
+Slice 2 scope:
+
+```text
+physically move the remaining domain processing code out of the flat
+src/Domain/Processing folder into responsibility/type folders:
+  src/Domain/Processing/Async
+  src/Domain/Processing/Benchmarks
+  src/Domain/Processing/Core
+  src/Domain/Processing/Durable
+  src/Domain/Processing/Handlers
+  src/Domain/Processing/Pressure
+  src/Domain/Processing/Queueing
+  src/Domain/Processing/Retention
+  src/Domain/Processing/Topology
+  src/Domain/Processing/Workers
+
+physically move the remaining processing tests out of the flat
+tests/RadarPulse.Tests/Processing folder into responsibility folders:
+  ArchiveRuntime
+  Async
+  Benchmarks
+  Core
+  Durable
+  Handlers
+  Pressure
+  ProductPipeline
+  Queueing
+  ReadModels
+  Retention
+  Topology
+  Workers
+```
+
+Slice 3 scope:
+
+```text
+physically move infrastructure processing code out of the flat
+src/Infrastructure/Processing folder into responsibility/type folders:
+  src/Infrastructure/Processing/ArchiveRuntime
+  src/Infrastructure/Processing/Async
+  src/Infrastructure/Processing/Benchmarks
+  src/Infrastructure/Processing/Contracts
+  src/Infrastructure/Processing/Core
+  src/Infrastructure/Processing/Durable
+  src/Infrastructure/Processing/ProductPipeline
+  src/Infrastructure/Processing/Queueing
+  src/Infrastructure/Processing/Retention
+  src/Infrastructure/Processing/Runtime
+  src/Infrastructure/Processing/Workers
+```
+
+Slice 1 verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore
+  passed, 0 warnings, 0 errors
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+  --no-restore
+  --filter "(FullyQualifiedName~Rebalance|FullyQualifiedName~Migration|FullyQualifiedName~StateHandoff|FullyQualifiedName~Evacuation|FullyQualifiedName~Relief)&FullyQualifiedName!~RadarProcessingSyntheticRebalance"
+  passed: 212, failed: 0, skipped: 0
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+  --no-restore
+  --filter "FullyQualifiedName~RadarProcessingSyntheticRebalance"
+  passed: 34, failed: 0, skipped: 0
+```
+
+Slice 2 verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore
+  passed, 0 warnings, 0 errors
+
+responsibility chunk gates, each run as a separate dotnet test process:
+  ArchiveRuntime: 28 passed
+  Async: 112 passed, 2 skipped
+  Benchmarks: 9 passed
+  Core: 59 passed
+  Durable: 57 passed
+  Handlers: 58 passed
+  Pressure: 103 passed
+  ProductPipeline: 31 passed
+  Queueing: 119 passed
+  ReadModels: 14 passed
+  Retention: 57 passed
+  Topology: 61 passed
+  Workers: 79 passed
+  Rebalance non-synthetic: 212 passed
+  Rebalance synthetic: 34 passed
+```
+
+Slice 3 verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore
+  passed, 0 warnings, 0 errors
+
+responsibility chunk gates rerun after Infrastructure/Processing moves:
+  ArchiveRuntime: 28 passed
+  Async: 112 passed, 2 skipped
+  Benchmarks: 9 passed
+  Core: 59 passed
+  Durable: 57 passed
+  Handlers: 58 passed
+  Pressure: 103 passed
+  ProductPipeline: 31 passed
+  Queueing: 119 passed
+  ReadModels: 14 passed
+  Retention: 57 passed
+  Topology: 61 passed
+  Workers: 79 passed
+  Rebalance non-synthetic: 212 passed
+  Rebalance synthetic: 34 passed
+```
+
+Notes:
+
+```text
+slice 1 intentionally preserves existing C# namespaces so this remains a
+physical structure cleanup rather than a public API/using rewrite. Namespace
+alignment can be handled as a later explicit slice if it is worth the added
+blast radius. A broad combined Rebalance filter was also tried and exposed
+the existing allocation benchmark sensitivity when the synthetic rebalance
+allocation gate shares a process with 200+ other tests; the same synthetic
+rebalance class passes when isolated. The full all-tests process also exposes
+this existing allocation sensitivity, and one startup-prewarm test also passed
+when rerun isolated after a full-suite process failure. Responsibility chunk
+gates keep state-sensitive checks isolated while still covering the moved
+processing tests.
+```

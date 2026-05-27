@@ -6,7 +6,9 @@ Milestone 034 has been opened after milestone 033 closeout as a
 documentation-level container for targeted project restructuring, small
 cleanup, documentation corrections, and maintenance fixes. Change 2 has
 added separate Windows PowerShell and native Linux/macOS/WSL2 Bash demo
-entrypoints.
+entrypoints. Change 3 has started the responsibility-first backend folder
+structure with namespace-preserving Processing source slices across Domain
+and Infrastructure.
 
 RadarPulse remains in freeze mode for the accepted portfolio-ready local
 product demo boundary. Milestone 034 is not a new architecture milestone and
@@ -15,8 +17,9 @@ does not start with a detailed implementation plan.
 Stop point:
 
 ```text
-milestone 034 change 2 complete; cross-platform demo entrypoints documented
-and smoke checked
+milestone 034 change 3 Processing source slices complete; all Domain and
+Infrastructure Processing files plus matching Processing tests moved out of
+flat folders into responsibility/type folders
 ```
 
 Most recently closed milestone:
@@ -58,6 +61,7 @@ Milestone 034 completed changes:
 ```text
 1. Open maintenance milestone
 2. Cross-platform demo entrypoints
+3. Backend responsibility folder structure, Processing source slices
 ```
 
 Milestone 033 goal:
@@ -104,6 +108,39 @@ Milestone 033 planned slices:
 Latest verification:
 
 ```text
+milestone 034 change 3 Processing source slices:
+  Release build:
+    dotnet build RadarPulse.sln -c Release --no-restore
+    passed, 0 warnings, 0 errors
+  moved source/test shape:
+    src/Domain/Processing has 223 .cs files under responsibility/type folders
+    src/Infrastructure/Processing has 98 .cs files under responsibility/type
+      folders
+    tests/RadarPulse.Tests/Processing has 89 .cs files under responsibility
+      folders
+    no .cs files remain directly under the flat Domain, Infrastructure, or
+      test Processing roots
+  responsibility chunk gates:
+    ArchiveRuntime 28 passed
+    Async 112 passed, 2 skipped
+    Benchmarks 9 passed
+    Core 59 passed
+    Durable 57 passed
+    Handlers 58 passed
+    Pressure 103 passed
+    ProductPipeline 31 passed
+    Queueing 119 passed
+    ReadModels 14 passed
+    Retention 57 passed
+    Topology 61 passed
+    Workers 79 passed
+    Rebalance non-synthetic 212 passed
+    Rebalance synthetic 34 passed
+  note:
+    broad combined/all-tests processes expose existing allocation benchmark
+    sensitivity when synthetic allocation measurement shares a process with
+    many tests; isolated responsibility gates passed
+
 milestone 034 change 2:
   Windows package script smoke:
     help passed
