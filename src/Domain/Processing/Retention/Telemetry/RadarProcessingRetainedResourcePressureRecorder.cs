@@ -1,5 +1,13 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Thread-safe recorder for retained-resource pending and active pressure.
+/// </summary>
+/// <remarks>
+/// Pending pressure represents queue-owned retained resources. Active pressure
+/// represents consumer-owned resources. High-water marks are retained across
+/// add, move, and remove operations for diagnostics.
+/// </remarks>
 public sealed class RadarProcessingRetainedResourcePressureRecorder
 {
     private readonly object sync = new();
@@ -14,6 +22,9 @@ public sealed class RadarProcessingRetainedResourcePressureRecorder
     private long combinedBatchCountHighWatermark;
     private long combinedPayloadBytesHighWatermark;
 
+    /// <summary>
+    /// Creates a snapshot of current pending and active retained-resource pressure.
+    /// </summary>
     public RadarProcessingRetainedResourcePressureSnapshot CreateSnapshot()
     {
         lock (sync)
@@ -26,6 +37,9 @@ public sealed class RadarProcessingRetainedResourcePressureRecorder
         }
     }
 
+    /// <summary>
+    /// Creates a summary with current pressure and high-water marks.
+    /// </summary>
     public RadarProcessingRetainedResourcePressureSummary CreateSummary()
     {
         lock (sync)
@@ -45,6 +59,9 @@ public sealed class RadarProcessingRetainedResourcePressureRecorder
         }
     }
 
+    /// <summary>
+    /// Adds queue-owned retained pressure.
+    /// </summary>
     public RadarProcessingRetainedResourcePressureSummary AddPending(
         long payloadBytes,
         long batchCount = 1)
@@ -60,6 +77,9 @@ public sealed class RadarProcessingRetainedResourcePressureRecorder
         }
     }
 
+    /// <summary>
+    /// Removes queue-owned retained pressure.
+    /// </summary>
     public RadarProcessingRetainedResourcePressureSummary RemovePending(
         long payloadBytes,
         long batchCount = 1)
@@ -82,6 +102,9 @@ public sealed class RadarProcessingRetainedResourcePressureRecorder
         }
     }
 
+    /// <summary>
+    /// Transfers retained pressure from pending queue ownership to active consumer ownership.
+    /// </summary>
     public RadarProcessingRetainedResourcePressureSummary MovePendingToActive(
         long payloadBytes,
         long batchCount = 1)
@@ -106,6 +129,9 @@ public sealed class RadarProcessingRetainedResourcePressureRecorder
         }
     }
 
+    /// <summary>
+    /// Removes active consumer-owned retained pressure.
+    /// </summary>
     public RadarProcessingRetainedResourcePressureSummary RemoveActive(
         long payloadBytes,
         long batchCount = 1)

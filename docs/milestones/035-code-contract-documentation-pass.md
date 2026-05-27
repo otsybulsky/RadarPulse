@@ -234,3 +234,34 @@ git diff --check
 touched-file trailing whitespace check
   result: passed
 ```
+
+### Change 6: Processing Retention And Pressure Contract Documentation
+
+Status: complete.
+
+Intent:
+
+```text
+document the pressure scoring, rolling window, skew, hot partition,
+quarantine lifecycle, retained payload, retained resource ownership, cleanup,
+resource pressure, and retained payload telemetry contracts used by processing
+queue and rebalance workflows
+```
+
+Scope:
+
+```text
+src/Domain/Processing/Pressure
+src/Domain/Processing/Retention
+```
+
+Verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore
+  result: passed, 0 warnings, 0 errors
+git diff --check
+  result: passed
+touched-file trailing whitespace check
+  result: passed
+```

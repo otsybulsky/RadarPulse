@@ -1,5 +1,13 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Tracks ownership and release for a retained batch payload resource.
+/// </summary>
+/// <remarks>
+/// The resource moves provider to queue to consumer and then into a terminal
+/// released or release-failed state. State changes are synchronized so queue and
+/// consumer cleanup paths cannot publish conflicting release results.
+/// </remarks>
 public sealed class RadarProcessingRetainedBatchResource
 {
     private static readonly Func<RadarProcessingRetainedPayloadReleaseResult> SnapshotCopyReleaseNotRequired =
@@ -20,6 +28,9 @@ public sealed class RadarProcessingRetainedBatchResource
     private RadarProcessingRetainedBatchResourceState state;
     private RadarProcessingRetainedPayloadReleaseResult? lastReleaseResult;
 
+    /// <summary>
+    /// Creates a retained resource with an optional release callback.
+    /// </summary>
     public RadarProcessingRetainedBatchResource(
         RadarProcessingRetainedPayloadStrategy strategy,
         long payloadBytes,
@@ -48,10 +59,19 @@ public sealed class RadarProcessingRetainedBatchResource
         state = RadarProcessingRetainedBatchResourceState.ProviderOwned;
     }
 
+    /// <summary>
+    /// Retention strategy that produced the resource.
+    /// </summary>
     public RadarProcessingRetainedPayloadStrategy Strategy { get; }
 
+    /// <summary>
+    /// Number of retained payload bytes represented by the resource.
+    /// </summary>
     public long PayloadBytes { get; }
 
+    /// <summary>
+    /// Current ownership or terminal release state.
+    /// </summary>
     public RadarProcessingRetainedBatchResourceState State
     {
         get
@@ -63,6 +83,9 @@ public sealed class RadarProcessingRetainedBatchResource
         }
     }
 
+    /// <summary>
+    /// Last release result recorded for the resource.
+    /// </summary>
     public RadarProcessingRetainedPayloadReleaseResult? LastReleaseResult
     {
         get
@@ -74,6 +97,9 @@ public sealed class RadarProcessingRetainedBatchResource
         }
     }
 
+    /// <summary>
+    /// Indicates whether the resource can no longer change ownership.
+    /// </summary>
     public bool IsTerminal
     {
         get
@@ -85,6 +111,9 @@ public sealed class RadarProcessingRetainedBatchResource
         }
     }
 
+    /// <summary>
+    /// Transfers resource ownership from provider to queue.
+    /// </summary>
     public void TransferToQueue()
     {
         lock (sync)
@@ -98,6 +127,9 @@ public sealed class RadarProcessingRetainedBatchResource
         }
     }
 
+    /// <summary>
+    /// Transfers resource ownership from queue to consumer.
+    /// </summary>
     public void TransferToConsumer()
     {
         lock (sync)
@@ -111,6 +143,9 @@ public sealed class RadarProcessingRetainedBatchResource
         }
     }
 
+    /// <summary>
+    /// Releases the retained resource or returns the existing terminal result.
+    /// </summary>
     public RadarProcessingRetainedPayloadReleaseResult Release()
     {
         lock (sync)
@@ -154,6 +189,9 @@ public sealed class RadarProcessingRetainedBatchResource
         }
     }
 
+    /// <summary>
+    /// Creates a retained resource for strategies that do not require explicit release.
+    /// </summary>
     public static RadarProcessingRetainedBatchResource NotRequired(
         RadarProcessingRetainedPayloadStrategy strategy = RadarProcessingRetainedPayloadStrategy.SnapshotCopy) =>
         new(strategy, payloadBytes: 0);

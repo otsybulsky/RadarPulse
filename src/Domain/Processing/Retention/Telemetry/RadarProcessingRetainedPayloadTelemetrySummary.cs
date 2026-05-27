@@ -1,9 +1,18 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Aggregate telemetry for retained payload retention and release operations.
+/// </summary>
 public sealed record RadarProcessingRetainedPayloadTelemetrySummary
 {
+    /// <summary>
+    /// Empty retained payload telemetry summary.
+    /// </summary>
     public static RadarProcessingRetainedPayloadTelemetrySummary Empty { get; } = new();
 
+    /// <summary>
+    /// Creates retained payload telemetry.
+    /// </summary>
     public RadarProcessingRetainedPayloadTelemetrySummary(
         RadarProcessingRetainedPayloadStrategy strategy = RadarProcessingRetainedPayloadStrategy.SnapshotCopy,
         long retentionAttemptCount = 0,
@@ -120,75 +129,171 @@ public sealed record RadarProcessingRetainedPayloadTelemetrySummary
         PayloadPoolMissCount = payloadPoolMissCount;
     }
 
+    /// <summary>
+    /// Retention strategy represented by the telemetry.
+    /// </summary>
     public RadarProcessingRetainedPayloadStrategy Strategy { get; }
 
+    /// <summary>
+    /// Number of retention attempts.
+    /// </summary>
     public long RetentionAttemptCount { get; }
 
+    /// <summary>
+    /// Number of successfully retained batches.
+    /// </summary>
     public long RetainedBatchCount { get; }
 
+    /// <summary>
+    /// Number of retention attempts rejected for unsupported strategy.
+    /// </summary>
     public long RetentionUnsupportedStrategyCount { get; }
 
+    /// <summary>
+    /// Number of retention attempts that failed during copy.
+    /// </summary>
     public long RetentionFailedCopyCount { get; }
 
+    /// <summary>
+    /// Number of canceled retention attempts.
+    /// </summary>
     public long RetentionCanceledCount { get; }
 
+    /// <summary>
+    /// Number of retention attempts rejected for invalid input.
+    /// </summary>
     public long RetentionInvalidInputCount { get; }
 
+    /// <summary>
+    /// Total event count retained successfully.
+    /// </summary>
     public long RetainedEventCount { get; }
 
+    /// <summary>
+    /// Total retained payload bytes.
+    /// </summary>
     public long RetainedPayloadBytes { get; }
 
+    /// <summary>
+    /// Total retained payload value count.
+    /// </summary>
     public long RetainedPayloadValueCount { get; }
 
+    /// <summary>
+    /// Bytes allocated during retention.
+    /// </summary>
     public long AllocatedBytes { get; }
 
+    /// <summary>
+    /// Total time spent retaining payloads.
+    /// </summary>
     public TimeSpan TotalRetentionTime { get; }
 
+    /// <summary>
+    /// Number of builder transfer operations.
+    /// </summary>
     public long TransferCount { get; }
 
+    /// <summary>
+    /// Total pool rent count.
+    /// </summary>
     public long PoolRentCount { get; }
 
+    /// <summary>
+    /// Total pool return count.
+    /// </summary>
     public long PoolReturnCount { get; }
 
+    /// <summary>
+    /// Total pool miss count.
+    /// </summary>
     public long PoolMissCount { get; }
 
+    /// <summary>
+    /// Number of release attempts.
+    /// </summary>
     public long ReleaseAttemptCount { get; }
 
+    /// <summary>
+    /// Number of released batches.
+    /// </summary>
     public long ReleasedBatchCount { get; }
 
+    /// <summary>
+    /// Number of already-released results.
+    /// </summary>
     public long AlreadyReleasedBatchCount { get; }
 
+    /// <summary>
+    /// Number of failed releases.
+    /// </summary>
     public long ReleaseFailedCount { get; }
 
+    /// <summary>
+    /// Number of releases that were not required.
+    /// </summary>
     public long ReleaseNotRequiredCount { get; }
 
+    /// <summary>
+    /// Total time spent releasing retained payloads.
+    /// </summary>
     public TimeSpan TotalReleaseTime { get; }
 
+    /// <summary>
+    /// Event buffer pool rent count.
+    /// </summary>
     public long EventPoolRentCount { get; }
 
+    /// <summary>
+    /// Event buffer pool return count.
+    /// </summary>
     public long EventPoolReturnCount { get; }
 
+    /// <summary>
+    /// Event buffer pool miss count.
+    /// </summary>
     public long EventPoolMissCount { get; }
 
+    /// <summary>
+    /// Payload buffer pool rent count.
+    /// </summary>
     public long PayloadPoolRentCount { get; }
 
+    /// <summary>
+    /// Payload buffer pool return count.
+    /// </summary>
     public long PayloadPoolReturnCount { get; }
 
+    /// <summary>
+    /// Payload buffer pool miss count.
+    /// </summary>
     public long PayloadPoolMissCount { get; }
 
+    /// <summary>
+    /// Total failed retention attempts.
+    /// </summary>
     public long FailedRetentionCount =>
         RetentionUnsupportedStrategyCount +
         RetentionFailedCopyCount +
         RetentionCanceledCount +
         RetentionInvalidInputCount;
 
+    /// <summary>
+    /// Indicates whether retention or release failures were recorded.
+    /// </summary>
     public bool HasFailures =>
         FailedRetentionCount > 0 ||
         ReleaseFailedCount > 0;
 
+    /// <summary>
+    /// Allocated bytes per successfully retained batch.
+    /// </summary>
     public double AllocatedBytesPerRetainedBatch =>
         RetainedBatchCount == 0 ? 0 : (double)AllocatedBytes / RetainedBatchCount;
 
+    /// <summary>
+    /// Allocated bytes per retained payload value.
+    /// </summary>
     public double AllocatedBytesPerPayloadValue =>
         RetainedPayloadValueCount == 0 ? 0 : (double)AllocatedBytes / RetainedPayloadValueCount;
 

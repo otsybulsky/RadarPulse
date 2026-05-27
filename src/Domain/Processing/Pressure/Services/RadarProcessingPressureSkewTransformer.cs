@@ -1,15 +1,35 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Applies synthetic pressure skew profiles to pressure samples.
+/// </summary>
+/// <remarks>
+/// Skew is used by local benchmarks and rebalance exercises to create pressure
+/// shapes without changing processing telemetry generation. Disabled skew returns
+/// the original sample unchanged.
+/// </remarks>
 public sealed class RadarProcessingPressureSkewTransformer
 {
+    /// <summary>
+    /// Creates a pressure skew transformer.
+    /// </summary>
     public RadarProcessingPressureSkewTransformer(
         RadarProcessingPressureSkewOptions? options = null)
     {
         Options = options ?? RadarProcessingPressureSkewOptions.None;
     }
 
+    /// <summary>
+    /// Skew options used by this transformer.
+    /// </summary>
     public RadarProcessingPressureSkewOptions Options { get; }
 
+    /// <summary>
+    /// Applies the configured skew profile to a pressure sample.
+    /// </summary>
+    /// <returns>
+    /// The original sample when skew is disabled; otherwise a new sample with adjusted scores.
+    /// </returns>
     public RadarProcessingPressureSample Apply(
         RadarProcessingPressureSample sample,
         long evaluationSequence,

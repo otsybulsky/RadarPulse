@@ -1,9 +1,23 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Rolling pressure window size and hysteresis thresholds.
+/// </summary>
+/// <remarks>
+/// Enter thresholds promote a shard or partition into a hotter band. Exit
+/// thresholds let it remain in that band until pressure drops far enough, which
+/// prevents rapid band oscillation across adjacent samples.
+/// </remarks>
 public sealed record RadarProcessingPressureWindowOptions
 {
+    /// <summary>
+    /// Default rolling pressure window configuration.
+    /// </summary>
     public static RadarProcessingPressureWindowOptions Default { get; } = new();
 
+    /// <summary>
+    /// Creates rolling pressure window options.
+    /// </summary>
     public RadarProcessingPressureWindowOptions(
         int sampleCapacity = 8,
         int minimumSampleCount = 3,
@@ -53,24 +67,54 @@ public sealed record RadarProcessingPressureWindowOptions
         SuperHotEnterThreshold = superHotEnterThreshold;
     }
 
+    /// <summary>
+    /// Maximum pressure samples retained by the rolling window.
+    /// </summary>
     public int SampleCapacity { get; }
 
+    /// <summary>
+    /// Minimum samples required before rebalance planning is eligible.
+    /// </summary>
     public int MinimumSampleCount { get; }
 
+    /// <summary>
+    /// Score at or below which pressure is cold.
+    /// </summary>
     public double ColdThreshold { get; }
 
+    /// <summary>
+    /// Score below which a warm band can cool down.
+    /// </summary>
     public double WarmExitThreshold { get; }
 
+    /// <summary>
+    /// Score at or above which a normal or cold band enters warm.
+    /// </summary>
     public double WarmEnterThreshold { get; }
 
+    /// <summary>
+    /// Score below which a hot band can cool down to warm.
+    /// </summary>
     public double HotExitThreshold { get; }
 
+    /// <summary>
+    /// Score at or above which pressure enters hot.
+    /// </summary>
     public double HotEnterThreshold { get; }
 
+    /// <summary>
+    /// Score below which a super-hot band can cool down to hot.
+    /// </summary>
     public double SuperHotExitThreshold { get; }
 
+    /// <summary>
+    /// Score at or above which pressure enters super-hot.
+    /// </summary>
     public double SuperHotEnterThreshold { get; }
 
+    /// <summary>
+    /// Classifies a score using hysteresis against the previous pressure band.
+    /// </summary>
     public RadarProcessingPressureBand Classify(
         RadarProcessingPressureScore score,
         RadarProcessingPressureBand previousBand)

@@ -1,9 +1,20 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Tracks hot-partition classifications used by rebalance planners.
+/// </summary>
+/// <remarks>
+/// The classifier records whether a hot partition is movable, intrinsically hot,
+/// or quarantined. Move outcomes can increase ineffective move counts and push a
+/// partition into quarantine after repeated insufficient relief.
+/// </remarks>
 public sealed class RadarProcessingHotPartitionClassifier
 {
     private readonly RadarProcessingHotPartitionState[] partitions;
 
+    /// <summary>
+    /// Creates a classifier for a fixed partition count.
+    /// </summary>
     public RadarProcessingHotPartitionClassifier(
         int partitionCount,
         int quarantineIneffectiveMoveCount = 2,
@@ -38,18 +49,33 @@ public sealed class RadarProcessingHotPartitionClassifier
         }
     }
 
+    /// <summary>
+    /// Number of partitions tracked by the classifier.
+    /// </summary>
     public int PartitionCount { get; }
 
+    /// <summary>
+    /// Ineffective move count required before quarantine classification.
+    /// </summary>
     public int QuarantineIneffectiveMoveCount { get; }
 
+    /// <summary>
+    /// Minimum ratio of actual relief to expected relief considered effective.
+    /// </summary>
     public double MinimumEffectiveReliefRatio { get; }
 
+    /// <summary>
+    /// Returns classification state for a partition.
+    /// </summary>
     public RadarProcessingHotPartitionState GetPartition(int partitionId)
     {
         EnsurePartitionId(partitionId);
         return partitions[partitionId];
     }
 
+    /// <summary>
+    /// Marks a partition as movable hot.
+    /// </summary>
     public RadarProcessingHotPartitionState ClassifyMovableHot(
         int partitionId,
         int shardId,
@@ -65,6 +91,9 @@ public sealed class RadarProcessingHotPartitionClassifier
             current.IneffectiveMoveCount);
     }
 
+    /// <summary>
+    /// Marks a partition as intrinsically hot, blocking direct movement.
+    /// </summary>
     public RadarProcessingHotPartitionState ClassifyIntrinsicHot(
         int partitionId,
         int shardId,
@@ -80,6 +109,9 @@ public sealed class RadarProcessingHotPartitionClassifier
             current.IneffectiveMoveCount);
     }
 
+    /// <summary>
+    /// Marks a partition as quarantined and raises ineffective move count to the threshold.
+    /// </summary>
     public RadarProcessingHotPartitionState ClassifyQuarantined(
         int partitionId,
         int shardId,
@@ -96,6 +128,13 @@ public sealed class RadarProcessingHotPartitionClassifier
             ineffectiveMoveCount);
     }
 
+    /// <summary>
+    /// Records expected versus actual relief after a move attempt.
+    /// </summary>
+    /// <returns>
+    /// Movable state when relief was effective; otherwise movable or quarantined state
+    /// depending on accumulated ineffective move count.
+    /// </returns>
     public RadarProcessingHotPartitionState RecordMoveOutcome(
         int partitionId,
         int shardId,
@@ -132,6 +171,9 @@ public sealed class RadarProcessingHotPartitionClassifier
             ineffectiveMoveCount);
     }
 
+    /// <summary>
+    /// Clears classification and ineffective move count for a partition.
+    /// </summary>
     public RadarProcessingHotPartitionState Clear(
         int partitionId,
         long evaluationSequence)

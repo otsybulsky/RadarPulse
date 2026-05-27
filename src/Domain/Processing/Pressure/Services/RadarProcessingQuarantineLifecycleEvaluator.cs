@@ -1,15 +1,32 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Applies quarantine lifecycle policy to partition evidence.
+/// </summary>
+/// <remarks>
+/// The evaluator emits transitions when a partition enters quarantine, becomes
+/// retry-eligible, clears quarantine, or reenters quarantine. Otherwise it returns
+/// the updated state without a transition.
+/// </remarks>
 public sealed class RadarProcessingQuarantineLifecycleEvaluator
 {
+    /// <summary>
+    /// Creates a lifecycle evaluator.
+    /// </summary>
     public RadarProcessingQuarantineLifecycleEvaluator(
         RadarProcessingQuarantineLifecycleOptions? options = null)
     {
         Options = options ?? RadarProcessingQuarantineLifecycleOptions.Default;
     }
 
+    /// <summary>
+    /// Policy options used by the evaluator.
+    /// </summary>
     public RadarProcessingQuarantineLifecycleOptions Options { get; }
 
+    /// <summary>
+    /// Evaluates evidence against the current lifecycle state.
+    /// </summary>
     public RadarProcessingQuarantineLifecycleEvaluationResult Evaluate(
         RadarProcessingQuarantineLifecycleState state,
         RadarProcessingQuarantineEvidence evidence)

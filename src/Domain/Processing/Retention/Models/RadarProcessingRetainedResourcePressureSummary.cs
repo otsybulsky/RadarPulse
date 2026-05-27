@@ -1,7 +1,13 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Current and high-water retained-resource pressure summary.
+/// </summary>
 public sealed record RadarProcessingRetainedResourcePressureSummary
 {
+    /// <summary>
+    /// Creates a retained-resource pressure summary.
+    /// </summary>
     public RadarProcessingRetainedResourcePressureSummary(
         long currentPendingRetainedBatchCount = 0,
         long currentPendingRetainedPayloadBytes = 0,
@@ -86,32 +92,71 @@ public sealed record RadarProcessingRetainedResourcePressureSummary
         CombinedRetainedPayloadBytesHighWatermark = combinedRetainedPayloadBytesHighWatermark;
     }
 
+    /// <summary>
+    /// Current queue-owned retained batch count.
+    /// </summary>
     public long CurrentPendingRetainedBatchCount { get; }
 
+    /// <summary>
+    /// Current queue-owned retained payload bytes.
+    /// </summary>
     public long CurrentPendingRetainedPayloadBytes { get; }
 
+    /// <summary>
+    /// Highest observed queue-owned retained batch count.
+    /// </summary>
     public long PendingRetainedBatchCountHighWatermark { get; }
 
+    /// <summary>
+    /// Highest observed queue-owned retained payload bytes.
+    /// </summary>
     public long PendingRetainedPayloadBytesHighWatermark { get; }
 
+    /// <summary>
+    /// Current consumer-owned retained batch count.
+    /// </summary>
     public long CurrentActiveRetainedBatchCount { get; }
 
+    /// <summary>
+    /// Current consumer-owned retained payload bytes.
+    /// </summary>
     public long CurrentActiveRetainedPayloadBytes { get; }
 
+    /// <summary>
+    /// Highest observed consumer-owned retained batch count.
+    /// </summary>
     public long ActiveRetainedBatchCountHighWatermark { get; }
 
+    /// <summary>
+    /// Highest observed consumer-owned retained payload bytes.
+    /// </summary>
     public long ActiveRetainedPayloadBytesHighWatermark { get; }
 
+    /// <summary>
+    /// Current pending plus active retained batch count.
+    /// </summary>
     public long CurrentCombinedRetainedBatchCount =>
         checked(CurrentPendingRetainedBatchCount + CurrentActiveRetainedBatchCount);
 
+    /// <summary>
+    /// Current pending plus active retained payload bytes.
+    /// </summary>
     public long CurrentCombinedRetainedPayloadBytes =>
         checked(CurrentPendingRetainedPayloadBytes + CurrentActiveRetainedPayloadBytes);
 
+    /// <summary>
+    /// Highest observed combined retained batch count.
+    /// </summary>
     public long CombinedRetainedBatchCountHighWatermark { get; }
 
+    /// <summary>
+    /// Highest observed combined retained payload bytes.
+    /// </summary>
     public long CombinedRetainedPayloadBytesHighWatermark { get; }
 
+    /// <summary>
+    /// Snapshot of current pending and active pressure.
+    /// </summary>
     public RadarProcessingRetainedResourcePressureSnapshot CurrentSnapshot =>
         new(
             CurrentPendingRetainedBatchCount,
@@ -119,12 +164,18 @@ public sealed record RadarProcessingRetainedResourcePressureSummary
             CurrentActiveRetainedBatchCount,
             CurrentActiveRetainedPayloadBytes);
 
+    /// <summary>
+    /// Indicates whether current or historical retained-resource pressure exists.
+    /// </summary>
     public bool HasRetainedPressure =>
         CurrentCombinedRetainedBatchCount > 0 ||
         CombinedRetainedBatchCountHighWatermark > 0 ||
         CurrentCombinedRetainedPayloadBytes > 0 ||
         CombinedRetainedPayloadBytesHighWatermark > 0;
 
+    /// <summary>
+    /// Empty retained-resource pressure summary.
+    /// </summary>
     public static RadarProcessingRetainedResourcePressureSummary Empty { get; } = new();
 
     internal static RadarProcessingRetainedResourcePressureSummary FromState(

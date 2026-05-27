@@ -1,9 +1,18 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Policy options for quarantined partition retry and clearing behavior.
+/// </summary>
 public sealed record RadarProcessingQuarantineLifecycleOptions
 {
+    /// <summary>
+    /// Default quarantine lifecycle policy.
+    /// </summary>
     public static RadarProcessingQuarantineLifecycleOptions Default { get; } = new();
 
+    /// <summary>
+    /// Creates quarantine lifecycle options.
+    /// </summary>
     public RadarProcessingQuarantineLifecycleOptions(
         int quarantineTtlEvaluations = 64,
         int sustainedCoolingSampleCount = 3,
@@ -18,10 +27,19 @@ public sealed record RadarProcessingQuarantineLifecycleOptions
         MaterialPressureChangeThreshold = materialPressureChangeThreshold;
     }
 
+    /// <summary>
+    /// Evaluations a partition may remain quarantined before retry eligibility.
+    /// </summary>
     public int QuarantineTtlEvaluations { get; }
 
+    /// <summary>
+    /// Consecutive cooling samples required to clear quarantine.
+    /// </summary>
     public int SustainedCoolingSampleCount { get; }
 
+    /// <summary>
+    /// Relative pressure change required to mark quarantine retry-eligible.
+    /// </summary>
     public double MaterialPressureChangeThreshold { get; }
 
     private static void ThrowIfInvalidThreshold(

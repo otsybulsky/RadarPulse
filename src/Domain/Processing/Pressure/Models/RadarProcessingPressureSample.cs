@@ -1,5 +1,12 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Pressure snapshot derived from processing telemetry for one topology version.
+/// </summary>
+/// <remarks>
+/// Samples keep shard and partition entries ordered by id. The rolling pressure
+/// window depends on this ordering when rebuilding aggregate state.
+/// </remarks>
 public sealed class RadarProcessingPressureSample
 {
     private readonly IReadOnlyList<RadarProcessingShardPressureSample> shards;
@@ -30,18 +37,39 @@ public sealed class RadarProcessingPressureSample
         this.partitions = Array.AsReadOnly((RadarProcessingPartitionPressureSample[])partitions.Clone());
     }
 
+    /// <summary>
+    /// Topology version represented by this pressure sample.
+    /// </summary>
     public RadarProcessingTopologyVersion TopologyVersion { get; }
 
+    /// <summary>
+    /// Batch-level route metrics used to create the sample.
+    /// </summary>
     public RadarProcessingRouteMetrics BatchMetrics { get; }
 
+    /// <summary>
+    /// Number of shard pressure entries.
+    /// </summary>
     public int ShardCount => shards.Count;
 
+    /// <summary>
+    /// Number of partition pressure entries.
+    /// </summary>
     public int PartitionCount => partitions.Count;
 
+    /// <summary>
+    /// Shard pressure entries ordered by shard id.
+    /// </summary>
     public IReadOnlyList<RadarProcessingShardPressureSample> Shards => shards;
 
+    /// <summary>
+    /// Partition pressure entries ordered by partition id.
+    /// </summary>
     public IReadOnlyList<RadarProcessingPartitionPressureSample> Partitions => partitions;
 
+    /// <summary>
+    /// Creates a pressure sample from caller-provided shard and partition entries.
+    /// </summary>
     public static RadarProcessingPressureSample Create(
         RadarProcessingTopologyVersion topologyVersion,
         RadarProcessingRouteMetrics batchMetrics,
@@ -58,6 +86,9 @@ public sealed class RadarProcessingPressureSample
             partitions.ToArray());
     }
 
+    /// <summary>
+    /// Creates a pressure sample from processing telemetry and scoring options.
+    /// </summary>
     public static RadarProcessingPressureSample FromTelemetry(
         RadarProcessingTelemetry telemetry,
         RadarProcessingPressureOptions? options = null)

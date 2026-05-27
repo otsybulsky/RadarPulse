@@ -1,7 +1,13 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Result of evaluating quarantine lifecycle evidence for a partition.
+/// </summary>
 public sealed record RadarProcessingQuarantineLifecycleEvaluationResult
 {
+    /// <summary>
+    /// Creates a quarantine lifecycle evaluation result.
+    /// </summary>
     public RadarProcessingQuarantineLifecycleEvaluationResult(
         RadarProcessingQuarantineLifecycleState state,
         RadarProcessingQuarantineTransition? transition = null)
@@ -35,9 +41,18 @@ public sealed record RadarProcessingQuarantineLifecycleEvaluationResult
         Transition = transition;
     }
 
+    /// <summary>
+    /// Updated lifecycle state after evaluation.
+    /// </summary>
     public RadarProcessingQuarantineLifecycleState State { get; }
 
+    /// <summary>
+    /// Transition emitted by the evaluation, when state classification changed.
+    /// </summary>
     public RadarProcessingQuarantineTransition? Transition { get; }
 
+    /// <summary>
+    /// Indicates whether the evaluation emitted a transition.
+    /// </summary>
     public bool HasTransition => Transition is not null;
 }

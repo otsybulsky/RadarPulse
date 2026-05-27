@@ -1,5 +1,13 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Immutable lifecycle state for one partition under quarantine policy.
+/// </summary>
+/// <remarks>
+/// The state preserves the latest evidence sequence, topology version, baseline
+/// quarantine pressure, sustained cooling count, and current effective
+/// classification. State transitions are produced by creating a new instance.
+/// </remarks>
 public sealed class RadarProcessingQuarantineLifecycleState
 {
     private RadarProcessingQuarantineLifecycleState(
@@ -58,42 +66,90 @@ public sealed class RadarProcessingQuarantineLifecycleState
         SustainedCoolingSampleCount = sustainedCoolingSampleCount;
     }
 
+    /// <summary>
+    /// Partition represented by the lifecycle state.
+    /// </summary>
     public int PartitionId { get; }
 
+    /// <summary>
+    /// Latest shard associated with the partition evidence.
+    /// </summary>
     public int ShardId { get; }
 
+    /// <summary>
+    /// Effective classification after lifecycle policy is applied.
+    /// </summary>
     public RadarProcessingQuarantineEffectiveClassification EffectiveClassification { get; }
 
+    /// <summary>
+    /// Latest topology version observed for the partition.
+    /// </summary>
     public RadarProcessingTopologyVersion LatestTopologyVersion { get; }
 
+    /// <summary>
+    /// Latest evaluation sequence observed for the partition.
+    /// </summary>
     public long LatestEvidenceSequence { get; }
 
+    /// <summary>
+    /// Evaluation sequence when current quarantine evidence started.
+    /// </summary>
     public long? QuarantineStartSequence { get; }
 
+    /// <summary>
+    /// Pressure recorded when quarantine evidence started.
+    /// </summary>
     public RadarProcessingPressureScore? BaselinePressure { get; }
 
+    /// <summary>
+    /// Latest observed partition pressure.
+    /// </summary>
     public RadarProcessingPressureScore LatestPressure { get; }
 
+    /// <summary>
+    /// Latest observed partition pressure band.
+    /// </summary>
     public RadarProcessingPressureBand LatestPressureBand { get; }
 
+    /// <summary>
+    /// Consecutive cooling samples observed while retaining quarantine evidence.
+    /// </summary>
     public int SustainedCoolingSampleCount { get; }
 
+    /// <summary>
+    /// Indicates whether the state retains active quarantine evidence.
+    /// </summary>
     public bool HasQuarantineEvidence => QuarantineStartSequence is not null;
 
+    /// <summary>
+    /// Indicates whether the partition can be retried after quarantine.
+    /// </summary>
     public bool IsRetryEligible => EffectiveClassification == RadarProcessingQuarantineEffectiveClassification.RetryEligible;
 
+    /// <summary>
+    /// Indicates whether the partition is currently quarantined.
+    /// </summary>
     public bool IsQuarantined => EffectiveClassification == RadarProcessingQuarantineEffectiveClassification.Quarantined;
 
+    /// <summary>
+    /// Indicates whether direct hot-relief should skip the partition.
+    /// </summary>
     public bool BlocksDirectMove =>
         EffectiveClassification is
             RadarProcessingQuarantineEffectiveClassification.IntrinsicHot or
             RadarProcessingQuarantineEffectiveClassification.Quarantined;
 
+    /// <summary>
+    /// Number of evaluations since quarantine evidence started.
+    /// </summary>
     public long QuarantineAgeEvaluations =>
         QuarantineStartSequence is long start
             ? LatestEvidenceSequence - start
             : 0;
 
+    /// <summary>
+    /// Creates an unclassified lifecycle state for a partition.
+    /// </summary>
     public static RadarProcessingQuarantineLifecycleState Unclassified(
         int partitionId) =>
         new(
@@ -108,6 +164,9 @@ public sealed class RadarProcessingQuarantineLifecycleState
             RadarProcessingPressureBand.Cold,
             sustainedCoolingSampleCount: 0);
 
+    /// <summary>
+    /// Enters quarantine using the supplied evidence as the baseline.
+    /// </summary>
     public RadarProcessingQuarantineLifecycleState EnterQuarantine(
         RadarProcessingQuarantineEvidence evidence)
     {
@@ -121,6 +180,9 @@ public sealed class RadarProcessingQuarantineLifecycleState
             sustainedCoolingSampleCount: 0);
     }
 
+    /// <summary>
+    /// Records a cooling sample and increments sustained cooling count.
+    /// </summary>
     public RadarProcessingQuarantineLifecycleState RecordCoolingSample(
         RadarProcessingQuarantineEvidence evidence)
     {
@@ -134,6 +196,9 @@ public sealed class RadarProcessingQuarantineLifecycleState
             checked(SustainedCoolingSampleCount + 1));
     }
 
+    /// <summary>
+    /// Records a non-cooling sample and resets sustained cooling count.
+    /// </summary>
     public RadarProcessingQuarantineLifecycleState RecordHotSample(
         RadarProcessingQuarantineEvidence evidence)
     {
@@ -147,6 +212,9 @@ public sealed class RadarProcessingQuarantineLifecycleState
             sustainedCoolingSampleCount: 0);
     }
 
+    /// <summary>
+    /// Records non-quarantine classification evidence.
+    /// </summary>
     public RadarProcessingQuarantineLifecycleState RecordClassificationEvidence(
         RadarProcessingQuarantineEvidence evidence,
         RadarProcessingQuarantineEffectiveClassification effectiveClassification)
@@ -162,6 +230,9 @@ public sealed class RadarProcessingQuarantineLifecycleState
             sustainedCoolingSampleCount: 0);
     }
 
+    /// <summary>
+    /// Marks a quarantined partition as retry-eligible while preserving quarantine evidence.
+    /// </summary>
     public RadarProcessingQuarantineLifecycleState MarkRetryEligible(
         RadarProcessingQuarantineEvidence evidence,
         RadarProcessingQuarantineTransitionReason reason)
@@ -177,6 +248,9 @@ public sealed class RadarProcessingQuarantineLifecycleState
             SustainedCoolingSampleCount);
     }
 
+    /// <summary>
+    /// Clears quarantine evidence to an unclassified state.
+    /// </summary>
     public RadarProcessingQuarantineLifecycleState Clear(
         RadarProcessingQuarantineEvidence evidence,
         RadarProcessingQuarantineTransitionReason reason) =>
@@ -185,6 +259,9 @@ public sealed class RadarProcessingQuarantineLifecycleState
             RadarProcessingQuarantineEffectiveClassification.None,
             reason);
 
+    /// <summary>
+    /// Clears quarantine evidence to a non-quarantine classification.
+    /// </summary>
     public RadarProcessingQuarantineLifecycleState ClearToClassification(
         RadarProcessingQuarantineEvidence evidence,
         RadarProcessingQuarantineEffectiveClassification effectiveClassification,
@@ -202,6 +279,9 @@ public sealed class RadarProcessingQuarantineLifecycleState
             sustainedCoolingSampleCount: 0);
     }
 
+    /// <summary>
+    /// Reenters quarantine after retry evidence still indicates quarantine.
+    /// </summary>
     public RadarProcessingQuarantineLifecycleState ReenterQuarantine(
         RadarProcessingQuarantineEvidence evidence)
     {

@@ -1,9 +1,18 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Options that select how queued payloads are retained.
+/// </summary>
 public sealed record RadarProcessingRetainedPayloadOptions
 {
+    /// <summary>
+    /// Default retained payload configuration.
+    /// </summary>
     public static RadarProcessingRetainedPayloadOptions Default { get; } = new();
 
+    /// <summary>
+    /// Creates retained payload options.
+    /// </summary>
     public RadarProcessingRetainedPayloadOptions(
         RadarProcessingRetainedPayloadStrategy strategy = RadarProcessingRetainedPayloadStrategy.SnapshotCopy,
         long? maxRetainedPayloadBytes = null)
@@ -22,10 +31,19 @@ public sealed record RadarProcessingRetainedPayloadOptions
         MaxRetainedPayloadBytes = maxRetainedPayloadBytes;
     }
 
+    /// <summary>
+    /// Strategy used to retain queued payload ownership.
+    /// </summary>
     public RadarProcessingRetainedPayloadStrategy Strategy { get; }
 
+    /// <summary>
+    /// Optional maximum retained payload bytes allowed by the caller.
+    /// </summary>
     public long? MaxRetainedPayloadBytes { get; }
 
+    /// <summary>
+    /// Indicates whether a retained payload byte limit is configured.
+    /// </summary>
     public bool HasMaxRetainedPayloadBytes => MaxRetainedPayloadBytes.HasValue;
 
     internal static void EnsureKnownStrategy(
