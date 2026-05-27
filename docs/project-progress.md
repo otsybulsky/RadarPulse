@@ -1,8 +1,8 @@
 # RadarPulse Project Progress
 
-Status: current after milestone 034 closeout. Targeted project
-restructuring and maintenance is accepted over the local product demo
-boundary, and RadarPulse remains in freeze mode.
+Status: current during milestone 035. Code contract documentation is active
+as a freeze-mode maintenance pass over the accepted local product demo
+boundary.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -27,7 +27,8 @@ product operator Angular SPA milestone, the operator UI hardening and
 integrated local delivery milestone, the product demo/readiness packaging
 milestone, the product demo polish and portfolio readiness milestone, and the
 targeted project restructuring and maintenance milestone. Milestone 034 is
-complete through closeout, and the project remains in freeze mode.
+complete through closeout. Milestone 035 is active as a code contract
+documentation pass, and the project remains in freeze mode.
 
 Current state:
 
@@ -49,7 +50,7 @@ post-closeout project mode:
   small portfolio wording polish, targeted refactoring that preserves accepted
   behavior, and maintenance fixes
 active milestone:
-  none
+  035 code contract documentation pass
 latest milestone completed changes:
   Windows PowerShell and native Linux/macOS/WSL2 Bash demo entrypoints are
     documented, smoke checked, and covered by packaged verify
@@ -183,7 +184,8 @@ current runtime/live posture:
   broker/database adapter certification is not planned for this project
 
 current next action:
-  stay in freeze mode; no active milestone is needed by default
+  complete milestone 035 code descriptions while preserving freeze-mode
+    behavior
 ```
 
 Current project scope decision:

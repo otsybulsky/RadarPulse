@@ -2,6 +2,15 @@ using RadarPulse.Application.Product;
 
 namespace RadarPulse.Http.Product;
 
+/// <summary>
+/// Same-origin local product demo package readiness response.
+/// </summary>
+/// <remarks>
+/// The response composes product API, run history, and operator UI static asset
+/// posture for scripts and browser clients. It deliberately carries local-demo
+/// warnings and non-claims so the HTTP host does not imply public production
+/// hosting or true live ingestion readiness.
+/// </remarks>
 public sealed record RadarPulseProductDemoReadiness(
     bool IsReady,
     string FirstBlockingReason,
@@ -14,6 +23,14 @@ public sealed record RadarPulseProductDemoReadiness(
     IReadOnlyList<string> Warnings,
     IReadOnlyList<string> NonClaims)
 {
+    /// <summary>
+    /// Builds the local demo readiness response from history posture and HTTP options.
+    /// </summary>
+    /// <remarks>
+    /// Product API readiness is treated as ready when routes are mapped. History
+    /// readiness and operator UI static asset readiness can block the local demo
+    /// package and supply the first blocking reason.
+    /// </remarks>
     public static RadarPulseProductDemoReadiness From(
         RadarPulseProductRunHistoryReadiness historyReadiness,
         RadarPulseProductHttpOptions options)
@@ -123,6 +140,9 @@ public sealed record RadarPulseProductDemoReadiness(
     ];
 }
 
+/// <summary>
+/// Readiness item for one local product demo package dependency.
+/// </summary>
 public sealed record RadarPulseProductDemoReadinessItem(
     string Name,
     bool IsReady,

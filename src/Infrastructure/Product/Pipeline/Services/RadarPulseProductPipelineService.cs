@@ -7,11 +7,28 @@ using RadarPulse.Infrastructure.Processing;
 
 namespace RadarPulse.Infrastructure.Product;
 
+/// <summary>
+/// Product service that composes accepted production-pipeline execution with run history.
+/// </summary>
+/// <remarks>
+/// The service is intentionally a product adapter over existing processing and
+/// archive infrastructure. It creates product vocabulary requests, stores the
+/// resulting run detail, and exposes query/control helpers without changing the
+/// accepted backend runtime semantics.
+/// </remarks>
 public sealed class RadarPulseProductPipelineService
 {
     private readonly IRadarPulseProductRunHistoryStore historyStore;
     private readonly RadarProcessingProductionPipelineRunner runner;
 
+    /// <summary>
+    /// Creates a service with optional runner and history-store dependencies.
+    /// </summary>
+    /// <remarks>
+    /// The default constructor path uses the accepted production pipeline runner
+    /// and process-local in-memory history, which keeps direct tests and CLI
+    /// experimentation deterministic.
+    /// </remarks>
     public RadarPulseProductPipelineService(
         RadarProcessingProductionPipelineRunner? runner = null,
         IRadarPulseProductRunHistoryStore? historyStore = null)
@@ -20,6 +37,13 @@ public sealed class RadarPulseProductPipelineService
         this.historyStore = historyStore ?? new RadarPulseProductInMemoryRunHistoryStore();
     }
 
+    /// <summary>
+    /// Creates a service backed by deterministic local file history.
+    /// </summary>
+    /// <remarks>
+    /// This is the accepted local product demo persistence path. It is not a
+    /// database-backed or cross-machine history adapter.
+    /// </remarks>
     public static RadarPulseProductPipelineService CreateWithFileHistory(
         string historyPath,
         RadarProcessingProductionPipelineRunner? runner = null) =>
@@ -27,11 +51,25 @@ public sealed class RadarPulseProductPipelineService
             runner,
             new RadarPulseProductFileRunHistoryStore(historyPath));
 
+    /// <summary>
+    /// Number of run details currently visible through the configured history store.
+    /// </summary>
     public int Count => historyStore.Count;
 
+    /// <summary>
+    /// Current readiness and load posture for the configured history store.
+    /// </summary>
     public RadarPulseProductRunHistoryReadiness HistoryReadiness =>
         historyStore.Readiness;
 
+    /// <summary>
+    /// Runs the accepted production-shaped pipeline over deterministic synthetic input.
+    /// </summary>
+    /// <remarks>
+    /// This is the primary local demo path. It generates owned archive-shaped
+    /// batches from the requested source and event counts, then persists the
+    /// resulting product run detail.
+    /// </remarks>
     public async ValueTask<RadarPulseProductRunDetail> RunSyntheticAsync(
         RadarPulseProductPipelineSyntheticRunRequest request,
         CancellationToken cancellationToken = default)
@@ -74,6 +112,14 @@ public sealed class RadarPulseProductPipelineService
             .ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Runs the accepted production-shaped pipeline over one local NEXRAD archive file.
+    /// </summary>
+    /// <remarks>
+    /// The archive publisher projects the local file into owned RadarEventBatch
+    /// input before processing. The method rejects archive files that produce no
+    /// batches because the product run would have no inspectable read model.
+    /// </remarks>
     public async ValueTask<RadarPulseProductRunDetail> RunArchiveFileAsync(
         RadarPulseProductPipelineArchiveFileRunRequest request,
         CancellationToken cancellationToken = default)
@@ -125,16 +171,28 @@ public sealed class RadarPulseProductPipelineService
             .ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Lists compact product run summaries from the configured history store.
+    /// </summary>
     public IReadOnlyList<RadarPulseProductRunSummary> ListRuns()
         => historyStore.ListRuns();
 
+    /// <summary>
+    /// Attempts to load one product run detail by run id.
+    /// </summary>
     public RadarPulseProductQueryResult<RadarPulseProductRunDetail> TryGetRun(
         string runId)
         => historyStore.TryGetRun(runId);
 
+    /// <summary>
+    /// Attempts to load the latest product run detail from history.
+    /// </summary>
     public RadarPulseProductQueryResult<RadarPulseProductRunDetail> TryGetLatestRun()
         => historyStore.TryGetLatestRun();
 
+    /// <summary>
+    /// Lists all provider batches captured for a product run.
+    /// </summary>
     public RadarPulseProductQueryResult<IReadOnlyList<RadarPulseProductBatch>> ListBatches(
         string runId)
     {
@@ -144,6 +202,13 @@ public sealed class RadarPulseProductPipelineService
             : RadarPulseProductQueryResult<IReadOnlyList<RadarPulseProductBatch>>.NotFound(run.Message);
     }
 
+    /// <summary>
+    /// Looks up one batch by provider sequence within a product run.
+    /// </summary>
+    /// <remarks>
+    /// Provider sequence is the stable ordering key from the accepted ordered
+    /// commit path, so this lookup does not depend on list position.
+    /// </remarks>
     public RadarPulseProductQueryResult<RadarPulseProductBatch> TryGetBatch(
         string runId,
         long providerSequence)
@@ -168,6 +233,9 @@ public sealed class RadarPulseProductPipelineService
             $"Product run '{runId}' does not contain batch sequence {providerSequence}.");
     }
 
+    /// <summary>
+    /// Lists all processed source read models for a product run.
+    /// </summary>
     public RadarPulseProductQueryResult<IReadOnlyList<RadarPulseProductSource>> ListSources(
         string runId)
     {
@@ -177,6 +245,9 @@ public sealed class RadarPulseProductPipelineService
             : RadarPulseProductQueryResult<IReadOnlyList<RadarPulseProductSource>>.NotFound(run.Message);
     }
 
+    /// <summary>
+    /// Looks up one processed source by dense source id within a product run.
+    /// </summary>
     public RadarPulseProductQueryResult<RadarPulseProductSource> TryGetSource(
         string runId,
         int sourceId)
@@ -201,6 +272,9 @@ public sealed class RadarPulseProductPipelineService
             $"Product run '{runId}' does not contain source {sourceId}.");
     }
 
+    /// <summary>
+    /// Looks up one exported handler output field for a source in a product run.
+    /// </summary>
     public RadarPulseProductQueryResult<RadarPulseProductHandlerOutput> TryGetHandlerOutput(
         string runId,
         int sourceId,
@@ -227,6 +301,9 @@ public sealed class RadarPulseProductPipelineService
             $"Product run '{runId}' source {sourceId} does not contain handler field '{fieldName}'.");
     }
 
+    /// <summary>
+    /// Returns diagnostic evidence for a product run when diagnostics were captured.
+    /// </summary>
     public RadarPulseProductQueryResult<RadarPulseProductDiagnostics> TryGetDiagnostics(
         string runId)
     {
@@ -242,6 +319,9 @@ public sealed class RadarPulseProductPipelineService
                 $"Product run '{runId}' does not have diagnostics.");
     }
 
+    /// <summary>
+    /// Returns capacity and completeness evidence for a product run.
+    /// </summary>
     public RadarPulseProductQueryResult<RadarPulseProductCapacityEvidence> TryGetCapacityEvidence(
         string runId)
     {
@@ -252,6 +332,14 @@ public sealed class RadarPulseProductPipelineService
             : RadarPulseProductQueryResult<RadarPulseProductCapacityEvidence>.NotFound(run.Message);
     }
 
+    /// <summary>
+    /// Applies a product control action against recoverable durable pipeline state.
+    /// </summary>
+    /// <remarks>
+    /// The method reconstructs the source universe and accepted handler/options
+    /// contour from the request, then delegates to the production pipeline control
+    /// coordinator. It returns the control summary in product vocabulary.
+    /// </remarks>
     public async ValueTask<RadarPulseProductQueryResult<RadarPulseProductControlSummary>> ApplyControlAsync(
         RadarPulseProductPipelineControlRequest request,
         CancellationToken cancellationToken = default)

@@ -2,10 +2,20 @@ using Microsoft.Extensions.FileProviders;
 
 namespace RadarPulse.Http.Product;
 
+/// <summary>
+/// Same-origin static file delivery helpers for the built operator UI.
+/// </summary>
+/// <remarks>
+/// The helpers serve already-built Angular assets. They do not build the frontend
+/// at runtime and do not turn the local host into a production web deployment.
+/// </remarks>
 public static class RadarPulseOperatorUiStaticDeliveryExtensions
 {
     private const string ProductPipelinePathPrefix = "/product/pipeline";
 
+    /// <summary>
+    /// Enables static file middleware when the configured operator UI asset root is available.
+    /// </summary>
     public static IApplicationBuilder UseRadarPulseOperatorUiStaticFiles(
         this IApplicationBuilder app,
         RadarPulseProductHttpOptions options)
@@ -26,6 +36,9 @@ public static class RadarPulseOperatorUiStaticDeliveryExtensions
         return app;
     }
 
+    /// <summary>
+    /// Maps the SPA fallback route for non-product API paths.
+    /// </summary>
     public static IEndpointRouteBuilder MapRadarPulseOperatorUiFallback(
         this IEndpointRouteBuilder endpoints,
         RadarPulseProductHttpOptions options)
@@ -37,6 +50,9 @@ public static class RadarPulseOperatorUiStaticDeliveryExtensions
         return endpoints;
     }
 
+    /// <summary>
+    /// Serves index.html for operator UI routes while preserving product API 404s.
+    /// </summary>
     public static async Task ServeOperatorUiFallbackAsync(
         HttpContext context,
         RadarPulseProductHttpOptions options)
@@ -63,6 +79,9 @@ public static class RadarPulseOperatorUiStaticDeliveryExtensions
             .ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Resolves the configured operator UI asset root and verifies that index.html exists.
+    /// </summary>
     public static bool TryResolveOperatorUiStaticAssetRoot(
         RadarPulseProductHttpOptions options,
         out string assetRoot)

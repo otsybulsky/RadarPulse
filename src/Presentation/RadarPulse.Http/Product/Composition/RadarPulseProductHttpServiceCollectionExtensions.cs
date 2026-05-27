@@ -4,10 +4,23 @@ using RadarPulse.Http.Product;
 
 namespace RadarPulse.Http;
 
+/// <summary>
+/// Service registration helpers for the local product HTTP host.
+/// </summary>
 public static class RadarPulseProductHttpServiceCollectionExtensions
 {
+    /// <summary>
+    /// Named development CORS policy for the Angular operator UI.
+    /// </summary>
     public const string OperatorUiCorsPolicyName = "RadarPulseProductOperatorUi";
 
+    /// <summary>
+    /// Registers product pipeline API, service, run history, and optional UI CORS services.
+    /// </summary>
+    /// <remarks>
+    /// File-backed history is the default accepted local demo posture. In-memory
+    /// history remains available for tests and short-lived local experiments.
+    /// </remarks>
     public static IServiceCollection AddRadarPulseProductHttp(
         this IServiceCollection services,
         IConfiguration configuration)

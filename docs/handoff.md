@@ -1,6 +1,11 @@
-# Handoff: Milestone 034 Closed
+# Handoff: Milestone 035 Active
 
 ## Current State
+
+Milestone 035 is active after milestone 034 closeout as a freeze-mode
+maintenance pass for code contract documentation. It adds XML descriptions to
+accepted public and domain-facing C# contracts without reopening runtime,
+product, HTTP, persistence, UI, or demo/readiness decisions.
 
 Milestone 034 is closed after milestone 033 closeout as a documentation-level
 container for targeted project restructuring, small cleanup, documentation
@@ -24,8 +29,9 @@ did not start with a detailed implementation plan.
 Stop point:
 
 ```text
-milestone 034 closeout complete; accepted with scoped warnings for targeted
-restructuring and maintenance over the accepted local product demo boundary
+milestone 035 change 2 product API contract documentation complete; Release
+build and diff check passed; milestone 035 remains active for broader code
+contract documentation
 ```
 
 Most recently closed milestone:
@@ -43,7 +49,23 @@ freeze mode
 Active milestone:
 
 ```text
-none
+035 Code Contract Documentation Pass
+```
+
+Milestone 035 documents:
+
+```text
+docs/milestones/035-code-contract-documentation-pass.md
+```
+
+Milestone 035 current scope:
+
+```text
+add concise XML documentation to accepted code contracts
+start with product/API DTO, service, history, HTTP endpoint, and demo
+  readiness surfaces
+preserve accepted behavior and public DTO/API semantics
+do not enable project-wide XML documentation enforcement yet
 ```
 
 Milestone 034 accepted posture:
@@ -120,6 +142,14 @@ Milestone 033 planned slices:
 Latest verification:
 
 ```text
+milestone 035 change 2 product API contract documentation:
+  Release build:
+    dotnet build RadarPulse.sln -c Release --no-restore
+    passed, 0 warnings, 0 errors
+  whitespace check:
+    git diff --check passed
+    touched-file trailing whitespace check passed
+
 milestone 034 closeout documentation update:
   documentation-only closeout
   git diff --check passed
