@@ -147,40 +147,94 @@ public sealed record RadarProcessingProviderQueueTelemetrySummary
     /// </summary>
     public long OwnedSnapshotEventCount { get; }
 
+    /// <summary>
+    /// Number of enqueue attempts made by the provider.
+    /// </summary>
     public long EnqueueAttemptCount { get; }
 
+    /// <summary>
+    /// Number of batches accepted into the provider queue.
+    /// </summary>
     public long EnqueuedBatchCount { get; }
 
+    /// <summary>
+    /// Number of enqueue attempts rejected because the queue was full.
+    /// </summary>
     public long EnqueueFullCount { get; }
 
+    /// <summary>
+    /// Number of enqueue attempts that timed out.
+    /// </summary>
     public long EnqueueTimedOutCount { get; }
 
+    /// <summary>
+    /// Number of enqueue attempts canceled before acceptance.
+    /// </summary>
     public long EnqueueCanceledCount { get; }
 
+    /// <summary>
+    /// Number of enqueue attempts rejected after the queue closed.
+    /// </summary>
     public long EnqueueClosedCount { get; }
 
+    /// <summary>
+    /// Number of enqueue attempts rejected after the queue faulted.
+    /// </summary>
     public long EnqueueFaultedCount { get; }
 
+    /// <summary>
+    /// Total time spent waiting to enqueue provider batches.
+    /// </summary>
     public TimeSpan TotalEnqueueWaitTime { get; }
 
+    /// <summary>
+    /// Total time spent waiting to dequeue provider batches.
+    /// </summary>
     public TimeSpan TotalDequeueWaitTime { get; }
 
+    /// <summary>
+    /// Number of batches dequeued for processing.
+    /// </summary>
     public long DequeuedBatchCount { get; }
 
+    /// <summary>
+    /// Number of dequeued batches completed successfully.
+    /// </summary>
     public long CompletedBatchCount { get; }
 
+    /// <summary>
+    /// Number of dequeued batches failed by processing.
+    /// </summary>
     public long FailedBatchCount { get; }
 
+    /// <summary>
+    /// Number of dequeued batches canceled before completion.
+    /// </summary>
     public long CanceledBatchCount { get; }
 
+    /// <summary>
+    /// Number of dequeued batches skipped after a prior fault.
+    /// </summary>
     public long SkippedAfterFaultCount { get; }
 
+    /// <summary>
+    /// Total time spent draining queued provider batches.
+    /// </summary>
     public TimeSpan TotalDrainTime { get; }
 
+    /// <summary>
+    /// Maximum queue depth observed.
+    /// </summary>
     public int QueueDepthHighWatermark { get; }
 
+    /// <summary>
+    /// Maximum queued payload bytes observed.
+    /// </summary>
     public long QueuedPayloadBytesHighWatermark { get; }
 
+    /// <summary>
+    /// Maximum retained payload bytes observed by queue-only telemetry.
+    /// </summary>
     public long RetainedPayloadBytesHighWatermark => QueuedPayloadBytesHighWatermark;
 
     public long CurrentPendingRetainedBatchCount =>
@@ -219,20 +273,44 @@ public sealed record RadarProcessingProviderQueueTelemetrySummary
     public long CombinedRetainedPayloadBytesHighWatermark =>
         RetainedResourcePressure.CombinedRetainedPayloadBytesHighWatermark;
 
+    /// <summary>
+    /// Payload values copied into owned queued snapshots.
+    /// </summary>
     public long OwnedSnapshotPayloadValueCount { get; }
 
+    /// <summary>
+    /// Total latency from provider acceptance to processing completion.
+    /// </summary>
     public TimeSpan TotalProviderToProcessingLatency { get; }
 
+    /// <summary>
+    /// Retained recent queue details.
+    /// </summary>
     public IReadOnlyList<RadarProcessingProviderQueueRecentDetail> RecentDetails { get; }
 
+    /// <summary>
+    /// Number of recent details retained.
+    /// </summary>
     public int RetainedRecentDetailCount => RecentDetails.Count;
 
+    /// <summary>
+    /// Number of recent details dropped by retention limits.
+    /// </summary>
     public long DroppedRecentDetailCount { get; }
 
+    /// <summary>
+    /// Allocation summary for owned queued snapshots.
+    /// </summary>
     public RadarProcessingOwnedSnapshotAllocationSummary OwnedSnapshotAllocation { get; }
 
+    /// <summary>
+    /// Retained-resource pressure evidence for queued and active retained payloads.
+    /// </summary>
     public RadarProcessingRetainedResourcePressureSummary RetainedResourcePressure { get; }
 
+    /// <summary>
+    /// Gets whether queue telemetry observed backpressure.
+    /// </summary>
     public bool HasBackpressure =>
         EnqueueFullCount > 0 ||
         EnqueueTimedOutCount > 0 ||

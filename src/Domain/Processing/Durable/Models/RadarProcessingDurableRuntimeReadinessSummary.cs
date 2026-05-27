@@ -61,10 +61,19 @@ public sealed class RadarProcessingDurableRuntimeReadinessSummary
 
     public long RetryAttemptCount => QueueSummary.RetryAttemptCount;
 
+    /// <summary>
+    /// Number of retained payload release failures observed by the durable runtime.
+    /// </summary>
     public long ReleaseFailureCount { get; }
 
+    /// <summary>
+    /// Number of terminal envelopes still retaining payload ownership.
+    /// </summary>
     public long TerminalRetainedEnvelopeCount { get; }
 
+    /// <summary>
+    /// Payload bytes still retained by terminal envelopes.
+    /// </summary>
     public long TerminalRetainedPayloadBytes { get; }
 
     public RadarProcessingQueuedBatchSequence? OldestUncommittedSequence =>

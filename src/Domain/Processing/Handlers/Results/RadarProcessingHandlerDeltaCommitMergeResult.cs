@@ -2,6 +2,9 @@ namespace RadarPulse.Domain.Processing;
 
 internal sealed class RadarProcessingHandlerDeltaCommitMergeResult
 {
+    /// <summary>
+    /// Creates a handler delta commit merge result with applied values and a diagnostic message.
+    /// </summary>
     public RadarProcessingHandlerDeltaCommitMergeResult(
         RadarProcessingHandlerDeltaMergeStatus status,
         int appliedDeltaCount,
@@ -20,12 +23,24 @@ internal sealed class RadarProcessingHandlerDeltaCommitMergeResult
         Message = message;
     }
 
+    /// <summary>
+    /// Gets the merge status produced by commit-time handler delta application.
+    /// </summary>
     public RadarProcessingHandlerDeltaMergeStatus Status { get; }
 
+    /// <summary>
+    /// Gets the number of handler deltas applied.
+    /// </summary>
     public int AppliedDeltaCount { get; }
 
+    /// <summary>
+    /// Gets the merged handler values applied during commit.
+    /// </summary>
     public IReadOnlyList<RadarProcessingHandlerDeltaValue> AppliedValues { get; }
 
+    /// <summary>
+    /// Gets the diagnostic message associated with a rejected or blocked merge.
+    /// </summary>
     public string Message { get; }
 
     public bool IsRejected =>

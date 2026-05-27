@@ -83,31 +83,64 @@ public sealed record RadarProcessingArchiveRebalanceCacheBenchmarkResult(
 
     public bool HasOverlapTelemetry => ProviderOverlapMode != RadarProcessingQueuedProviderOverlapMode.None;
 
+    /// <summary>
+    /// Gets skipped-reason counters captured during rebalance decisions.
+    /// </summary>
     public IReadOnlyList<RadarProcessingRebalanceSkippedReasonCounter> SkippedReasonCounters { get; init; } =
         SkippedReasonCounters;
 
+    /// <summary>
+    /// Gets retained diagnostic counts for rebalance evidence.
+    /// </summary>
     public RadarProcessingRebalanceRetentionStats RetentionStats { get; init; } = RetentionStats;
 
+    /// <summary>
+    /// Gets the retained decision detail limit used by the run.
+    /// </summary>
     public int MaxRetainedDecisions { get; init; } = MaxRetainedDecisions;
 
+    /// <summary>
+    /// Gets the retained lifecycle transition limit used by the run.
+    /// </summary>
     public int MaxRetainedLifecycleTransitions { get; init; } = MaxRetainedLifecycleTransitions;
 
+    /// <summary>
+    /// Gets the retained accepted move limit used by the run.
+    /// </summary>
     public int MaxRetainedAcceptedMoves { get; init; } = MaxRetainedAcceptedMoves;
 
+    /// <summary>
+    /// Gets the retained validation failure limit used by the run.
+    /// </summary>
     public int MaxRetainedValidationFailures { get; init; } = MaxRetainedValidationFailures;
 
+    /// <summary>
+    /// Gets the pressure skew configuration used by the benchmark.
+    /// </summary>
     public RadarProcessingPressureSkewOptions PressureSkew { get; init; } =
         PressureSkew ?? RadarProcessingPressureSkewOptions.None;
 
+    /// <summary>
+    /// Gets provider queue telemetry captured by queued-owned archive providers.
+    /// </summary>
     public RadarProcessingProviderQueueTelemetrySummary QueueTelemetry { get; init; } =
         QueueTelemetry ?? RadarProcessingProviderQueueTelemetrySummary.Empty;
 
+    /// <summary>
+    /// Gets retained payload telemetry captured by queued-owned archive providers.
+    /// </summary>
     public RadarProcessingRetainedPayloadTelemetrySummary RetentionTelemetry { get; init; } =
         RetentionTelemetry ?? RadarProcessingRetainedPayloadTelemetrySummary.Empty;
 
+    /// <summary>
+    /// Gets producer/consumer overlap telemetry captured by overlap-enabled providers.
+    /// </summary>
     public RadarProcessingArchiveOverlapTelemetrySummary OverlapTelemetry { get; init; } =
         OverlapTelemetry ?? RadarProcessingArchiveOverlapTelemetrySummary.Empty;
 
+    /// <summary>
+    /// Gets retained payload prewarm evidence captured before measured iterations.
+    /// </summary>
     public RadarProcessingRetainedPayloadPrewarmResult RetainedPayloadPrewarm { get; init; } =
         RetainedPayloadPrewarm ?? RadarProcessingRetainedPayloadPrewarmResult.None;
 

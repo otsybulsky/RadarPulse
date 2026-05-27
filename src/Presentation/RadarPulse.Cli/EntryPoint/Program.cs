@@ -2761,6 +2761,9 @@ internal sealed record ArchiveOptions(
     string? OutputPath,
     int Concurrency)
 {
+    /// <summary>
+    /// Parses historical archive download options from CLI arguments.
+    /// </summary>
     public static ArchiveOptions Parse(string[] args)
     {
         DateOnly? date = null;
@@ -2842,6 +2845,9 @@ internal sealed record ArchiveInspectOptions(
     string? RadarId,
     int MaxFiles)
 {
+    /// <summary>
+    /// Parses Archive II inspection options from CLI arguments.
+    /// </summary>
     public static ArchiveInspectOptions Parse(string[] args)
     {
         string? filePath = null;
@@ -2917,6 +2923,9 @@ internal sealed record ProcessingBenchmarkSyntheticOptions(
     int WarmupIterations,
     RadarProcessingAsyncExecutionOptions? AsyncExecution)
 {
+    /// <summary>
+    /// Parses synthetic processing benchmark options from CLI arguments.
+    /// </summary>
     public static ProcessingBenchmarkSyntheticOptions Parse(string[] args)
     {
         var executionMode = RadarProcessingExecutionMode.Sequential;
@@ -3081,18 +3090,30 @@ internal sealed record ProcessingBenchmarkSyntheticOptions(
     }
 }
 
+/// <summary>
+/// Optional CLI overrides for quarantine lifecycle settings used by processing benchmark commands.
+/// </summary>
 public sealed record ProcessingBenchmarkQuarantineLifecycleOptionOverrides(
     int? QuarantineTtlEvaluations,
     int? SustainedCoolingSampleCount,
     double? MaterialPressureChangeThreshold)
 {
+    /// <summary>
+    /// Gets an override set with no overridden lifecycle values.
+    /// </summary>
     public static ProcessingBenchmarkQuarantineLifecycleOptionOverrides None { get; } = new(null, null, null);
 
+    /// <summary>
+    /// Gets whether at least one lifecycle option was explicitly supplied.
+    /// </summary>
     public bool HasOverrides =>
         QuarantineTtlEvaluations is not null ||
         SustainedCoolingSampleCount is not null ||
         MaterialPressureChangeThreshold is not null;
 
+    /// <summary>
+    /// Applies configured overrides to a baseline lifecycle option set.
+    /// </summary>
     public RadarProcessingQuarantineLifecycleOptions ApplyTo(
         RadarProcessingQuarantineLifecycleOptions baseline)
     {
@@ -3109,6 +3130,9 @@ public sealed record ProcessingBenchmarkQuarantineLifecycleOptionOverrides(
     }
 }
 
+/// <summary>
+/// CLI options for synthetic processing rebalance benchmark runs.
+/// </summary>
 public sealed record ProcessingBenchmarkRebalanceSyntheticOptions(
     IReadOnlyList<RadarProcessingSyntheticRebalanceWorkloadKind> Workloads,
     IReadOnlyList<RadarProcessingSyntheticRebalanceBenchmarkMode> Modes,
@@ -3123,6 +3147,9 @@ public sealed record ProcessingBenchmarkRebalanceSyntheticOptions(
     private const int DefaultAsyncWorkerCount = 2;
     private const int DefaultAsyncQueueCapacity = 1;
 
+    /// <summary>
+    /// Gets the active batch capacity used by ordered rebalance sessions.
+    /// </summary>
     public int OrderedActiveBatchCapacity => OrderedActiveBatchCapacityValue;
 
     private static readonly IReadOnlyList<RadarProcessingSyntheticRebalanceWorkloadKind> AllWorkloads =
@@ -3154,6 +3181,9 @@ public sealed record ProcessingBenchmarkRebalanceSyntheticOptions(
             RadarProcessingSyntheticRebalanceBenchmarkMode.OrderedRebalanceSession
         ]);
 
+    /// <summary>
+    /// Parses synthetic rebalance benchmark options from CLI arguments.
+    /// </summary>
     public static ProcessingBenchmarkRebalanceSyntheticOptions Parse(string[] args)
     {
         IReadOnlyList<RadarProcessingSyntheticRebalanceWorkloadKind> workloads = Array.AsReadOnly(
@@ -3364,6 +3394,9 @@ public sealed record ProcessingBenchmarkRebalanceSyntheticOptions(
     }
 }
 
+/// <summary>
+/// CLI options for archive-backed processing rebalance benchmark runs.
+/// </summary>
 public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
     string? FilePath,
     string? CachePath,
@@ -3412,6 +3445,9 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
     public const string OptInDiagnosticEvidenceScope = "opt-in-diagnostic";
     public const string NotApplicableEvidenceScope = "not-applicable";
 
+    /// <summary>
+    /// Gets whether options match the rollout default provider-overlap evidence contour.
+    /// </summary>
     public bool IsDefaultCandidateContour =>
         MatchesDefaultCandidateContour(
             ProviderMode,
@@ -3424,11 +3460,17 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
             OverlapTelemetryOutput,
             ExecutionMode);
 
+    /// <summary>
+    /// Gets whether the run is a controlled producer/consumer overlap proof.
+    /// </summary>
     public bool IsControlledProviderOverlapProof =>
         ProviderMode == RadarProcessingArchiveProviderMode.QueuedOwned &&
         ProviderOverlapMode == RadarProcessingQueuedProviderOverlapMode.ProducerConsumer &&
         OverlapConsumerDelay > TimeSpan.Zero;
 
+    /// <summary>
+    /// Gets the provider-overlap evidence contour label for reporting.
+    /// </summary>
     public string ProviderOverlapEvidenceContour =>
         FormatProviderOverlapEvidenceContour(
             ProviderMode,
@@ -3436,20 +3478,35 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
             OverlapConsumerDelay,
             IsDefaultCandidateContour);
 
+    /// <summary>
+    /// Gets the provider-overlap evidence scope label for reporting.
+    /// </summary>
     public string ProviderOverlapEvidenceScope =>
         FormatProviderOverlapEvidenceScope(ProviderOverlapEvidenceContour);
 
+    /// <summary>
+    /// Gets explicit or current-default provenance for option values.
+    /// </summary>
     public ProcessingBenchmarkArchiveRebalanceOptionProvenance EffectiveOptionProvenance =>
         OptionProvenance ?? ProcessingBenchmarkArchiveRebalanceOptionProvenance.CurrentDefaults;
 
+    /// <summary>
+    /// Gets whether the provider mode was explicitly set back to blocking borrowed.
+    /// </summary>
     public bool IsExplicitBlockingBorrowedFallback =>
         ProviderMode == RadarProcessingArchiveProviderMode.BlockingBorrowed &&
         EffectiveOptionProvenance.ProviderMode == ProcessingBenchmarkOptionValueSource.Explicit;
 
+    /// <summary>
+    /// Gets whether rollout defaults expanded into the default evidence contour.
+    /// </summary>
     public bool IsRolloutDefaultExpandedContour =>
         IsDefaultCandidateContour &&
         EffectiveOptionProvenance.ProviderMode == ProcessingBenchmarkOptionValueSource.RolloutDefault;
 
+    /// <summary>
+    /// Checks whether supplied provider and execution options match the rollout default evidence contour.
+    /// </summary>
     public static bool MatchesDefaultCandidateContour(
         RadarProcessingArchiveProviderMode providerMode,
         int providerQueueCapacity,
@@ -3470,6 +3527,9 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
         overlapTelemetryOutput != ProcessingBenchmarkProviderOverlapTelemetryOutput.None &&
         executionMode == RadarProcessingArchiveRebalanceRolloutDefaults.ExecutionMode;
 
+    /// <summary>
+    /// Formats the provider-overlap evidence contour from provider and overlap settings.
+    /// </summary>
     public static string FormatProviderOverlapEvidenceContour(
         RadarProcessingArchiveProviderMode providerMode,
         RadarProcessingQueuedProviderOverlapMode providerOverlapMode,
@@ -3494,6 +3554,9 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
             : NotApplicableEvidenceContour;
     }
 
+    /// <summary>
+    /// Formats the evidence scope label for a provider-overlap contour.
+    /// </summary>
     public static string FormatProviderOverlapEvidenceScope(string providerOverlapEvidenceContour)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(providerOverlapEvidenceContour);
@@ -3510,6 +3573,9 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
         };
     }
 
+    /// <summary>
+    /// Parses archive rebalance benchmark options from CLI arguments.
+    /// </summary>
     public static ProcessingBenchmarkArchiveRebalanceOptions Parse(string[] args)
     {
         string? filePath = null;
@@ -4106,6 +4172,9 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptions(
     }
 }
 
+/// <summary>
+/// CLI options for ordered archive processing benchmark runs.
+/// </summary>
 public sealed record ProcessingBenchmarkOrderedArchiveProcessingOptions(
     string? FilePath,
     string? CachePath,
@@ -4125,6 +4194,9 @@ public sealed record ProcessingBenchmarkOrderedArchiveProcessingOptions(
     ProcessingBenchmarkProviderOverlapTelemetryOutput OverlapTelemetryOutput =
         ProcessingBenchmarkProviderOverlapTelemetryOutput.Summary)
 {
+    /// <summary>
+    /// Parses ordered archive processing benchmark options from CLI arguments.
+    /// </summary>
     public static ProcessingBenchmarkOrderedArchiveProcessingOptions Parse(string[] args)
     {
         string? filePath = null;
@@ -4321,6 +4393,9 @@ internal sealed record ArchiveBenchmarkDecompressionOptions(
     int Parallelism,
     string Decompressor)
 {
+    /// <summary>
+    /// Parses archive decompression benchmark options from CLI arguments.
+    /// </summary>
     public static ArchiveBenchmarkDecompressionOptions Parse(string[] args)
     {
         string? filePath = null;
@@ -4398,6 +4473,9 @@ internal sealed record ArchiveBenchmarkParseOptions(
     bool DecodeMomentValues,
     bool DecodeCalibratedMomentValues)
 {
+    /// <summary>
+    /// Parses Archive II parse benchmark options from CLI arguments.
+    /// </summary>
     public static ArchiveBenchmarkParseOptions Parse(string[] args)
     {
         string? filePath = null;
@@ -4489,6 +4567,9 @@ internal sealed record ArchiveBenchmarkReplayShapeOptions(
     int Parallelism,
     string Decompressor)
 {
+    /// <summary>
+    /// Parses archive replay shape benchmark options from CLI arguments.
+    /// </summary>
     public static ArchiveBenchmarkReplayShapeOptions Parse(string[] args)
     {
         string? filePath = null;
@@ -4573,6 +4654,9 @@ internal sealed record ArchiveBenchmarkReplayPublishOptions(
     int Parallelism,
     string Decompressor)
 {
+    /// <summary>
+    /// Parses archive replay publish benchmark options from CLI arguments.
+    /// </summary>
     public static ArchiveBenchmarkReplayPublishOptions Parse(string[] args)
     {
         string? filePath = null;
@@ -4690,6 +4774,9 @@ internal sealed record ArchiveBenchmarkStreamOptions(
     int Parallelism,
     string Decompressor)
 {
+    /// <summary>
+    /// Parses archive radar-event-batch stream benchmark options from CLI arguments.
+    /// </summary>
     public static ArchiveBenchmarkStreamOptions Parse(string[] args)
     {
         string? filePath = null;
@@ -4805,6 +4892,9 @@ internal sealed record ArchiveReplayOptions(
     int Parallelism,
     string Decompressor)
 {
+    /// <summary>
+    /// Parses archive replay publishing options from CLI arguments.
+    /// </summary>
     public static ArchiveReplayOptions Parse(string[] args)
     {
         string? filePath = null;
@@ -4897,6 +4987,9 @@ internal sealed record ArchiveStreamOptions(
     int Parallelism,
     string Decompressor)
 {
+    /// <summary>
+    /// Parses Archive II to radar-event-batch stream options from CLI arguments.
+    /// </summary>
     public static ArchiveStreamOptions Parse(string[] args)
     {
         string? filePath = null;
@@ -4954,6 +5047,9 @@ internal sealed record ArchiveValidateDecompressionOptions(
     string? RadarId,
     int MaxFiles)
 {
+    /// <summary>
+    /// Parses archive decompression validation options from CLI arguments.
+    /// </summary>
     public static ArchiveValidateDecompressionOptions Parse(string[] args)
     {
         string? filePath = null;
@@ -5020,6 +5116,9 @@ internal sealed record ArchiveValidateReplayShapeOptions(
     int Parallelism,
     string Decompressor)
 {
+    /// <summary>
+    /// Parses archive replay shape validation options from CLI arguments.
+    /// </summary>
     public static ArchiveValidateReplayShapeOptions Parse(string[] args)
     {
         string? filePath = null;
@@ -5109,6 +5208,9 @@ internal sealed record ProductPipelineDemoOptions(
     RadarPulseProductHandlerSet HandlerSet,
     RadarPulseProductPipelineOptions PipelineOptions)
 {
+    /// <summary>
+    /// Parses product pipeline synthetic demo options from CLI arguments.
+    /// </summary>
     public static ProductPipelineDemoOptions Parse(string[] args)
     {
         var runId = "product-demo";
@@ -5212,6 +5314,9 @@ internal sealed record ProductPipelineArchiveOptions(
     RadarPulseProductHandlerSet HandlerSet,
     RadarPulseProductPipelineOptions PipelineOptions)
 {
+    /// <summary>
+    /// Parses product pipeline archive run options from CLI arguments.
+    /// </summary>
     public static ProductPipelineArchiveOptions Parse(string[] args)
     {
         var runId = "product-archive";
@@ -5287,6 +5392,9 @@ internal sealed record ProductPipelineArchiveOptions(
 
 internal static class ProductPipelineCliOptionParsing
 {
+    /// <summary>
+    /// Parses the product pipeline handler set option.
+    /// </summary>
     public static RadarPulseProductHandlerSet ParseHandlerSet(string value) =>
         value.Trim().ToLowerInvariant() switch
         {
@@ -5298,6 +5406,9 @@ internal static class ProductPipelineCliOptionParsing
             _ => throw new ArgumentException($"Unknown product handler set: {value}.")
         };
 
+    /// <summary>
+    /// Validates that an integer option is positive.
+    /// </summary>
     public static void ValidatePositive(int value, string option)
     {
         if (value <= 0)
@@ -5306,6 +5417,9 @@ internal static class ProductPipelineCliOptionParsing
         }
     }
 
+    /// <summary>
+    /// Validates that an integer option is non-negative.
+    /// </summary>
     public static void ValidateNonNegative(int value, string option)
     {
         if (value < 0)
@@ -5314,6 +5428,9 @@ internal static class ProductPipelineCliOptionParsing
         }
     }
 
+    /// <summary>
+    /// Validates that an optional integer option is positive when supplied.
+    /// </summary>
     public static void ValidateOptionalPositive(int? value, string option)
     {
         if (value <= 0)
@@ -5323,27 +5440,72 @@ internal static class ProductPipelineCliOptionParsing
     }
 }
 
+/// <summary>
+/// Selects how provider queue telemetry is written by processing benchmark CLI commands.
+/// </summary>
 public enum ProcessingBenchmarkProviderQueueTelemetryOutput
 {
+    /// <summary>
+    /// Suppresses provider queue telemetry output.
+    /// </summary>
     None = 1,
+
+    /// <summary>
+    /// Writes aggregate provider queue telemetry.
+    /// </summary>
     Summary = 2,
+
+    /// <summary>
+    /// Writes aggregate and recent-detail provider queue telemetry.
+    /// </summary>
     Recent = 3
 }
 
+/// <summary>
+/// Selects how provider overlap telemetry is written by processing benchmark CLI commands.
+/// </summary>
 public enum ProcessingBenchmarkProviderOverlapTelemetryOutput
 {
+    /// <summary>
+    /// Suppresses provider overlap telemetry output.
+    /// </summary>
     None = 1,
+
+    /// <summary>
+    /// Writes aggregate provider overlap telemetry.
+    /// </summary>
     Summary = 2,
+
+    /// <summary>
+    /// Writes aggregate and recent-detail provider overlap telemetry.
+    /// </summary>
     Recent = 3
 }
 
+/// <summary>
+/// Identifies where a processing benchmark option value came from.
+/// </summary>
 public enum ProcessingBenchmarkOptionValueSource
 {
+    /// <summary>
+    /// The option used the current command default.
+    /// </summary>
     CurrentDefault = 0,
+
+    /// <summary>
+    /// The option was provided explicitly by the operator.
+    /// </summary>
     Explicit = 1,
+
+    /// <summary>
+    /// The option was expanded from rollout defaults.
+    /// </summary>
     RolloutDefault = 2
 }
 
+/// <summary>
+/// Captures provenance for archive rebalance benchmark options that affect rollout evidence contours.
+/// </summary>
 public sealed record ProcessingBenchmarkArchiveRebalanceOptionProvenance(
     ProcessingBenchmarkOptionValueSource ProviderMode = ProcessingBenchmarkOptionValueSource.CurrentDefault,
     ProcessingBenchmarkOptionValueSource ProviderOverlapMode = ProcessingBenchmarkOptionValueSource.CurrentDefault,
@@ -5356,6 +5518,9 @@ public sealed record ProcessingBenchmarkArchiveRebalanceOptionProvenance(
     ProcessingBenchmarkOptionValueSource ExecutionMode = ProcessingBenchmarkOptionValueSource.CurrentDefault,
     ProcessingBenchmarkOptionValueSource WorkerCount = ProcessingBenchmarkOptionValueSource.CurrentDefault)
 {
+    /// <summary>
+    /// Gets provenance where every option used the current command default.
+    /// </summary>
     public static ProcessingBenchmarkArchiveRebalanceOptionProvenance CurrentDefaults { get; } = new();
 }
 

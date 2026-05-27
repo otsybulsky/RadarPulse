@@ -2,6 +2,9 @@ using RadarPulse.Application.Product;
 
 namespace RadarPulse.Infrastructure.Product;
 
+/// <summary>
+/// In-memory product run history store used by local demo and test hosts when persistent history is not required.
+/// </summary>
 public sealed class RadarPulseProductInMemoryRunHistoryStore :
     IRadarPulseProductRunHistoryStore
 {
@@ -9,6 +12,9 @@ public sealed class RadarPulseProductInMemoryRunHistoryStore :
     private readonly Dictionary<string, RadarPulseProductRunDetail> runsById = new(StringComparer.Ordinal);
     private readonly List<string> runOrder = new();
 
+    /// <summary>
+    /// Gets the number of stored product runs.
+    /// </summary>
     public int Count
     {
         get
@@ -20,6 +26,9 @@ public sealed class RadarPulseProductInMemoryRunHistoryStore :
         }
     }
 
+    /// <summary>
+    /// Gets readiness for the in-memory history store.
+    /// </summary>
     public RadarPulseProductRunHistoryReadiness Readiness
     {
         get
@@ -39,6 +48,9 @@ public sealed class RadarPulseProductInMemoryRunHistoryStore :
         }
     }
 
+    /// <summary>
+    /// Lists run summaries in insertion order.
+    /// </summary>
     public IReadOnlyList<RadarPulseProductRunSummary> ListRuns()
     {
         lock (sync)
@@ -55,6 +67,9 @@ public sealed class RadarPulseProductInMemoryRunHistoryStore :
         }
     }
 
+    /// <summary>
+    /// Gets one run detail by run id.
+    /// </summary>
     public RadarPulseProductQueryResult<RadarPulseProductRunDetail> TryGetRun(
         string runId)
     {
@@ -69,6 +84,9 @@ public sealed class RadarPulseProductInMemoryRunHistoryStore :
         }
     }
 
+    /// <summary>
+    /// Gets the most recently stored run detail.
+    /// </summary>
     public RadarPulseProductQueryResult<RadarPulseProductRunDetail> TryGetLatestRun()
     {
         lock (sync)
@@ -84,6 +102,9 @@ public sealed class RadarPulseProductInMemoryRunHistoryStore :
         }
     }
 
+    /// <summary>
+    /// Stores or replaces a product run detail in memory.
+    /// </summary>
     public void Store(
         RadarPulseProductRunDetail detail)
     {

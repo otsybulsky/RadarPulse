@@ -4,9 +4,15 @@ using RadarPulse.Application.Product;
 
 namespace RadarPulse.Infrastructure.Product;
 
+/// <summary>
+/// Local JSON file product run history store with schema validation and atomic persistence.
+/// </summary>
 public sealed class RadarPulseProductFileRunHistoryStore :
     IRadarPulseProductRunHistoryStore
 {
+    /// <summary>
+    /// Current persisted product run history schema version.
+    /// </summary>
     public const int CurrentSchemaVersion = 1;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -23,6 +29,9 @@ public sealed class RadarPulseProductFileRunHistoryStore :
     private int rejectedRunCount;
     private string firstBlockingReason = string.Empty;
 
+    /// <summary>
+    /// Creates a file-backed history store and loads existing persisted runs when the file is valid.
+    /// </summary>
     public RadarPulseProductFileRunHistoryStore(
         string storagePath)
     {
@@ -37,6 +46,9 @@ public sealed class RadarPulseProductFileRunHistoryStore :
         Load();
     }
 
+    /// <summary>
+    /// Gets the number of loaded product runs.
+    /// </summary>
     public int Count
     {
         get
@@ -48,6 +60,9 @@ public sealed class RadarPulseProductFileRunHistoryStore :
         }
     }
 
+    /// <summary>
+    /// Gets current file history readiness, including blocking load or persistence errors.
+    /// </summary>
     public RadarPulseProductRunHistoryReadiness Readiness
     {
         get
@@ -67,6 +82,9 @@ public sealed class RadarPulseProductFileRunHistoryStore :
         }
     }
 
+    /// <summary>
+    /// Lists loaded run summaries in persisted insertion order.
+    /// </summary>
     public IReadOnlyList<RadarPulseProductRunSummary> ListRuns()
     {
         lock (sync)
@@ -83,6 +101,9 @@ public sealed class RadarPulseProductFileRunHistoryStore :
         }
     }
 
+    /// <summary>
+    /// Gets one loaded run detail by run id.
+    /// </summary>
     public RadarPulseProductQueryResult<RadarPulseProductRunDetail> TryGetRun(
         string runId)
     {
@@ -97,6 +118,9 @@ public sealed class RadarPulseProductFileRunHistoryStore :
         }
     }
 
+    /// <summary>
+    /// Gets the most recently loaded or stored run detail.
+    /// </summary>
     public RadarPulseProductQueryResult<RadarPulseProductRunDetail> TryGetLatestRun()
     {
         lock (sync)
@@ -112,6 +136,9 @@ public sealed class RadarPulseProductFileRunHistoryStore :
         }
     }
 
+    /// <summary>
+    /// Persists a new product run detail unless a conflicting run id already exists.
+    /// </summary>
     public void Store(
         RadarPulseProductRunDetail detail)
     {

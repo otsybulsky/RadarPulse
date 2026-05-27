@@ -17,4 +17,7 @@ app.MapRadarPulseProductPipeline();
 app.MapRadarPulseOperatorUiFallback(productHttpOptions);
 app.Run();
 
+/// <summary>
+/// Exposes the HTTP entrypoint type for integration testing and host discovery.
+/// </summary>
 public partial class Program;

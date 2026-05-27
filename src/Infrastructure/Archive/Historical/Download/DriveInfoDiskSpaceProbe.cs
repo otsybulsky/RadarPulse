@@ -5,7 +5,9 @@ namespace RadarPulse.Infrastructure.Archive;
 /// </summary>
 public sealed class DriveInfoDiskSpaceProbe : IDiskSpaceProbe
 {
-    /// <inheritdoc />
+    /// <summary>
+    /// Gets available free bytes for the drive that contains the supplied path.
+    /// </summary>
     public long GetAvailableBytes(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);

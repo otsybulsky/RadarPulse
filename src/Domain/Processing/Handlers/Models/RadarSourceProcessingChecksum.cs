@@ -4,6 +4,9 @@ namespace RadarPulse.Domain.Processing;
 
 internal static class RadarSourceProcessingChecksum
 {
+    /// <summary>
+    /// Appends one processed stream event to a source-local deterministic checksum.
+    /// </summary>
     public static ulong AppendEvent(
         ulong checksum,
         in RadarStreamEvent streamEvent,
@@ -22,6 +25,9 @@ internal static class RadarSourceProcessingChecksum
         return RadarStreamChecksum.AppendInt64(checksum, rawValueChecksum);
     }
 
+    /// <summary>
+    /// Appends one source state snapshot to the aggregate processing checksum.
+    /// </summary>
     public static ulong AppendSource(
         ulong checksum,
         int sourceId,
