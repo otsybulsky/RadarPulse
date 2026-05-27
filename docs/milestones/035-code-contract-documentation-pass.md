@@ -142,3 +142,32 @@ as a required project-wide gate; the repository did not previously have broad
 XML documentation coverage, so enforcement should be considered only after
 the important contract surface has descriptions
 ```
+
+### Change 3: Processing Queueing And Durable Contract Documentation
+
+Status: complete.
+
+Intent:
+
+```text
+document the domain contracts that carry provider queue ownership, ordering,
+telemetry, readiness, durable envelope lifecycle, and recovery semantics
+```
+
+Scope:
+
+```text
+src/Domain/Processing/Queueing
+src/Domain/Processing/Durable
+```
+
+Verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore
+  result: passed, 0 warnings, 0 errors
+git diff --check
+  result: passed
+touched-file trailing whitespace check
+  result: passed
+```

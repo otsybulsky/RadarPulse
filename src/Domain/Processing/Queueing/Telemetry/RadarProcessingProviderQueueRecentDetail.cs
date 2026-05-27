@@ -1,7 +1,17 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Bounded diagnostic detail for recent provider queue activity.
+/// </summary>
+/// <remarks>
+/// Recent details are intentionally compact so telemetry can retain representative
+/// enqueue, dequeue, and processing evidence without keeping entire batches alive.
+/// </remarks>
 public sealed record RadarProcessingProviderQueueRecentDetail
 {
+    /// <summary>
+    /// Creates a recent queue detail with validated counters and timing values.
+    /// </summary>
     public RadarProcessingProviderQueueRecentDetail(
         RadarProcessingProviderQueueRecentDetailKind kind,
         RadarProcessingQueuedBatchSequence? sequence = null,
@@ -56,34 +66,79 @@ public sealed record RadarProcessingProviderQueueRecentDetail
         Message = message;
     }
 
+    /// <summary>
+    /// Detail category.
+    /// </summary>
     public RadarProcessingProviderQueueRecentDetailKind Kind { get; }
 
+    /// <summary>
+    /// Provider sequence associated with the detail when available.
+    /// </summary>
     public RadarProcessingQueuedBatchSequence? Sequence { get; }
 
+    /// <summary>
+    /// Enqueue status for enqueue details.
+    /// </summary>
     public RadarProcessingQueuedBatchEnqueueStatus? EnqueueStatus { get; }
 
+    /// <summary>
+    /// Processing status for processing details.
+    /// </summary>
     public RadarProcessingQueuedBatchProcessingStatus? ProcessingStatus { get; }
 
+    /// <summary>
+    /// Stream event count associated with the detail.
+    /// </summary>
     public int StreamEventCount { get; }
 
+    /// <summary>
+    /// Payload bytes associated with the detail.
+    /// </summary>
     public long PayloadBytes { get; }
 
+    /// <summary>
+    /// Payload value count associated with the detail.
+    /// </summary>
     public long PayloadValueCount { get; }
 
+    /// <summary>
+    /// Owned snapshot time associated with enqueue or dequeue detail.
+    /// </summary>
     public TimeSpan OwnedSnapshotTime { get; }
 
+    /// <summary>
+    /// Allocated bytes attributed to owned snapshot creation.
+    /// </summary>
     public long OwnedSnapshotAllocatedBytes { get; }
 
+    /// <summary>
+    /// Time spent waiting to enqueue.
+    /// </summary>
     public TimeSpan EnqueueWaitTime { get; }
 
+    /// <summary>
+    /// Time between provider enqueue and processing dequeue.
+    /// </summary>
     public TimeSpan ProviderToProcessingLatency { get; }
 
+    /// <summary>
+    /// Queue depth observed with the detail.
+    /// </summary>
     public int QueueDepth { get; }
 
+    /// <summary>
+    /// Retained payload bytes observed with the detail.
+    /// </summary>
     public long QueuedPayloadBytes { get; }
 
+    /// <summary>
+    /// Optional diagnostic message.
+    /// </summary>
     public string Message { get; }
 
+    /// <summary>
+    /// Creates a recent detail from an enqueue result.
+    /// </summary>
     public static RadarProcessingProviderQueueRecentDetail FromEnqueueResult(
         RadarProcessingQueuedBatchEnqueueResult result,
         int queueDepth = 0,
@@ -106,6 +161,9 @@ public sealed record RadarProcessingProviderQueueRecentDetail
             message: result.Message);
     }
 
+    /// <summary>
+    /// Creates a recent detail from a dequeued batch.
+    /// </summary>
     public static RadarProcessingProviderQueueRecentDetail FromDequeuedBatch(
         RadarProcessingQueuedBatch batch,
         TimeSpan providerToProcessingLatency,
@@ -126,6 +184,9 @@ public sealed record RadarProcessingProviderQueueRecentDetail
             queuedPayloadBytes: queuedPayloadBytes);
     }
 
+    /// <summary>
+    /// Creates a recent detail from a processing result.
+    /// </summary>
     public static RadarProcessingProviderQueueRecentDetail FromProcessingResult(
         RadarProcessingQueuedBatchProcessingResult result)
     {

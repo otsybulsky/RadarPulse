@@ -1,5 +1,14 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Result for one queued-provider rollout readiness gate.
+/// </summary>
+/// <remarks>
+/// The result enforces a strict relationship between status and error: passed
+/// gates carry no error, while failed or inconclusive gates carry a concrete
+/// reason and message. Optional expected/actual values provide evidence without
+/// requiring callers to parse text diagnostics.
+/// </remarks>
 public sealed class RadarProcessingQueuedProviderReadinessResult
 {
     private RadarProcessingQueuedProviderReadinessResult(
@@ -64,38 +73,89 @@ public sealed class RadarProcessingQueuedProviderReadinessResult
         ActualRatio = actualRatio;
     }
 
+    /// <summary>
+    /// Readiness gate evaluated by this result.
+    /// </summary>
     public RadarProcessingQueuedProviderReadinessGate Gate { get; }
 
+    /// <summary>
+    /// Gate status.
+    /// </summary>
     public RadarProcessingQueuedProviderReadinessStatus Status { get; }
 
+    /// <summary>
+    /// Gate error classification.
+    /// </summary>
     public RadarProcessingQueuedProviderReadinessError Error { get; }
 
+    /// <summary>
+    /// Human-readable gate diagnostic.
+    /// </summary>
     public string Message { get; }
 
+    /// <summary>
+    /// Expected checksum when checksum evidence is available.
+    /// </summary>
     public ulong? ExpectedChecksum { get; }
 
+    /// <summary>
+    /// Actual checksum when checksum evidence is available.
+    /// </summary>
     public ulong? ActualChecksum { get; }
 
+    /// <summary>
+    /// Expected count evidence.
+    /// </summary>
     public long? ExpectedCount { get; }
 
+    /// <summary>
+    /// Actual count evidence.
+    /// </summary>
     public long? ActualCount { get; }
 
+    /// <summary>
+    /// Expected byte evidence.
+    /// </summary>
     public long? ExpectedBytes { get; }
 
+    /// <summary>
+    /// Actual byte evidence.
+    /// </summary>
     public long? ActualBytes { get; }
 
+    /// <summary>
+    /// Expected ratio evidence.
+    /// </summary>
     public double? ExpectedRatio { get; }
 
+    /// <summary>
+    /// Actual ratio evidence.
+    /// </summary>
     public double? ActualRatio { get; }
 
+    /// <summary>
+    /// Indicates a passing gate.
+    /// </summary>
     public bool IsPassed => Status == RadarProcessingQueuedProviderReadinessStatus.Passed;
 
+    /// <summary>
+    /// Indicates a failing gate.
+    /// </summary>
     public bool IsFailed => Status == RadarProcessingQueuedProviderReadinessStatus.Failed;
 
+    /// <summary>
+    /// Indicates an evaluated gate with insufficient evidence.
+    /// </summary>
     public bool IsInconclusive => Status == RadarProcessingQueuedProviderReadinessStatus.Inconclusive;
 
+    /// <summary>
+    /// Indicates that the gate was evaluated.
+    /// </summary>
     public bool IsEvaluated => Status != RadarProcessingQueuedProviderReadinessStatus.NotEvaluated;
 
+    /// <summary>
+    /// Creates a passing readiness result.
+    /// </summary>
     public static RadarProcessingQueuedProviderReadinessResult Passed(
         RadarProcessingQueuedProviderReadinessGate gate,
         string message = "") =>
@@ -105,6 +165,9 @@ public sealed class RadarProcessingQueuedProviderReadinessResult
             RadarProcessingQueuedProviderReadinessError.None,
             message);
 
+    /// <summary>
+    /// Creates a failed readiness result with optional expected/actual evidence.
+    /// </summary>
     public static RadarProcessingQueuedProviderReadinessResult Failed(
         RadarProcessingQueuedProviderReadinessGate gate,
         RadarProcessingQueuedProviderReadinessError error,
@@ -131,6 +194,9 @@ public sealed class RadarProcessingQueuedProviderReadinessResult
             expectedRatio,
             actualRatio);
 
+    /// <summary>
+    /// Creates an inconclusive readiness result with optional expected/actual evidence.
+    /// </summary>
     public static RadarProcessingQueuedProviderReadinessResult Inconclusive(
         RadarProcessingQueuedProviderReadinessGate gate,
         RadarProcessingQueuedProviderReadinessError error,
@@ -157,6 +223,9 @@ public sealed class RadarProcessingQueuedProviderReadinessResult
             expectedRatio,
             actualRatio);
 
+    /// <summary>
+    /// Creates a result for a gate that was not evaluated.
+    /// </summary>
     public static RadarProcessingQueuedProviderReadinessResult NotEvaluated(
         RadarProcessingQueuedProviderReadinessGate gate,
         string message) =>

@@ -1,5 +1,13 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Aggregate result for a queued-provider processing session.
+/// </summary>
+/// <remarks>
+/// The result keeps enqueue evidence, processing evidence, queue telemetry, and
+/// final topology together so validation and readiness checks can reason about
+/// the entire queued-provider contour.
+/// </remarks>
 public sealed class RadarProcessingQueuedSessionResult
 {
     private readonly IReadOnlyList<RadarProcessingQueuedBatchEnqueueResult> enqueueResults;
@@ -24,22 +32,49 @@ public sealed class RadarProcessingQueuedSessionResult
         FinalTopologyVersion = finalTopologyVersion;
     }
 
+    /// <summary>
+    /// Terminal or current session status.
+    /// </summary>
     public RadarProcessingQueuedSessionStatus Status { get; }
 
+    /// <summary>
+    /// Queue telemetry captured for the session.
+    /// </summary>
     public RadarProcessingProviderQueueTelemetrySummary Telemetry { get; }
 
+    /// <summary>
+    /// Enqueue results captured in provider sequence order.
+    /// </summary>
     public IReadOnlyList<RadarProcessingQueuedBatchEnqueueResult> EnqueueResults => enqueueResults;
 
+    /// <summary>
+    /// Processing results captured for dequeued batches.
+    /// </summary>
     public IReadOnlyList<RadarProcessingQueuedBatchProcessingResult> ProcessingResults => processingResults;
 
+    /// <summary>
+    /// Optional terminal diagnostic message.
+    /// </summary>
     public string Message { get; }
 
+    /// <summary>
+    /// Final topology version reached by the session when available.
+    /// </summary>
     public RadarProcessingTopologyVersion? FinalTopologyVersion { get; }
 
+    /// <summary>
+    /// Indicates a completed terminal state.
+    /// </summary>
     public bool IsCompleted => Status == RadarProcessingQueuedSessionStatus.Completed;
 
+    /// <summary>
+    /// Indicates a faulted terminal state.
+    /// </summary>
     public bool IsFaulted => Status == RadarProcessingQueuedSessionStatus.Faulted;
 
+    /// <summary>
+    /// Indicates a canceled terminal state.
+    /// </summary>
     public bool IsCanceled => Status == RadarProcessingQueuedSessionStatus.Canceled;
 
     internal static void EnsureKnownStatus(

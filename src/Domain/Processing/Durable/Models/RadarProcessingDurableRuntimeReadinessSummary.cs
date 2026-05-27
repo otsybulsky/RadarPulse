@@ -1,9 +1,23 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Runtime readiness summary derived from durable queue and retained-resource evidence.
+/// </summary>
+/// <remarks>
+/// Readiness requires no uncommitted/blocking envelopes, no release failures, and
+/// no terminal retained pressure. The summary is the domain-level source for
+/// product/operator readiness messages.
+/// </remarks>
 public sealed class RadarProcessingDurableRuntimeReadinessSummary
 {
+    /// <summary>
+    /// Empty runtime readiness summary.
+    /// </summary>
     public static RadarProcessingDurableRuntimeReadinessSummary Empty { get; } = new();
 
+    /// <summary>
+    /// Creates runtime readiness from durable queue and retained-resource terminal evidence.
+    /// </summary>
     public RadarProcessingDurableRuntimeReadinessSummary(
         RadarProcessingDurableQueueSummary? queueSummary = null,
         long releaseFailureCount = 0,
@@ -20,6 +34,9 @@ public sealed class RadarProcessingDurableRuntimeReadinessSummary
         TerminalRetainedPayloadBytes = terminalRetainedPayloadBytes;
     }
 
+    /// <summary>
+    /// Durable queue summary backing this readiness calculation.
+    /// </summary>
     public RadarProcessingDurableQueueSummary QueueSummary { get; }
 
     public long AcceptedEnvelopeCount => QueueSummary.AcceptedEnvelopeCount;
@@ -80,6 +97,9 @@ public sealed class RadarProcessingDurableRuntimeReadinessSummary
         !HasReleaseFailures &&
         !HasTerminalRetainedPressure;
 
+    /// <summary>
+    /// First readiness blocker, or an empty string when the runtime is ready.
+    /// </summary>
     public string BlockingReason
     {
         get

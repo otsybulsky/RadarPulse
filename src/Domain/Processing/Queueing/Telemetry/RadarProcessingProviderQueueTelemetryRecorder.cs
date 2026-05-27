@@ -1,5 +1,13 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Thread-safe recorder for provider queue telemetry.
+/// </summary>
+/// <remarks>
+/// The recorder aggregates counters and bounded recent details while queued
+/// provider work is running. Callers should use <see cref="CreateSummary"/> to
+/// publish immutable evidence.
+/// </remarks>
 public sealed class RadarProcessingProviderQueueTelemetryRecorder
 {
     private readonly object sync = new();
@@ -38,8 +46,14 @@ public sealed class RadarProcessingProviderQueueTelemetryRecorder
             this.options.RecentDetailCapacity);
     }
 
+    /// <summary>
+    /// Queue options that control telemetry retention.
+    /// </summary>
     public RadarProcessingProviderQueueOptions Options => options;
 
+    /// <summary>
+    /// Records one enqueue attempt and its queue pressure evidence.
+    /// </summary>
     public void RecordEnqueueResult(
         RadarProcessingQueuedBatchEnqueueResult result,
         int queueDepth = 0,
@@ -103,6 +117,9 @@ public sealed class RadarProcessingProviderQueueTelemetryRecorder
         }
     }
 
+    /// <summary>
+    /// Records that a retained batch left the provider queue for processing.
+    /// </summary>
     public void RecordDequeuedBatch(
         RadarProcessingQueuedBatch batch,
         TimeSpan providerToProcessingLatency = default,
@@ -132,6 +149,9 @@ public sealed class RadarProcessingProviderQueueTelemetryRecorder
         }
     }
 
+    /// <summary>
+    /// Records one processing result for a dequeued batch.
+    /// </summary>
     public void RecordProcessingResult(
         RadarProcessingQueuedBatchProcessingResult result)
     {
@@ -168,6 +188,9 @@ public sealed class RadarProcessingProviderQueueTelemetryRecorder
         }
     }
 
+    /// <summary>
+    /// Adds drain elapsed time to the telemetry summary.
+    /// </summary>
     public void AddDrainTime(TimeSpan drainTime)
     {
         EnsureNonNegative(drainTime, nameof(drainTime));
@@ -177,6 +200,9 @@ public sealed class RadarProcessingProviderQueueTelemetryRecorder
         }
     }
 
+    /// <summary>
+    /// Creates an immutable snapshot of current telemetry counters and recent details.
+    /// </summary>
     public RadarProcessingProviderQueueTelemetrySummary CreateSummary()
     {
         lock (sync)
@@ -211,6 +237,9 @@ public sealed class RadarProcessingProviderQueueTelemetryRecorder
         }
     }
 
+    /// <summary>
+    /// Clears all counters and retained recent details.
+    /// </summary>
     public void Reset()
     {
         lock (sync)

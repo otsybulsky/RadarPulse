@@ -2,8 +2,20 @@ using RadarPulse.Domain.Streaming;
 
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Validates queued-provider ownership, ordering, telemetry, and reference parity.
+/// </summary>
+/// <remarks>
+/// The validator is used as a rollout and regression guard for the owned queued
+/// provider path. It checks that accepted batches retain owned payloads, provider
+/// and processing sequences remain deterministic, telemetry matches evidence,
+/// and optional benchmark reference metrics match the candidate run.
+/// </remarks>
 public static class RadarProcessingQueuedProviderValidator
 {
+    /// <summary>
+    /// Validates that a batch is safe to retain in a queued provider.
+    /// </summary>
     public static RadarProcessingQueuedProviderValidationResult ValidateQueuedBatch(
         RadarEventBatch batch,
         RadarProcessingQueuedProviderValidationProfile profile = RadarProcessingQueuedProviderValidationProfile.Diagnostic)
@@ -24,6 +36,14 @@ public static class RadarProcessingQueuedProviderValidator
                 profile);
     }
 
+    /// <summary>
+    /// Validates a complete queued-provider session result against the selected profile.
+    /// </summary>
+    /// <remarks>
+    /// Essential validation covers ownership and sequence invariants. Diagnostic
+    /// validation adds telemetry and runtime-state checks. Benchmark validation can
+    /// compare against a supplied reference.
+    /// </remarks>
     public static RadarProcessingQueuedProviderValidationResult ValidateSessionResult(
         RadarProcessingQueuedSessionResult result,
         RadarProcessingQueuedProviderValidationProfile profile = RadarProcessingQueuedProviderValidationProfile.Diagnostic,
@@ -57,6 +77,9 @@ public static class RadarProcessingQueuedProviderValidator
             : ValidateReference(result, reference, profile, context);
     }
 
+    /// <summary>
+    /// Creates deterministic comparison metrics from a queued session result.
+    /// </summary>
     public static RadarProcessingQueuedProviderMetrics CreateMetrics(
         RadarProcessingQueuedSessionResult result)
     {

@@ -1,5 +1,13 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Result of attempting to enqueue one owned provider batch.
+/// </summary>
+/// <remarks>
+/// Accepted results always carry the retained batch. Rejected results never carry
+/// a batch, which makes ownership explicit for callers deciding whether to retry,
+/// release, or account for retained payload.
+/// </remarks>
 public sealed record RadarProcessingQueuedBatchEnqueueResult
 {
     private RadarProcessingQueuedBatchEnqueueResult(
@@ -30,18 +38,39 @@ public sealed record RadarProcessingQueuedBatchEnqueueResult
         Message = message;
     }
 
+    /// <summary>
+    /// Enqueue outcome.
+    /// </summary>
     public RadarProcessingQueuedBatchEnqueueStatus Status { get; }
 
+    /// <summary>
+    /// Retained queued batch when the enqueue was accepted.
+    /// </summary>
     public RadarProcessingQueuedBatch? Batch { get; }
 
+    /// <summary>
+    /// Provider sequence for accepted batches.
+    /// </summary>
     public RadarProcessingQueuedBatchSequence? Sequence => Batch?.Sequence;
 
+    /// <summary>
+    /// Time spent waiting for enqueue acceptance or rejection.
+    /// </summary>
     public TimeSpan EnqueueWaitTime { get; }
 
+    /// <summary>
+    /// Optional diagnostic message for rejected enqueue attempts.
+    /// </summary>
     public string Message { get; }
 
+    /// <summary>
+    /// Indicates whether the queue accepted the batch.
+    /// </summary>
     public bool IsAccepted => Status == RadarProcessingQueuedBatchEnqueueStatus.Accepted;
 
+    /// <summary>
+    /// Creates an accepted enqueue result for a retained batch.
+    /// </summary>
     public static RadarProcessingQueuedBatchEnqueueResult Accepted(
         RadarProcessingQueuedBatch batch,
         TimeSpan enqueueWaitTime = default) =>
@@ -51,26 +80,41 @@ public sealed record RadarProcessingQueuedBatchEnqueueResult
             enqueueWaitTime,
             string.Empty);
 
+    /// <summary>
+    /// Creates a rejected result for a full queue.
+    /// </summary>
     public static RadarProcessingQueuedBatchEnqueueResult Full(
         TimeSpan enqueueWaitTime = default,
         string message = "") =>
         Rejected(RadarProcessingQueuedBatchEnqueueStatus.Full, enqueueWaitTime, message);
 
+    /// <summary>
+    /// Creates a rejected result for an enqueue timeout.
+    /// </summary>
     public static RadarProcessingQueuedBatchEnqueueResult TimedOut(
         TimeSpan enqueueWaitTime,
         string message = "") =>
         Rejected(RadarProcessingQueuedBatchEnqueueStatus.TimedOut, enqueueWaitTime, message);
 
+    /// <summary>
+    /// Creates a rejected result for a canceled enqueue attempt.
+    /// </summary>
     public static RadarProcessingQueuedBatchEnqueueResult Canceled(
         TimeSpan enqueueWaitTime = default,
         string message = "") =>
         Rejected(RadarProcessingQueuedBatchEnqueueStatus.Canceled, enqueueWaitTime, message);
 
+    /// <summary>
+    /// Creates a rejected result for a queue closed to new work.
+    /// </summary>
     public static RadarProcessingQueuedBatchEnqueueResult Closed(
         TimeSpan enqueueWaitTime = default,
         string message = "") =>
         Rejected(RadarProcessingQueuedBatchEnqueueStatus.Closed, enqueueWaitTime, message);
 
+    /// <summary>
+    /// Creates a rejected result for a faulted queue.
+    /// </summary>
     public static RadarProcessingQueuedBatchEnqueueResult Faulted(
         TimeSpan enqueueWaitTime = default,
         string message = "") =>

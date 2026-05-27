@@ -1,5 +1,13 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Semantic validation result for a queued-provider session.
+/// </summary>
+/// <remarks>
+/// Valid results carry no diagnostics. Invalid results must carry a concrete
+/// error and message, with optional expected/actual values for deterministic
+/// checksum or count mismatches.
+/// </remarks>
 public sealed class RadarProcessingQueuedProviderValidationResult
 {
     private RadarProcessingQueuedProviderValidationResult(
@@ -66,28 +74,64 @@ public sealed class RadarProcessingQueuedProviderValidationResult
         RetentionStrategy = retentionStrategy;
     }
 
+    /// <summary>
+    /// Indicates whether queued-provider evidence passed validation.
+    /// </summary>
     public bool IsValid { get; }
 
+    /// <summary>
+    /// Validation error classification.
+    /// </summary>
     public RadarProcessingQueuedProviderValidationError Error { get; }
 
+    /// <summary>
+    /// Diagnostic message for invalid validation results.
+    /// </summary>
     public string Message { get; }
 
+    /// <summary>
+    /// Validation depth used to produce the result.
+    /// </summary>
     public RadarProcessingQueuedProviderValidationProfile Profile { get; }
 
+    /// <summary>
+    /// Expected checksum for checksum validations.
+    /// </summary>
     public ulong? ExpectedChecksum { get; }
 
+    /// <summary>
+    /// Actual checksum for checksum validations.
+    /// </summary>
     public ulong? ActualChecksum { get; }
 
+    /// <summary>
+    /// Expected count for count validations.
+    /// </summary>
     public long? ExpectedCount { get; }
 
+    /// <summary>
+    /// Actual count for count validations.
+    /// </summary>
     public long? ActualCount { get; }
 
+    /// <summary>
+    /// Semantic surface used by validation when available.
+    /// </summary>
     public RadarProcessingQueuedProviderValidationSurface? SemanticSurface { get; }
 
+    /// <summary>
+    /// Overlap mode used by validation when available.
+    /// </summary>
     public RadarProcessingQueuedProviderOverlapMode? OverlapMode { get; }
 
+    /// <summary>
+    /// Retention strategy used by validation when available.
+    /// </summary>
     public RadarProcessingRetainedPayloadStrategy? RetentionStrategy { get; }
 
+    /// <summary>
+    /// Creates a valid validation result.
+    /// </summary>
     public static RadarProcessingQueuedProviderValidationResult Valid(
         RadarProcessingQueuedProviderValidationProfile profile,
         RadarProcessingQueuedProviderValidationContext? context = null) =>
@@ -100,6 +144,9 @@ public sealed class RadarProcessingQueuedProviderValidationResult
             overlapMode: context?.OverlapMode,
             retentionStrategy: context?.RetentionStrategy);
 
+    /// <summary>
+    /// Creates an invalid validation result with optional expected/actual evidence.
+    /// </summary>
     public static RadarProcessingQueuedProviderValidationResult Invalid(
         RadarProcessingQueuedProviderValidationError error,
         string message,

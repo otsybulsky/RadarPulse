@@ -1,7 +1,19 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Evaluates queued-provider rollout readiness gates from validation and telemetry evidence.
+/// </summary>
+/// <remarks>
+/// The evaluator converts raw validation, retained-resource, allocation,
+/// performance, and variance evidence into named readiness gate results. These
+/// gates support default-promotion decisions for the in-process queued-owned
+/// provider contour.
+/// </remarks>
 public static class RadarProcessingQueuedProviderReadinessEvaluator
 {
+    /// <summary>
+    /// Evaluates correctness parity between queued-provider output and the reference contour.
+    /// </summary>
     public static RadarProcessingQueuedProviderReadinessResult EvaluateCorrectnessParity(
         RadarProcessingQueuedProviderValidationResult validation,
         bool hasBorrowedReference,
@@ -33,6 +45,9 @@ public static class RadarProcessingQueuedProviderReadinessEvaluator
             validation.ActualCount);
     }
 
+    /// <summary>
+    /// Evaluates whether retained payload acquisition and release completed cleanly.
+    /// </summary>
     public static RadarProcessingQueuedProviderReadinessResult EvaluateRetainedResourceReleaseHealth(
         RadarProcessingRetainedPayloadTelemetrySummary telemetry)
     {
@@ -76,6 +91,9 @@ public static class RadarProcessingQueuedProviderReadinessEvaluator
             RadarProcessingQueuedProviderReadinessGate.RetainedResourceReleaseHealth);
     }
 
+    /// <summary>
+    /// Evaluates retained-resource pressure against the supplied combined payload budget.
+    /// </summary>
     public static RadarProcessingQueuedProviderReadinessResult EvaluateRetainedResourcePressure(
         RadarProcessingRetainedResourcePressureSummary? pressure,
         long? combinedRetainedPayloadBytesBudget = null,
@@ -127,6 +145,9 @@ public static class RadarProcessingQueuedProviderReadinessEvaluator
             RadarProcessingQueuedProviderReadinessGate.RetainedResourcePressure);
     }
 
+    /// <summary>
+    /// Evaluates whether retained-resource pressure returned to the required terminal state.
+    /// </summary>
     public static RadarProcessingQueuedProviderReadinessResult EvaluateRetainedResourceCleanupCompletion(
         RadarProcessingRetainedResourcePressureSummary? pressure)
     {
@@ -157,6 +178,9 @@ public static class RadarProcessingQueuedProviderReadinessEvaluator
             RadarProcessingQueuedProviderReadinessGate.RetainedResourcePressure);
     }
 
+    /// <summary>
+    /// Evaluates whether evidence came from the natural default-candidate contour.
+    /// </summary>
     public static RadarProcessingQueuedProviderReadinessResult EvaluateNaturalEvidence(
         bool isDefaultCandidateContour,
         TimeSpan overlapConsumerDelay)
@@ -186,6 +210,9 @@ public static class RadarProcessingQueuedProviderReadinessEvaluator
             RadarProcessingQueuedProviderReadinessGate.NaturalEvidence);
     }
 
+    /// <summary>
+    /// Evaluates candidate elapsed time against a borrowed reference duration.
+    /// </summary>
     public static RadarProcessingQueuedProviderReadinessResult EvaluatePerformanceDelta(
         TimeSpan candidateElapsed,
         TimeSpan borrowedReferenceElapsed,
@@ -221,6 +248,9 @@ public static class RadarProcessingQueuedProviderReadinessEvaluator
             RadarProcessingQueuedProviderReadinessGate.PerformanceDelta);
     }
 
+    /// <summary>
+    /// Evaluates candidate allocation movement against a reference allocation measurement.
+    /// </summary>
     public static RadarProcessingQueuedProviderReadinessResult EvaluateAllocationMovement(
         long candidateAllocatedBytes,
         long? referenceAllocatedBytes,
@@ -271,6 +301,9 @@ public static class RadarProcessingQueuedProviderReadinessEvaluator
             RadarProcessingQueuedProviderReadinessGate.AllocationMovement);
     }
 
+    /// <summary>
+    /// Evaluates relative standard deviation across repeated candidate runs.
+    /// </summary>
     public static RadarProcessingQueuedProviderReadinessResult EvaluateRunVariance(
         double? candidateRelativeStandardDeviation,
         double maximumRelativeStandardDeviation)
@@ -306,6 +339,9 @@ public static class RadarProcessingQueuedProviderReadinessEvaluator
             RadarProcessingQueuedProviderReadinessGate.RunVariance);
     }
 
+    /// <summary>
+    /// Evaluates elapsed-time spread across repeated candidate runs.
+    /// </summary>
     public static RadarProcessingQueuedProviderReadinessResult EvaluateRunSpread(
         TimeSpan? candidateRunSpread,
         TimeSpan? candidateAverageElapsed,

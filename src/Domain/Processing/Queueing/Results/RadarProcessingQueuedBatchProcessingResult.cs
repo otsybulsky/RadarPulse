@@ -1,5 +1,13 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Result of processing one dequeued provider batch.
+/// </summary>
+/// <remarks>
+/// Successful results carry either direct processing output or a rebalance result
+/// that wraps the same processing output. This preserves the correlation between
+/// provider sequence, processing topology version, and rebalance evidence.
+/// </remarks>
 public sealed record RadarProcessingQueuedBatchProcessingResult
 {
     private RadarProcessingQueuedBatchProcessingResult(
@@ -37,20 +45,44 @@ public sealed record RadarProcessingQueuedBatchProcessingResult
         Message = message;
     }
 
+    /// <summary>
+    /// Provider sequence for the processed batch.
+    /// </summary>
     public RadarProcessingQueuedBatchSequence Sequence { get; }
 
+    /// <summary>
+    /// Processing outcome.
+    /// </summary>
     public RadarProcessingQueuedBatchProcessingStatus Status { get; }
 
+    /// <summary>
+    /// Processing output when available.
+    /// </summary>
     public RadarProcessingResult? ProcessingResult { get; }
 
+    /// <summary>
+    /// Rebalance result when the batch was processed through a rebalance session.
+    /// </summary>
     public RadarProcessingRebalanceSessionResult? RebalanceResult { get; }
 
+    /// <summary>
+    /// Diagnostic message for failed, canceled, or skipped results.
+    /// </summary>
     public string Message { get; }
 
+    /// <summary>
+    /// Indicates whether the batch reached a successful processing outcome.
+    /// </summary>
     public bool IsSuccessful => Status == RadarProcessingQueuedBatchProcessingStatus.Succeeded;
 
+    /// <summary>
+    /// Topology version from processing output when present.
+    /// </summary>
     public RadarProcessingTopologyVersion? TopologyVersion => ProcessingResult?.TopologyVersion;
 
+    /// <summary>
+    /// Creates a successful result from direct processing output.
+    /// </summary>
     public static RadarProcessingQueuedBatchProcessingResult Succeeded(
         RadarProcessingQueuedBatchSequence sequence,
         RadarProcessingResult processingResult)
@@ -64,6 +96,9 @@ public sealed record RadarProcessingQueuedBatchProcessingResult
             string.Empty);
     }
 
+    /// <summary>
+    /// Creates a successful result from rebalance processing output.
+    /// </summary>
     public static RadarProcessingQueuedBatchProcessingResult Succeeded(
         RadarProcessingQueuedBatchSequence sequence,
         RadarProcessingRebalanceSessionResult rebalanceResult)
@@ -77,6 +112,9 @@ public sealed record RadarProcessingQueuedBatchProcessingResult
             string.Empty);
     }
 
+    /// <summary>
+    /// Creates a processing-failure result.
+    /// </summary>
     public static RadarProcessingQueuedBatchProcessingResult FailedProcessing(
         RadarProcessingQueuedBatchSequence sequence,
         string message,
@@ -87,6 +125,9 @@ public sealed record RadarProcessingQueuedBatchProcessingResult
             message,
             processingResult);
 
+    /// <summary>
+    /// Creates a validation-failure result.
+    /// </summary>
     public static RadarProcessingQueuedBatchProcessingResult FailedValidation(
         RadarProcessingQueuedBatchSequence sequence,
         string message,
@@ -97,6 +138,9 @@ public sealed record RadarProcessingQueuedBatchProcessingResult
             message,
             processingResult);
 
+    /// <summary>
+    /// Creates a migration-failure result.
+    /// </summary>
     public static RadarProcessingQueuedBatchProcessingResult FailedMigration(
         RadarProcessingQueuedBatchSequence sequence,
         string message,
@@ -108,6 +152,9 @@ public sealed record RadarProcessingQueuedBatchProcessingResult
             rebalanceResult,
             message);
 
+    /// <summary>
+    /// Creates a canceled processing result.
+    /// </summary>
     public static RadarProcessingQueuedBatchProcessingResult Canceled(
         RadarProcessingQueuedBatchSequence sequence,
         string message = "") =>
@@ -118,6 +165,9 @@ public sealed record RadarProcessingQueuedBatchProcessingResult
             null,
             message);
 
+    /// <summary>
+    /// Creates a skipped result for batches not processed after a prior fault.
+    /// </summary>
     public static RadarProcessingQueuedBatchProcessingResult SkippedAfterFault(
         RadarProcessingQueuedBatchSequence sequence,
         string message = "") =>

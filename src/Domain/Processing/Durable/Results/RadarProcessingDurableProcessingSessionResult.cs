@@ -1,5 +1,13 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Aggregate result for durable processing over claimed envelopes.
+/// </summary>
+/// <remarks>
+/// The result combines queued-session status, durable queue summary, readiness
+/// summary, and per-batch processing results so recovery decisions can inspect
+/// both runtime outcome and persistent queue posture.
+/// </remarks>
 public sealed class RadarProcessingDurableProcessingSessionResult
 {
     private readonly IReadOnlyList<RadarProcessingQueuedBatchProcessingResult> processingResults;
@@ -22,20 +30,44 @@ public sealed class RadarProcessingDurableProcessingSessionResult
         Message = message;
     }
 
+    /// <summary>
+    /// Durable processing session status.
+    /// </summary>
     public RadarProcessingQueuedSessionStatus Status { get; }
 
+    /// <summary>
+    /// Durable queue summary captured at session end.
+    /// </summary>
     public RadarProcessingDurableQueueSummary QueueSummary { get; }
 
+    /// <summary>
+    /// Readiness summary derived from durable queue evidence.
+    /// </summary>
     public RadarProcessingDurableRuntimeReadinessSummary ReadinessSummary { get; }
 
+    /// <summary>
+    /// Processing results for claimed envelopes.
+    /// </summary>
     public IReadOnlyList<RadarProcessingQueuedBatchProcessingResult> ProcessingResults => processingResults;
 
+    /// <summary>
+    /// Optional terminal diagnostic message.
+    /// </summary>
     public string Message { get; }
 
+    /// <summary>
+    /// Indicates a completed durable processing session.
+    /// </summary>
     public bool IsCompleted => Status == RadarProcessingQueuedSessionStatus.Completed;
 
+    /// <summary>
+    /// Indicates a faulted durable processing session.
+    /// </summary>
     public bool IsFaulted => Status == RadarProcessingQueuedSessionStatus.Faulted;
 
+    /// <summary>
+    /// Indicates a canceled durable processing session.
+    /// </summary>
     public bool IsCanceled => Status == RadarProcessingQueuedSessionStatus.Canceled;
 
     private static IReadOnlyList<T> CopyRequired<T>(

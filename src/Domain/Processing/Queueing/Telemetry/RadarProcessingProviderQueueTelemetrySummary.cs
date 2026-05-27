@@ -1,7 +1,18 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Immutable provider queue telemetry snapshot.
+/// </summary>
+/// <remarks>
+/// The summary aggregates owned-snapshot cost, enqueue/dequeue/processing counts,
+/// retained payload pressure, recent diagnostic details, and latency totals for
+/// validation and rollout gates.
+/// </remarks>
 public sealed record RadarProcessingProviderQueueTelemetrySummary
 {
+    /// <summary>
+    /// Creates a telemetry summary with validated non-negative counters.
+    /// </summary>
     public RadarProcessingProviderQueueTelemetrySummary(
         long ownedSnapshotCount = 0,
         long ownedSnapshotPayloadBytes = 0,
@@ -111,14 +122,29 @@ public sealed record RadarProcessingProviderQueueTelemetrySummary
             TotalOwnedSnapshotTime);
     }
 
+    /// <summary>
+    /// Number of owned snapshots created for queued batches.
+    /// </summary>
     public long OwnedSnapshotCount { get; }
 
+    /// <summary>
+    /// Payload bytes copied into owned queued snapshots.
+    /// </summary>
     public long OwnedSnapshotPayloadBytes { get; }
 
+    /// <summary>
+    /// Allocated bytes attributed to owned snapshot creation.
+    /// </summary>
     public long OwnedSnapshotAllocatedBytes { get; }
 
+    /// <summary>
+    /// Total time spent creating owned snapshots.
+    /// </summary>
     public TimeSpan TotalOwnedSnapshotTime { get; }
 
+    /// <summary>
+    /// Stream events captured in owned snapshots.
+    /// </summary>
     public long OwnedSnapshotEventCount { get; }
 
     public long EnqueueAttemptCount { get; }
@@ -212,6 +238,9 @@ public sealed record RadarProcessingProviderQueueTelemetrySummary
         EnqueueTimedOutCount > 0 ||
         TotalEnqueueWaitTime > TimeSpan.Zero;
 
+    /// <summary>
+    /// Returns a copy with externally supplied retained-resource pressure evidence.
+    /// </summary>
     public RadarProcessingProviderQueueTelemetrySummary WithRetainedResourcePressure(
         RadarProcessingRetainedResourcePressureSummary retainedResourcePressure)
     {
@@ -247,6 +276,9 @@ public sealed record RadarProcessingProviderQueueTelemetrySummary
             retainedResourcePressure);
     }
 
+    /// <summary>
+    /// Empty telemetry summary.
+    /// </summary>
     public static RadarProcessingProviderQueueTelemetrySummary Empty { get; } = new();
 
     private static void EnsureNonNegative(
