@@ -1,9 +1,15 @@
 # Milestone 034: Targeted Project Restructuring And Maintenance
 
-Status: open.
+Status: complete.
 
-Milestone 034 starts from the closed milestone 033 product demo polish and
-portfolio readiness milestone and keeps the project in freeze mode.
+Closeout:
+
+```text
+docs/milestones/034-targeted-project-restructuring-and-maintenance-closeout.md
+```
+
+Milestone 034 started from the closed milestone 033 product demo polish and
+portfolio readiness milestone and kept the project in freeze mode.
 
 Milestone 033 closed with this answer:
 

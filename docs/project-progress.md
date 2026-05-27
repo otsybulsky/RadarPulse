@@ -1,9 +1,8 @@
 # RadarPulse Project Progress
 
-Status: current after milestone 033 closeout with milestone 034 opened as a
-freeze-mode container for targeted project restructuring and maintenance.
-Product demo polish and portfolio readiness remain accepted for deterministic
-local demo/archive-shaped workflows.
+Status: current after milestone 034 closeout. Targeted project
+restructuring and maintenance is accepted over the local product demo
+boundary, and RadarPulse remains in freeze mode.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -26,23 +25,22 @@ pipeline integration milestone, the product-facing pipeline console/API
 milestone, the product HTTP host and persistent run history milestone, the
 product operator Angular SPA milestone, the operator UI hardening and
 integrated local delivery milestone, the product demo/readiness packaging
-milestone, and the product demo polish and portfolio readiness milestone.
-Milestone 033 is complete through closeout, and the project is now in freeze
-mode.
+milestone, the product demo polish and portfolio readiness milestone, and the
+targeted project restructuring and maintenance milestone. Milestone 034 is
+complete through closeout, and the project remains in freeze mode.
 
 Current state:
 
 ```text
-completed milestones: 001-033
+completed milestones: 001-034
 latest completed milestone:
-  033 product demo polish and portfolio readiness
+  034 targeted project restructuring and maintenance
 latest completed milestone status:
-  implementation slices complete
-  Angular gate captured
-  browser smoke gates captured
-  packaged verify command captured
-  focused .NET HTTP/API/readiness Release gate captured
-  decision trace written
+  documentation-level maintenance container complete
+  cross-platform demo entrypoints complete
+  responsibility-first code folder structure complete
+  current documentation path audit complete
+  post-restructure packaged verify captured across Windows and WSL/Bash
   closeout written
 post-closeout project mode:
   freeze mode
@@ -51,13 +49,8 @@ post-closeout project mode:
   small portfolio wording polish, targeted refactoring that preserves accepted
   behavior, and maintenance fixes
 active milestone:
-  034 targeted project restructuring and maintenance
-active milestone posture:
-  documentation-level container for a sequence of point changes
-  no architecture milestone or detailed implementation plan by default
-  accepted milestone 020-033 runtime, product, HTTP, persistence, UI, and
-    demo/readiness decisions remain closed
-active milestone completed changes:
+  none
+latest milestone completed changes:
   Windows PowerShell and native Linux/macOS/WSL2 Bash demo entrypoints are
     documented, smoke checked, and covered by packaged verify
   packaged verify refreshes .NET restore metadata for the current OS before
@@ -83,6 +76,9 @@ active milestone completed changes:
     source layout
   post-restructure packaged verify passed through Windows PowerShell,
     WSL/Bash, and Windows PowerShell again after WSL restore metadata refresh
+latest milestone closeout:
+  accepted with scoped warnings for targeted restructuring and maintenance
+    over the accepted local product demo boundary
 
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive
@@ -187,8 +183,7 @@ current runtime/live posture:
   broker/database adapter certification is not planned for this project
 
 current next action:
-  use milestone 034 for targeted restructuring, cleanup, documentation
-  corrections, and maintenance fixes while preserving accepted behavior
+  stay in freeze mode; no active milestone is needed by default
 ```
 
 Current project scope decision:
@@ -201,13 +196,14 @@ project is the deterministic local file-based durable adapter plus the
 production-shaped pipeline built on top of it, and deterministic local
 file-backed product run history for product-level run records.
 
-After milestone 033, RadarPulse is portfolio-ready at the deterministic local
-product demo boundary. Future work should default to freeze mode:
-documentation, screenshots/demo video, small portfolio wording polish,
+After milestone 034, RadarPulse remains portfolio-ready at the deterministic
+local product demo boundary, with cross-platform package entrypoints and a
+responsibility-first C# source layout. Future work should default to freeze
+mode: documentation, screenshots/demo video, small portfolio wording polish,
 targeted refactoring that preserves accepted behavior, and maintenance fixes.
 New runtime architecture, product feature, live-ingestion, deployment,
-external adapter, security, or delivery-certification milestones are not
-planned unless explicitly reprioritized.
+external adapter, security, delivery-certification, or namespace-alignment
+milestones are not planned unless explicitly reprioritized.
 ```
 
 The current accepted direct benchmark contour is:
@@ -2430,6 +2426,86 @@ small portfolio wording polish, targeted refactoring that preserves accepted
 behavior, and maintenance fixes.
 ```
 
+### 22. Targeted Project Restructuring And Maintenance
+
+Status:
+
+```text
+complete as milestone 034
+documentation-level maintenance container opened
+cross-platform demo entrypoints complete
+responsibility-first code folder structure complete
+current documentation path audit complete
+post-restructure packaged verify captured across Windows and WSL/Bash
+closeout written
+```
+
+Milestone documents:
+
+```text
+docs/milestones/034-targeted-project-restructuring-and-maintenance.md
+docs/milestones/034-targeted-project-restructuring-and-maintenance-closeout.md
+```
+
+Goal:
+
+```text
+record and execute a controlled sequence of targeted restructuring,
+documentation, and maintenance changes after milestone 033 without reopening
+the accepted local product demo boundary
+```
+
+Implemented work:
+
+```text
+native Linux/macOS/WSL2 Bash product demo entrypoint alongside the Windows
+  PowerShell package script
+cross-platform package verification restore metadata refresh before
+  no-restore gates
+safe reset-history guards for outside paths, dot-dot traversal, and directory
+  targets
+responsibility-first and type-second physical C# source layout across
+  Processing, Application, Archive, Product, Streaming, and Presentation
+current README/demo/operator source navigation after restructuring
+post-restructure packaged verify through Windows PowerShell, WSL/Bash, and
+  Windows PowerShell again after WSL restore metadata refresh
+```
+
+Verification summary:
+
+```text
+post-restructure packaged verify:
+  Windows PowerShell passed
+  WSL/Bash passed
+  Windows PowerShell after WSL/Bash restore metadata passed
+
+each packaged verify run:
+  Angular unit tests 20 passed, 0 failed
+  Angular production build succeeded
+  browser smoke 4 passed, 0 failed
+  hosted same-origin smoke 1 passed, 0 failed
+  focused .NET product HTTP/API/readiness Release gate:
+    21 passed, 0 failed, 0 skipped
+  Release build succeeded, 0 warnings, 0 errors
+```
+
+Closeout:
+
+```text
+accepted with scoped warnings for targeted restructuring and maintenance over
+the accepted local product demo boundary
+```
+
+Prepared by milestone 034 implementation:
+
+```text
+RadarPulse keeps the accepted local portfolio demo behavior while becoming
+easier to run across Windows/Linux/macOS/WSL2 and easier to navigate by
+responsibility-first source folders
+future work can stay in freeze mode with no active milestone by default
+namespace alignment remains a separate explicit decision if ever needed
+```
+
 ## Project Chain Summary
 
 ```text
@@ -2458,6 +2534,7 @@ behavior, and maintenance fixes.
 [done] operator UI hardening and integrated local delivery
 [done] product demo/readiness packaging
 [done] product demo polish and portfolio readiness
+[done] targeted project restructuring and maintenance
 [freeze] documentation, demo assets, targeted refactoring, and maintenance
 ```
 

@@ -1,36 +1,37 @@
-# Handoff: Milestone 034 Open
+# Handoff: Milestone 034 Closed
 
 ## Current State
 
-Milestone 034 has been opened after milestone 033 closeout as a
-documentation-level container for targeted project restructuring, small
-cleanup, documentation corrections, and maintenance fixes. Change 2 has
-added separate Windows PowerShell and native Linux/macOS/WSL2 Bash demo
-entrypoints. Change 3 has completed the responsibility-first code folder
-structure with namespace-preserving Processing source slices across Domain
-and Infrastructure, the Application Archive/Processing slice, the Archive
+Milestone 034 is closed after milestone 033 closeout as a documentation-level
+container for targeted project restructuring, small cleanup, documentation
+corrections, and maintenance fixes. Change 2 added separate Windows
+PowerShell and native Linux/macOS/WSL2 Bash demo entrypoints. Change 3
+completed the responsibility-first code folder structure with
+namespace-preserving Processing source slices across Domain and
+Infrastructure, the Application Archive/Processing slice, the Archive
 source/test slice, the Product source/test slice, the Streaming source/test
-slice, and the Presentation source/test slice. Change 4 has audited current
+slice, and the Presentation source/test slice. Change 4 audited current
 documentation paths and added source navigation for the new structure while
-leaving historical carry-forward evidence unchanged. Change 5 has rerun the
+leaving historical carry-forward evidence unchanged. Change 5 reran the
 accepted package verification flow through Windows PowerShell, WSL/Bash, and
-Windows PowerShell again after WSL restore metadata refresh.
+Windows PowerShell again after WSL restore metadata refresh. The closeout is
+written.
 
 RadarPulse remains in freeze mode for the accepted portfolio-ready local
-product demo boundary. Milestone 034 is not a new architecture milestone and
-does not start with a detailed implementation plan.
+product demo boundary. Milestone 034 was not a new architecture milestone and
+did not start with a detailed implementation plan.
 
 Stop point:
 
 ```text
-milestone 034 change 5 complete; post-restructure packaged verify passed on
-Windows, WSL/Bash, and Windows again after WSL restore metadata refresh
+milestone 034 closeout complete; accepted with scoped warnings for targeted
+restructuring and maintenance over the accepted local product demo boundary
 ```
 
 Most recently closed milestone:
 
 ```text
-033 Product Demo Polish And Portfolio Readiness
+034 Targeted Project Restructuring And Maintenance
 ```
 
 Current project mode:
@@ -42,10 +43,10 @@ freeze mode
 Active milestone:
 
 ```text
-034 Targeted Project Restructuring And Maintenance
+none
 ```
 
-Milestone 034 selected posture:
+Milestone 034 accepted posture:
 
 ```text
 record a sequence of targeted changes rather than a full architecture plan
@@ -59,6 +60,7 @@ Milestone 034 documents:
 
 ```text
 docs/milestones/034-targeted-project-restructuring-and-maintenance.md
+docs/milestones/034-targeted-project-restructuring-and-maintenance-closeout.md
 ```
 
 Milestone 034 completed changes:
@@ -71,6 +73,7 @@ Milestone 034 completed changes:
    Presentation slices
 4. Current documentation path audit
 5. Post-restructure packaged verify
+6. Closeout
 ```
 
 Milestone 033 goal:
@@ -117,6 +120,10 @@ Milestone 033 planned slices:
 Latest verification:
 
 ```text
+milestone 034 closeout documentation update:
+  documentation-only closeout
+  git diff --check passed
+
 milestone 034 change 5 post-restructure packaged verify:
   Windows PowerShell package verify:
     powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
@@ -488,16 +495,17 @@ deterministic local file-backed product run history that survives service
   recreation
 ```
 
-Milestone 033 scope boundary:
+Milestone 034 scope boundary:
 
 ```text
 do not reopen accepted runtime/default/durable/handler/BFF/production
 pipeline/product/HTTP host/UI/demo-readiness packaging decisions from
-milestones 020-032. Do not expand this milestone into true live network
+milestones 020-033. Do not expand maintenance work into true live network
 ingestion, external broker/cloud queue/database adapter certification,
-deployment automation, public hosted production readiness,
-auth/TLS/production CORS hardening, cross-machine throughput certification,
-exactly-once production delivery, or rich radar visualization.
+deployment automation, public hosted production readiness, auth/TLS/
+production CORS hardening, cross-machine throughput certification,
+exactly-once production delivery, rich radar visualization, or namespace/API
+churn without a separate explicit decision.
 ```
 
 Current next action:
@@ -510,6 +518,12 @@ unless explicitly reprioritized
 Decision trace and closeout:
 
 ```text
+milestone 034 closeout has been written
+milestone 034 has no separate decision trace because it was a
+  documentation-level targeted maintenance container
+milestone 034 closeout answer:
+  accepted with scoped warnings for targeted restructuring and maintenance
+  over the accepted local product demo boundary
 milestone 033 decision trace has been written
 milestone 033 closeout has been written
 post-closeout project mode:
