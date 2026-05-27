@@ -3,15 +3,17 @@
 ## Current State
 
 Milestone 033 has been selected after milestone 032 closeout. The
-architecture/concept document is written. The detailed implementation plan is
-written. Implementation slices have not started. The decision trace and
-closeout are not written.
+architecture/concept document and detailed implementation plan are written.
+Slice 1 portfolio entrypoint is complete. Slice 2 happy-path demo walkthrough
+and script help is complete. Slice 3 operator wording and visual checkpoints
+is complete. Slice 4 gate evidence and handoff is complete. The decision
+trace and closeout are not written.
 
 Stop point:
 
 ```text
-milestone 033 architecture/concept and detailed implementation plan written;
-implementation not started
+milestone 033 implementation slices and gate evidence complete; stop before
+decision trace review
 ```
 
 Most recently closed milestone:
@@ -53,25 +55,43 @@ Milestone 033 documents:
 ```text
 docs/milestones/033-product-demo-polish-and-portfolio-readiness.md
 docs/milestones/033-product-demo-polish-and-portfolio-readiness-plan.md
+docs/milestones/033-product-demo-polish-and-portfolio-readiness-gate.md
 ```
 
 Milestone 033 planned slices:
 
 ```text
-1. Portfolio entrypoint [planned]
-2. Happy-path demo walkthrough and script help [planned]
-3. Operator wording and visual checkpoints [planned]
-4. Gate evidence and handoff [planned]
+1. Portfolio entrypoint [complete]
+2. Happy-path demo walkthrough and script help [complete]
+3. Operator wording and visual checkpoints [complete]
+4. Gate evidence and handoff [complete]
 ```
 
 Latest verification:
 
 ```text
-milestone 033 planning:
-  documentation-only planning updates
-  no runtime gate required before implementation
+milestone 033 slice 1:
+  documentation-only portfolio README update
+  no runtime gate required
 
-inherited from milestone 032:
+milestone 033 slice 2:
+  package script smoke:
+    help passed
+    paths passed
+
+milestone 033 slice 3:
+  Angular gate:
+    20 passed, 0 failed
+  Angular production build:
+    succeeded
+  browser smoke gate:
+    dev-server smoke 4 passed, 0 failed
+    hosted same-origin smoke 1 passed, 0 failed
+
+milestone 033 slice 4:
+  package script smoke:
+    help passed
+    paths passed
   packaged verify:
     Angular unit tests 20 passed, 0 failed
     Angular production build succeeded
@@ -80,10 +100,6 @@ inherited from milestone 032:
     focused .NET product HTTP/API/readiness Release gate 21 passed, 0 failed,
       0 skipped
     Release build succeeded, 0 warnings, 0 errors
-  package script smoke:
-    help passed
-    paths passed
-    verify passed
 
 inherited from milestone 031:
   Angular gate:
@@ -210,7 +226,7 @@ exactly-once production delivery, or rich radar visualization.
 Current next action:
 
 ```text
-start milestone 033 slice 1: Portfolio entrypoint
+review milestone 033 gate evidence before writing decision trace
 ```
 
 Decision trace and closeout:

@@ -214,7 +214,7 @@ Polish operator demo presentation
 
 ## Slice 4: Gate Evidence And Handoff
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -248,6 +248,36 @@ if Angular files changed:
 packaged verify can be run before review if runtime cost is acceptable:
   powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
     verify
+```
+
+Verification:
+
+```text
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
+  help
+  result: passed
+
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
+  paths
+  result: passed
+
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
+  verify
+  result: passed
+
+packaged verify evidence:
+  Angular unit tests:
+    20 passed, 0 failed
+  Angular production build:
+    succeeded
+  operator UI browser smoke:
+    4 passed, 0 failed
+  hosted same-origin browser smoke:
+    1 passed, 0 failed
+  focused .NET product HTTP/API/readiness Release gate:
+    21 passed, 0 failed, 0 skipped
+  .NET Release build:
+    succeeded, 0 warnings, 0 errors
 ```
 
 Exit criteria:
@@ -337,8 +367,8 @@ The milestone currently has:
 slice 1 portfolio entrypoint complete
 slice 2 happy-path demo walkthrough and script help complete
 slice 3 operator wording and visual checkpoints complete
-slice 4 gate evidence and handoff planned
-gate evidence not written
+slice 4 gate evidence and handoff complete
+gate evidence captured
 decision trace not written
 closeout not written
 ```
