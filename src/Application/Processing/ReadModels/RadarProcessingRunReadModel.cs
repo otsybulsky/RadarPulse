@@ -2,11 +2,22 @@ using RadarPulse.Domain.Processing;
 
 namespace RadarPulse.Application.Processing;
 
+/// <summary>
+/// BFF-facing aggregate read model for one processing run.
+/// </summary>
+/// <remarks>
+/// The read model keeps handler contract, diagnostics, batch evidence, and source
+/// output together so product-facing adapters can query without rehydrating the
+/// processing core.
+/// </remarks>
 public sealed class RadarProcessingRunReadModel
 {
     private readonly IReadOnlyList<RadarProcessingBatchReadModel> batches;
     private readonly IReadOnlyList<RadarProcessingSourceOutputReadModel> sources;
 
+    /// <summary>
+    /// Creates a run read model with sorted batches and dense source output.
+    /// </summary>
     public RadarProcessingRunReadModel(
         string runId,
         RadarProcessingHandlerOutputContract handlerOutputContract,
@@ -25,18 +36,39 @@ public sealed class RadarProcessingRunReadModel
         this.sources = CopySources(sources);
     }
 
+    /// <summary>
+    /// Product/runtime run id.
+    /// </summary>
     public string RunId { get; }
 
+    /// <summary>
+    /// Handler output contract for the run.
+    /// </summary>
     public RadarProcessingHandlerOutputContract HandlerOutputContract { get; }
 
+    /// <summary>
+    /// Diagnostics and readiness posture for the run.
+    /// </summary>
     public RadarProcessingRunDiagnosticsReadModel Diagnostics { get; }
 
+    /// <summary>
+    /// Batch evidence sorted by provider sequence.
+    /// </summary>
     public IReadOnlyList<RadarProcessingBatchReadModel> Batches => batches;
 
+    /// <summary>
+    /// Source output sorted densely by source id.
+    /// </summary>
     public IReadOnlyList<RadarProcessingSourceOutputReadModel> Sources => sources;
 
+    /// <summary>
+    /// Indicates whether run diagnostics are ready.
+    /// </summary>
     public bool IsReady => Diagnostics.IsReady;
 
+    /// <summary>
+    /// Attempts to find a batch by provider sequence.
+    /// </summary>
     public bool TryGetBatch(
         long providerSequence,
         out RadarProcessingBatchReadModel? batch)
@@ -55,6 +87,9 @@ public sealed class RadarProcessingRunReadModel
         return false;
     }
 
+    /// <summary>
+    /// Attempts to find source output by source id.
+    /// </summary>
     public bool TryGetSource(
         int sourceId,
         out RadarProcessingSourceOutputReadModel? source)
@@ -125,4 +160,3 @@ public sealed class RadarProcessingRunReadModel
         return Array.AsReadOnly(result);
     }
 }
-

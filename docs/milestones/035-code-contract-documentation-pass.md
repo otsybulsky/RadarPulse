@@ -134,6 +134,38 @@ touched-file trailing whitespace check
   result: passed
 ```
 
+### Change 4: Processing Handler Contract Documentation
+
+Status: complete.
+
+Intent:
+
+```text
+document the custom handler extension surface, handler snapshot output,
+mergeable handler delta contracts, and BFF/read-model shapes that expose
+handler posture to product-facing workflows
+```
+
+Scope:
+
+```text
+src/Domain/Processing/Handlers
+src/Application/Processing/Contracts
+src/Application/Processing/ReadModels
+src/Application/Processing/Services
+```
+
+Verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore
+  result: passed, 0 warnings, 0 errors
+git diff --check
+  result: passed
+touched-file trailing whitespace check
+  result: passed
+```
+
 Notes:
 
 ```text

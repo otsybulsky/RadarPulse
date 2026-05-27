@@ -142,6 +142,14 @@ Milestone 033 planned slices:
 Latest verification:
 
 ```text
+milestone 035 change 4 processing handler contract documentation:
+  Release build:
+    dotnet build RadarPulse.sln -c Release --no-restore
+    passed, 0 warnings, 0 errors
+  whitespace check:
+    git diff --check passed
+    touched-file trailing whitespace check passed
+
 milestone 035 change 3 processing queueing/durable contract documentation:
   Release build:
     dotnet build RadarPulse.sln -c Release --no-restore

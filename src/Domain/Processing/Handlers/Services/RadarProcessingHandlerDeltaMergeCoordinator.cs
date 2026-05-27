@@ -1,5 +1,14 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Orders and merges handler deltas by provider sequence.
+/// </summary>
+/// <remarks>
+/// The coordinator accepts deltas out of arrival order but only applies them in
+/// contiguous provider-sequence order. Conflicting duplicates, mismatched handler
+/// contracts, unsupported schema versions, or merge exceptions create a permanent
+/// blocker so downstream commit can fail closed.
+/// </remarks>
 public sealed class RadarProcessingHandlerDeltaMergeCoordinator
 {
     private readonly IRadarProcessingHandlerDeltaMerger merger;
@@ -12,6 +21,9 @@ public sealed class RadarProcessingHandlerDeltaMergeCoordinator
     private RadarProcessingQueuedBatchSequence? permanentBlockingSequence;
     private string permanentBlockingReason = string.Empty;
 
+    /// <summary>
+    /// Creates a coordinator for one mergeable handler contract.
+    /// </summary>
     public RadarProcessingHandlerDeltaMergeCoordinator(
         IRadarProcessingHandlerDeltaMerger merger,
         RadarProcessingQueuedBatchSequence? initialProviderSequence = null)
@@ -27,6 +39,9 @@ public sealed class RadarProcessingHandlerDeltaMergeCoordinator
         nextProviderSequence = initialProviderSequence ?? RadarProcessingQueuedBatchSequence.Initial;
     }
 
+    /// <summary>
+    /// Creates a public summary including merged value evidence.
+    /// </summary>
     public RadarProcessingHandlerDeltaMergeSummary CreateSummary() =>
         CreateSummary(captureMergedValues: true);
 
@@ -40,6 +55,9 @@ public sealed class RadarProcessingHandlerDeltaMergeCoordinator
             CreateFirstBlockingSequence(),
             CreateFirstBlockingReason());
 
+    /// <summary>
+    /// Completes one handler delta and applies any newly contiguous deltas.
+    /// </summary>
     public RadarProcessingHandlerDeltaMergeResult Complete(
         RadarProcessingHandlerDelta delta) =>
         Complete(delta, captureMergedValuesInSummary: true);

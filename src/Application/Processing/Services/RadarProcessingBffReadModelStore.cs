@@ -1,11 +1,21 @@
 namespace RadarPulse.Application.Processing;
 
+/// <summary>
+/// In-memory store for processing run read models exposed to product/BFF adapters.
+/// </summary>
+/// <remarks>
+/// The store is thread-safe and version-orders published runs by insertion. It is
+/// a local read-model cache, not a durable persistence adapter.
+/// </remarks>
 public sealed class RadarProcessingBffReadModelStore
 {
     private readonly object sync = new();
     private readonly Dictionary<string, StoredRun> byRunId = new(StringComparer.Ordinal);
     private long nextVersion;
 
+    /// <summary>
+    /// Number of runs currently retained.
+    /// </summary>
     public int Count
     {
         get
@@ -17,6 +27,9 @@ public sealed class RadarProcessingBffReadModelStore
         }
     }
 
+    /// <summary>
+    /// Publishes or replaces one run read model.
+    /// </summary>
     public void Publish(
         RadarProcessingRunReadModel run)
     {
@@ -28,6 +41,9 @@ public sealed class RadarProcessingBffReadModelStore
         }
     }
 
+    /// <summary>
+    /// Lists retained runs in publication order.
+    /// </summary>
     public IReadOnlyList<RadarProcessingRunReadModel> ListRuns()
     {
         lock (sync)
@@ -45,6 +61,9 @@ public sealed class RadarProcessingBffReadModelStore
         }
     }
 
+    /// <summary>
+    /// Attempts to return the most recently published run.
+    /// </summary>
     public bool TryGetLatestRun(
         out RadarProcessingRunReadModel? run)
     {
@@ -64,6 +83,9 @@ public sealed class RadarProcessingBffReadModelStore
         }
     }
 
+    /// <summary>
+    /// Attempts to return one run by run id.
+    /// </summary>
     public bool TryGetRun(
         string runId,
         out RadarProcessingRunReadModel? run)
@@ -83,6 +105,9 @@ public sealed class RadarProcessingBffReadModelStore
         }
     }
 
+    /// <summary>
+    /// Lists batches for a run, or an empty list when the run is missing.
+    /// </summary>
     public IReadOnlyList<RadarProcessingBatchReadModel> ListBatches(
         string runId)
     {
@@ -91,6 +116,9 @@ public sealed class RadarProcessingBffReadModelStore
             : Array.Empty<RadarProcessingBatchReadModel>();
     }
 
+    /// <summary>
+    /// Attempts to return one batch by run id and provider sequence.
+    /// </summary>
     public bool TryGetBatch(
         string runId,
         long providerSequence,
@@ -108,6 +136,9 @@ public sealed class RadarProcessingBffReadModelStore
         return false;
     }
 
+    /// <summary>
+    /// Lists source output for a run, or an empty list when the run is missing.
+    /// </summary>
     public IReadOnlyList<RadarProcessingSourceOutputReadModel> ListSources(
         string runId)
     {
@@ -116,6 +147,9 @@ public sealed class RadarProcessingBffReadModelStore
             : Array.Empty<RadarProcessingSourceOutputReadModel>();
     }
 
+    /// <summary>
+    /// Attempts to return one source output by run id and source id.
+    /// </summary>
     public bool TryGetSource(
         string runId,
         int sourceId,
@@ -133,6 +167,9 @@ public sealed class RadarProcessingBffReadModelStore
         return false;
     }
 
+    /// <summary>
+    /// Attempts to return one handler output value by run, source, and field name.
+    /// </summary>
     public bool TryGetHandlerOutput(
         string runId,
         int sourceId,
@@ -159,6 +196,9 @@ public sealed class RadarProcessingBffReadModelStore
         return false;
     }
 
+    /// <summary>
+    /// Attempts to return the handler output contract for a run.
+    /// </summary>
     public bool TryGetHandlerOutputContract(
         string runId,
         out RadarProcessingHandlerOutputContract? contract)
@@ -175,6 +215,9 @@ public sealed class RadarProcessingBffReadModelStore
         return false;
     }
 
+    /// <summary>
+    /// Attempts to return diagnostics for a run.
+    /// </summary>
     public bool TryGetDiagnostics(
         string runId,
         out RadarProcessingRunDiagnosticsReadModel? diagnostics)
@@ -195,4 +238,3 @@ public sealed class RadarProcessingBffReadModelStore
         RadarProcessingRunReadModel Run,
         long Version);
 }
-

@@ -2,6 +2,14 @@ using RadarPulse.Domain.Streaming;
 
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Source-local processing state and handler state store for one processing core.
+/// </summary>
+/// <remarks>
+/// The store tracks source activity, processing counts, checksums, source-local
+/// ordering, and optional handler slots. Handler state is stored per source using
+/// the slot layout built from configured handlers.
+/// </remarks>
 public sealed class RadarSourceProcessingStateStore
 {
     private readonly RadarSourceProcessingHandlerSlotLayout handlerSlotLayout;
@@ -15,6 +23,9 @@ public sealed class RadarSourceProcessingStateStore
     private readonly double[] handlerDoubleSlots;
     private long activeSourceCount;
 
+    /// <summary>
+    /// Creates state store for a source universe and optional source handlers.
+    /// </summary>
     public RadarSourceProcessingStateStore(
         RadarSourceUniverse sourceUniverse,
         IReadOnlyList<IRadarSourceProcessingHandler>? handlers = null)
@@ -45,14 +56,29 @@ public sealed class RadarSourceProcessingStateStore
         handlerDoubleSlots = CreateDoubleHandlerSlots(SourceCount, handlerSlotLayout.TotalDoubleSlotCount);
     }
 
+    /// <summary>
+    /// Source universe version backing the state store.
+    /// </summary>
     public SourceUniverseVersion SourceUniverseVersion { get; }
 
+    /// <summary>
+    /// Number of sources tracked by the store.
+    /// </summary>
     public int SourceCount { get; }
 
+    /// <summary>
+    /// Number of sources that have received at least one event.
+    /// </summary>
     public long ActiveSourceCount => Volatile.Read(ref activeSourceCount);
 
+    /// <summary>
+    /// Handler slot layout used by the store.
+    /// </summary>
     public RadarSourceProcessingHandlerSlotLayout HandlerSlotLayout => handlerSlotLayout;
 
+    /// <summary>
+    /// Applies one processed event when no payload-aware handlers are configured.
+    /// </summary>
     public void ApplyProcessedEvent(
         in RadarStreamEvent streamEvent,
         long processedPayloadValueCount,
@@ -72,6 +98,9 @@ public sealed class RadarSourceProcessingStateStore
                 rawValueChecksum));
     }
 
+    /// <summary>
+    /// Applies one processed event and invokes configured handlers with payload context.
+    /// </summary>
     public void ApplyProcessedEvent(
         in RadarStreamEvent streamEvent,
         ReadOnlySpan<byte> eventPayload,
@@ -123,6 +152,9 @@ public sealed class RadarSourceProcessingStateStore
         }
     }
 
+    /// <summary>
+    /// Returns the processing snapshot for one source.
+    /// </summary>
     public RadarSourceProcessingSnapshot GetSnapshot(int sourceId)
     {
         EnsureSourceId(sourceId);
@@ -137,6 +169,9 @@ public sealed class RadarSourceProcessingStateStore
             processingChecksums[sourceId]);
     }
 
+    /// <summary>
+    /// Creates processing snapshots for all sources in source-id order.
+    /// </summary>
     public RadarSourceProcessingSnapshot[] CreateSnapshots()
     {
         var snapshots = new RadarSourceProcessingSnapshot[SourceCount];
@@ -148,6 +183,9 @@ public sealed class RadarSourceProcessingStateStore
         return snapshots;
     }
 
+    /// <summary>
+    /// Returns exported handler values for one source.
+    /// </summary>
     public RadarSourceProcessingHandlerSnapshot GetHandlerSnapshot(int sourceId)
     {
         EnsureSourceId(sourceId);
@@ -176,6 +214,9 @@ public sealed class RadarSourceProcessingStateStore
         return new RadarSourceProcessingHandlerSnapshot(sourceId, values);
     }
 
+    /// <summary>
+    /// Creates handler snapshots for all sources in source-id order.
+    /// </summary>
     public RadarSourceProcessingHandlerSnapshot[] CreateHandlerSnapshots()
     {
         var snapshots = new RadarSourceProcessingHandlerSnapshot[SourceCount];
@@ -187,6 +228,9 @@ public sealed class RadarSourceProcessingStateStore
         return snapshots;
     }
 
+    /// <summary>
+    /// Creates aggregate processing metrics from current source state.
+    /// </summary>
     public RadarProcessingMetrics CreateMetrics(long processedBatchCount = 0)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(processedBatchCount);

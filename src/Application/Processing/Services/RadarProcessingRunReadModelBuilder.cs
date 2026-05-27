@@ -3,8 +3,14 @@ using RadarPulse.Domain.Streaming;
 
 namespace RadarPulse.Application.Processing;
 
+/// <summary>
+/// Builds BFF read models from processing core state and queued/durable evidence.
+/// </summary>
 public static class RadarProcessingRunReadModelBuilder
 {
+    /// <summary>
+    /// Creates a run read model from a processing core and optional session/readiness evidence.
+    /// </summary>
     public static RadarProcessingRunReadModel FromCore(
         string runId,
         RadarSourceUniverse sourceUniverse,

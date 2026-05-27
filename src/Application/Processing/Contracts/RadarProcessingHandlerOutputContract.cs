@@ -2,6 +2,14 @@ using RadarPulse.Domain.Processing;
 
 namespace RadarPulse.Application.Processing;
 
+/// <summary>
+/// BFF-facing contract describing handler output posture and exported fields.
+/// </summary>
+/// <remarks>
+/// The contract converts backend handler descriptors into a stable product/UI
+/// shape and records whether handler output is handler-free, snapshot fallback,
+/// mergeable delta/merge eligible, or blocked by unsupported handlers.
+/// </remarks>
 public sealed class RadarProcessingHandlerOutputContract
 {
     private const string HandlerFreeMessage =
@@ -31,30 +39,63 @@ public sealed class RadarProcessingHandlerOutputContract
         FirstBlockingReason = firstBlockingReason;
     }
 
+    /// <summary>
+    /// Handler state posture for the configured handler set.
+    /// </summary>
     public RadarProcessingHandlerStatePosture StatePosture { get; }
 
+    /// <summary>
+    /// Handler descriptors exposed to BFF/product consumers.
+    /// </summary>
     public IReadOnlyList<RadarProcessingHandlerOutputDescriptor> Handlers => handlers;
 
+    /// <summary>
+    /// Human-readable posture message.
+    /// </summary>
     public string Message { get; }
 
+    /// <summary>
+    /// First handler output blocker when the contract is blocked.
+    /// </summary>
     public string? FirstBlockingReason { get; }
 
+    /// <summary>
+    /// Indicates whether any handlers are configured.
+    /// </summary>
     public bool HasHandlers => handlers.Count != 0;
 
+    /// <summary>
+    /// Indicates whether handler output is blocked.
+    /// </summary>
     public bool IsBlocked => FirstBlockingReason is not null;
 
+    /// <summary>
+    /// Indicates whether an unsupported handler set blocks output.
+    /// </summary>
     public bool IsUnsupported =>
         StatePosture == RadarProcessingHandlerStatePosture.UnsupportedHandlerSet;
 
+    /// <summary>
+    /// Indicates whether output requires sequential snapshot fallback.
+    /// </summary>
     public bool RequiresSequentialFallback =>
         StatePosture == RadarProcessingHandlerStatePosture.StatefulSnapshotSequentialFallback;
 
+    /// <summary>
+    /// Indicates whether handler-free ordered concurrency is allowed.
+    /// </summary>
     public bool AllowsOrderedConcurrentDelta =>
         StatePosture == RadarProcessingHandlerStatePosture.HandlerFreeOrderedConcurrent;
 
+    /// <summary>
+    /// Indicates whether ordered handler delta/merge is allowed.
+    /// </summary>
     public bool AllowsOrderedConcurrentHandlerDeltaMerge =>
         StatePosture == RadarProcessingHandlerStatePosture.MergeableHandlerDeltaMergeEligible;
 
+    /// <summary>
+    /// Creates handler output contract from processing core options.
+    /// </summary>
     public static RadarProcessingHandlerOutputContract FromOptions(
         RadarProcessingCoreOptions options)
     {
@@ -62,6 +103,9 @@ public sealed class RadarProcessingHandlerOutputContract
         return FromHandlers(options.Handlers);
     }
 
+    /// <summary>
+    /// Creates handler output contract from a handler set.
+    /// </summary>
     public static RadarProcessingHandlerOutputContract FromHandlers(
         IReadOnlyList<IRadarSourceProcessingHandler>? handlers)
     {

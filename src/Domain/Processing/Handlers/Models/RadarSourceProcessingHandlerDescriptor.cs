@@ -1,9 +1,20 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Declares one handler's source-local state layout and exported snapshot fields.
+/// </summary>
+/// <remarks>
+/// Descriptor names and snapshot field names are ordinal identifiers used by
+/// read models and product output. Slot indexes must be valid within the
+/// descriptor's own int64 or double slot count.
+/// </remarks>
 public sealed class RadarSourceProcessingHandlerDescriptor
 {
     private readonly IReadOnlyList<RadarSourceProcessingSnapshotFieldDescriptor> snapshotFields;
 
+    /// <summary>
+    /// Creates a handler descriptor with validated slot counts and snapshot fields.
+    /// </summary>
     public RadarSourceProcessingHandlerDescriptor(
         string name,
         int int64SlotCount,
@@ -23,12 +34,24 @@ public sealed class RadarSourceProcessingHandlerDescriptor
             doubleSlotCount);
     }
 
+    /// <summary>
+    /// Stable handler name exposed through contracts and read models.
+    /// </summary>
     public string Name { get; }
 
+    /// <summary>
+    /// Number of source-local Int64 slots owned by this handler.
+    /// </summary>
     public int Int64SlotCount { get; }
 
+    /// <summary>
+    /// Number of source-local Double slots owned by this handler.
+    /// </summary>
     public int DoubleSlotCount { get; }
 
+    /// <summary>
+    /// Exported fields mapped to handler state slots.
+    /// </summary>
     public IReadOnlyList<RadarSourceProcessingSnapshotFieldDescriptor> SnapshotFields => snapshotFields;
 
     private static IReadOnlyList<RadarSourceProcessingSnapshotFieldDescriptor> CloneAndValidateSnapshotFields(

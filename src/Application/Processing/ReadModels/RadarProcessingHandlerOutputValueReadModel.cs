@@ -2,8 +2,14 @@ using RadarPulse.Domain.Processing;
 
 namespace RadarPulse.Application.Processing;
 
+/// <summary>
+/// BFF-facing value for one exported handler output field on one source.
+/// </summary>
 public sealed class RadarProcessingHandlerOutputValueReadModel
 {
+    /// <summary>
+    /// Creates a handler output value.
+    /// </summary>
     public RadarProcessingHandlerOutputValueReadModel(
         int handlerIndex,
         string handlerName,
@@ -25,18 +31,39 @@ public sealed class RadarProcessingHandlerOutputValueReadModel
         DoubleValue = doubleValue;
     }
 
+    /// <summary>
+    /// Handler index in configured handler order.
+    /// </summary>
     public int HandlerIndex { get; }
 
+    /// <summary>
+    /// Handler name that owns the field.
+    /// </summary>
     public string HandlerName { get; }
 
+    /// <summary>
+    /// Exported field name.
+    /// </summary>
     public string Name { get; }
 
+    /// <summary>
+    /// Value type.
+    /// </summary>
     public RadarSourceProcessingSnapshotFieldType Type { get; }
 
+    /// <summary>
+    /// Int64 value when <see cref="Type"/> is Int64.
+    /// </summary>
     public long Int64Value { get; }
 
+    /// <summary>
+    /// Double value when <see cref="Type"/> is Double.
+    /// </summary>
     public double DoubleValue { get; }
 
+    /// <summary>
+    /// Creates a read-model value from a contract field and matching snapshot value.
+    /// </summary>
     public static RadarProcessingHandlerOutputValueReadModel FromSnapshotValue(
         RadarProcessingHandlerOutputField field,
         RadarSourceProcessingSnapshotValue value)
@@ -71,4 +98,3 @@ public sealed class RadarProcessingHandlerOutputValueReadModel
         }
     }
 }
-

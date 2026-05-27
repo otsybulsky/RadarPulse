@@ -2,12 +2,27 @@ using System.Globalization;
 
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Mergeable handler output produced for one provider batch.
+/// </summary>
+/// <remarks>
+/// A delta is immutable and self-identifying. The id must match the handler name,
+/// contract version, provider sequence, optional durable batch id, input counts,
+/// and input checksum. This prevents unrelated or conflicting delta payloads from
+/// being merged under the same identity.
+/// </remarks>
 public sealed class RadarProcessingHandlerDelta
 {
+    /// <summary>
+    /// Current handler delta schema version.
+    /// </summary>
     public const int CurrentSchemaVersion = 1;
 
     private readonly IReadOnlyList<RadarProcessingHandlerDeltaValue> values;
 
+    /// <summary>
+    /// Creates a handler delta with validated identity and copied values.
+    /// </summary>
     public RadarProcessingHandlerDelta(
         string handlerName,
         string handlerContractVersion,
@@ -92,28 +107,64 @@ public sealed class RadarProcessingHandlerDelta
         this.values = CopyValues(values, sourceCount, copyValues);
     }
 
+    /// <summary>
+    /// Handler name that produced the delta.
+    /// </summary>
     public string HandlerName { get; }
 
+    /// <summary>
+    /// Handler contract version that produced the delta.
+    /// </summary>
     public string HandlerContractVersion { get; }
 
+    /// <summary>
+    /// Provider sequence for the batch represented by the delta.
+    /// </summary>
     public RadarProcessingQueuedBatchSequence ProviderSequence { get; }
 
+    /// <summary>
+    /// Durable batch id when the delta was produced from durable processing.
+    /// </summary>
     public RadarProcessingDurableBatchId? DurableBatchId { get; }
 
+    /// <summary>
+    /// Number of events in the input batch.
+    /// </summary>
     public int EventCount { get; }
 
+    /// <summary>
+    /// Source count expected by the delta values.
+    /// </summary>
     public int SourceCount { get; }
 
+    /// <summary>
+    /// Payload value count for the input batch.
+    /// </summary>
     public long PayloadValueCount { get; }
 
+    /// <summary>
+    /// Deterministic checksum over the input batch identity.
+    /// </summary>
     public long InputChecksum { get; }
 
+    /// <summary>
+    /// Stable identity derived from handler and batch identity.
+    /// </summary>
     public RadarProcessingHandlerDeltaId DeltaId { get; }
 
+    /// <summary>
+    /// Handler delta schema version.
+    /// </summary>
     public int SchemaVersion { get; }
 
+    /// <summary>
+    /// Values carried by the delta.
+    /// </summary>
     public IReadOnlyList<RadarProcessingHandlerDeltaValue> Values => values;
 
+    /// <summary>
+    /// Creates a handler delta and derives the matching delta id.
+    /// </summary>
     public static RadarProcessingHandlerDelta Create(
         string handlerName,
         string handlerContractVersion,
@@ -176,6 +227,9 @@ public sealed class RadarProcessingHandlerDelta
             CurrentSchemaVersion,
             copyValues: false);
 
+    /// <summary>
+    /// Creates the stable delta id for the supplied handler and batch identity.
+    /// </summary>
     public static RadarProcessingHandlerDeltaId CreateId(
         string handlerName,
         string handlerContractVersion,

@@ -1,7 +1,13 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Converts handler deltas to and from their serializable representation.
+/// </summary>
 public static class RadarProcessingHandlerDeltaSerializer
 {
+    /// <summary>
+    /// Creates a serializable payload from a validated handler delta.
+    /// </summary>
     public static RadarProcessingSerializedHandlerDelta Serialize(
         RadarProcessingHandlerDelta delta)
     {
@@ -21,6 +27,9 @@ public static class RadarProcessingHandlerDeltaSerializer
             delta.Values);
     }
 
+    /// <summary>
+    /// Validates and reconstructs a handler delta from serialized data.
+    /// </summary>
     public static RadarProcessingHandlerDeltaSerializationResult Deserialize(
         RadarProcessingSerializedHandlerDelta serialized)
     {

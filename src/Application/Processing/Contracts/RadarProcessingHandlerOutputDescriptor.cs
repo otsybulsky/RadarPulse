@@ -2,10 +2,16 @@ using RadarPulse.Domain.Processing;
 
 namespace RadarPulse.Application.Processing;
 
+/// <summary>
+/// BFF-facing descriptor for one configured processing handler.
+/// </summary>
 public sealed class RadarProcessingHandlerOutputDescriptor
 {
     private readonly IReadOnlyList<RadarProcessingHandlerOutputField> fields;
 
+    /// <summary>
+    /// Creates a handler descriptor with validated fields and execution classification.
+    /// </summary>
     public RadarProcessingHandlerOutputDescriptor(
         int handlerIndex,
         string name,
@@ -29,16 +35,34 @@ public sealed class RadarProcessingHandlerOutputDescriptor
         this.fields = CopyFields(handlerIndex, name, fields);
     }
 
+    /// <summary>
+    /// Handler index in configured handler order.
+    /// </summary>
     public int HandlerIndex { get; }
 
+    /// <summary>
+    /// Handler name.
+    /// </summary>
     public string Name { get; }
 
+    /// <summary>
+    /// Number of Int64 source-local slots declared by the handler.
+    /// </summary>
     public int Int64SlotCount { get; }
 
+    /// <summary>
+    /// Number of Double source-local slots declared by the handler.
+    /// </summary>
     public int DoubleSlotCount { get; }
 
+    /// <summary>
+    /// Handler execution classification.
+    /// </summary>
     public RadarSourceProcessingHandlerExecutionClassification ExecutionClassification { get; }
 
+    /// <summary>
+    /// Exported fields for the handler.
+    /// </summary>
     public IReadOnlyList<RadarProcessingHandlerOutputField> Fields => fields;
 
     internal static void EnsureKnownExecutionClassification(

@@ -1,10 +1,21 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Global slot layout for all handlers attached to one processing core.
+/// </summary>
+/// <remarks>
+/// The layout assigns each handler a contiguous range within per-source Int64 and
+/// Double state arrays. Snapshot field names must be unique across all handlers
+/// because they become frontend-facing output names.
+/// </remarks>
 public sealed class RadarSourceProcessingHandlerSlotLayout
 {
     private readonly IReadOnlyList<IRadarSourceProcessingHandler> handlers;
     private readonly IReadOnlyList<RadarSourceProcessingHandlerSlotAssignment> assignments;
 
+    /// <summary>
+    /// Creates a slot layout for the supplied handlers.
+    /// </summary>
     public RadarSourceProcessingHandlerSlotLayout(
         IReadOnlyList<IRadarSourceProcessingHandler>? handlers)
     {
@@ -47,16 +58,34 @@ public sealed class RadarSourceProcessingHandlerSlotLayout
         SnapshotFieldCount = snapshotFieldCount;
     }
 
+    /// <summary>
+    /// Handlers in execution order.
+    /// </summary>
     public IReadOnlyList<IRadarSourceProcessingHandler> Handlers => handlers;
 
+    /// <summary>
+    /// Slot assignments in handler execution order.
+    /// </summary>
     public IReadOnlyList<RadarSourceProcessingHandlerSlotAssignment> Assignments => assignments;
 
+    /// <summary>
+    /// Total Int64 slots required per source across all handlers.
+    /// </summary>
     public int TotalInt64SlotCount { get; }
 
+    /// <summary>
+    /// Total Double slots required per source across all handlers.
+    /// </summary>
     public int TotalDoubleSlotCount { get; }
 
+    /// <summary>
+    /// Total exported snapshot field count across all handlers.
+    /// </summary>
     public int SnapshotFieldCount { get; }
 
+    /// <summary>
+    /// Indicates whether any handler is attached to the processing core.
+    /// </summary>
     public bool HasHandlers => assignments.Count > 0;
 
     private static void ValidateSnapshotFields(
