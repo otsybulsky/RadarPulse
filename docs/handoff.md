@@ -8,7 +8,7 @@ cleanup, documentation corrections, and maintenance fixes. Change 2 has
 added separate Windows PowerShell and native Linux/macOS/WSL2 Bash demo
 entrypoints. Change 3 has started the responsibility-first backend folder
 structure with namespace-preserving Processing source slices across Domain
-and Infrastructure.
+and Infrastructure plus the Application Archive/Processing slice.
 
 RadarPulse remains in freeze mode for the accepted portfolio-ready local
 product demo boundary. Milestone 034 is not a new architecture milestone and
@@ -17,9 +17,9 @@ does not start with a detailed implementation plan.
 Stop point:
 
 ```text
-milestone 034 change 3 Processing source slices complete; all Domain and
-Infrastructure Processing files plus matching Processing tests moved out of
-flat folders into responsibility/type folders
+milestone 034 change 3 Application slice complete; Application Archive and
+Processing files moved out of flat folders after the Domain/Infrastructure
+Processing source slices
 ```
 
 Most recently closed milestone:
@@ -61,7 +61,8 @@ Milestone 034 completed changes:
 ```text
 1. Open maintenance milestone
 2. Cross-platform demo entrypoints
-3. Backend responsibility folder structure, Processing source slices
+3. Backend responsibility folder structure, Processing source slices plus
+   Application Archive/Processing slice
 ```
 
 Milestone 033 goal:
@@ -108,6 +109,21 @@ Milestone 033 planned slices:
 Latest verification:
 
 ```text
+milestone 034 change 3 Application Archive/Processing slice:
+  Release build:
+    dotnet build RadarPulse.sln -c Release --no-restore
+    passed, 0 warnings, 0 errors
+  focused application gate:
+    HistoricalArchiveManifestSelector, read model, BFF store, handler output,
+    handler delta BFF/classification, and MVP archive coverage
+    27 passed, 0 failed, 0 skipped
+  moved source shape:
+    src/Application/Archive has 6 .cs files under Contracts, Options, and
+      Services
+    src/Application/Processing has 13 .cs files under Contracts, ReadModels,
+      and Services
+    no .cs files remain directly under either flat Application root
+
 milestone 034 change 3 Processing source slices:
   Release build:
     dotnet build RadarPulse.sln -c Release --no-restore

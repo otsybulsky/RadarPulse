@@ -246,7 +246,7 @@ both directions.
 
 ### Change 3: Backend Responsibility Folder Structure
 
-Status: in progress; Processing source slices complete.
+Status: in progress; Processing and application slices complete.
 
 Intent:
 
@@ -361,6 +361,22 @@ src/Infrastructure/Processing folder into responsibility/type folders:
   src/Infrastructure/Processing/Workers
 ```
 
+Slice 4 scope:
+
+```text
+physically move application archive code out of the flat
+src/Application/Archive folder into:
+  src/Application/Archive/Contracts
+  src/Application/Archive/Options
+  src/Application/Archive/Services
+
+physically move application processing code out of the flat
+src/Application/Processing folder into:
+  src/Application/Processing/Contracts
+  src/Application/Processing/ReadModels
+  src/Application/Processing/Services
+```
+
 Slice 1 verification:
 
 ```text
@@ -424,6 +440,18 @@ responsibility chunk gates rerun after Infrastructure/Processing moves:
   Workers: 79 passed
   Rebalance non-synthetic: 212 passed
   Rebalance synthetic: 34 passed
+```
+
+Slice 4 verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore
+  passed, 0 warnings, 0 errors
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+  --no-restore --no-build
+  --filter "FullyQualifiedName~HistoricalArchiveManifestSelector|FullyQualifiedName~RunReadModel|FullyQualifiedName~BffReadModelStore|FullyQualifiedName~HandlerOutputContract|FullyQualifiedName~HandlerDeltaBffCompatibility|FullyQualifiedName~HandlerDeltaClassification|FullyQualifiedName~MvpArchiveGate"
+  passed: 27, failed: 0, skipped: 0
 ```
 
 Notes:
