@@ -6,16 +6,31 @@ using RadarPulse.Domain.Streaming;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Runs the accepted production-shaped processing pipeline over prepared batches.
+/// </summary>
+/// <remarks>
+/// The runner resolves the production profile, builds an async processing core,
+/// executes the queued archive-overlap runtime, publishes the BFF read model,
+/// and returns operator readiness evidence without changing accepted runtime
+/// semantics.
+/// </remarks>
 public sealed class RadarProcessingProductionPipelineRunner
 {
     private readonly RadarProcessingArchiveQueuedOverlapRunner runtimeRunner;
 
+    /// <summary>
+    /// Creates a runner with an optional archive queued-overlap runtime dependency.
+    /// </summary>
     public RadarProcessingProductionPipelineRunner(
         RadarProcessingArchiveQueuedOverlapRunner? runtimeRunner = null)
     {
         this.runtimeRunner = runtimeRunner ?? new RadarProcessingArchiveQueuedOverlapRunner();
     }
 
+    /// <summary>
+    /// Executes a production-pipeline run and returns product-facing evidence.
+    /// </summary>
     public async ValueTask<RadarProcessingProductionPipelineRunResult> RunAsync(
         RadarProcessingProductionPipelineRunRequest request,
         CancellationToken cancellationToken = default)

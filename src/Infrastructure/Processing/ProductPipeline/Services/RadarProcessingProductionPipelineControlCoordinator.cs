@@ -2,8 +2,14 @@ using RadarPulse.Domain.Processing;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Applies operator control actions to file-backed durable production-pipeline state.
+/// </summary>
 public sealed class RadarProcessingProductionPipelineControlCoordinator
 {
+    /// <summary>
+    /// Reports a stopped posture while preserving durable state for later recovery.
+    /// </summary>
     public RadarProcessingProductionPipelineControlResult StopAccepting(
         RadarProcessingProductionPipelineRecoveryRequest request)
     {
@@ -33,6 +39,9 @@ public sealed class RadarProcessingProductionPipelineControlCoordinator
             message: "Pipeline is stopped for new work; durable state is preserved.");
     }
 
+    /// <summary>
+    /// Drains accepted durable work through a rebuilt processing session.
+    /// </summary>
     public async ValueTask<RadarProcessingProductionPipelineControlResult> DrainAcceptedAsync(
         RadarProcessingProductionPipelineRecoveryRequest request,
         CancellationToken cancellationToken = default)
@@ -71,6 +80,9 @@ public sealed class RadarProcessingProductionPipelineControlCoordinator
             message: result.Message);
     }
 
+    /// <summary>
+    /// Cancels open durable envelopes and releases canceled resources.
+    /// </summary>
     public RadarProcessingProductionPipelineControlResult CancelOpenAndRelease(
         RadarProcessingProductionPipelineRecoveryRequest request,
         string message = "Production pipeline cancel-open fallback.")
@@ -107,6 +119,9 @@ public sealed class RadarProcessingProductionPipelineControlCoordinator
             message: message);
     }
 
+    /// <summary>
+    /// Produces an explicit rejection result for a fallback outside the accepted profile.
+    /// </summary>
     public RadarProcessingProductionPipelineControlResult RejectUnsafeFallback(
         RadarProcessingProductionPipelineRecoveryRequest request,
         string message)

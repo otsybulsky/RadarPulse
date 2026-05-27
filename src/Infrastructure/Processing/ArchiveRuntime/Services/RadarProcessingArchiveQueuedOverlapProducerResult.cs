@@ -3,6 +3,9 @@ using RadarPulse.Infrastructure.Archive;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Producer-side result from publishing archive batches into an owned queue.
+/// </summary>
 public sealed class RadarProcessingArchiveQueuedOverlapProducerResult
 {
     private RadarProcessingArchiveQueuedOverlapProducerResult(
@@ -35,22 +38,49 @@ public sealed class RadarProcessingArchiveQueuedOverlapProducerResult
         Message = message;
     }
 
+    /// <summary>
+    /// Producer terminal status.
+    /// </summary>
     public RadarProcessingArchiveQueuedOverlapProducerStatus Status { get; }
 
+    /// <summary>
+    /// Archive publish result when the producer completed.
+    /// </summary>
     public ArchiveRadarEventBatchPublishResult? PublishResult { get; }
 
+    /// <summary>
+    /// Queued provider result including retention telemetry.
+    /// </summary>
     public RadarProcessingArchiveQueuedProviderResult ProviderResult { get; }
 
+    /// <summary>
+    /// Producer elapsed time.
+    /// </summary>
     public TimeSpan Elapsed { get; }
 
+    /// <summary>
+    /// Producer diagnostic message.
+    /// </summary>
     public string Message { get; }
 
+    /// <summary>
+    /// Indicates whether the producer completed.
+    /// </summary>
     public bool IsCompleted => Status == RadarProcessingArchiveQueuedOverlapProducerStatus.Completed;
 
+    /// <summary>
+    /// Indicates whether the producer failed.
+    /// </summary>
     public bool IsFailed => Status == RadarProcessingArchiveQueuedOverlapProducerStatus.Failed;
 
+    /// <summary>
+    /// Indicates whether the producer was canceled.
+    /// </summary>
     public bool IsCanceled => Status == RadarProcessingArchiveQueuedOverlapProducerStatus.Canceled;
 
+    /// <summary>
+    /// Creates a completed producer result.
+    /// </summary>
     public static RadarProcessingArchiveQueuedOverlapProducerResult Completed(
         ArchiveRadarEventBatchPublishResult publishResult,
         RadarProcessingArchiveQueuedProviderResult providerResult,
@@ -62,6 +92,9 @@ public sealed class RadarProcessingArchiveQueuedOverlapProducerResult
             elapsed,
             string.Empty);
 
+    /// <summary>
+    /// Creates a failed producer result.
+    /// </summary>
     public static RadarProcessingArchiveQueuedOverlapProducerResult Failed(
         string message,
         RadarProcessingArchiveQueuedProviderResult? providerResult = null,
@@ -73,6 +106,9 @@ public sealed class RadarProcessingArchiveQueuedOverlapProducerResult
             elapsed,
             message);
 
+    /// <summary>
+    /// Creates a canceled producer result.
+    /// </summary>
     public static RadarProcessingArchiveQueuedOverlapProducerResult Canceled(
         RadarProcessingArchiveQueuedProviderResult? providerResult = null,
         TimeSpan elapsed = default,

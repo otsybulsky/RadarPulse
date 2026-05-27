@@ -4,16 +4,30 @@ using RadarPulse.Domain.Streaming;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Creates owned retained payload batches using snapshot or pooled-copy strategies.
+/// </summary>
+/// <remarks>
+/// Pooled-copy retention transfers release responsibility through
+/// <see cref="RadarProcessingRetainedBatchResource"/>. If copying fails, rented
+/// arrays are returned before a failed retention result is produced.
+/// </remarks>
 public sealed class RadarProcessingRetainedPayloadFactory
 {
     private readonly ArrayPool<RadarStreamEvent> eventPool;
     private readonly ArrayPool<byte> payloadPool;
 
+    /// <summary>
+    /// Creates a factory with retained event and payload array pools.
+    /// </summary>
     public RadarProcessingRetainedPayloadFactory()
         : this(new RadarProcessingRetainedEventArrayPool(), new RadarProcessingRetainedPayloadByteArrayPool())
     {
     }
 
+    /// <summary>
+    /// Creates a factory over explicit event and payload pools.
+    /// </summary>
     public RadarProcessingRetainedPayloadFactory(
         ArrayPool<RadarStreamEvent> eventPool,
         ArrayPool<byte> payloadPool)
@@ -22,6 +36,9 @@ public sealed class RadarProcessingRetainedPayloadFactory
         this.payloadPool = payloadPool ?? throw new ArgumentNullException(nameof(payloadPool));
     }
 
+    /// <summary>
+    /// Seeds retained payload pools with batch-sized arrays and returns allocation evidence.
+    /// </summary>
     public RadarProcessingRetainedPayloadPrewarmResult Prewarm(
         int eventCount,
         int payloadBytes,
@@ -55,6 +72,13 @@ public sealed class RadarProcessingRetainedPayloadFactory
                 : 0);
     }
 
+    /// <summary>
+    /// Retains a batch according to the selected retained payload strategy.
+    /// </summary>
+    /// <returns>
+    /// A succeeded result with an owned retained batch and optional release
+    /// resource, or a canceled/unsupported/failed result with diagnostics.
+    /// </returns>
     public RadarProcessingRetainedPayloadRetentionResult Retain(
         RadarEventBatch batch,
         RadarProcessingRetainedPayloadOptions? options = null,

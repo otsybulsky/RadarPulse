@@ -2,6 +2,14 @@ using RadarPulse.Domain.Processing;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Benchmark result for archive replay plus rebalance processing of one file.
+/// </summary>
+/// <remarks>
+/// The record preserves the selected provider mode, overlap mode, retention
+/// strategy, processing validation evidence, queue/retention telemetry, and
+/// allocation breakdown for comparing borrowed and queued-owned paths.
+/// </remarks>
 public sealed record RadarProcessingArchiveRebalanceBenchmarkResult(
     string FilePath,
     string Decompressor,

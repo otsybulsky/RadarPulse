@@ -3,11 +3,17 @@ using RadarPulse.Domain.Streaming;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Builds async shard dispatch plans and submits them to a worker group.
+/// </summary>
 public sealed class RadarProcessingAsyncBatchDispatcher
 {
     private readonly RadarProcessingAsyncWorkerGroup workerGroup;
     private readonly Func<RadarProcessingTopology> topologyProvider;
 
+    /// <summary>
+    /// Creates a dispatcher over a worker group and topology provider.
+    /// </summary>
     public RadarProcessingAsyncBatchDispatcher(
         RadarProcessingAsyncWorkerGroup workerGroup,
         Func<RadarProcessingTopology> topologyProvider)
@@ -19,6 +25,9 @@ public sealed class RadarProcessingAsyncBatchDispatcher
         this.topologyProvider = topologyProvider;
     }
 
+    /// <summary>
+    /// Captures the current topology and creates a dispatch plan for a batch.
+    /// </summary>
     public RadarProcessingAsyncDispatchPlan CreatePlan(
         long batchSequence,
         RadarEventBatch batch)
@@ -32,6 +41,9 @@ public sealed class RadarProcessingAsyncBatchDispatcher
         return CreatePlan(batchSequence, topology, route);
     }
 
+    /// <summary>
+    /// Creates a dispatch plan from an already captured topology and route.
+    /// </summary>
     public RadarProcessingAsyncDispatchPlan CreatePlan(
         long batchSequence,
         RadarProcessingTopology topology,
@@ -63,6 +75,9 @@ public sealed class RadarProcessingAsyncBatchDispatcher
         return new RadarProcessingAsyncDispatchPlan(scope, route, workItems);
     }
 
+    /// <summary>
+    /// Creates a plan for a batch and dispatches its shard work items.
+    /// </summary>
     public async ValueTask<RadarProcessingAsyncDispatchResult> DispatchAsync(
         long batchSequence,
         RadarEventBatch batch,

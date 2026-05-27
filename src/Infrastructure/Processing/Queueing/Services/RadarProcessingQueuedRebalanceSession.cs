@@ -4,6 +4,14 @@ using RadarPulse.Domain.Streaming;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Drains an owned provider queue through a rebalance session.
+/// </summary>
+/// <remarks>
+/// The session couples queued provider ownership with rebalance processing so
+/// topology changes, migration validation, and queue terminal states are all
+/// represented in ordered queued-session evidence.
+/// </remarks>
 public sealed class RadarProcessingQueuedRebalanceSession : IDisposable, IAsyncDisposable
 {
     private readonly object sync = new();
@@ -21,6 +29,9 @@ public sealed class RadarProcessingQueuedRebalanceSession : IDisposable, IAsyncD
     private bool disposed;
     private string faultMessage = string.Empty;
 
+    /// <summary>
+    /// Creates a rebalance session that owns its queue and any required async rebalance session.
+    /// </summary>
     public RadarProcessingQueuedRebalanceSession(
         RadarProcessingRebalanceSession rebalanceSession,
         RadarProcessingProviderQueueOptions? queueOptions = null,
@@ -35,6 +46,13 @@ public sealed class RadarProcessingQueuedRebalanceSession : IDisposable, IAsyncD
     {
     }
 
+    /// <summary>
+    /// Creates a rebalance session over supplied queue and optional async dependencies.
+    /// </summary>
+    /// <remarks>
+    /// Async shard transport requires an async rebalance session wrapping the
+    /// same rebalance session. Synchronous mode rejects async dependencies.
+    /// </remarks>
     public RadarProcessingQueuedRebalanceSession(
         RadarProcessingRebalanceSession rebalanceSession,
         RadarProcessingOwnedBatchQueue queue,
@@ -71,14 +89,29 @@ public sealed class RadarProcessingQueuedRebalanceSession : IDisposable, IAsyncD
         this.consumerResourceLeaseFactory = consumerResourceLeaseFactory;
     }
 
+    /// <summary>
+    /// Rebalance session that owns topology policy, migration, and processing state.
+    /// </summary>
     public RadarProcessingRebalanceSession RebalanceSession => rebalanceSession;
 
+    /// <summary>
+    /// Processing core used by the rebalance session.
+    /// </summary>
     public RadarProcessingCore Core => rebalanceSession.Core;
 
+    /// <summary>
+    /// Current topology after any committed rebalance migrations.
+    /// </summary>
     public RadarProcessingTopology CurrentTopology => rebalanceSession.CurrentTopology;
 
+    /// <summary>
+    /// Owned provider queue drained by this session.
+    /// </summary>
     public RadarProcessingOwnedBatchQueue Queue => queue;
 
+    /// <summary>
+    /// Enqueues an owned radar batch and records the enqueue result in session evidence.
+    /// </summary>
     public async ValueTask<RadarProcessingQueuedBatchEnqueueResult> EnqueueAsync(
         RadarEventBatch batch,
         TimeSpan ownedSnapshotTime = default,
@@ -96,14 +129,27 @@ public sealed class RadarProcessingQueuedRebalanceSession : IDisposable, IAsyncD
         return result;
     }
 
+    /// <summary>
+    /// Closes the provider queue to new batches while allowing accepted batches to drain.
+    /// </summary>
     public void CompleteAdding() => queue.Close();
 
+    /// <summary>
+    /// Faults the session and queue so later accepted batches are skipped after fault.
+    /// </summary>
     public void Fault(string message = "")
     {
         ArgumentNullException.ThrowIfNull(message);
         MarkFaulted(message);
     }
 
+    /// <summary>
+    /// Drains the queue sequentially and rebalance-processes each accepted batch.
+    /// </summary>
+    /// <returns>
+    /// A queued session result containing enqueue evidence, processing or
+    /// rebalance outcomes, queue telemetry, terminal status, and final topology version.
+    /// </returns>
     public async ValueTask<RadarProcessingQueuedSessionResult> DrainAsync(
         CancellationToken cancellationToken = default)
     {
@@ -153,6 +199,13 @@ public sealed class RadarProcessingQueuedRebalanceSession : IDisposable, IAsyncD
         }
     }
 
+    /// <summary>
+    /// Computes rebalance batches concurrently while committing results by provider sequence.
+    /// </summary>
+    /// <remarks>
+    /// Ordered commit may recompute stale deltas when an earlier committed
+    /// migration changes topology before a later batch is published.
+    /// </remarks>
     public async ValueTask<RadarProcessingQueuedSessionResult> DrainOrderedConcurrentAsync(
         RadarProcessingOrderedConcurrencyOptions? orderedOptions = null,
         CancellationToken cancellationToken = default)
@@ -262,11 +315,17 @@ public sealed class RadarProcessingQueuedRebalanceSession : IDisposable, IAsyncD
         }
     }
 
+    /// <summary>
+    /// Synchronously disposes owned queue and async rebalance resources.
+    /// </summary>
     public void Dispose()
     {
         DisposeAsync().AsTask().GetAwaiter().GetResult();
     }
 
+    /// <summary>
+    /// Disposes owned queue and async rebalance resources.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         bool shouldDispose;

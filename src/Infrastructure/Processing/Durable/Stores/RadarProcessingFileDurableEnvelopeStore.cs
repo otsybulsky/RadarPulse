@@ -3,8 +3,19 @@ using RadarPulse.Domain.Processing;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// JSON-file implementation of the durable envelope persistence boundary.
+/// </summary>
+/// <remarks>
+/// The store is the accepted local/demo durable adapter. Saves write a temporary
+/// file and move it over the target path so readers do not observe partially
+/// serialized durable envelope documents.
+/// </remarks>
 public sealed class RadarProcessingFileDurableEnvelopeStore : IRadarProcessingPersistentDurableEnvelopeStore
 {
+    /// <summary>
+    /// Adapter kind reported for file-backed durable persistence.
+    /// </summary>
     public const string Kind = "file";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.General)
@@ -14,6 +25,9 @@ public sealed class RadarProcessingFileDurableEnvelopeStore : IRadarProcessingPe
 
     private readonly string path;
 
+    /// <summary>
+    /// Creates a file durable envelope store rooted at the supplied path.
+    /// </summary>
     public RadarProcessingFileDurableEnvelopeStore(
         string path)
     {
@@ -25,12 +39,24 @@ public sealed class RadarProcessingFileDurableEnvelopeStore : IRadarProcessingPe
         this.path = Path.GetFullPath(path);
     }
 
+    /// <summary>
+    /// Stable adapter kind for file-backed persistence.
+    /// </summary>
     public string AdapterKind => Kind;
 
+    /// <summary>
+    /// Current durable envelope persistence schema version.
+    /// </summary>
     public int SchemaVersion => RadarProcessingPersistentDurableEnvelopeRecord.CurrentSchemaVersion;
 
+    /// <summary>
+    /// Absolute file path used by this store.
+    /// </summary>
     public string StorageIdentity => path;
 
+    /// <summary>
+    /// Loads durable envelopes from the JSON file and reports empty, incompatible, or failed states.
+    /// </summary>
     public RadarProcessingPersistentDurableEnvelopeLoadResult Load()
     {
         if (!File.Exists(path))
@@ -93,6 +119,9 @@ public sealed class RadarProcessingFileDurableEnvelopeStore : IRadarProcessingPe
         }
     }
 
+    /// <summary>
+    /// Atomically replaces the JSON file with the supplied current-schema records.
+    /// </summary>
     public void Save(
         IReadOnlyList<RadarProcessingPersistentDurableEnvelopeRecord> records)
     {
@@ -139,6 +168,9 @@ public sealed class RadarProcessingFileDurableEnvelopeStore : IRadarProcessingPe
         }
     }
 
+    /// <summary>
+    /// Creates a durable adapter summary for product and operator diagnostics.
+    /// </summary>
     public RadarProcessingDurableAdapterSummary CreateSummary(
         RadarProcessingDurableQueueSummary? queueSummary = null,
         RadarProcessingDurableAdapterCompatibilityStatus compatibilityStatus =

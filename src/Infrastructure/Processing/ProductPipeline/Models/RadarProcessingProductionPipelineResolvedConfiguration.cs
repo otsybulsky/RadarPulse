@@ -2,10 +2,21 @@ using RadarPulse.Domain.Processing;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Effective production-pipeline configuration after applying profile defaults and overrides.
+/// </summary>
+/// <remarks>
+/// The object preserves both values and sources so product evidence can show
+/// which options came from the accepted profile and which came from caller
+/// overrides or test harnesses.
+/// </remarks>
 public sealed class RadarProcessingProductionPipelineResolvedConfiguration
 {
     private readonly IReadOnlyList<string> warnings;
 
+    /// <summary>
+    /// Creates a resolved configuration with validation and warning evidence.
+    /// </summary>
     public RadarProcessingProductionPipelineResolvedConfiguration(
         string profileName,
         RadarProcessingProductionPipelineResolvedOption<RadarProcessingArchiveProviderMode> providerMode,
@@ -63,51 +74,111 @@ public sealed class RadarProcessingProductionPipelineResolvedConfiguration
         this.warnings = CopyWarnings(warnings);
     }
 
+    /// <summary>
+    /// Effective profile name.
+    /// </summary>
     public string ProfileName { get; }
 
+    /// <summary>
+    /// Effective provider mode.
+    /// </summary>
     public RadarProcessingProductionPipelineResolvedOption<RadarProcessingArchiveProviderMode> ProviderMode { get; }
 
+    /// <summary>
+    /// Effective queued provider overlap mode.
+    /// </summary>
     public RadarProcessingProductionPipelineResolvedOption<RadarProcessingQueuedProviderOverlapMode>
         ProviderOverlapMode { get; }
 
+    /// <summary>
+    /// Effective retained payload strategy.
+    /// </summary>
     public RadarProcessingProductionPipelineResolvedOption<RadarProcessingRetainedPayloadStrategy>
         RetentionStrategy { get; }
 
+    /// <summary>
+    /// Effective processing execution mode.
+    /// </summary>
     public RadarProcessingProductionPipelineResolvedOption<RadarProcessingExecutionMode> ExecutionMode { get; }
 
+    /// <summary>
+    /// Effective async worker count.
+    /// </summary>
     public RadarProcessingProductionPipelineResolvedOption<int> WorkerCount { get; }
 
+    /// <summary>
+    /// Effective per-worker queue capacity.
+    /// </summary>
     public RadarProcessingProductionPipelineResolvedOption<int> WorkerQueueCapacity { get; }
 
+    /// <summary>
+    /// Effective provider queue capacity.
+    /// </summary>
     public RadarProcessingProductionPipelineResolvedOption<int> ProviderQueueCapacity { get; }
 
+    /// <summary>
+    /// Effective retained payload byte budget.
+    /// </summary>
     public RadarProcessingProductionPipelineResolvedOption<long> RetainedPayloadBytes { get; }
 
+    /// <summary>
+    /// Effective ordered concurrent active batch capacity.
+    /// </summary>
     public RadarProcessingProductionPipelineResolvedOption<int> OrderedActiveBatchCapacity { get; }
 
+    /// <summary>
+    /// Effective durable adapter kind.
+    /// </summary>
     public RadarProcessingProductionPipelineResolvedOption<RadarProcessingProductionPipelineDurableAdapterKind>
         DurableAdapterKind { get; }
 
+    /// <summary>
+    /// Effective handler output mode.
+    /// </summary>
     public RadarProcessingProductionPipelineResolvedOption<RadarProcessingProductionPipelineHandlerMode> HandlerMode
     {
         get;
     }
 
+    /// <summary>
+    /// Effective optional workload batch limit.
+    /// </summary>
     public RadarProcessingProductionPipelineResolvedOption<int?> WorkloadBatchLimit { get; }
 
+    /// <summary>
+    /// Indicates whether the configuration satisfies the accepted profile.
+    /// </summary>
     public bool IsValid { get; }
 
+    /// <summary>
+    /// First invalid option name when validation failed.
+    /// </summary>
     public string? FirstInvalidOption { get; }
 
+    /// <summary>
+    /// First invalid option reason when validation failed.
+    /// </summary>
     public string? FirstInvalidReason { get; }
 
+    /// <summary>
+    /// Indicates whether profile resolution produced warnings.
+    /// </summary>
     public bool HasWarnings => warnings.Count > 0;
 
+    /// <summary>
+    /// Warning messages for accepted but notable overrides.
+    /// </summary>
     public IReadOnlyList<string> Warnings => warnings;
 
+    /// <summary>
+    /// Creates async execution options from resolved worker settings.
+    /// </summary>
     public RadarProcessingAsyncExecutionOptions CreateAsyncExecution() =>
         new(WorkerCount.Value, WorkerQueueCapacity.Value);
 
+    /// <summary>
+    /// Creates queued-overlap runtime options from resolved queue and retention settings.
+    /// </summary>
     public RadarProcessingArchiveQueuedOverlapOptions CreateQueuedOverlapOptions() =>
         new(
             new RadarProcessingProviderQueueOptions(
@@ -118,6 +189,9 @@ public sealed class RadarProcessingProductionPipelineResolvedConfiguration
                 RetainedPayloadBytes.Value),
             retainedPayloadPrewarmOptions: RadarProcessingRetainedPayloadPrewarmOptions.RolloutDefault);
 
+    /// <summary>
+    /// Creates ordered concurrency options from the resolved active batch capacity.
+    /// </summary>
     public RadarProcessingOrderedConcurrencyOptions CreateOrderedConcurrencyOptions() =>
         new(OrderedActiveBatchCapacity.Value);
 

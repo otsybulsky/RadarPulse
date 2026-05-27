@@ -2,10 +2,27 @@ using System.Buffers;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Array pool that retains a bounded number of large payload byte arrays.
+/// </summary>
+/// <remarks>
+/// Small arrays delegate to the fallback pool. Large arrays are retained by
+/// size-bounded best fit so archive-shaped retained payload copies can reuse
+/// large buffers without unbounded memory growth.
+/// </remarks>
 public sealed class RadarProcessingRetainedPayloadByteArrayPool : ArrayPool<byte>
 {
+    /// <summary>
+    /// Default threshold at which byte arrays are retained by this pool.
+    /// </summary>
     public const int DefaultLargeArrayThreshold = 1_048_576;
+    /// <summary>
+    /// Default maximum count of retained large arrays.
+    /// </summary>
     public const int DefaultMaxRetainedArrayCount = 4;
+    /// <summary>
+    /// Default maximum bytes retained by large arrays.
+    /// </summary>
     public const long DefaultMaxRetainedBytes = 128L * 1024L * 1024L;
 
     private readonly object sync = new();
@@ -16,6 +33,9 @@ public sealed class RadarProcessingRetainedPayloadByteArrayPool : ArrayPool<byte
     private long returnCount;
     private long missCount;
 
+    /// <summary>
+    /// Creates a retained byte array pool with bounded large-array retention.
+    /// </summary>
     public RadarProcessingRetainedPayloadByteArrayPool(
         ArrayPool<byte>? fallback = null,
         int largeArrayThreshold = DefaultLargeArrayThreshold,
@@ -32,12 +52,24 @@ public sealed class RadarProcessingRetainedPayloadByteArrayPool : ArrayPool<byte
         MaxRetainedBytes = maxRetainedBytes;
     }
 
+    /// <summary>
+    /// Minimum requested length retained by this pool instead of the fallback pool.
+    /// </summary>
     public int LargeArrayThreshold { get; }
 
+    /// <summary>
+    /// Maximum number of retained large arrays.
+    /// </summary>
     public int MaxRetainedArrayCount { get; }
 
+    /// <summary>
+    /// Maximum retained bytes across large arrays.
+    /// </summary>
     public long MaxRetainedBytes { get; }
 
+    /// <summary>
+    /// Number of large arrays currently retained.
+    /// </summary>
     public int RetainedArrayCount
     {
         get
@@ -49,6 +81,9 @@ public sealed class RadarProcessingRetainedPayloadByteArrayPool : ArrayPool<byte
         }
     }
 
+    /// <summary>
+    /// Total bytes currently retained by large arrays.
+    /// </summary>
     public long RetainedBytes
     {
         get
@@ -60,6 +95,9 @@ public sealed class RadarProcessingRetainedPayloadByteArrayPool : ArrayPool<byte
         }
     }
 
+    /// <summary>
+    /// Number of rent requests observed by this pool.
+    /// </summary>
     public long RentCount
     {
         get
@@ -71,6 +109,9 @@ public sealed class RadarProcessingRetainedPayloadByteArrayPool : ArrayPool<byte
         }
     }
 
+    /// <summary>
+    /// Number of arrays returned to this pool.
+    /// </summary>
     public long ReturnCount
     {
         get
@@ -82,6 +123,9 @@ public sealed class RadarProcessingRetainedPayloadByteArrayPool : ArrayPool<byte
         }
     }
 
+    /// <summary>
+    /// Number of large-array rents that missed retained buffers and allocated.
+    /// </summary>
     public long MissCount
     {
         get
@@ -93,6 +137,9 @@ public sealed class RadarProcessingRetainedPayloadByteArrayPool : ArrayPool<byte
         }
     }
 
+    /// <summary>
+    /// Rents a byte array, using retained large arrays when available.
+    /// </summary>
     public override byte[] Rent(int minimumLength)
     {
         return RentCore(minimumLength, out _);
@@ -105,6 +152,9 @@ public sealed class RadarProcessingRetainedPayloadByteArrayPool : ArrayPool<byte
         return RentCore(minimumLength, out missed);
     }
 
+    /// <summary>
+    /// Seeds the retained large-array cache with arrays sized for the requested payload length.
+    /// </summary>
     public void Prewarm(
         int minimumLength,
         int arrayCount)
@@ -205,6 +255,9 @@ public sealed class RadarProcessingRetainedPayloadByteArrayPool : ArrayPool<byte
         return new byte[RoundLargeArrayLength(minimumLength)];
     }
 
+    /// <summary>
+    /// Returns a byte array, retaining large arrays within configured count and byte budgets.
+    /// </summary>
     public override void Return(byte[] array, bool clearArray = false)
     {
         ArgumentNullException.ThrowIfNull(array);

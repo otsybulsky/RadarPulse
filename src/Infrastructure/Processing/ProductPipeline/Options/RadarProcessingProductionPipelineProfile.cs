@@ -2,10 +2,19 @@ using RadarPulse.Domain.Processing;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Resolves and validates the accepted production-pipeline configuration profile.
+/// </summary>
 public static class RadarProcessingProductionPipelineProfile
 {
+    /// <summary>
+    /// Default profile name reported by production-pipeline evidence.
+    /// </summary>
     public const string DefaultProfileName = "production-pipeline";
 
+    /// <summary>
+    /// Resolves caller options against accepted rollout defaults and validation rules.
+    /// </summary>
     public static RadarProcessingProductionPipelineResolvedConfiguration Resolve(
         RadarProcessingProductionPipelineOptions? options = null)
     {

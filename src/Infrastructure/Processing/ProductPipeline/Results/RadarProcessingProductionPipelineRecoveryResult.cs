@@ -2,10 +2,16 @@ using RadarPulse.Domain.Processing;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Result of recovering completed durable work for a production-pipeline run.
+/// </summary>
 public sealed class RadarProcessingProductionPipelineRecoveryResult
 {
     private readonly IReadOnlyList<RadarProcessingQueuedBatchProcessingResult> committedResults;
 
+    /// <summary>
+    /// Creates a recovery result with committed processing evidence.
+    /// </summary>
     public RadarProcessingProductionPipelineRecoveryResult(
         string runId,
         RadarProcessingProductionPipelineResolvedConfiguration configuration,
@@ -31,20 +37,44 @@ public sealed class RadarProcessingProductionPipelineRecoveryResult
         Message = message;
     }
 
+    /// <summary>
+    /// Stable run id.
+    /// </summary>
     public string RunId { get; }
 
+    /// <summary>
+    /// Resolved configuration used for recovery.
+    /// </summary>
     public RadarProcessingProductionPipelineResolvedConfiguration Configuration { get; }
 
+    /// <summary>
+    /// Operator readiness summary after recovery.
+    /// </summary>
     public RadarProcessingProductionPipelineOperatorSummary OperatorSummary { get; }
 
+    /// <summary>
+    /// Durable adapter evidence after recovery.
+    /// </summary>
     public RadarProcessingDurableAdapterSummary AdapterSummary { get; }
 
+    /// <summary>
+    /// Number of completed envelopes staged for commit from persisted state.
+    /// </summary>
     public int RecoveredCompletedCount { get; }
 
+    /// <summary>
+    /// Processing results committed during recovery.
+    /// </summary>
     public IReadOnlyList<RadarProcessingQueuedBatchProcessingResult> CommittedResults => committedResults;
 
+    /// <summary>
+    /// Recovery outcome message.
+    /// </summary>
     public string Message { get; }
 
+    /// <summary>
+    /// Indicates whether the resulting operator summary is ready.
+    /// </summary>
     public bool IsReady => OperatorSummary.IsReady;
 
     private static IReadOnlyList<RadarProcessingQueuedBatchProcessingResult> CopyResults(

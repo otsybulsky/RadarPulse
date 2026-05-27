@@ -2,12 +2,18 @@ using RadarPulse.Domain.Processing;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Factory for deterministic benchmark handlers used by synthetic processing runs.
+/// </summary>
 public static class RadarProcessingBenchmarkHandlers
 {
     private const int HeavySampleCount = 16;
     private const ulong HeavyChecksumInitial = 14_695_981_039_346_656_037UL;
     private const ulong HeavyChecksumPrime = 1_099_511_628_211UL;
 
+    /// <summary>
+    /// Creates handlers for the selected benchmark handler set.
+    /// </summary>
     public static IReadOnlyList<IRadarSourceProcessingHandler> Create(
         RadarProcessingBenchmarkHandlerSet handlerSet) =>
         handlerSet switch
@@ -24,6 +30,9 @@ public static class RadarProcessingBenchmarkHandlers
             _ => throw new ArgumentOutOfRangeException(nameof(handlerSet))
         };
 
+    /// <summary>
+    /// Ensures the benchmark handler set is a known value.
+    /// </summary>
     public static void EnsureKnown(
         RadarProcessingBenchmarkHandlerSet handlerSet)
     {

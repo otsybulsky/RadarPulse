@@ -4,6 +4,14 @@ using RadarPulse.Domain.Streaming;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Async shard-transport adapter for a processing core.
+/// </summary>
+/// <remarks>
+/// The session starts its worker group lazily, dispatches shard work, aggregates
+/// worker completions, records worker telemetry, and commits successful async
+/// batches back through the underlying processing core.
+/// </remarks>
 public sealed class RadarProcessingAsyncCoreSession : IAsyncDisposable
 {
     private readonly RadarProcessingCore core;
@@ -15,6 +23,9 @@ public sealed class RadarProcessingAsyncCoreSession : IAsyncDisposable
     private int started;
     private int disposed;
 
+    /// <summary>
+    /// Creates a session with an owned worker group derived from core async options.
+    /// </summary>
     public RadarProcessingAsyncCoreSession(
         RadarProcessingCore core,
         RadarProcessingWorkerTelemetryRecorder? workerTelemetryRecorder = null)
@@ -26,6 +37,9 @@ public sealed class RadarProcessingAsyncCoreSession : IAsyncDisposable
     {
     }
 
+    /// <summary>
+    /// Creates a session over an explicit worker group and telemetry recorder.
+    /// </summary>
     public RadarProcessingAsyncCoreSession(
         RadarProcessingCore core,
         RadarProcessingAsyncWorkerGroup workerGroup,
@@ -48,12 +62,24 @@ public sealed class RadarProcessingAsyncCoreSession : IAsyncDisposable
         this.ownsWorkerGroup = ownsWorkerGroup;
     }
 
+    /// <summary>
+    /// Processing core that owns state and commit semantics.
+    /// </summary>
     public RadarProcessingCore Core => core;
 
+    /// <summary>
+    /// Worker group used for shard dispatch.
+    /// </summary>
     public RadarProcessingAsyncWorkerGroup WorkerGroup => workerGroup;
 
+    /// <summary>
+    /// Recorder used to accumulate async worker telemetry.
+    /// </summary>
     public RadarProcessingWorkerTelemetryRecorder WorkerTelemetryRecorder => workerTelemetryRecorder;
 
+    /// <summary>
+    /// Processes a batch through async shard transport and commits successful completions.
+    /// </summary>
     public async ValueTask<RadarProcessingResult> ProcessAsync(
         RadarEventBatch batch,
         CancellationToken cancellationToken = default)
@@ -116,6 +142,13 @@ public sealed class RadarProcessingAsyncCoreSession : IAsyncDisposable
         return ValidateAsyncResult(core.CompleteAsyncBatch(aggregation.Telemetry!, workerTelemetry));
     }
 
+    /// <summary>
+    /// Computes a disposable processing delta through async shard transport without committing it.
+    /// </summary>
+    /// <remarks>
+    /// This path is used by ordered concurrent queue drains and requires a
+    /// handler-free core because handler output merge is handled separately.
+    /// </remarks>
     public async ValueTask<RadarProcessingAsyncBatchDeltaResult> ComputeDeltaAsync(
         RadarEventBatch batch,
         CancellationToken cancellationToken = default)
@@ -179,6 +212,9 @@ public sealed class RadarProcessingAsyncCoreSession : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Disposes the owned worker group when this session created it.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref disposed, 1) != 0)

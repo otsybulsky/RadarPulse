@@ -1,8 +1,19 @@
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Result returned by a worker mailbox dequeue operation.
+/// </summary>
+/// <remarks>
+/// Item results always carry a non-null item. Non-item results deliberately
+/// carry no item so cancellation, close, and disposal paths cannot accidentally
+/// process stale work.
+/// </remarks>
 public readonly record struct RadarProcessingWorkerMailboxDequeueResult<TWork>
     where TWork : class
 {
+    /// <summary>
+    /// Creates a dequeue result and enforces item/status consistency.
+    /// </summary>
     public RadarProcessingWorkerMailboxDequeueResult(
         RadarProcessingWorkerMailboxDequeueStatus status,
         TWork? item = default)
@@ -24,10 +35,19 @@ public readonly record struct RadarProcessingWorkerMailboxDequeueResult<TWork>
         Item = item;
     }
 
+    /// <summary>
+    /// Status reported by the mailbox reader.
+    /// </summary>
     public RadarProcessingWorkerMailboxDequeueStatus Status { get; }
 
+    /// <summary>
+    /// Work item returned for <see cref="RadarProcessingWorkerMailboxDequeueStatus.Item"/> results.
+    /// </summary>
     public TWork? Item { get; }
 
+    /// <summary>
+    /// Indicates whether the dequeue operation produced a work item.
+    /// </summary>
     public bool HasItem => Status == RadarProcessingWorkerMailboxDequeueStatus.Item;
 
     internal static void EnsureKnownStatus(

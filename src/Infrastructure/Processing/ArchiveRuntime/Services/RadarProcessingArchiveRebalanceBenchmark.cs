@@ -6,6 +6,9 @@ using RadarPulse.Infrastructure.Archive;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Measures archive replay with rebalance processing across provider and execution modes.
+/// </summary>
 public sealed class RadarProcessingArchiveRebalanceBenchmark
 {
     private const ulong ChecksumInitial = 14_695_981_039_346_656_037UL;
@@ -14,16 +17,25 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
 
     private readonly IArchiveBZip2Decompressor decompressor;
 
+    /// <summary>
+    /// Creates a benchmark with the default archive decompressor.
+    /// </summary>
     public RadarProcessingArchiveRebalanceBenchmark()
         : this(ArchiveBZip2Decompressors.Create(ArchiveBZip2Decompressors.DefaultName))
     {
     }
 
+    /// <summary>
+    /// Creates a benchmark with an explicit archive decompressor.
+    /// </summary>
     public RadarProcessingArchiveRebalanceBenchmark(IArchiveBZip2Decompressor decompressor)
     {
         this.decompressor = decompressor ?? throw new ArgumentNullException(nameof(decompressor));
     }
 
+    /// <summary>
+    /// Measures archive rebalance processing over one local archive file.
+    /// </summary>
     public RadarProcessingArchiveRebalanceBenchmarkResult MeasureFile(
         string filePath,
         RadarProcessingSyntheticRebalanceBenchmarkMode mode,
@@ -295,6 +307,9 @@ public sealed class RadarProcessingArchiveRebalanceBenchmark
         }
     }
 
+    /// <summary>
+    /// Measures archive rebalance behavior over a bounded cache selection using explicit or rollout-default adapters.
+    /// </summary>
     public RadarProcessingArchiveRebalanceCacheBenchmarkResult MeasureCache(
         string cachePath,
         DateOnly? date,

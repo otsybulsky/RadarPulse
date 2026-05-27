@@ -2,6 +2,14 @@ using RadarPulse.Domain.Processing;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Coordinates out-of-order batch completions into provider-sequence publication order.
+/// </summary>
+/// <remarks>
+/// Once a terminal failure has published, successful later results are held back
+/// while cancellation or skipped-after-fault results may still publish to
+/// complete observable session evidence.
+/// </remarks>
 public sealed class RadarProcessingOrderedResultCoordinator
 {
     private readonly object sync = new();
@@ -9,6 +17,9 @@ public sealed class RadarProcessingOrderedResultCoordinator
     private long nextPublishSequence;
     private bool terminalFailurePublished;
 
+    /// <summary>
+    /// Next provider sequence required for publication.
+    /// </summary>
     public long NextPublishSequence
     {
         get
@@ -20,6 +31,9 @@ public sealed class RadarProcessingOrderedResultCoordinator
         }
     }
 
+    /// <summary>
+    /// Number of completed results waiting for their publish sequence.
+    /// </summary>
     public int PendingCount
     {
         get
@@ -31,6 +45,9 @@ public sealed class RadarProcessingOrderedResultCoordinator
         }
     }
 
+    /// <summary>
+    /// Indicates whether a terminal failure has already been published.
+    /// </summary>
     public bool HasPublishedTerminalFailure
     {
         get
@@ -42,6 +59,9 @@ public sealed class RadarProcessingOrderedResultCoordinator
         }
     }
 
+    /// <summary>
+    /// Indicates whether a successful result is blocked behind a published terminal failure.
+    /// </summary>
     public bool IsBlockedByTerminalFailure
     {
         get
@@ -55,6 +75,9 @@ public sealed class RadarProcessingOrderedResultCoordinator
         }
     }
 
+    /// <summary>
+    /// Adds a completion and returns any now-publishable results in order.
+    /// </summary>
     public IReadOnlyList<RadarProcessingQueuedBatchProcessingResult> Complete(
         RadarProcessingQueuedBatchProcessingResult result)
     {

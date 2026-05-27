@@ -2,6 +2,14 @@ using RadarPulse.Domain.Processing;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Processes durable envelope claims through a processing core and ordered commit gate.
+/// </summary>
+/// <remarks>
+/// Durable processing separates claim/compute from ordered commit so recovered
+/// completed envelopes can be replayed in provider sequence before retained
+/// resources are marked released.
+/// </remarks>
 public sealed class RadarProcessingDurableProcessingSession : IDisposable, IAsyncDisposable
 {
     private readonly object sync = new();
@@ -17,6 +25,9 @@ public sealed class RadarProcessingDurableProcessingSession : IDisposable, IAsyn
     private bool disposed;
     private string faultMessage = string.Empty;
 
+    /// <summary>
+    /// Creates a durable processing session over a queue and any required async core session.
+    /// </summary>
     public RadarProcessingDurableProcessingSession(
         RadarProcessingCore core,
         RadarProcessingDurableEnvelopeQueue? queue = null)
@@ -28,6 +39,13 @@ public sealed class RadarProcessingDurableProcessingSession : IDisposable, IAsyn
     {
     }
 
+    /// <summary>
+    /// Creates a durable processing session over explicit queue and async dependencies.
+    /// </summary>
+    /// <remarks>
+    /// Async shard transport requires the async core session to wrap the same
+    /// core; synchronous processing rejects async dependencies.
+    /// </remarks>
     public RadarProcessingDurableProcessingSession(
         RadarProcessingCore core,
         RadarProcessingDurableEnvelopeQueue queue,
@@ -60,10 +78,19 @@ public sealed class RadarProcessingDurableProcessingSession : IDisposable, IAsyn
         this.ownsAsyncCoreSession = ownsAsyncCoreSession;
     }
 
+    /// <summary>
+    /// Processing core used to compute and commit durable batch work.
+    /// </summary>
     public RadarProcessingCore Core => core;
 
+    /// <summary>
+    /// Durable envelope queue owned by the session caller.
+    /// </summary>
     public RadarProcessingDurableEnvelopeQueue Queue => queue;
 
+    /// <summary>
+    /// Computes processing output for a claimed envelope and records the durable state.
+    /// </summary>
     public async ValueTask<RadarProcessingDurableQueueOperationResult> ProcessClaimedAsync(
         RadarProcessingDurableClaimedEnvelope claimedEnvelope,
         CancellationToken cancellationToken = default)
@@ -88,6 +115,10 @@ public sealed class RadarProcessingDurableProcessingSession : IDisposable, IAsyn
         return operation;
     }
 
+    /// <summary>
+    /// Commits ready completed envelopes in provider sequence order.
+    /// </summary>
+    /// <returns>Processing results published by this call.</returns>
     public IReadOnlyList<RadarProcessingQueuedBatchProcessingResult> CommitReady(
         CancellationToken cancellationToken = default)
     {
@@ -142,6 +173,10 @@ public sealed class RadarProcessingDurableProcessingSession : IDisposable, IAsyn
             : Array.AsReadOnly(published.ToArray());
     }
 
+    /// <summary>
+    /// Rebuilds pending commit work for envelopes persisted as completed.
+    /// </summary>
+    /// <returns>The number of completed envelopes staged for ordered commit.</returns>
     public async ValueTask<int> RecoverCompletedAsync(
         CancellationToken cancellationToken = default)
     {
@@ -181,6 +216,9 @@ public sealed class RadarProcessingDurableProcessingSession : IDisposable, IAsyn
         return recovered;
     }
 
+    /// <summary>
+    /// Claims, processes, and commits durable envelopes until no pending work remains.
+    /// </summary>
     public async ValueTask<RadarProcessingDurableProcessingSessionResult> DrainAsync(
         string workerId = "durable-local-worker",
         CancellationToken cancellationToken = default)
@@ -217,6 +255,9 @@ public sealed class RadarProcessingDurableProcessingSession : IDisposable, IAsyn
         return CreateResult();
     }
 
+    /// <summary>
+    /// Applies retry policy to a failed or abandoned durable envelope.
+    /// </summary>
     public RadarProcessingDurableQueueOperationResult RetryOrPoison(
         RadarProcessingDurableBatchId batchId,
         RadarProcessingDurableRetryPolicy? retryPolicy = null,
@@ -254,6 +295,9 @@ public sealed class RadarProcessingDurableProcessingSession : IDisposable, IAsyn
             $"Durable envelope '{batchId}' cannot retry from state {snapshot.State}.");
     }
 
+    /// <summary>
+    /// Cancels open durable work, releases canceled envelopes, and returns a session result.
+    /// </summary>
     public RadarProcessingDurableProcessingSessionResult CancelAndCleanup(
         string message = "Durable processing was canceled.")
     {
@@ -267,6 +311,9 @@ public sealed class RadarProcessingDurableProcessingSession : IDisposable, IAsyn
         return CreateResult();
     }
 
+    /// <summary>
+    /// Creates a session result from current queue summary and published processing results.
+    /// </summary>
     public RadarProcessingDurableProcessingSessionResult CreateResult()
     {
         RadarProcessingQueuedBatchProcessingResult[] processingSnapshot;
@@ -294,11 +341,17 @@ public sealed class RadarProcessingDurableProcessingSession : IDisposable, IAsyn
             message);
     }
 
+    /// <summary>
+    /// Synchronously disposes pending completions and owned async core resources.
+    /// </summary>
     public void Dispose()
     {
         DisposeAsync().AsTask().GetAwaiter().GetResult();
     }
 
+    /// <summary>
+    /// Disposes pending completions and owned async core resources.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         bool shouldDispose;

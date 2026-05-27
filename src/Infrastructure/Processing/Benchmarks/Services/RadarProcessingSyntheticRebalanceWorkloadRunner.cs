@@ -1,7 +1,13 @@
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Runs one synthetic rebalance workload and returns per-batch evidence.
+/// </summary>
 public sealed class RadarProcessingSyntheticRebalanceWorkloadRunner
 {
+    /// <summary>
+    /// Processes workload batches through a rebalance session.
+    /// </summary>
     public RadarProcessingSyntheticRebalanceWorkloadResult Run(
         RadarProcessingSyntheticRebalanceWorkload workload,
         CancellationToken cancellationToken = default)

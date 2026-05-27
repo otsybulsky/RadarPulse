@@ -3,6 +3,14 @@ using RadarPulse.Domain.Streaming;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Async shard-transport adapter for rebalance processing.
+/// </summary>
+/// <remarks>
+/// The adapter shares one processing core between async processing and the
+/// rebalance session, then validates the rebalance result against the current
+/// topology before returning it.
+/// </remarks>
 public sealed class RadarProcessingAsyncRebalanceSession : IAsyncDisposable
 {
     private readonly RadarProcessingRebalanceSession rebalanceSession;
@@ -10,6 +18,9 @@ public sealed class RadarProcessingAsyncRebalanceSession : IAsyncDisposable
     private readonly bool ownsAsyncCoreSession;
     private int disposed;
 
+    /// <summary>
+    /// Creates an async rebalance session with owned rebalance and async core dependencies.
+    /// </summary>
     public RadarProcessingAsyncRebalanceSession(
         RadarProcessingCore core,
         RadarProcessingPressureOptions? pressureOptions = null,
@@ -41,6 +52,9 @@ public sealed class RadarProcessingAsyncRebalanceSession : IAsyncDisposable
     {
     }
 
+    /// <summary>
+    /// Creates an async rebalance session over an existing rebalance session.
+    /// </summary>
     public RadarProcessingAsyncRebalanceSession(
         RadarProcessingRebalanceSession rebalanceSession)
         : this(
@@ -50,6 +64,9 @@ public sealed class RadarProcessingAsyncRebalanceSession : IAsyncDisposable
     {
     }
 
+    /// <summary>
+    /// Creates an async rebalance session over explicit rebalance and async core dependencies.
+    /// </summary>
     public RadarProcessingAsyncRebalanceSession(
         RadarProcessingRebalanceSession rebalanceSession,
         RadarProcessingAsyncCoreSession asyncCoreSession,
@@ -77,14 +94,29 @@ public sealed class RadarProcessingAsyncRebalanceSession : IAsyncDisposable
         this.ownsAsyncCoreSession = ownsAsyncCoreSession;
     }
 
+    /// <summary>
+    /// Rebalance session that commits topology-aware processing results.
+    /// </summary>
     public RadarProcessingRebalanceSession RebalanceSession => rebalanceSession;
 
+    /// <summary>
+    /// Async core session used to process shard work.
+    /// </summary>
     public RadarProcessingAsyncCoreSession AsyncCoreSession => asyncCoreSession;
 
+    /// <summary>
+    /// Processing core shared by the rebalance and async sessions.
+    /// </summary>
     public RadarProcessingCore Core => rebalanceSession.Core;
 
+    /// <summary>
+    /// Current topology after any committed rebalance migration.
+    /// </summary>
     public RadarProcessingTopology CurrentTopology => rebalanceSession.CurrentTopology;
 
+    /// <summary>
+    /// Processes a batch asynchronously, then applies rebalance policy and validation.
+    /// </summary>
     public async ValueTask<RadarProcessingRebalanceSessionResult> ProcessAsync(
         RadarEventBatch batch,
         CancellationToken cancellationToken = default)
@@ -106,6 +138,9 @@ public sealed class RadarProcessingAsyncRebalanceSession : IAsyncDisposable
         return result;
     }
 
+    /// <summary>
+    /// Disposes the owned async core session when this adapter created it.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref disposed, 1) != 0)

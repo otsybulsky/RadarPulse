@@ -2,10 +2,21 @@ using RadarPulse.Domain.Processing;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Result of validating and aggregating one async dispatch.
+/// </summary>
+/// <remarks>
+/// Successful results carry telemetry and ordered completions. Failed results
+/// carry an aggregation error and the completions that were available for
+/// diagnostics, but no successful processing telemetry.
+/// </remarks>
 public sealed record RadarProcessingAsyncAggregationResult
 {
     private readonly IReadOnlyList<RadarProcessingAsyncWorkCompletion> orderedCompletions;
 
+    /// <summary>
+    /// Creates an aggregation result for a dispatch.
+    /// </summary>
     public RadarProcessingAsyncAggregationResult(
         RadarProcessingAsyncDispatchResult dispatchResult,
         RadarProcessingAsyncAggregationError error = RadarProcessingAsyncAggregationError.None,
@@ -31,16 +42,34 @@ public sealed record RadarProcessingAsyncAggregationResult
         this.orderedCompletions = CopyCompletions(orderedCompletions ?? Array.Empty<RadarProcessingAsyncWorkCompletion>());
     }
 
+    /// <summary>
+    /// Dispatch result being aggregated.
+    /// </summary>
     public RadarProcessingAsyncDispatchResult DispatchResult { get; }
 
+    /// <summary>
+    /// Aggregation error, or none for success.
+    /// </summary>
     public RadarProcessingAsyncAggregationError Error { get; }
 
+    /// <summary>
+    /// Route-level telemetry created for a successful async batch.
+    /// </summary>
     public RadarProcessingTelemetry? Telemetry { get; }
 
+    /// <summary>
+    /// Work completions ordered by work item id.
+    /// </summary>
     public IReadOnlyList<RadarProcessingAsyncWorkCompletion> OrderedCompletions => orderedCompletions;
 
+    /// <summary>
+    /// Indicates whether aggregation produced valid async processing telemetry.
+    /// </summary>
     public bool IsSuccess => Error == RadarProcessingAsyncAggregationError.None;
 
+    /// <summary>
+    /// Converts aggregation evidence into a processing result over the supplied metrics snapshot.
+    /// </summary>
     public RadarProcessingResult CreateProcessingResult(
         RadarProcessingMetrics metrics) =>
         new(

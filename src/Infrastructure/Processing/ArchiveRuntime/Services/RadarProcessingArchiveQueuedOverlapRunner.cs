@@ -7,8 +7,14 @@ using RadarPulse.Infrastructure.Archive;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Runs archive publishing and queued processing concurrently over an owned provider queue.
+/// </summary>
 public sealed class RadarProcessingArchiveQueuedOverlapRunner
 {
+    /// <summary>
+    /// Runs archive publishing into a queued rebalance consumer.
+    /// </summary>
     public ValueTask<RadarProcessingArchiveQueuedOverlapResult> RunRebalanceAsync(
         Func<IArchiveRadarEventBatchPublisher, CancellationToken, ArchiveRadarEventBatchPublishResult> produce,
         RadarProcessingRebalanceSession rebalanceSession,
@@ -25,6 +31,9 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
             cancellationToken);
     }
 
+    /// <summary>
+    /// Runs archive publishing into an ordered concurrent queued rebalance consumer.
+    /// </summary>
     public ValueTask<RadarProcessingArchiveQueuedOverlapResult> RunOrderedRebalanceAsync(
         Func<IArchiveRadarEventBatchPublisher, CancellationToken, ArchiveRadarEventBatchPublishResult> produce,
         RadarProcessingRebalanceSession rebalanceSession,
@@ -51,6 +60,9 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
             cancellationToken);
     }
 
+    /// <summary>
+    /// Runs archive publishing into an ordered queued processing consumer.
+    /// </summary>
     public ValueTask<RadarProcessingArchiveQueuedOverlapResult> RunProcessingAsync(
         Func<IArchiveRadarEventBatchPublisher, CancellationToken, ArchiveRadarEventBatchPublishResult> produce,
         RadarProcessingCore core,
@@ -77,6 +89,9 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
             cancellationToken);
     }
 
+    /// <summary>
+    /// Runs MVP processing using the handler-aware runtime plan.
+    /// </summary>
     public async ValueTask<RadarProcessingMvpRuntimeResult> RunMvpProcessingAsync(
         Func<IArchiveRadarEventBatchPublisher, CancellationToken, ArchiveRadarEventBatchPublishResult> produce,
         RadarProcessingCore core,
@@ -111,6 +126,9 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
         return new RadarProcessingMvpRuntimeResult(plan, result);
     }
 
+    /// <summary>
+    /// Runs producer/consumer overlap with a queue-only consumer delegate.
+    /// </summary>
     public async ValueTask<RadarProcessingArchiveQueuedOverlapResult> RunAsync(
         Func<IArchiveRadarEventBatchPublisher, CancellationToken, ArchiveRadarEventBatchPublishResult> produce,
         Func<RadarProcessingOwnedBatchQueue, CancellationToken, ValueTask<RadarProcessingQueuedSessionResult>> consume,
@@ -123,6 +141,9 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunner
                 cancellationToken)
             .ConfigureAwait(false);
 
+    /// <summary>
+    /// Runs producer/consumer overlap with access to the queueing publisher.
+    /// </summary>
     public async ValueTask<RadarProcessingArchiveQueuedOverlapResult> RunAsync(
         Func<IArchiveRadarEventBatchPublisher, CancellationToken, ArchiveRadarEventBatchPublishResult> produce,
         Func<RadarProcessingOwnedBatchQueue, ArchiveOwnedRadarEventBatchQueueingPublisher, CancellationToken, ValueTask<RadarProcessingQueuedSessionResult>> consume,

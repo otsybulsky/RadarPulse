@@ -134,6 +134,36 @@ touched-file trailing whitespace check
   result: passed
 ```
 
+### Change 9: Processing Infrastructure Contract Documentation
+
+Status: complete.
+
+Intent:
+
+```text
+document processing infrastructure runtime contracts for queues, workers,
+async dispatch, durable envelope persistence, retained payload ownership,
+archive benchmark/runtime adapters, synthetic benchmarks, and production
+pipeline orchestration
+```
+
+Scope:
+
+```text
+src/Infrastructure/Processing
+```
+
+Verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore
+  result: passed, 0 warnings, 0 errors
+git diff --check
+  result: passed
+touched-file trailing whitespace check
+  result: passed
+```
+
 ### Change 4: Processing Handler Contract Documentation
 
 Status: complete.

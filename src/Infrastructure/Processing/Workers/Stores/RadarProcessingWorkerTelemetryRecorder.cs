@@ -2,6 +2,15 @@ using RadarPulse.Domain.Processing;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Aggregates async worker dispatch telemetry into bounded recent samples and counters.
+/// </summary>
+/// <remarks>
+/// The recorder keeps always-on counters and conditionally retains recent batch
+/// and failure details according to <see cref="RadarProcessingTelemetryRetentionOptions"/>.
+/// It is used by infrastructure sessions to expose worker evidence without
+/// changing processing outcomes.
+/// </remarks>
 public sealed class RadarProcessingWorkerTelemetryRecorder
 {
     private readonly RadarProcessingTelemetryRetentionOptions options;
@@ -28,6 +37,9 @@ public sealed class RadarProcessingWorkerTelemetryRecorder
     private int workerCount;
     private int queueCapacity;
 
+    /// <summary>
+    /// Creates a recorder with the selected diagnostic retention settings.
+    /// </summary>
     public RadarProcessingWorkerTelemetryRecorder(
         RadarProcessingTelemetryRetentionOptions? options = null)
     {
@@ -40,8 +52,14 @@ public sealed class RadarProcessingWorkerTelemetryRecorder
             retainDetail ? this.options.MaxRetainedWorkerFailures : 0);
     }
 
+    /// <summary>
+    /// Retention settings that control recent sample capture.
+    /// </summary>
     public RadarProcessingTelemetryRetentionOptions Options => options;
 
+    /// <summary>
+    /// Records one dispatch result and updates counters, timings, and recent failures.
+    /// </summary>
     public void RecordDispatch(
         RadarProcessingAsyncDispatchResult dispatchResult,
         TimeSpan dispatchTime = default,
@@ -57,6 +75,9 @@ public sealed class RadarProcessingWorkerTelemetryRecorder
         RecordFailureSamples(dispatchResult);
     }
 
+    /// <summary>
+    /// Creates an immutable telemetry summary from the current counters and retained samples.
+    /// </summary>
     public RadarProcessingWorkerTelemetrySummary CreateSummary() =>
         new(
             CreateCounters(),
@@ -66,6 +87,9 @@ public sealed class RadarProcessingWorkerTelemetryRecorder
             recentFailures.Snapshot(),
             CreateRetentionStats());
 
+    /// <summary>
+    /// Clears counters and retained samples so the recorder can be reused for a new session.
+    /// </summary>
     public void Reset()
     {
         dispatchedBatchCount = 0;

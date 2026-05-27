@@ -6,22 +6,34 @@ using RadarPulse.Infrastructure.Archive;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Measures ordered processing runtime over NEXRAD archive files or cache selections.
+/// </summary>
 public sealed class RadarProcessingArchiveOrderedProcessingBenchmark
 {
     private const int MaxAutoSizedCacheRadarOrdinalCount = 256;
 
     private readonly IArchiveBZip2Decompressor decompressor;
 
+    /// <summary>
+    /// Creates a benchmark with the default archive decompressor.
+    /// </summary>
     public RadarProcessingArchiveOrderedProcessingBenchmark()
         : this(ArchiveBZip2Decompressors.Create(ArchiveBZip2Decompressors.DefaultName))
     {
     }
 
+    /// <summary>
+    /// Creates a benchmark with an explicit archive decompressor.
+    /// </summary>
     public RadarProcessingArchiveOrderedProcessingBenchmark(IArchiveBZip2Decompressor decompressor)
     {
         this.decompressor = decompressor ?? throw new ArgumentNullException(nameof(decompressor));
     }
 
+    /// <summary>
+    /// Measures ordered processing over one local archive file.
+    /// </summary>
     public RadarProcessingArchiveOrderedProcessingBenchmarkResult MeasureFile(
         string filePath,
         int iterations,
@@ -115,6 +127,9 @@ public sealed class RadarProcessingArchiveOrderedProcessingBenchmark
             ExcludeStartupPrewarmAllocation(allocatedBytes, measurement.RetainedPayloadPrewarm, iterations));
     }
 
+    /// <summary>
+    /// Measures ordered processing over a bounded cache selection.
+    /// </summary>
     public RadarProcessingArchiveOrderedProcessingBenchmarkResult MeasureCache(
         string cachePath,
         DateOnly? date,

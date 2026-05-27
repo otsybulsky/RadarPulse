@@ -3,6 +3,14 @@ using RadarPulse.Domain.Streaming;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Processes durable envelope claims through a rebalance session and ordered commit gate.
+/// </summary>
+/// <remarks>
+/// Durable rebalance keeps provider-sequence ordering across recoverable work
+/// while allowing rebalance processing and topology changes to be committed only
+/// when earlier completed envelopes have published.
+/// </remarks>
 public sealed class RadarProcessingDurableRebalanceSession : IDisposable, IAsyncDisposable
 {
     private readonly object sync = new();
@@ -18,6 +26,9 @@ public sealed class RadarProcessingDurableRebalanceSession : IDisposable, IAsync
     private bool disposed;
     private string faultMessage = string.Empty;
 
+    /// <summary>
+    /// Creates a durable rebalance session over a queue and any required async rebalance session.
+    /// </summary>
     public RadarProcessingDurableRebalanceSession(
         RadarProcessingRebalanceSession rebalanceSession,
         RadarProcessingDurableEnvelopeQueue? queue = null)
@@ -29,6 +40,13 @@ public sealed class RadarProcessingDurableRebalanceSession : IDisposable, IAsync
     {
     }
 
+    /// <summary>
+    /// Creates a durable rebalance session over explicit queue and async dependencies.
+    /// </summary>
+    /// <remarks>
+    /// Async shard transport requires the async rebalance session to wrap the
+    /// same rebalance session; synchronous processing rejects async dependencies.
+    /// </remarks>
     public RadarProcessingDurableRebalanceSession(
         RadarProcessingRebalanceSession rebalanceSession,
         RadarProcessingDurableEnvelopeQueue queue,
@@ -61,14 +79,29 @@ public sealed class RadarProcessingDurableRebalanceSession : IDisposable, IAsync
         this.ownsAsyncRebalanceSession = ownsAsyncRebalanceSession;
     }
 
+    /// <summary>
+    /// Rebalance session used to process and commit durable work.
+    /// </summary>
     public RadarProcessingRebalanceSession RebalanceSession => rebalanceSession;
 
+    /// <summary>
+    /// Processing core owned by the rebalance session.
+    /// </summary>
     public RadarProcessingCore Core => rebalanceSession.Core;
 
+    /// <summary>
+    /// Current topology after committed durable rebalance work.
+    /// </summary>
     public RadarProcessingTopology CurrentTopology => rebalanceSession.CurrentTopology;
 
+    /// <summary>
+    /// Durable envelope queue owned by the session caller.
+    /// </summary>
     public RadarProcessingDurableEnvelopeQueue Queue => queue;
 
+    /// <summary>
+    /// Computes rebalance output for a claimed envelope and records the durable state.
+    /// </summary>
     public async ValueTask<RadarProcessingDurableQueueOperationResult> ProcessClaimedAsync(
         RadarProcessingDurableClaimedEnvelope claimedEnvelope,
         CancellationToken cancellationToken = default)
@@ -93,6 +126,10 @@ public sealed class RadarProcessingDurableRebalanceSession : IDisposable, IAsync
         return operation;
     }
 
+    /// <summary>
+    /// Commits ready completed rebalance envelopes in provider sequence order.
+    /// </summary>
+    /// <returns>Processing results published by this call.</returns>
     public IReadOnlyList<RadarProcessingQueuedBatchProcessingResult> CommitReady(
         CancellationToken cancellationToken = default)
     {
@@ -150,6 +187,9 @@ public sealed class RadarProcessingDurableRebalanceSession : IDisposable, IAsync
             : Array.AsReadOnly(published.ToArray());
     }
 
+    /// <summary>
+    /// Claims, processes, and commits durable rebalance envelopes until no pending work remains.
+    /// </summary>
     public async ValueTask<RadarProcessingDurableRebalanceSessionResult> DrainAsync(
         string workerId = "durable-local-worker",
         CancellationToken cancellationToken = default)
@@ -186,6 +226,9 @@ public sealed class RadarProcessingDurableRebalanceSession : IDisposable, IAsync
         return CreateResult();
     }
 
+    /// <summary>
+    /// Applies retry policy to a failed or abandoned durable rebalance envelope.
+    /// </summary>
     public RadarProcessingDurableQueueOperationResult RetryOrPoison(
         RadarProcessingDurableBatchId batchId,
         RadarProcessingDurableRetryPolicy? retryPolicy = null,
@@ -223,6 +266,9 @@ public sealed class RadarProcessingDurableRebalanceSession : IDisposable, IAsync
             $"Durable envelope '{batchId}' cannot retry from state {snapshot.State}.");
     }
 
+    /// <summary>
+    /// Cancels open durable rebalance work, releases canceled envelopes, and returns a result.
+    /// </summary>
     public RadarProcessingDurableRebalanceSessionResult CancelAndCleanup(
         string message = "Durable rebalance was canceled.")
     {
@@ -236,6 +282,9 @@ public sealed class RadarProcessingDurableRebalanceSession : IDisposable, IAsync
         return CreateResult();
     }
 
+    /// <summary>
+    /// Creates a session result from current queue summary, processing results, and topology version.
+    /// </summary>
     public RadarProcessingDurableRebalanceSessionResult CreateResult()
     {
         RadarProcessingQueuedBatchProcessingResult[] processingSnapshot;
@@ -264,11 +313,17 @@ public sealed class RadarProcessingDurableRebalanceSession : IDisposable, IAsync
             rebalanceSession.CurrentTopology.Version);
     }
 
+    /// <summary>
+    /// Synchronously disposes pending completions and owned async rebalance resources.
+    /// </summary>
     public void Dispose()
     {
         DisposeAsync().AsTask().GetAwaiter().GetResult();
     }
 
+    /// <summary>
+    /// Disposes pending completions and owned async rebalance resources.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         bool shouldDispose;

@@ -2,8 +2,14 @@ using RadarPulse.Domain.Processing;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Validates async worker completions and converts them into processing telemetry.
+/// </summary>
 public sealed class RadarProcessingAsyncCompletionAggregator
 {
+    /// <summary>
+    /// Aggregates a dispatch result into ordered completions and route-level telemetry.
+    /// </summary>
     public RadarProcessingAsyncAggregationResult Aggregate(
         RadarProcessingAsyncDispatchResult dispatchResult)
     {

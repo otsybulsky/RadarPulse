@@ -3,6 +3,9 @@ using RadarPulse.Domain.Processing;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Runtime plan that selects ordered concurrency or sequential fallback for MVP processing.
+/// </summary>
 public sealed class RadarProcessingMvpRuntimePlan
 {
     private RadarProcessingMvpRuntimePlan(
@@ -24,24 +27,48 @@ public sealed class RadarProcessingMvpRuntimePlan
         Message = message;
     }
 
+    /// <summary>
+    /// Handler output contract that drives the runtime decision.
+    /// </summary>
     public RadarProcessingHandlerOutputContract HandlerOutputContract { get; }
 
+    /// <summary>
+    /// Ordered concurrency requested by the caller.
+    /// </summary>
     public RadarProcessingOrderedConcurrencyOptions RequestedOrderedConcurrencyOptions { get; }
 
+    /// <summary>
+    /// Ordered concurrency that will actually be used.
+    /// </summary>
     public RadarProcessingOrderedConcurrencyOptions EffectiveOrderedConcurrencyOptions { get; }
 
+    /// <summary>
+    /// Indicates whether stateful handler output forced sequential processing.
+    /// </summary>
     public bool UsedSequentialFallback { get; }
 
+    /// <summary>
+    /// Human-readable reason for the selected plan.
+    /// </summary>
     public string Message { get; }
 
+    /// <summary>
+    /// Indicates whether handler-free ordered concurrent delta processing is allowed.
+    /// </summary>
     public bool AllowsOrderedConcurrentDelta =>
         HandlerOutputContract.AllowsOrderedConcurrentDelta &&
         !EffectiveOrderedConcurrencyOptions.IsSequential;
 
+    /// <summary>
+    /// Indicates whether mergeable handler delta/merge ordered processing is allowed.
+    /// </summary>
     public bool AllowsOrderedConcurrentHandlerDeltaMerge =>
         HandlerOutputContract.AllowsOrderedConcurrentHandlerDeltaMerge &&
         !EffectiveOrderedConcurrencyOptions.IsSequential;
 
+    /// <summary>
+    /// Creates an MVP runtime plan from the processing core handler contract.
+    /// </summary>
     public static RadarProcessingMvpRuntimePlan Create(
         RadarProcessingCore core,
         RadarProcessingOrderedConcurrencyOptions? requestedOrderedConcurrencyOptions = null)

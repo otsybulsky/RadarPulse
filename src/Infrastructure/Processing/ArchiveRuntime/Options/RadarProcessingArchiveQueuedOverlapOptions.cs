@@ -2,10 +2,19 @@ using RadarPulse.Domain.Processing;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Options for archive producer and processing consumer overlap.
+/// </summary>
 public sealed record RadarProcessingArchiveQueuedOverlapOptions
 {
+    /// <summary>
+    /// Accepted runtime default contour for queued-owned archive processing.
+    /// </summary>
     public static RadarProcessingArchiveQueuedOverlapOptions Default { get; } = CreateRuntimeDefault();
 
+    /// <summary>
+    /// Creates overlap options for provider queue, retention, and optional prewarm.
+    /// </summary>
     public RadarProcessingArchiveQueuedOverlapOptions(
         RadarProcessingProviderQueueOptions? queueOptions = null,
         RadarProcessingRetainedPayloadOptions? retainedPayloadOptions = null,
@@ -26,14 +35,29 @@ public sealed record RadarProcessingArchiveQueuedOverlapOptions
         }
     }
 
+    /// <summary>
+    /// Provider queue options used between producer and consumer.
+    /// </summary>
     public RadarProcessingProviderQueueOptions QueueOptions { get; }
 
+    /// <summary>
+    /// Retained payload strategy and budget used by the queueing publisher.
+    /// </summary>
     public RadarProcessingRetainedPayloadOptions RetainedPayloadOptions { get; }
 
+    /// <summary>
+    /// Optional retained payload factory supplied by callers.
+    /// </summary>
     public RadarProcessingRetainedPayloadFactory? RetainedPayloadFactory { get; }
 
+    /// <summary>
+    /// Startup prewarm settings for retained payload pools.
+    /// </summary>
     public RadarProcessingRetainedPayloadPrewarmOptions RetainedPayloadPrewarmOptions { get; }
 
+    /// <summary>
+    /// Indicates whether options match the accepted runtime default contour.
+    /// </summary>
     public bool IsRuntimeDefaultContour =>
         QueueOptions.Capacity == RadarProcessingArchiveRebalanceRolloutDefaults.ProviderQueueCapacity &&
         QueueOptions.MaxRetainedPayloadBytes == RadarProcessingArchiveRebalanceRolloutDefaults.RetainedPayloadBytes &&

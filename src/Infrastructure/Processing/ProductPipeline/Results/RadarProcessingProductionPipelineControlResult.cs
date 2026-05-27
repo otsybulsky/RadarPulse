@@ -2,8 +2,14 @@ using RadarPulse.Domain.Processing;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Result of applying a production-pipeline control action.
+/// </summary>
 public sealed class RadarProcessingProductionPipelineControlResult
 {
+    /// <summary>
+    /// Creates a control result with durable adapter and readiness evidence.
+    /// </summary>
     public RadarProcessingProductionPipelineControlResult(
         string runId,
         RadarProcessingProductionPipelineFallbackAction action,
@@ -36,24 +42,54 @@ public sealed class RadarProcessingProductionPipelineControlResult
         Message = message;
     }
 
+    /// <summary>
+    /// Stable run id.
+    /// </summary>
     public string RunId { get; }
 
+    /// <summary>
+    /// Control action applied.
+    /// </summary>
     public RadarProcessingProductionPipelineFallbackAction Action { get; }
 
+    /// <summary>
+    /// Resolved configuration used for control.
+    /// </summary>
     public RadarProcessingProductionPipelineResolvedConfiguration Configuration { get; }
 
+    /// <summary>
+    /// Operator readiness summary after control.
+    /// </summary>
     public RadarProcessingProductionPipelineOperatorSummary OperatorSummary { get; }
 
+    /// <summary>
+    /// Durable adapter evidence after control.
+    /// </summary>
     public RadarProcessingDurableAdapterSummary AdapterSummary { get; }
 
+    /// <summary>
+    /// Number of open envelopes canceled by the action.
+    /// </summary>
     public int CanceledOpenCount { get; }
 
+    /// <summary>
+    /// Number of canceled envelopes released by the action.
+    /// </summary>
     public int ReleasedCanceledCount { get; }
 
+    /// <summary>
+    /// Number of durable processing results drained by the action.
+    /// </summary>
     public int DrainedProcessingCount { get; }
 
+    /// <summary>
+    /// Control outcome message.
+    /// </summary>
     public string Message { get; }
 
+    /// <summary>
+    /// Indicates whether the resulting operator summary is ready.
+    /// </summary>
     public bool IsReady => OperatorSummary.IsReady;
 
     internal static void EnsureKnownAction(

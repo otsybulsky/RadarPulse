@@ -3,6 +3,14 @@ using RadarPulse.Domain.Processing;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Lifecycle-managed group of async workers used by shard transport dispatch.
+/// </summary>
+/// <remarks>
+/// The group owns worker mailboxes, validates dispatch lifecycle state, enforces
+/// single in-flight dispatch by default, maps enqueue/timeout/cancellation
+/// outcomes to result contracts, and exposes drain evidence for telemetry.
+/// </remarks>
 public sealed class RadarProcessingAsyncWorkerGroup : IDisposable, IAsyncDisposable
 {
     private readonly object lifecycleSync = new();
@@ -13,6 +21,9 @@ public sealed class RadarProcessingAsyncWorkerGroup : IDisposable, IAsyncDisposa
     private int disposeRequested;
     private int cancellationDisposed;
 
+    /// <summary>
+    /// Creates a worker group with the supplied async execution options.
+    /// </summary>
     public RadarProcessingAsyncWorkerGroup(
         RadarProcessingAsyncWorkerGroupOptions? options = null)
     {
@@ -21,8 +32,14 @@ public sealed class RadarProcessingAsyncWorkerGroup : IDisposable, IAsyncDisposa
         workers = CreateWorkers(Options);
     }
 
+    /// <summary>
+    /// Effective worker count, queue capacity, and timeout settings.
+    /// </summary>
     public RadarProcessingAsyncWorkerGroupOptions Options { get; }
 
+    /// <summary>
+    /// Current lifecycle status for dispatch and shutdown decisions.
+    /// </summary>
     public RadarProcessingWorkerGroupStatus Status
     {
         get
@@ -34,12 +51,24 @@ public sealed class RadarProcessingAsyncWorkerGroup : IDisposable, IAsyncDisposa
         }
     }
 
+    /// <summary>
+    /// Number of accepted work items waiting in worker mailboxes.
+    /// </summary>
     public int PendingWorkItemCount => workers.Sum(static worker => worker.PendingCount);
 
+    /// <summary>
+    /// Number of work items currently executing across workers.
+    /// </summary>
     public int RunningWorkItemCount => workers.Sum(static worker => worker.RunningCount);
 
+    /// <summary>
+    /// Number of accepted work items that are either pending or running.
+    /// </summary>
     public int OutstandingWorkItemCount => PendingWorkItemCount + RunningWorkItemCount;
 
+    /// <summary>
+    /// Starts worker loops if the lifecycle allows dispatch.
+    /// </summary>
     public RadarProcessingWorkerLifecycleResult Start()
     {
         lock (lifecycleSync)
@@ -59,6 +88,9 @@ public sealed class RadarProcessingAsyncWorkerGroup : IDisposable, IAsyncDisposa
         }
     }
 
+    /// <summary>
+    /// Stops accepting new dispatches while allowing workers to drain accepted requests.
+    /// </summary>
     public RadarProcessingWorkerLifecycleResult StopAccepting()
     {
         RadarProcessingWorkerLifecycleResult result;
@@ -75,6 +107,9 @@ public sealed class RadarProcessingAsyncWorkerGroup : IDisposable, IAsyncDisposa
         return result;
     }
 
+    /// <summary>
+    /// Stops accepting work and waits for worker loops to finish.
+    /// </summary>
     public async ValueTask<RadarProcessingWorkerLifecycleResult> StopAsync()
     {
         RadarProcessingWorkerLifecycleResult result;
@@ -92,6 +127,14 @@ public sealed class RadarProcessingAsyncWorkerGroup : IDisposable, IAsyncDisposa
         return result;
     }
 
+    /// <summary>
+    /// Dispatches a complete batch scope to worker mailboxes and waits for the batch barrier.
+    /// </summary>
+    /// <remarks>
+    /// The method validates work item coverage before enqueue. When concurrent
+    /// dispatch is not explicitly allowed, only one dispatch may be active at a
+    /// time so mailbox capacity and completion accounting stay deterministic.
+    /// </remarks>
     public async ValueTask<RadarProcessingAsyncWorkerGroupResult> DispatchAsync(
         RadarProcessingAsyncBatchScope scope,
         IReadOnlyList<RadarProcessingAsyncWorkItem> workItems,
@@ -254,16 +297,25 @@ public sealed class RadarProcessingAsyncWorkerGroup : IDisposable, IAsyncDisposa
         }
     }
 
+    /// <summary>
+    /// Synchronously disposes the worker group.
+    /// </summary>
     public void Dispose()
     {
         DisposeAsync().AsTask().GetAwaiter().GetResult();
     }
 
+    /// <summary>
+    /// Disposes the worker group and ignores the lifecycle result.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         await DisposeWithResultAsync().ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Disposes workers and returns the lifecycle transition result.
+    /// </summary>
     public async ValueTask<RadarProcessingWorkerLifecycleResult> DisposeWithResultAsync()
     {
         RadarProcessingWorkerLifecycleResult result;

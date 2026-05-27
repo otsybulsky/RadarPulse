@@ -6,6 +6,15 @@ using RadarPulse.Domain.Streaming;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Drains an owned provider queue into a processing core.
+/// </summary>
+/// <remarks>
+/// The session records every enqueue and processing result, maps queue terminal
+/// states to queued session status, and supports ordered concurrent processing
+/// paths that compute work out of order while committing results by provider
+/// sequence.
+/// </remarks>
 public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsyncDisposable
 {
     private readonly object sync = new();
@@ -23,6 +32,9 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
     private bool disposed;
     private string faultMessage = string.Empty;
 
+    /// <summary>
+    /// Creates a processing session that owns its queue and any required async core session.
+    /// </summary>
     public RadarProcessingQueuedProcessingSession(
         RadarProcessingCore core,
         RadarProcessingProviderQueueOptions? queueOptions = null,
@@ -37,6 +49,14 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
     {
     }
 
+    /// <summary>
+    /// Creates a processing session over supplied queue and optional async core dependencies.
+    /// </summary>
+    /// <remarks>
+    /// Async shard transport requires an async core session that wraps the same
+    /// core. Synchronous processing rejects an async session to keep ownership
+    /// and execution mode explicit.
+    /// </remarks>
     public RadarProcessingQueuedProcessingSession(
         RadarProcessingCore core,
         RadarProcessingOwnedBatchQueue queue,
@@ -73,10 +93,19 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
         this.consumerResourceLeaseFactory = consumerResourceLeaseFactory;
     }
 
+    /// <summary>
+    /// Processing core that owns source state and handler configuration.
+    /// </summary>
     public RadarProcessingCore Core => core;
 
+    /// <summary>
+    /// Owned provider queue drained by this session.
+    /// </summary>
     public RadarProcessingOwnedBatchQueue Queue => queue;
 
+    /// <summary>
+    /// Enqueues an owned radar batch and records the enqueue result in session evidence.
+    /// </summary>
     public async ValueTask<RadarProcessingQueuedBatchEnqueueResult> EnqueueAsync(
         RadarEventBatch batch,
         TimeSpan ownedSnapshotTime = default,
@@ -94,14 +123,27 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
         return result;
     }
 
+    /// <summary>
+    /// Closes the provider queue to new batches while allowing accepted batches to drain.
+    /// </summary>
     public void CompleteAdding() => queue.Close();
 
+    /// <summary>
+    /// Faults the session and queue so later accepted batches are skipped after fault.
+    /// </summary>
     public void Fault(string message = "")
     {
         ArgumentNullException.ThrowIfNull(message);
         MarkFaulted(message);
     }
 
+    /// <summary>
+    /// Drains the queue sequentially and processes each accepted batch.
+    /// </summary>
+    /// <returns>
+    /// A queued session result containing enqueue evidence, processing outcomes,
+    /// queue telemetry, and terminal status.
+    /// </returns>
     public async ValueTask<RadarProcessingQueuedSessionResult> DrainAsync(
         CancellationToken cancellationToken = default)
     {
@@ -151,6 +193,14 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
         }
     }
 
+    /// <summary>
+    /// Computes batches concurrently while publishing committed results by provider sequence.
+    /// </summary>
+    /// <remarks>
+    /// Sequential ordered options fall back to <see cref="DrainAsync"/>. On
+    /// failure or cancellation, active work is canceled and later queued batches
+    /// are represented as skipped or canceled results.
+    /// </remarks>
     public async ValueTask<RadarProcessingQueuedSessionResult> DrainOrderedConcurrentAsync(
         RadarProcessingOrderedConcurrencyOptions? orderedOptions = null,
         CancellationToken cancellationToken = default)
@@ -260,6 +310,13 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
         }
     }
 
+    /// <summary>
+    /// Computes handler deltas concurrently and merges them in provider sequence order.
+    /// </summary>
+    /// <remarks>
+    /// This path requires a mergeable handler output contract and preserves the
+    /// same ordered commit semantics as the standard ordered concurrent drain.
+    /// </remarks>
     public async ValueTask<RadarProcessingQueuedSessionResult> DrainOrderedHandlerDeltaMergeAsync(
         RadarProcessingOrderedConcurrencyOptions? orderedOptions = null,
         CancellationToken cancellationToken = default)
@@ -378,11 +435,17 @@ public sealed class RadarProcessingQueuedProcessingSession : IDisposable, IAsync
         }
     }
 
+    /// <summary>
+    /// Synchronously disposes owned queue and async-core resources.
+    /// </summary>
     public void Dispose()
     {
         DisposeAsync().AsTask().GetAwaiter().GetResult();
     }
 
+    /// <summary>
+    /// Disposes owned queue and async-core resources.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         bool shouldDispose;

@@ -4,8 +4,14 @@ using RadarPulse.Application.Product;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Maps infrastructure production-pipeline evidence into product API/read-model shapes.
+/// </summary>
 public static class RadarPulseProductPipelineMapper
 {
+    /// <summary>
+    /// Maps a full run result into product run detail.
+    /// </summary>
     public static RadarPulseProductRunDetail ToProductRunDetail(
         RadarProcessingProductionPipelineRunResult result,
         RadarPulseProductInputSummary input,
@@ -59,6 +65,9 @@ public static class RadarPulseProductPipelineMapper
             result.Message);
     }
 
+    /// <summary>
+    /// Maps resolved infrastructure configuration into product configuration vocabulary.
+    /// </summary>
     public static RadarPulseProductConfiguration ToProductConfiguration(
         RadarProcessingProductionPipelineResolvedConfiguration configuration)
     {
@@ -89,6 +98,9 @@ public static class RadarPulseProductPipelineMapper
             CopyStrings(configuration.Warnings));
     }
 
+    /// <summary>
+    /// Maps operator readiness evidence into product vocabulary.
+    /// </summary>
     public static RadarPulseProductOperatorSummary ToProductOperatorSummary(
         RadarProcessingProductionPipelineOperatorSummary summary)
     {
@@ -112,6 +124,9 @@ public static class RadarPulseProductPipelineMapper
             CopyStrings(summary.Warnings));
     }
 
+    /// <summary>
+    /// Maps capacity evidence into product vocabulary.
+    /// </summary>
     public static RadarPulseProductCapacityEvidence ToProductCapacityEvidence(
         RadarProcessingProductionPipelineCapacityEvidence evidence)
     {
@@ -135,6 +150,9 @@ public static class RadarPulseProductPipelineMapper
             evidence.ConfigurationContour);
     }
 
+    /// <summary>
+    /// Maps BFF diagnostics into product diagnostics vocabulary.
+    /// </summary>
     public static RadarPulseProductDiagnostics ToProductDiagnostics(
         RadarProcessingRunDiagnosticsReadModel diagnostics)
     {
@@ -156,6 +174,9 @@ public static class RadarPulseProductPipelineMapper
             CopyStrings(diagnostics.Warnings));
     }
 
+    /// <summary>
+    /// Maps one processing batch read model into product batch vocabulary.
+    /// </summary>
     public static RadarPulseProductBatch ToProductBatch(
         RadarProcessingBatchReadModel batch)
     {
@@ -174,6 +195,9 @@ public static class RadarPulseProductPipelineMapper
             batch.TopologyVersion?.Value);
     }
 
+    /// <summary>
+    /// Maps a control result into product control summary vocabulary.
+    /// </summary>
     public static RadarPulseProductControlSummary ToProductControlSummary(
         RadarProcessingProductionPipelineControlResult result)
     {
@@ -189,6 +213,9 @@ public static class RadarPulseProductPipelineMapper
             result.Message);
     }
 
+    /// <summary>
+    /// Maps one source output read model into product source vocabulary.
+    /// </summary>
     public static RadarPulseProductSource ToProductSource(
         RadarProcessingSourceOutputReadModel source)
     {
@@ -214,6 +241,9 @@ public static class RadarPulseProductPipelineMapper
             Array.AsReadOnly(handlerValues));
     }
 
+    /// <summary>
+    /// Maps handler output contract evidence into product vocabulary.
+    /// </summary>
     public static RadarPulseProductHandlerContract ToProductHandlerContract(
         RadarProcessingHandlerOutputContract contract)
     {
@@ -231,6 +261,9 @@ public static class RadarPulseProductPipelineMapper
             Array.AsReadOnly(handlers));
     }
 
+    /// <summary>
+    /// Maps one handler output value into product vocabulary.
+    /// </summary>
     public static RadarPulseProductHandlerOutput ToProductHandlerOutput(
         RadarProcessingHandlerOutputValueReadModel value)
     {

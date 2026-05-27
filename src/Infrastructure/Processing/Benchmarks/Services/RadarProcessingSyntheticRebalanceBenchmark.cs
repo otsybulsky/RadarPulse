@@ -2,11 +2,17 @@ using RadarPulse.Domain.Processing;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Measures deterministic synthetic rebalance scenarios across execution modes.
+/// </summary>
 public sealed class RadarProcessingSyntheticRebalanceBenchmark
 {
     private const ulong ChecksumInitial = 14_695_981_039_346_656_037UL;
     private const ulong ChecksumPrime = 1_099_511_628_211UL;
 
+    /// <summary>
+    /// Synchronously measures a generated rebalance workload scenario.
+    /// </summary>
     public RadarProcessingSyntheticRebalanceBenchmarkResult Measure(
         RadarProcessingSyntheticRebalanceWorkloadKind workloadKind,
         RadarProcessingSyntheticRebalanceBenchmarkMode mode,
@@ -31,6 +37,9 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmark
             orderedActiveBatchCapacity);
     }
 
+    /// <summary>
+    /// Synchronously measures an already-created rebalance workload.
+    /// </summary>
     public RadarProcessingSyntheticRebalanceBenchmarkResult Measure(
         RadarProcessingSyntheticRebalanceWorkload workload,
         RadarProcessingSyntheticRebalanceBenchmarkMode mode,
@@ -55,6 +64,9 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmark
             .GetAwaiter()
             .GetResult();
 
+    /// <summary>
+    /// Asynchronously measures an already-created rebalance workload.
+    /// </summary>
     public async ValueTask<RadarProcessingSyntheticRebalanceBenchmarkResult> MeasureAsync(
         RadarProcessingSyntheticRebalanceWorkload workload,
         RadarProcessingSyntheticRebalanceBenchmarkMode mode,

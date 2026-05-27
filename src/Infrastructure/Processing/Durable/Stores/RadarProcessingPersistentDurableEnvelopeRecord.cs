@@ -2,10 +2,24 @@ using RadarPulse.Domain.Processing;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Persistable durable envelope record with its queued batch payload.
+/// </summary>
+/// <remarks>
+/// The record stores both durable envelope state and the owned batch material
+/// required to rebuild recoverable queue entries. Counters are validated against
+/// the serialized batch to prevent recovery from mismatched evidence.
+/// </remarks>
 public sealed class RadarProcessingPersistentDurableEnvelopeRecord
 {
+    /// <summary>
+    /// Current durable envelope persistence schema version.
+    /// </summary>
     public const int CurrentSchemaVersion = 1;
 
+    /// <summary>
+    /// Creates a persistent durable envelope record from serialized envelope and batch data.
+    /// </summary>
     public RadarProcessingPersistentDurableEnvelopeRecord(
         int schemaVersion,
         string batchId,
@@ -96,48 +110,114 @@ public sealed class RadarProcessingPersistentDurableEnvelopeRecord
         Batch = batch;
     }
 
+    /// <summary>
+    /// Schema version used to serialize this record.
+    /// </summary>
     public int SchemaVersion { get; }
 
+    /// <summary>
+    /// Durable batch id value.
+    /// </summary>
     public string BatchId { get; }
 
+    /// <summary>
+    /// Provider sequence assigned by the owned provider queue.
+    /// </summary>
     public long ProviderSequence { get; }
 
+    /// <summary>
+    /// Claim or processing attempt count for the durable envelope.
+    /// </summary>
     public int Attempt { get; }
 
+    /// <summary>
+    /// Durable lifecycle state captured for recovery.
+    /// </summary>
     public RadarProcessingDurableEnvelopeState State { get; }
 
+    /// <summary>
+    /// Worker id that last claimed or processed the envelope.
+    /// </summary>
     public string WorkerId { get; }
 
+    /// <summary>
+    /// Durable lifecycle diagnostic message.
+    /// </summary>
     public string Message { get; }
 
+    /// <summary>
+    /// Number of stream events in the queued batch.
+    /// </summary>
     public int StreamEventCount { get; }
 
+    /// <summary>
+    /// Number of payload bytes in the queued batch.
+    /// </summary>
     public int PayloadBytes { get; }
 
+    /// <summary>
+    /// Decoded payload value count for deterministic recovery evidence.
+    /// </summary>
     public long PayloadValueCount { get; }
 
+    /// <summary>
+    /// Raw payload checksum for deterministic recovery evidence.
+    /// </summary>
     public long RawValueChecksum { get; }
 
+    /// <summary>
+    /// Timestamp captured when the envelope was accepted.
+    /// </summary>
     public long AcceptedTimestamp { get; }
 
+    /// <summary>
+    /// Timestamp captured when the envelope was claimed.
+    /// </summary>
     public long ClaimedTimestamp { get; }
 
+    /// <summary>
+    /// Timestamp captured when processing completed.
+    /// </summary>
     public long CompletedTimestamp { get; }
 
+    /// <summary>
+    /// Timestamp captured when processing was committed.
+    /// </summary>
     public long CommittedTimestamp { get; }
 
+    /// <summary>
+    /// Timestamp captured when retained resources were released.
+    /// </summary>
     public long ReleasedTimestamp { get; }
 
+    /// <summary>
+    /// Time spent creating the owned batch snapshot before enqueue.
+    /// </summary>
     public TimeSpan OwnedSnapshotTime { get; }
 
+    /// <summary>
+    /// Bytes allocated while creating the owned batch snapshot.
+    /// </summary>
     public long OwnedSnapshotAllocatedBytes { get; }
 
+    /// <summary>
+    /// Stopwatch timestamp captured when the batch entered the provider queue.
+    /// </summary>
     public long EnqueuedTimestamp { get; }
 
+    /// <summary>
+    /// Serialized radar event batch needed to rebuild recoverable queued work.
+    /// </summary>
     public RadarProcessingPersistentRadarEventBatchRecord Batch { get; }
 
+    /// <summary>
+    /// Indicates whether this record uses the schema supported by the current code.
+    /// </summary>
     public bool IsCurrentSchema => SchemaVersion == CurrentSchemaVersion;
 
+    /// <summary>
+    /// Rehydrates the durable envelope snapshot without the serialized batch payload.
+    /// </summary>
     public RadarProcessingDurableEnvelopeSnapshot ToSnapshot() =>
         new(
             new RadarProcessingDurableBatchId(BatchId),
@@ -156,6 +236,9 @@ public sealed class RadarProcessingPersistentDurableEnvelopeRecord
             CommittedTimestamp,
             ReleasedTimestamp);
 
+    /// <summary>
+    /// Rehydrates the queued batch represented by this persistent record.
+    /// </summary>
     public RadarProcessingQueuedBatch ToQueuedBatch() =>
         new(
             new RadarProcessingQueuedBatchSequence(ProviderSequence),
@@ -166,6 +249,9 @@ public sealed class RadarProcessingPersistentDurableEnvelopeRecord
             PayloadValueCount,
             RawValueChecksum);
 
+    /// <summary>
+    /// Creates a current-schema record from a durable snapshot and matching queued batch.
+    /// </summary>
     public static RadarProcessingPersistentDurableEnvelopeRecord From(
         RadarProcessingDurableEnvelopeSnapshot snapshot,
         RadarProcessingQueuedBatch queuedBatch)

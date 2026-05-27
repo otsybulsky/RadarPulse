@@ -4,6 +4,14 @@ using RadarPulse.Domain.Streaming;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Durable in-memory envelope index with optional persistent snapshot storage.
+/// </summary>
+/// <remarks>
+/// The queue assigns provider sequences, tracks durable lifecycle transitions,
+/// and persists current-schema envelope records after every mutation when a
+/// persistent store is configured.
+/// </remarks>
 public sealed class RadarProcessingDurableEnvelopeQueue
 {
     private readonly object sync = new();
@@ -15,10 +23,20 @@ public sealed class RadarProcessingDurableEnvelopeQueue
     private string adapterStorageMessage = string.Empty;
     private long nextSequence;
 
+    /// <summary>
+    /// Creates an in-memory durable envelope queue with no persistent adapter.
+    /// </summary>
     public RadarProcessingDurableEnvelopeQueue()
     {
     }
 
+    /// <summary>
+    /// Creates a durable envelope queue restored from a persistent store.
+    /// </summary>
+    /// <remarks>
+    /// Incompatible or failed loads are rejected immediately so recovery callers
+    /// do not process uncertain durable state.
+    /// </remarks>
     public RadarProcessingDurableEnvelopeQueue(
         IRadarProcessingPersistentDurableEnvelopeStore persistentStore)
     {
@@ -39,6 +57,9 @@ public sealed class RadarProcessingDurableEnvelopeQueue
         Restore(load.Records);
     }
 
+    /// <summary>
+    /// Number of durable envelopes currently tracked by the queue.
+    /// </summary>
     public int Count
     {
         get
@@ -50,6 +71,9 @@ public sealed class RadarProcessingDurableEnvelopeQueue
         }
     }
 
+    /// <summary>
+    /// Attempts to read an immutable durable envelope snapshot by batch id.
+    /// </summary>
     public bool TryGetSnapshot(
         RadarProcessingDurableBatchId batchId,
         out RadarProcessingDurableEnvelopeSnapshot? snapshot)
@@ -69,6 +93,9 @@ public sealed class RadarProcessingDurableEnvelopeQueue
         }
     }
 
+    /// <summary>
+    /// Attempts to read the queued batch material for a durable envelope.
+    /// </summary>
     public bool TryGetQueuedBatch(
         RadarProcessingDurableBatchId batchId,
         out RadarProcessingQueuedBatch? queuedBatch)
@@ -88,6 +115,9 @@ public sealed class RadarProcessingDurableEnvelopeQueue
         }
     }
 
+    /// <summary>
+    /// Creates ordered snapshots for all durable envelopes.
+    /// </summary>
     public IReadOnlyList<RadarProcessingDurableEnvelopeSnapshot> CreateSnapshots()
     {
         lock (sync)
@@ -108,6 +138,9 @@ public sealed class RadarProcessingDurableEnvelopeQueue
         }
     }
 
+    /// <summary>
+    /// Creates adapter compatibility and queue-state evidence for diagnostics.
+    /// </summary>
     public RadarProcessingDurableAdapterSummary CreateAdapterSummary()
     {
         var queueSummary = CreateSummary();
@@ -127,6 +160,13 @@ public sealed class RadarProcessingDurableEnvelopeQueue
             adapterStorageMessage);
     }
 
+    /// <summary>
+    /// Accepts an owned batch into durable state if the batch id is new.
+    /// </summary>
+    /// <returns>
+    /// Accepted with the new envelope snapshot, or duplicate with the existing
+    /// snapshot when the batch id has already been recorded.
+    /// </returns>
     public RadarProcessingDurableQueueOperationResult Accept(
         RadarProcessingDurableBatchId batchId,
         RadarEventBatch batch,
@@ -175,6 +215,9 @@ public sealed class RadarProcessingDurableEnvelopeQueue
         }
     }
 
+    /// <summary>
+    /// Claims the lowest-sequence pending envelope for a worker.
+    /// </summary>
     public RadarProcessingDurableQueueOperationResult ClaimNext(
         string workerId = "")
     {
@@ -209,6 +252,9 @@ public sealed class RadarProcessingDurableEnvelopeQueue
         }
     }
 
+    /// <summary>
+    /// Marks a claimed envelope as completed before ordered commit.
+    /// </summary>
     public RadarProcessingDurableQueueOperationResult Complete(
         RadarProcessingDurableBatchId batchId,
         string message = "")
@@ -223,6 +269,9 @@ public sealed class RadarProcessingDurableEnvelopeQueue
             static entry => entry.CompletedTimestamp = Stopwatch.GetTimestamp());
     }
 
+    /// <summary>
+    /// Marks a claimed or completed envelope as failed or poison.
+    /// </summary>
     public RadarProcessingDurableQueueOperationResult Fail(
         RadarProcessingDurableBatchId batchId,
         string message,
@@ -243,6 +292,9 @@ public sealed class RadarProcessingDurableEnvelopeQueue
             static entry => entry.CompletedTimestamp = Stopwatch.GetTimestamp());
     }
 
+    /// <summary>
+    /// Abandons a claimed envelope so retry policy can decide later handling.
+    /// </summary>
     public RadarProcessingDurableQueueOperationResult Abandon(
         RadarProcessingDurableBatchId batchId,
         string message = "")
@@ -257,6 +309,9 @@ public sealed class RadarProcessingDurableEnvelopeQueue
             static entry => entry.CompletedTimestamp = Stopwatch.GetTimestamp());
     }
 
+    /// <summary>
+    /// Moves a failed or abandoned envelope back to pending and increments attempt count.
+    /// </summary>
     public RadarProcessingDurableQueueOperationResult Retry(
         RadarProcessingDurableBatchId batchId,
         string message = "")
@@ -293,6 +348,9 @@ public sealed class RadarProcessingDurableEnvelopeQueue
         }
     }
 
+    /// <summary>
+    /// Marks a failed or abandoned envelope as poison after retry exhaustion.
+    /// </summary>
     public RadarProcessingDurableQueueOperationResult Poison(
         RadarProcessingDurableBatchId batchId,
         string message)
@@ -308,6 +366,9 @@ public sealed class RadarProcessingDurableEnvelopeQueue
             static entry => entry.CompletedTimestamp = Stopwatch.GetTimestamp());
     }
 
+    /// <summary>
+    /// Marks a completed envelope as committed by the ordered publish path.
+    /// </summary>
     public RadarProcessingDurableQueueOperationResult MarkCommitted(
         RadarProcessingDurableBatchId batchId,
         string message = "")
@@ -322,6 +383,9 @@ public sealed class RadarProcessingDurableEnvelopeQueue
             static entry => entry.CommittedTimestamp = Stopwatch.GetTimestamp());
     }
 
+    /// <summary>
+    /// Marks an envelope as released after retained resources are no longer needed.
+    /// </summary>
     public RadarProcessingDurableQueueOperationResult MarkReleased(
         RadarProcessingDurableBatchId batchId,
         string message = "")
@@ -341,6 +405,9 @@ public sealed class RadarProcessingDurableEnvelopeQueue
             static entry => entry.ReleasedTimestamp = Stopwatch.GetTimestamp());
     }
 
+    /// <summary>
+    /// Marks an open envelope as canceled.
+    /// </summary>
     public RadarProcessingDurableQueueOperationResult Cancel(
         RadarProcessingDurableBatchId batchId,
         string message = "")
@@ -357,6 +424,9 @@ public sealed class RadarProcessingDurableEnvelopeQueue
             static entry => entry.CompletedTimestamp = Stopwatch.GetTimestamp());
     }
 
+    /// <summary>
+    /// Summarizes durable lifecycle counts and the first blocking uncommitted envelope.
+    /// </summary>
     public RadarProcessingDurableQueueSummary CreateSummary()
     {
         lock (sync)
@@ -450,6 +520,10 @@ public sealed class RadarProcessingDurableEnvelopeQueue
         }
     }
 
+    /// <summary>
+    /// Cancels all pending, claimed, and completed envelopes.
+    /// </summary>
+    /// <returns>The number of envelopes transitioned to canceled.</returns>
     public int CancelOpen(
         string message = "")
     {
@@ -482,6 +556,10 @@ public sealed class RadarProcessingDurableEnvelopeQueue
         }
     }
 
+    /// <summary>
+    /// Releases all canceled envelopes after cleanup.
+    /// </summary>
+    /// <returns>The number of canceled envelopes transitioned to released.</returns>
     public int ReleaseCanceled(
         string message = "")
     {

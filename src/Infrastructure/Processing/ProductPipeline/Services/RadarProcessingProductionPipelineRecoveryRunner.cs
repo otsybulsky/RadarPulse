@@ -2,8 +2,14 @@ using RadarPulse.Domain.Processing;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Recovers completed durable production-pipeline work from the file adapter.
+/// </summary>
 public sealed class RadarProcessingProductionPipelineRecoveryRunner
 {
+    /// <summary>
+    /// Rebuilds durable queue state, stages completed envelopes, and commits ready work.
+    /// </summary>
     public async ValueTask<RadarProcessingProductionPipelineRecoveryResult> RecoverAsync(
         RadarProcessingProductionPipelineRecoveryRequest request,
         CancellationToken cancellationToken = default)

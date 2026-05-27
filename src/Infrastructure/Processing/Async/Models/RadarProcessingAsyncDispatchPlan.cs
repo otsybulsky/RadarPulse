@@ -2,10 +2,21 @@ using RadarPulse.Domain.Processing;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Immutable dispatch plan for routing one batch across async shard workers.
+/// </summary>
+/// <remarks>
+/// The plan binds the captured topology route, batch scope, and work item list.
+/// Constructor validation ensures work ids are unique and share the same batch
+/// sequence and topology version.
+/// </remarks>
 public sealed class RadarProcessingAsyncDispatchPlan
 {
     private readonly IReadOnlyList<RadarProcessingAsyncWorkItem> workItems;
 
+    /// <summary>
+    /// Creates a dispatch plan from a scope, route, and complete work item set.
+    /// </summary>
     public RadarProcessingAsyncDispatchPlan(
         RadarProcessingAsyncBatchScope scope,
         RadarProcessingBatchRoute route,
@@ -25,22 +36,49 @@ public sealed class RadarProcessingAsyncDispatchPlan
         this.workItems = CopyWorkItems(scope, workItems);
     }
 
+    /// <summary>
+    /// Batch completion scope used by workers.
+    /// </summary>
     public RadarProcessingAsyncBatchScope Scope { get; }
 
+    /// <summary>
+    /// Route captured from the current topology.
+    /// </summary>
     public RadarProcessingBatchRoute Route { get; }
 
+    /// <summary>
+    /// Provider batch sequence assigned to this dispatch.
+    /// </summary>
     public long BatchSequence => Scope.BatchSequence;
 
+    /// <summary>
+    /// Topology version used to build the route and work items.
+    /// </summary>
     public RadarProcessingTopologyVersion TopologyVersion => Scope.TopologyVersion;
 
+    /// <summary>
+    /// Number of work completions required to finish the batch.
+    /// </summary>
     public int ExpectedWorkItemCount => Scope.ExpectedWorkItemCount;
 
+    /// <summary>
+    /// Partition count in the captured route.
+    /// </summary>
     public int PartitionCount => Route.PartitionCount;
 
+    /// <summary>
+    /// Shard count in the captured route.
+    /// </summary>
     public int ShardCount => Route.ShardCount;
 
+    /// <summary>
+    /// Number of stream events routed by the plan.
+    /// </summary>
     public int RoutedEventCount => Route.EventCount;
 
+    /// <summary>
+    /// Ordered work items assigned to worker mailboxes.
+    /// </summary>
     public IReadOnlyList<RadarProcessingAsyncWorkItem> WorkItems => workItems;
 
     private static IReadOnlyList<RadarProcessingAsyncWorkItem> CopyWorkItems(

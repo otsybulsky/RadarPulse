@@ -2,8 +2,19 @@ using RadarPulse.Domain.Processing;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Result of dispatching a batch scope through the async worker group.
+/// </summary>
+/// <remarks>
+/// Successful results must carry a batch scope result. Rejected results carry an
+/// explicit worker group error, optional partial batch evidence, drain evidence,
+/// and inferred failure/cancellation classifications for telemetry.
+/// </remarks>
 public sealed record RadarProcessingAsyncWorkerGroupResult
 {
+    /// <summary>
+    /// Creates a worker group result and validates consistency between status and evidence.
+    /// </summary>
     public RadarProcessingAsyncWorkerGroupResult(
         RadarProcessingWorkerGroupStatus status,
         RadarProcessingAsyncBatchScopeResult? batchResult = null,
@@ -61,28 +72,61 @@ public sealed record RadarProcessingAsyncWorkerGroupResult
             : cancellationKind;
     }
 
+    /// <summary>
+    /// Worker group lifecycle status captured for the dispatch.
+    /// </summary>
     public RadarProcessingWorkerGroupStatus Status { get; }
 
+    /// <summary>
+    /// Batch scope result when work reached the completion barrier.
+    /// </summary>
     public RadarProcessingAsyncBatchScopeResult? BatchResult { get; }
 
+    /// <summary>
+    /// Worker group dispatch error, or none for a completed dispatch.
+    /// </summary>
     public RadarProcessingAsyncWorkerGroupError Error { get; }
 
+    /// <summary>
+    /// Drain and outstanding-work evidence captured around dispatch completion.
+    /// </summary>
     public RadarProcessingAsyncWorkerGroupDrainResult DrainResult { get; }
 
+    /// <summary>
+    /// Failure classification inferred or supplied for telemetry.
+    /// </summary>
     public RadarProcessingAsyncFailureKind FailureKind { get; }
 
+    /// <summary>
+    /// Cancellation classification inferred or supplied for telemetry.
+    /// </summary>
     public RadarProcessingAsyncCancellationKind CancellationKind { get; }
 
+    /// <summary>
+    /// Timeout details when timeout policy fired.
+    /// </summary>
     public RadarProcessingAsyncTimeoutResult TimeoutResult { get; }
 
+    /// <summary>
+    /// Worker group health transition caused by timeout or fault.
+    /// </summary>
     public RadarProcessingWorkerGroupHealthTransition? HealthTransition { get; }
 
+    /// <summary>
+    /// Indicates whether the worker group accepted and completed the batch successfully.
+    /// </summary>
     public bool IsSuccess =>
         Error == RadarProcessingAsyncWorkerGroupError.None &&
         BatchResult?.IsSuccess == true;
 
+    /// <summary>
+    /// Indicates whether dispatch was rejected before a successful batch completion.
+    /// </summary>
     public bool IsRejected => Error != RadarProcessingAsyncWorkerGroupError.None;
 
+    /// <summary>
+    /// Creates a completed worker group result.
+    /// </summary>
     public static RadarProcessingAsyncWorkerGroupResult Completed(
         RadarProcessingWorkerGroupStatus status,
         RadarProcessingAsyncBatchScopeResult batchResult,
@@ -96,6 +140,9 @@ public sealed record RadarProcessingAsyncWorkerGroupResult
             failureKind: failureKind,
             cancellationKind: cancellationKind);
 
+    /// <summary>
+    /// Creates a rejected worker group result with explicit rejection evidence.
+    /// </summary>
     public static RadarProcessingAsyncWorkerGroupResult Rejected(
         RadarProcessingWorkerGroupStatus status,
         RadarProcessingAsyncWorkerGroupError error,

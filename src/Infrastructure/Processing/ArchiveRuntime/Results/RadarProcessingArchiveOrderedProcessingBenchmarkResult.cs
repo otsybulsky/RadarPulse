@@ -2,6 +2,14 @@ using RadarPulse.Domain.Processing;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Benchmark result for ordered archive processing over a file or cache slice.
+/// </summary>
+/// <remarks>
+/// The record combines archive replay throughput, ordered processing outcome,
+/// queue/overlap telemetry, retained payload prewarm evidence, and async worker
+/// telemetry when the runtime uses async shard transport.
+/// </remarks>
 public sealed record RadarProcessingArchiveOrderedProcessingBenchmarkResult(
     string? FilePath,
     string? CachePath,

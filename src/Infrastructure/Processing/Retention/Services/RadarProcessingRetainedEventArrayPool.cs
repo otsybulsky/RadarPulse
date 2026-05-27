@@ -3,10 +3,27 @@ using RadarPulse.Domain.Streaming;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Array pool that retains a bounded number of large radar event arrays.
+/// </summary>
+/// <remarks>
+/// Small arrays delegate to the fallback pool. Large arrays are retained by
+/// size-bounded best fit so retained payload snapshots can reuse event buffers
+/// without unbounded memory growth.
+/// </remarks>
 public sealed class RadarProcessingRetainedEventArrayPool : ArrayPool<RadarStreamEvent>
 {
+    /// <summary>
+    /// Default threshold at which event arrays are retained by this pool.
+    /// </summary>
     public const int DefaultLargeArrayThreshold = 16_384;
+    /// <summary>
+    /// Default maximum count of retained large event arrays.
+    /// </summary>
     public const int DefaultMaxRetainedArrayCount = 8;
+    /// <summary>
+    /// Default maximum bytes retained by large event arrays.
+    /// </summary>
     public const long DefaultMaxRetainedBytes = 128L * 1024L * 1024L;
 
     private readonly object sync = new();
@@ -17,6 +34,9 @@ public sealed class RadarProcessingRetainedEventArrayPool : ArrayPool<RadarStrea
     private long returnCount;
     private long missCount;
 
+    /// <summary>
+    /// Creates a retained event array pool with bounded large-array retention.
+    /// </summary>
     public RadarProcessingRetainedEventArrayPool(
         ArrayPool<RadarStreamEvent>? fallback = null,
         int largeArrayThreshold = DefaultLargeArrayThreshold,
@@ -33,12 +53,24 @@ public sealed class RadarProcessingRetainedEventArrayPool : ArrayPool<RadarStrea
         MaxRetainedBytes = maxRetainedBytes;
     }
 
+    /// <summary>
+    /// Minimum requested event count retained by this pool instead of the fallback pool.
+    /// </summary>
     public int LargeArrayThreshold { get; }
 
+    /// <summary>
+    /// Maximum number of retained large arrays.
+    /// </summary>
     public int MaxRetainedArrayCount { get; }
 
+    /// <summary>
+    /// Maximum retained bytes across large arrays.
+    /// </summary>
     public long MaxRetainedBytes { get; }
 
+    /// <summary>
+    /// Number of large arrays currently retained.
+    /// </summary>
     public int RetainedArrayCount
     {
         get
@@ -50,6 +82,9 @@ public sealed class RadarProcessingRetainedEventArrayPool : ArrayPool<RadarStrea
         }
     }
 
+    /// <summary>
+    /// Total event slots currently retained by large arrays.
+    /// </summary>
     public long RetainedEventCount
     {
         get
@@ -61,6 +96,9 @@ public sealed class RadarProcessingRetainedEventArrayPool : ArrayPool<RadarStrea
         }
     }
 
+    /// <summary>
+    /// Total bytes currently retained by large arrays.
+    /// </summary>
     public long RetainedBytes
     {
         get
@@ -72,6 +110,9 @@ public sealed class RadarProcessingRetainedEventArrayPool : ArrayPool<RadarStrea
         }
     }
 
+    /// <summary>
+    /// Number of rent requests observed by this pool.
+    /// </summary>
     public long RentCount
     {
         get
@@ -83,6 +124,9 @@ public sealed class RadarProcessingRetainedEventArrayPool : ArrayPool<RadarStrea
         }
     }
 
+    /// <summary>
+    /// Number of arrays returned to this pool.
+    /// </summary>
     public long ReturnCount
     {
         get
@@ -94,6 +138,9 @@ public sealed class RadarProcessingRetainedEventArrayPool : ArrayPool<RadarStrea
         }
     }
 
+    /// <summary>
+    /// Number of large-array rents that missed retained buffers and allocated.
+    /// </summary>
     public long MissCount
     {
         get
@@ -105,6 +152,9 @@ public sealed class RadarProcessingRetainedEventArrayPool : ArrayPool<RadarStrea
         }
     }
 
+    /// <summary>
+    /// Rents an event array, using retained large arrays when available.
+    /// </summary>
     public override RadarStreamEvent[] Rent(int minimumLength)
     {
         return RentCore(minimumLength, out _);
@@ -117,6 +167,9 @@ public sealed class RadarProcessingRetainedEventArrayPool : ArrayPool<RadarStrea
         return RentCore(minimumLength, out missed);
     }
 
+    /// <summary>
+    /// Seeds the retained large-array cache with arrays sized for the requested event count.
+    /// </summary>
     public void Prewarm(
         int minimumLength,
         int arrayCount)
@@ -168,6 +221,9 @@ public sealed class RadarProcessingRetainedEventArrayPool : ArrayPool<RadarStrea
         }
     }
 
+    /// <summary>
+    /// Returns an event array, retaining large arrays within configured count and byte budgets.
+    /// </summary>
     public override void Return(RadarStreamEvent[] array, bool clearArray = false)
     {
         ArgumentNullException.ThrowIfNull(array);

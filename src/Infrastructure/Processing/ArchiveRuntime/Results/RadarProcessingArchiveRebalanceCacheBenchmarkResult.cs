@@ -2,6 +2,14 @@ using RadarPulse.Domain.Processing;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Benchmark result for archive replay plus rebalance processing over a cache selection.
+/// </summary>
+/// <remarks>
+/// The record has the same processing and queue telemetry surface as the
+/// single-file rebalance benchmark, with additional cache selection counts for
+/// examined, skipped, and published files.
+/// </remarks>
 public sealed record RadarProcessingArchiveRebalanceCacheBenchmarkResult(
     string CachePath,
     DateOnly? Date,

@@ -3,6 +3,14 @@ using RadarPulse.Domain.Processing;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Single async shard worker backed by a bounded mailbox.
+/// </summary>
+/// <remarks>
+/// The worker is an infrastructure detail of the worker group. It measures
+/// queue wait and execution time, maps cancellation/failure into work
+/// completions, and reports completions through shared batch state.
+/// </remarks>
 internal sealed class RadarProcessingAsyncWorker : IDisposable
 {
     private readonly RadarProcessingWorkerMailbox<RadarProcessingAsyncWorkerRequest> mailbox;
@@ -10,6 +18,9 @@ internal sealed class RadarProcessingAsyncWorker : IDisposable
     private int started;
     private int runningCount;
 
+    /// <summary>
+    /// Creates a worker with its id and bounded mailbox options.
+    /// </summary>
     public RadarProcessingAsyncWorker(
         RadarProcessingWorkerId id,
         RadarProcessingWorkerMailboxOptions mailboxOptions)
@@ -20,14 +31,29 @@ internal sealed class RadarProcessingAsyncWorker : IDisposable
         mailbox = new RadarProcessingWorkerMailbox<RadarProcessingAsyncWorkerRequest>(mailboxOptions);
     }
 
+    /// <summary>
+    /// Worker id used by dispatch plans.
+    /// </summary>
     public RadarProcessingWorkerId Id { get; }
 
+    /// <summary>
+    /// Number of requests accepted by the mailbox but not yet executing.
+    /// </summary>
     public int PendingCount => mailbox.PendingCount;
 
+    /// <summary>
+    /// Number of requests currently executing on this worker.
+    /// </summary>
     public int RunningCount => Volatile.Read(ref runningCount);
 
+    /// <summary>
+    /// Completion task for the worker loop.
+    /// </summary>
     public Task Completion => Volatile.Read(ref runTask) ?? Task.CompletedTask;
 
+    /// <summary>
+    /// Starts the worker loop once.
+    /// </summary>
     public void Start(
         CancellationToken cancellationToken,
         Action<Exception> faultHandler)
@@ -44,12 +70,21 @@ internal sealed class RadarProcessingAsyncWorker : IDisposable
             CancellationToken.None);
     }
 
+    /// <summary>
+    /// Attempts to enqueue a request into the worker mailbox.
+    /// </summary>
     public RadarProcessingWorkerMailboxEnqueueResult TryEnqueue(
         RadarProcessingAsyncWorkerRequest request) =>
         mailbox.TryEnqueue(request);
 
+    /// <summary>
+    /// Closes the worker mailbox to new requests.
+    /// </summary>
     public void Close() => mailbox.Close();
 
+    /// <summary>
+    /// Disposes the worker mailbox and drops buffered requests.
+    /// </summary>
     public void Dispose() => mailbox.Dispose();
 
     private async Task RunAsync(

@@ -3,6 +3,9 @@ using RadarPulse.Domain.Streaming;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Deterministic workload and option bundle for rebalance benchmark scenarios.
+/// </summary>
 public sealed class RadarProcessingSyntheticRebalanceWorkload
 {
     private const int RetentionStressBatchCount = 16;
@@ -40,36 +43,84 @@ public sealed class RadarProcessingSyntheticRebalanceWorkload
             (InitialHotPartitionClassification[])initialClassifications.Clone());
     }
 
+    /// <summary>
+    /// Scenario represented by the workload.
+    /// </summary>
     public RadarProcessingSyntheticRebalanceWorkloadKind Kind { get; }
 
+    /// <summary>
+    /// Source universe used by generated batches.
+    /// </summary>
     public RadarSourceUniverse SourceUniverse { get; }
 
+    /// <summary>
+    /// Baseline processing core options for the workload.
+    /// </summary>
     public RadarProcessingCoreOptions CoreOptions { get; }
 
+    /// <summary>
+    /// Pressure scoring options used by rebalance sessions.
+    /// </summary>
     public RadarProcessingPressureOptions PressureOptions { get; }
 
+    /// <summary>
+    /// Pressure window options used by rebalance sessions.
+    /// </summary>
     public RadarProcessingPressureWindowOptions PressureWindowOptions { get; }
 
+    /// <summary>
+    /// Rebalance policy options used by the workload.
+    /// </summary>
     public RadarProcessingRebalanceOptions RebalanceOptions { get; }
 
+    /// <summary>
+    /// Hardening options including validation and telemetry retention.
+    /// </summary>
     public RadarProcessingRebalanceHardeningOptions HardeningOptions { get; }
 
+    /// <summary>
+    /// Batches processed once per benchmark iteration.
+    /// </summary>
     public IReadOnlyList<RadarEventBatch> Batches => batches;
 
+    /// <summary>
+    /// Number of sources in the workload universe.
+    /// </summary>
     public int SourceCount => SourceUniverse.SourceCount;
 
+    /// <summary>
+    /// Partition count used by the workload.
+    /// </summary>
     public int PartitionCount => CoreOptions.PartitionCount;
 
+    /// <summary>
+    /// Shard count used by the workload.
+    /// </summary>
     public int ShardCount => CoreOptions.ShardCount;
 
+    /// <summary>
+    /// Batch count processed per iteration.
+    /// </summary>
     public long BatchesPerIteration => batches.Count;
 
+    /// <summary>
+    /// Event count processed per iteration.
+    /// </summary>
     public long EventsPerIteration { get; }
 
+    /// <summary>
+    /// Payload value count processed per iteration.
+    /// </summary>
     public long PayloadValuesPerIteration { get; }
 
+    /// <summary>
+    /// Raw value checksum total per iteration.
+    /// </summary>
     public long RawValueChecksumPerIteration { get; }
 
+    /// <summary>
+    /// Creates the deterministic workload for a scenario.
+    /// </summary>
     public static RadarProcessingSyntheticRebalanceWorkload Create(
         RadarProcessingSyntheticRebalanceWorkloadKind kind) =>
         kind switch
@@ -100,6 +151,9 @@ public sealed class RadarProcessingSyntheticRebalanceWorkload
             _ => throw new ArgumentOutOfRangeException(nameof(kind))
         };
 
+    /// <summary>
+    /// Creates a rebalance session initialized with workload options and classifications.
+    /// </summary>
     public RadarProcessingRebalanceSession CreateSession(
         RadarProcessingRebalanceHardeningOptions? hardeningOptions = null,
         RadarProcessingExecutionMode executionMode = RadarProcessingExecutionMode.PartitionedBarrier,
@@ -121,6 +175,9 @@ public sealed class RadarProcessingSyntheticRebalanceWorkload
             hardeningOptions: effectiveHardeningOptions);
     }
 
+    /// <summary>
+    /// Creates processing core options for the requested execution mode.
+    /// </summary>
     public RadarProcessingCoreOptions CreateCoreOptions(
         RadarProcessingExecutionMode executionMode = RadarProcessingExecutionMode.PartitionedBarrier,
         RadarProcessingAsyncExecutionOptions? asyncExecution = null) =>

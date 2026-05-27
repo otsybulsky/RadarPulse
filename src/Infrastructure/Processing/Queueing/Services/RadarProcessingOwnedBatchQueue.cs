@@ -5,6 +5,14 @@ using RadarPulse.Domain.Streaming;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Bounded provider queue that accepts owned radar batches for processing sessions.
+/// </summary>
+/// <remarks>
+/// The queue assigns monotonically increasing provider sequences, enforces the
+/// retained payload byte budget, records enqueue/dequeue telemetry, and exposes
+/// close, fault, cancellation, and disposal as explicit dequeue outcomes.
+/// </remarks>
 public sealed class RadarProcessingOwnedBatchQueue : IDisposable
 {
     private readonly object sync = new();
@@ -36,6 +44,9 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
     private int queueDepthHighWatermark;
     private long queuedPayloadBytesHighWatermark;
 
+    /// <summary>
+    /// Creates a bounded owned-batch queue with the selected provider queue options.
+    /// </summary>
     public RadarProcessingOwnedBatchQueue(
         RadarProcessingProviderQueueOptions? options = null)
     {
@@ -51,8 +62,14 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
             });
     }
 
+    /// <summary>
+    /// Effective capacity, full-mode, timeout, shutdown, and retained-byte settings.
+    /// </summary>
     public RadarProcessingProviderQueueOptions Options { get; }
 
+    /// <summary>
+    /// Number of accepted queued batches not yet dequeued or canceled.
+    /// </summary>
     public int PendingCount
     {
         get
@@ -64,6 +81,9 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
         }
     }
 
+    /// <summary>
+    /// Total payload bytes currently retained by accepted queued batches.
+    /// </summary>
     public long PendingPayloadBytes
     {
         get
@@ -75,8 +95,14 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
         }
     }
 
+    /// <summary>
+    /// Alias for pending retained payload bytes used by pressure telemetry contracts.
+    /// </summary>
     public long PendingRetainedPayloadBytes => PendingPayloadBytes;
 
+    /// <summary>
+    /// Indicates whether the queue is closed to new accepted batches.
+    /// </summary>
     public bool IsClosed
     {
         get
@@ -88,6 +114,9 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
         }
     }
 
+    /// <summary>
+    /// Indicates whether the queue has been faulted and will reject further work.
+    /// </summary>
     public bool IsFaulted
     {
         get
@@ -99,6 +128,9 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
         }
     }
 
+    /// <summary>
+    /// Indicates whether the queue has been disposed and drained.
+    /// </summary>
     public bool IsDisposed
     {
         get
@@ -110,6 +142,18 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
         }
     }
 
+    /// <summary>
+    /// Enqueues an owned batch, optionally waiting according to the configured full mode.
+    /// </summary>
+    /// <remarks>
+    /// The method rejects non-owned batches because queued providers retain input
+    /// beyond the caller's immediate stack frame. Accepted batches receive the
+    /// next provider sequence and are included in retained-resource telemetry.
+    /// </remarks>
+    /// <returns>
+    /// An accepted result with the queued batch, or a full, timed-out, canceled,
+    /// closed, or faulted result that describes why the batch was not accepted.
+    /// </returns>
     public ValueTask<RadarProcessingQueuedBatchEnqueueResult> EnqueueAsync(
         RadarEventBatch batch,
         TimeSpan ownedSnapshotTime = default,
@@ -171,6 +215,13 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
                   onAccepted);
     }
 
+    /// <summary>
+    /// Dequeues the next accepted batch or reports queue termination state.
+    /// </summary>
+    /// <returns>
+    /// An item result when a batch is available; otherwise a closed, canceled,
+    /// faulted, or disposed result with no batch attached.
+    /// </returns>
     public async ValueTask<RadarProcessingOwnedBatchDequeueResult> DequeueAsync(
         CancellationToken cancellationToken = default)
     {
@@ -224,6 +275,9 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
         }
     }
 
+    /// <summary>
+    /// Completes the writer side while allowing accepted batches to drain.
+    /// </summary>
     public void Close()
     {
         lock (sync)
@@ -239,6 +293,13 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
         }
     }
 
+    /// <summary>
+    /// Closes the queue and removes buffered batches that have not been dequeued.
+    /// </summary>
+    /// <returns>
+    /// The canceled queued batches so the owning session can record per-sequence
+    /// cancellation results and release retained resources.
+    /// </returns>
     public IReadOnlyList<RadarProcessingQueuedBatch> CancelQueued()
     {
         lock (sync)
@@ -265,6 +326,9 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
             : Array.AsReadOnly(canceled.ToArray());
     }
 
+    /// <summary>
+    /// Marks the queue as faulted, closes writers, and wakes blocked producers or consumers.
+    /// </summary>
     public void Fault(string message = "")
     {
         ArgumentNullException.ThrowIfNull(message);
@@ -284,6 +348,9 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
         }
     }
 
+    /// <summary>
+    /// Creates a telemetry snapshot for queue ownership, pressure, and wait-time evidence.
+    /// </summary>
     public RadarProcessingProviderQueueTelemetrySummary CreateTelemetrySummary()
     {
         var recordedSummary = telemetryRecorder.CreateSummary();
@@ -326,6 +393,9 @@ public sealed class RadarProcessingOwnedBatchQueue : IDisposable
         }
     }
 
+    /// <summary>
+    /// Disposes the queue, closes the channel, and drops any remaining buffered batches.
+    /// </summary>
     public void Dispose()
     {
         lock (sync)

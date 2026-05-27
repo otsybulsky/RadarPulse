@@ -2,6 +2,9 @@ using RadarPulse.Domain.Streaming;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Deterministic synthetic batch set used by processing benchmarks.
+/// </summary>
 public sealed class RadarProcessingSyntheticWorkload
 {
     private readonly IReadOnlyList<RadarEventBatch> batches;
@@ -20,18 +23,39 @@ public sealed class RadarProcessingSyntheticWorkload
         RawValueChecksumPerIteration = rawValueChecksumPerIteration;
     }
 
+    /// <summary>
+    /// Source universe used to create all synthetic stream identities.
+    /// </summary>
     public RadarSourceUniverse SourceUniverse { get; }
 
+    /// <summary>
+    /// Batches processed once per benchmark iteration.
+    /// </summary>
     public IReadOnlyList<RadarEventBatch> Batches => batches;
 
+    /// <summary>
+    /// Batch count processed per iteration.
+    /// </summary>
     public long BatchesPerIteration => batches.Count;
 
+    /// <summary>
+    /// Event count processed per iteration.
+    /// </summary>
     public long EventsPerIteration { get; }
 
+    /// <summary>
+    /// Payload value count processed per iteration.
+    /// </summary>
     public long PayloadValuesPerIteration { get; }
 
+    /// <summary>
+    /// Raw value checksum total per iteration.
+    /// </summary>
     public long RawValueChecksumPerIteration { get; }
 
+    /// <summary>
+    /// Creates a deterministic synthetic workload from the supplied dimensions.
+    /// </summary>
     public static RadarProcessingSyntheticWorkload Create(
         RadarProcessingSyntheticWorkloadOptions options)
     {

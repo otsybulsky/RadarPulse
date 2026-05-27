@@ -3,11 +3,17 @@ using RadarPulse.Domain.Streaming;
 
 namespace RadarPulse.Infrastructure.Processing;
 
+/// <summary>
+/// Measures deterministic synthetic processing throughput and allocation.
+/// </summary>
 public sealed class RadarProcessingSyntheticBenchmark
 {
     private const ulong ChecksumInitial = 14_695_981_039_346_656_037UL;
     private const ulong ChecksumPrime = 1_099_511_628_211UL;
 
+    /// <summary>
+    /// Synchronously measures a generated synthetic workload.
+    /// </summary>
     public RadarProcessingBenchmarkResult Measure(
         RadarProcessingSyntheticWorkloadOptions workloadOptions,
         RadarProcessingExecutionMode executionMode,
@@ -34,6 +40,9 @@ public sealed class RadarProcessingSyntheticBenchmark
             .GetAwaiter()
             .GetResult();
 
+    /// <summary>
+    /// Asynchronously measures a generated synthetic workload.
+    /// </summary>
     public async ValueTask<RadarProcessingBenchmarkResult> MeasureAsync(
         RadarProcessingSyntheticWorkloadOptions workloadOptions,
         RadarProcessingExecutionMode executionMode,
@@ -60,6 +69,9 @@ public sealed class RadarProcessingSyntheticBenchmark
             validationProfile).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Synchronously measures an already-created synthetic workload.
+    /// </summary>
     public RadarProcessingBenchmarkResult Measure(
         RadarProcessingSyntheticWorkload workload,
         RadarProcessingExecutionMode executionMode,
@@ -86,6 +98,9 @@ public sealed class RadarProcessingSyntheticBenchmark
             .GetAwaiter()
             .GetResult();
 
+    /// <summary>
+    /// Asynchronously measures an already-created synthetic workload.
+    /// </summary>
     public async ValueTask<RadarProcessingBenchmarkResult> MeasureAsync(
         RadarProcessingSyntheticWorkload workload,
         RadarProcessingExecutionMode executionMode,
