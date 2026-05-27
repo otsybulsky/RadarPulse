@@ -40,7 +40,7 @@ auth/TLS/CORS hardening, cross-machine delivery, or exactly-once delivery.
 
 ## Slice 1: Portfolio Entrypoint
 
-Status: planned.
+Status: complete.
 
 Implementation:
 
@@ -64,6 +64,13 @@ Tests:
 
 ```text
 documentation-only slice; no runtime gate required
+```
+
+Verification:
+
+```text
+README.md added as repository-level portfolio entrypoint
+no runtime gate required for documentation-only slice
 ```
 
 Exit criteria:
@@ -297,7 +304,10 @@ The milestone currently has:
 ```text
 033-product-demo-polish-and-portfolio-readiness.md
 033-product-demo-polish-and-portfolio-readiness-plan.md
-implementation not started
+slice 1 portfolio entrypoint complete
+slice 2 happy-path demo walkthrough and script help planned
+slice 3 operator wording and visual checkpoints planned
+slice 4 gate evidence and handoff planned
 gate evidence not written
 decision trace not written
 closeout not written
