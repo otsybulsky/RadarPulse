@@ -1,11 +1,32 @@
 namespace RadarPulse.Domain.Streaming;
 
+/// <summary>
+/// Deterministic metrics for a stream dictionary snapshot.
+/// </summary>
 public readonly record struct RadarStreamDictionarySnapshotMetrics(
+    /// <summary>
+    /// Snapshot dictionary version.
+    /// </summary>
     DictionaryVersion Version,
+
+    /// <summary>
+    /// Number of radar entries visible in the snapshot.
+    /// </summary>
     int RadarCount,
+
+    /// <summary>
+    /// Number of moment entries visible in the snapshot.
+    /// </summary>
     int MomentCount,
+
+    /// <summary>
+    /// Deterministic checksum over visible catalog names, versions, ids, and text.
+    /// </summary>
     ulong MappingChecksum)
 {
+    /// <summary>
+    /// Computes dictionary snapshot metrics.
+    /// </summary>
     public static RadarStreamDictionarySnapshotMetrics Compute(RadarStreamDictionarySnapshot snapshot)
     {
         ArgumentNullException.ThrowIfNull(snapshot);

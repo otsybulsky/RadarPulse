@@ -1,5 +1,8 @@
 namespace RadarPulse.Domain.Streaming;
 
+/// <summary>
+/// Result of validating dense identity text or UTF-8 bytes.
+/// </summary>
 public readonly record struct DenseIdentityValidationResult
 {
     private DenseIdentityValidationResult(
@@ -18,18 +21,39 @@ public readonly record struct DenseIdentityValidationResult
         InputKind = inputKind;
     }
 
+    /// <summary>
+    /// Indicates whether validation succeeded.
+    /// </summary>
     public bool IsValid { get; }
 
+    /// <summary>
+    /// Validation error, or none when valid.
+    /// </summary>
     public DenseIdentityValidationError Error { get; }
 
+    /// <summary>
+    /// Input length measured in chars or bytes according to input kind.
+    /// </summary>
     public int Length { get; }
 
+    /// <summary>
+    /// Position of the invalid value, or -1 when not position-specific.
+    /// </summary>
     public int Position { get; }
 
+    /// <summary>
+    /// Invalid character or byte value for invalid-character failures.
+    /// </summary>
     public int InvalidValue { get; }
 
+    /// <summary>
+    /// Input representation that was validated.
+    /// </summary>
     public DenseIdentityValidationInputKind InputKind { get; }
 
+    /// <summary>
+    /// Creates a valid validation result.
+    /// </summary>
     public static DenseIdentityValidationResult Valid(
         int length,
         DenseIdentityValidationInputKind inputKind) =>
@@ -41,6 +65,9 @@ public readonly record struct DenseIdentityValidationResult
             invalidValue: 0,
             inputKind);
 
+    /// <summary>
+    /// Creates an invalid validation result.
+    /// </summary>
     public static DenseIdentityValidationResult Invalid(
         DenseIdentityValidationError error,
         int length,

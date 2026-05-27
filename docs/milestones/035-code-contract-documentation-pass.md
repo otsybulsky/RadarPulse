@@ -265,3 +265,33 @@ git diff --check
 touched-file trailing whitespace check
   result: passed
 ```
+
+### Change 7: Streaming Contract Documentation
+
+Status: complete.
+
+Intent:
+
+```text
+document dense identity canonicalization/catalog/versioning, stream identity
+normalization, source universe/source key mapping, stream event layout,
+dictionary snapshot metrics, batch lifetime, builder, validation, and
+deterministic metrics
+```
+
+Scope:
+
+```text
+src/Domain/Streaming
+```
+
+Verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore
+  result: passed, 0 warnings, 0 errors
+git diff --check
+  result: passed
+touched-file trailing whitespace check
+  result: passed
+```

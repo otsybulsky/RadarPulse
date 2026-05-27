@@ -1,5 +1,8 @@
 namespace RadarPulse.Domain.Streaming;
 
+/// <summary>
+/// Immutable snapshot of a dense identity catalog at a dictionary version.
+/// </summary>
 public sealed class DenseIdentityCatalogSnapshot
 {
     private readonly DenseIdentityCatalogEntry[] entries;
@@ -39,20 +42,38 @@ public sealed class DenseIdentityCatalogSnapshot
         this.entries = entries;
     }
 
+    /// <summary>
+    /// Catalog name represented by the snapshot.
+    /// </summary>
     public string Name { get; }
 
+    /// <summary>
+    /// Dictionary version represented by the visible entries.
+    /// </summary>
     public DictionaryVersion Version { get; }
 
+    /// <summary>
+    /// Number of visible entries.
+    /// </summary>
     public int Count => entries.Length;
 
+    /// <summary>
+    /// Dense entries ordered by id.
+    /// </summary>
     public ReadOnlyMemory<DenseIdentityCatalogEntry> Entries => entries;
 
+    /// <summary>
+    /// Looks up an id by canonical text.
+    /// </summary>
     public bool TryGetId(string text, out int id)
     {
         ArgumentNullException.ThrowIfNull(text);
         return textToId.TryGetValue(text, out id);
     }
 
+    /// <summary>
+    /// Looks up an id by canonical UTF-16 text.
+    /// </summary>
     public bool TryGetId(ReadOnlySpan<char> text, out int id)
     {
         for (var i = 0; i < entries.Length; i++)
@@ -68,6 +89,9 @@ public sealed class DenseIdentityCatalogSnapshot
         return false;
     }
 
+    /// <summary>
+    /// Looks up an id by canonical ASCII/UTF-8 bytes.
+    /// </summary>
     public bool TryGetId(ReadOnlySpan<byte> utf8Text, out int id)
     {
         for (var i = 0; i < entries.Length; i++)
@@ -83,6 +107,9 @@ public sealed class DenseIdentityCatalogSnapshot
         return false;
     }
 
+    /// <summary>
+    /// Looks up canonical text by dense id.
+    /// </summary>
     public bool TryGetText(int id, out string? text)
     {
         if ((uint)id < (uint)entries.Length)
@@ -95,6 +122,9 @@ public sealed class DenseIdentityCatalogSnapshot
         return false;
     }
 
+    /// <summary>
+    /// Applies a compatible dense catalog delta to produce a newer snapshot.
+    /// </summary>
     public DenseIdentityCatalogSnapshot Apply(DenseIdentityCatalogDelta delta)
     {
         ArgumentNullException.ThrowIfNull(delta);

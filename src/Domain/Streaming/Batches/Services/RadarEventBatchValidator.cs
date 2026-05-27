@@ -1,7 +1,19 @@
 namespace RadarPulse.Domain.Streaming;
 
+/// <summary>
+/// Validates radar event batches against stream schema, source-universe, dictionary, and metric contracts.
+/// </summary>
+/// <remarks>
+/// Validation checks that compact source identifiers match the supplied universe, optional dictionary ordinals are
+/// visible in the supplied snapshot, payload references are contiguous and bounded, event timestamps are ordered,
+/// and deterministic metrics match any expected value.
+/// </remarks>
 public static class RadarEventBatchValidator
 {
+    /// <summary>
+    /// Validates a batch against the supplied source universe and optional dictionary and metric snapshots.
+    /// </summary>
+    /// <returns>A valid result with computed metrics, or the first contract violation found.</returns>
     public static RadarEventBatchValidationResult Validate(
         RadarEventBatch batch,
         RadarSourceUniverse sourceUniverse,

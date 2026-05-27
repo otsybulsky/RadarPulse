@@ -1,12 +1,37 @@
 namespace RadarPulse.Domain.Streaming;
 
+/// <summary>
+/// Deterministic counts and checksums for a radar event batch.
+/// </summary>
 public readonly record struct RadarEventBatchMetrics(
+    /// <summary>
+    /// Number of events in the batch.
+    /// </summary>
     long EventCount,
+
+    /// <summary>
+    /// Number of payload bytes in the batch.
+    /// </summary>
     long PayloadBytes,
+
+    /// <summary>
+    /// Number of payload gate values represented by the batch.
+    /// </summary>
     long PayloadValueCount,
+
+    /// <summary>
+    /// Sum of raw payload values for deterministic validation.
+    /// </summary>
     long RawValueChecksum,
+
+    /// <summary>
+    /// Checksum over batch header and event metadata.
+    /// </summary>
     ulong MetadataChecksum)
 {
+    /// <summary>
+    /// Computes deterministic metrics for a batch.
+    /// </summary>
     public static RadarEventBatchMetrics Compute(RadarEventBatch batch)
     {
         ArgumentNullException.ThrowIfNull(batch);

@@ -1,5 +1,13 @@
 namespace RadarPulse.Domain.Streaming;
 
+/// <summary>
+/// Incremental builder for radar event batches and contiguous payload storage.
+/// </summary>
+/// <remarks>
+/// The builder enforces a single source-universe version per batch, tracks the maximum dictionary version
+/// required by appended identities, and can produce copied owned batches or short-lived leased batches for
+/// immediate consumption.
+/// </remarks>
 public sealed class RadarEventBatchBuilder
 {
     private const int DefaultEventCapacity = 256;
@@ -16,6 +24,9 @@ public sealed class RadarEventBatchBuilder
     private SourceUniverseVersion sourceUniverseVersion = SourceUniverseVersion.Initial;
     private bool hasSourceUniverseVersion;
 
+    /// <summary>
+    /// Creates a builder that writes batches using the current stream schema version.
+    /// </summary>
     public RadarEventBatchBuilder(
         int initialEventCapacity = DefaultEventCapacity,
         int initialPayloadCapacity = DefaultPayloadCapacity)
@@ -23,6 +34,9 @@ public sealed class RadarEventBatchBuilder
     {
     }
 
+    /// <summary>
+    /// Creates a builder that writes batches using an explicit stream schema version.
+    /// </summary>
     public RadarEventBatchBuilder(
         StreamSchemaVersion streamSchemaVersion,
         int initialEventCapacity = DefaultEventCapacity,
@@ -48,14 +62,30 @@ public sealed class RadarEventBatchBuilder
         payloadBuffer = initialPayloadCapacity == 0 ? [] : new byte[initialPayloadCapacity];
     }
 
+    /// <summary>
+    /// Gets the number of events currently staged in the builder.
+    /// </summary>
     public int EventCount => eventCount;
 
+    /// <summary>
+    /// Gets the number of payload bytes currently staged in the builder.
+    /// </summary>
     public int PayloadLength => payloadLength;
 
+    /// <summary>
+    /// Gets the highest dictionary version required by staged stream identities.
+    /// </summary>
     public DictionaryVersion DictionaryVersion => dictionaryVersion;
 
+    /// <summary>
+    /// Gets the source-universe version shared by all staged events.
+    /// </summary>
     public SourceUniverseVersion SourceUniverseVersion => sourceUniverseVersion;
 
+    /// <summary>
+    /// Appends one radar stream event and copies its payload bytes into the batch payload buffer.
+    /// </summary>
+    /// <returns>The compact event descriptor stored in the batch.</returns>
     public RadarStreamEvent AddEvent(
         RadarStreamIdentity identity,
         long volumeTimestampUtcTicks,
@@ -114,6 +144,9 @@ public sealed class RadarEventBatchBuilder
         return streamEvent;
     }
 
+    /// <summary>
+    /// Builds an owned batch by copying the staged events and payload bytes into stable arrays.
+    /// </summary>
     public RadarEventBatch Build()
     {
         var eventArray = eventCount == 0
@@ -133,6 +166,13 @@ public sealed class RadarEventBatchBuilder
             rawValueChecksum);
     }
 
+    /// <summary>
+    /// Builds a batch from the current buffers, then detaches and resets the builder buffers.
+    /// </summary>
+    /// <remarks>
+    /// The returned batch references the buffers that were current before reset, while the builder starts over
+    /// with empty replacement buffers.
+    /// </remarks>
     public RadarEventBatch BuildAndReset()
     {
         var eventMemory = eventCount == 0
@@ -155,6 +195,13 @@ public sealed class RadarEventBatchBuilder
         return batch;
     }
 
+    /// <summary>
+    /// Provides a leased batch to a consumer and resets the builder after the consumer returns.
+    /// </summary>
+    /// <remarks>
+    /// The leased batch references the builder buffers, so it must not be retained beyond the callback unless it is
+    /// converted with <see cref="RadarEventBatch.ToOwnedSnapshot"/>.
+    /// </remarks>
     public void ConsumeLeased(Action<RadarEventBatch> consumer)
     {
         ArgumentNullException.ThrowIfNull(consumer);
@@ -170,6 +217,9 @@ public sealed class RadarEventBatchBuilder
         }
     }
 
+    /// <summary>
+    /// Ensures the builder can stage at least the requested number of events and payload bytes.
+    /// </summary>
     public void EnsureCapacity(int eventCapacity, int payloadCapacity)
     {
         if (eventCapacity < 0)
@@ -193,6 +243,9 @@ public sealed class RadarEventBatchBuilder
         }
     }
 
+    /// <summary>
+    /// Clears staged events and metrics while keeping the current buffer capacity for reuse.
+    /// </summary>
     public void ResetRetainingCapacity()
     {
         eventCount = 0;

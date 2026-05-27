@@ -5,6 +5,14 @@ using System.Text;
 
 namespace RadarPulse.Domain.Streaming;
 
+/// <summary>
+/// Thread-safe dense catalog that assigns stable ids to canonical identity text.
+/// </summary>
+/// <remarks>
+/// Ids are assigned densely in registration order. The catalog exposes snapshots
+/// and deltas by dictionary version so stream batches can be validated against
+/// the exact text visibility that existed when an identity was normalized.
+/// </remarks>
 public sealed class DenseIdentityCatalog
 {
     private const int DefaultInitialCapacity = 256;
@@ -20,6 +28,9 @@ public sealed class DenseIdentityCatalog
     private int count;
     private long version = DictionaryVersion.Initial.Value;
 
+    /// <summary>
+    /// Creates a compact identifier catalog with a maximum text length.
+    /// </summary>
     public DenseIdentityCatalog(
         string name,
         int initialCapacity = DefaultInitialCapacity,
@@ -28,6 +39,9 @@ public sealed class DenseIdentityCatalog
     {
     }
 
+    /// <summary>
+    /// Creates a dense identity catalog with an explicit canonicalization policy.
+    /// </summary>
     public DenseIdentityCatalog(
         string name,
         DenseIdentityCanonicalizationPolicy canonicalizationPolicy,
@@ -54,18 +68,39 @@ public sealed class DenseIdentityCatalog
         utf8Buckets = new Utf8Bucket?[bucketCount];
     }
 
+    /// <summary>
+    /// Catalog name used in snapshots and diagnostics.
+    /// </summary>
     public string Name { get; }
 
+    /// <summary>
+    /// Number of registered entries currently visible.
+    /// </summary>
     public int Count => Volatile.Read(ref count);
 
+    /// <summary>
+    /// Current dictionary version for the visible entry count.
+    /// </summary>
     public DictionaryVersion CurrentVersion => new(Volatile.Read(ref version));
 
+    /// <summary>
+    /// Canonicalization policy enforced by the catalog.
+    /// </summary>
     public DenseIdentityCanonicalizationPolicy CanonicalizationPolicy => canonicalizationPolicy;
 
+    /// <summary>
+    /// Minimum canonical text length.
+    /// </summary>
     public int MinimumTextLength => canonicalizationPolicy.MinimumLength;
 
+    /// <summary>
+    /// Maximum canonical text length.
+    /// </summary>
     public int MaximumTextLength => canonicalizationPolicy.MaximumLength;
 
+    /// <summary>
+    /// Attempts to look up an existing id by canonical string.
+    /// </summary>
     public bool TryGetId(string text, out int id)
     {
         ArgumentNullException.ThrowIfNull(text);
@@ -78,6 +113,9 @@ public sealed class DenseIdentityCatalog
         return textToId.TryGetValue(text, out id);
     }
 
+    /// <summary>
+    /// Attempts to look up an existing id by canonical UTF-16 text.
+    /// </summary>
     public bool TryGetId(ReadOnlySpan<char> text, out int id)
     {
         if (!canonicalizationPolicy.IsCanonical(text))
@@ -89,6 +127,9 @@ public sealed class DenseIdentityCatalog
         return textSpanLookup.TryGetValue(text, out id);
     }
 
+    /// <summary>
+    /// Attempts to look up an existing id by canonical UTF-8 bytes.
+    /// </summary>
     public bool TryGetId(ReadOnlySpan<byte> utf8Text, out int id)
     {
         if (!canonicalizationPolicy.IsCanonical(utf8Text))
@@ -108,6 +149,9 @@ public sealed class DenseIdentityCatalog
         return false;
     }
 
+    /// <summary>
+    /// Attempts to look up canonical text by dense id.
+    /// </summary>
     public bool TryGetText(int id, out string? text)
     {
         var reverse = Volatile.Read(ref idToText);
@@ -121,12 +165,18 @@ public sealed class DenseIdentityCatalog
         return false;
     }
 
+    /// <summary>
+    /// Gets an existing id or registers canonical string text.
+    /// </summary>
     public int GetOrAdd(string text)
     {
         ArgumentNullException.ThrowIfNull(text);
         return GetOrAdd(text.AsSpan());
     }
 
+    /// <summary>
+    /// Gets an existing id or registers canonical UTF-16 text.
+    /// </summary>
     public int GetOrAdd(ReadOnlySpan<char> text)
     {
         EnsureCanonical(text);
@@ -138,6 +188,9 @@ public sealed class DenseIdentityCatalog
         return Register(text);
     }
 
+    /// <summary>
+    /// Gets an existing id or registers canonical UTF-8 bytes.
+    /// </summary>
     public int GetOrAdd(ReadOnlySpan<byte> utf8Text)
     {
         EnsureCanonicalUtf8(utf8Text);
@@ -149,20 +202,35 @@ public sealed class DenseIdentityCatalog
         return Register(utf8Text);
     }
 
+    /// <summary>
+    /// Validates canonical string text without registering it.
+    /// </summary>
     public DenseIdentityValidationResult Validate(string text)
     {
         ArgumentNullException.ThrowIfNull(text);
         return Validate(text.AsSpan());
     }
 
+    /// <summary>
+    /// Validates canonical UTF-16 text without registering it.
+    /// </summary>
     public DenseIdentityValidationResult Validate(ReadOnlySpan<char> text) =>
         canonicalizationPolicy.Validate(text);
 
+    /// <summary>
+    /// Validates canonical UTF-8 bytes without registering them.
+    /// </summary>
     public DenseIdentityValidationResult Validate(ReadOnlySpan<byte> utf8Text) =>
         canonicalizationPolicy.Validate(utf8Text);
 
+    /// <summary>
+    /// Creates a snapshot at the current version.
+    /// </summary>
     public DenseIdentityCatalogSnapshot CreateSnapshot() => CreateSnapshot(CurrentVersion);
 
+    /// <summary>
+    /// Creates a snapshot containing entries visible at the requested version.
+    /// </summary>
     public DenseIdentityCatalogSnapshot CreateSnapshot(DictionaryVersion snapshotVersion)
     {
         var snapshotCount = GetVisibleCount(snapshotVersion);
@@ -172,9 +240,15 @@ public sealed class DenseIdentityCatalog
             CopyEntries(startId: 0, count: snapshotCount));
     }
 
+    /// <summary>
+    /// Creates a delta from a version to the current version.
+    /// </summary>
     public DenseIdentityCatalogDelta CreateDelta(DictionaryVersion fromVersion) =>
         CreateDelta(fromVersion, CurrentVersion);
 
+    /// <summary>
+    /// Creates a delta for entries visible between two versions.
+    /// </summary>
     public DenseIdentityCatalogDelta CreateDelta(
         DictionaryVersion fromVersion,
         DictionaryVersion toVersion)
@@ -383,6 +457,9 @@ public sealed class DenseIdentityCatalog
     {
         private Entry[] entries = [];
 
+        /// <summary>
+        /// Finds an existing id in this hash bucket by comparing UTF-8 bytes after the hash match.
+        /// </summary>
         public bool TryGetId(ReadOnlySpan<byte> text, uint hash, out int id)
         {
             var snapshot = Volatile.Read(ref entries);
@@ -401,6 +478,9 @@ public sealed class DenseIdentityCatalog
             return false;
         }
 
+        /// <summary>
+        /// Adds a new immutable bucket entry and publishes the expanded snapshot atomically.
+        /// </summary>
         public void Add(byte[] text, int id, uint hash)
         {
             var snapshot = entries;

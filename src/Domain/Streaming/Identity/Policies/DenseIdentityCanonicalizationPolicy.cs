@@ -1,7 +1,18 @@
 namespace RadarPulse.Domain.Streaming;
 
+/// <summary>
+/// Validation policy for canonical dense identity text.
+/// </summary>
+/// <remarks>
+/// The policy is intentionally strict: it does not trim input or fold case.
+/// Callers must supply already-canonical ASCII text so dictionary ids remain
+/// deterministic across text, span, and UTF-8 lookup paths.
+/// </remarks>
 public sealed class DenseIdentityCanonicalizationPolicy
 {
+    /// <summary>
+    /// Canonical policy for four-character radar codes.
+    /// </summary>
     public static readonly DenseIdentityCanonicalizationPolicy RadarCode =
         new(
             dimensionName: "radar code",
@@ -11,6 +22,9 @@ public sealed class DenseIdentityCanonicalizationPolicy
                 DenseIdentityAllowedCharacters.UppercaseAsciiLetters |
                 DenseIdentityAllowedCharacters.Digits);
 
+    /// <summary>
+    /// Canonical policy for radar moment names.
+    /// </summary>
     public static readonly DenseIdentityCanonicalizationPolicy MomentName =
         new(
             dimensionName: "moment name",
@@ -21,6 +35,9 @@ public sealed class DenseIdentityCanonicalizationPolicy
                 DenseIdentityAllowedCharacters.Digits |
                 DenseIdentityAllowedCharacters.Underscore);
 
+    /// <summary>
+    /// Creates a dense identity canonicalization policy.
+    /// </summary>
     public DenseIdentityCanonicalizationPolicy(
         string dimensionName,
         int minimumLength,
@@ -50,18 +67,39 @@ public sealed class DenseIdentityCanonicalizationPolicy
         AllowedCharacters = allowedCharacters;
     }
 
+    /// <summary>
+    /// Human-readable dimension name used in validation messages.
+    /// </summary>
     public string DimensionName { get; }
 
+    /// <summary>
+    /// Minimum canonical identity length.
+    /// </summary>
     public int MinimumLength { get; }
 
+    /// <summary>
+    /// Maximum canonical identity length.
+    /// </summary>
     public int MaximumLength { get; }
 
+    /// <summary>
+    /// Allowed ASCII character groups.
+    /// </summary>
     public DenseIdentityAllowedCharacters AllowedCharacters { get; }
 
+    /// <summary>
+    /// Indicates that this policy never trims caller input.
+    /// </summary>
     public bool TrimsInput => false;
 
+    /// <summary>
+    /// Indicates that this policy never folds caller input case.
+    /// </summary>
     public bool FoldsCase => false;
 
+    /// <summary>
+    /// Creates a compact identifier policy with uppercase letters, digits, and underscore.
+    /// </summary>
     public static DenseIdentityCanonicalizationPolicy CompactIdentifier(int maximumLength = 32) =>
         new(
             dimensionName: "compact identity",
@@ -72,6 +110,9 @@ public sealed class DenseIdentityCanonicalizationPolicy
                 DenseIdentityAllowedCharacters.Digits |
                 DenseIdentityAllowedCharacters.Underscore);
 
+    /// <summary>
+    /// Validates UTF-16 canonical identity text.
+    /// </summary>
     public DenseIdentityValidationResult Validate(ReadOnlySpan<char> text)
     {
         var lengthValidation = ValidateLength(text.Length, DenseIdentityValidationInputKind.Text);
@@ -97,6 +138,9 @@ public sealed class DenseIdentityCanonicalizationPolicy
         return DenseIdentityValidationResult.Valid(text.Length, DenseIdentityValidationInputKind.Text);
     }
 
+    /// <summary>
+    /// Validates UTF-8 canonical identity bytes.
+    /// </summary>
     public DenseIdentityValidationResult Validate(ReadOnlySpan<byte> utf8Text)
     {
         var lengthValidation = ValidateLength(utf8Text.Length, DenseIdentityValidationInputKind.Utf8Bytes);
@@ -122,10 +166,19 @@ public sealed class DenseIdentityCanonicalizationPolicy
         return DenseIdentityValidationResult.Valid(utf8Text.Length, DenseIdentityValidationInputKind.Utf8Bytes);
     }
 
+    /// <summary>
+    /// Returns whether UTF-16 text is canonical.
+    /// </summary>
     public bool IsCanonical(ReadOnlySpan<char> text) => Validate(text).IsValid;
 
+    /// <summary>
+    /// Returns whether UTF-8 bytes are canonical.
+    /// </summary>
     public bool IsCanonical(ReadOnlySpan<byte> utf8Text) => Validate(utf8Text).IsValid;
 
+    /// <summary>
+    /// Creates a diagnostic validation message for a catalog and dimension.
+    /// </summary>
     public string CreateErrorMessage(
         string catalogName,
         DenseIdentityValidationResult validation)

@@ -1,5 +1,13 @@
 namespace RadarPulse.Domain.Streaming;
 
+/// <summary>
+/// Ordered dictionary entries added between two dictionary versions.
+/// </summary>
+/// <remarks>
+/// Delta entries are dense and start at the id represented by
+/// <see cref="FromVersion"/>. Applying a delta requires the target snapshot to
+/// have the same catalog name and matching start version.
+/// </remarks>
 public sealed class DenseIdentityCatalogDelta
 {
     private readonly DenseIdentityCatalogEntry[] entries;
@@ -46,14 +54,29 @@ public sealed class DenseIdentityCatalogDelta
         this.entries = entries;
     }
 
+    /// <summary>
+    /// Catalog name the delta belongs to.
+    /// </summary>
     public string Name { get; }
 
+    /// <summary>
+    /// Version the delta starts from.
+    /// </summary>
     public DictionaryVersion FromVersion { get; }
 
+    /// <summary>
+    /// Version reached after applying the delta.
+    /// </summary>
     public DictionaryVersion ToVersion { get; }
 
+    /// <summary>
+    /// Number of entries included in the delta.
+    /// </summary>
     public int Count => entries.Length;
 
+    /// <summary>
+    /// Dense entries ordered by id.
+    /// </summary>
     public ReadOnlyMemory<DenseIdentityCatalogEntry> Entries => entries;
 
     internal DenseIdentityCatalogEntry[] EntryArray => entries;

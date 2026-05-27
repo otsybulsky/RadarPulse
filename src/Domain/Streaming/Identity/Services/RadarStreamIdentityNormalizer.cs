@@ -1,5 +1,13 @@
 namespace RadarPulse.Domain.Streaming;
 
+/// <summary>
+/// Normalizes radar code, moment name, and source dimensions to stream identities.
+/// </summary>
+/// <remarks>
+/// The normalizer owns radar and moment dense catalogs. New catalog entries
+/// advance a combined dictionary version, while source ids are resolved through
+/// the fixed source universe supplied at construction.
+/// </remarks>
 public sealed class RadarStreamIdentityNormalizer
 {
     private readonly DenseIdentityCatalog radarCatalog;
@@ -9,6 +17,9 @@ public sealed class RadarStreamIdentityNormalizer
     private readonly List<DictionaryVisibilityState> dictionaryVersions = [];
     private long dictionaryVersionValue = DictionaryVersion.Initial.Value;
 
+    /// <summary>
+    /// Creates an identity normalizer for a source universe.
+    /// </summary>
     public RadarStreamIdentityNormalizer(RadarSourceUniverse sourceUniverse)
     {
         ArgumentNullException.ThrowIfNull(sourceUniverse);
@@ -22,16 +33,34 @@ public sealed class RadarStreamIdentityNormalizer
             MomentCount: 0));
     }
 
+    /// <summary>
+    /// Source universe used to resolve source ids.
+    /// </summary>
     public RadarSourceUniverse SourceUniverse => sourceUniverse;
 
+    /// <summary>
+    /// Source universe version stamped onto identities.
+    /// </summary>
     public SourceUniverseVersion SourceUniverseVersion => sourceUniverse.Version;
 
+    /// <summary>
+    /// Current combined radar/moment dictionary version.
+    /// </summary>
     public DictionaryVersion CurrentDictionaryVersion => new(Volatile.Read(ref dictionaryVersionValue));
 
+    /// <summary>
+    /// Number of visible radar catalog entries.
+    /// </summary>
     public int RadarCount => radarCatalog.Count;
 
+    /// <summary>
+    /// Number of visible moment catalog entries.
+    /// </summary>
     public int MomentCount => momentCatalog.Count;
 
+    /// <summary>
+    /// Normalizes canonical radar and moment strings, throwing when normalization fails.
+    /// </summary>
     public RadarStreamIdentity Normalize(
         string radarCode,
         string momentName,
@@ -53,6 +82,9 @@ public sealed class RadarStreamIdentityNormalizer
         throw CreateNormalizationException(result);
     }
 
+    /// <summary>
+    /// Attempts to normalize canonical radar and moment strings.
+    /// </summary>
     public RadarStreamIdentityNormalizationResult TryNormalize(
         string radarCode,
         string momentName,
@@ -71,6 +103,9 @@ public sealed class RadarStreamIdentityNormalizer
             rangeBand);
     }
 
+    /// <summary>
+    /// Attempts to normalize canonical radar and moment UTF-16 spans.
+    /// </summary>
     public RadarStreamIdentityNormalizationResult TryNormalize(
         ReadOnlySpan<char> radarCode,
         ReadOnlySpan<char> momentName,
@@ -122,6 +157,9 @@ public sealed class RadarStreamIdentityNormalizer
         }
     }
 
+    /// <summary>
+    /// Attempts to normalize canonical radar and moment UTF-8 bytes.
+    /// </summary>
     public RadarStreamIdentityNormalizationResult TryNormalize(
         ReadOnlySpan<byte> radarCodeUtf8,
         ReadOnlySpan<byte> momentNameUtf8,
@@ -173,9 +211,15 @@ public sealed class RadarStreamIdentityNormalizer
         }
     }
 
+    /// <summary>
+    /// Creates a dictionary snapshot at the current dictionary version.
+    /// </summary>
     public RadarStreamDictionarySnapshot CreateDictionarySnapshot() =>
         CreateDictionarySnapshot(CurrentDictionaryVersion);
 
+    /// <summary>
+    /// Creates a dictionary snapshot at a previously visible combined dictionary version.
+    /// </summary>
     public RadarStreamDictionarySnapshot CreateDictionarySnapshot(DictionaryVersion version)
     {
         DictionaryVisibilityState state;
@@ -192,9 +236,15 @@ public sealed class RadarStreamIdentityNormalizer
             momentCatalog.CreateSnapshot(momentVersion));
     }
 
+    /// <summary>
+    /// Attempts to look up an existing radar ordinal.
+    /// </summary>
     public bool TryGetRadarOrdinal(string radarCode, out int radarOrdinal) =>
         radarCatalog.TryGetId(radarCode, out radarOrdinal);
 
+    /// <summary>
+    /// Attempts to look up an existing moment id.
+    /// </summary>
     public bool TryGetMomentId(string momentName, out int momentId) =>
         momentCatalog.TryGetId(momentName, out momentId);
 
