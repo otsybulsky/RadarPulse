@@ -1,21 +1,19 @@
-# Handoff: Milestone 033 Complete
+# Handoff: Milestone 034 Open
 
 ## Current State
 
-Milestone 033 has been selected after milestone 032 closeout. The
-architecture/concept document and detailed implementation plan are written.
-Slice 1 portfolio entrypoint is complete. Slice 2 happy-path demo walkthrough
-and script help is complete. Slice 3 operator wording and visual checkpoints
-is complete. Slice 4 gate evidence and handoff is complete. The decision
-trace and closeout are written.
+Milestone 034 has been opened after milestone 033 closeout as a
+documentation-level container for targeted project restructuring, small
+cleanup, documentation corrections, and maintenance fixes.
 
-RadarPulse is now in freeze mode for the accepted portfolio-ready local
-product demo boundary.
+RadarPulse remains in freeze mode for the accepted portfolio-ready local
+product demo boundary. Milestone 034 is not a new architecture milestone and
+does not start with a detailed implementation plan.
 
 Stop point:
 
 ```text
-milestone 033 closeout written; project is in freeze mode
+milestone 034 opened as a lightweight maintenance/restructuring container
 ```
 
 Most recently closed milestone:
@@ -28,6 +26,28 @@ Current project mode:
 
 ```text
 freeze mode
+```
+
+Active milestone:
+
+```text
+034 Targeted Project Restructuring And Maintenance
+```
+
+Milestone 034 selected posture:
+
+```text
+record a sequence of targeted changes rather than a full architecture plan
+keep each change scoped, reviewable, and independently verifiable
+preserve accepted deterministic local demo behavior
+do not reopen accepted milestone 020-033 runtime, product, HTTP,
+  persistence, UI, or demo/readiness decisions
+```
+
+Milestone 034 documents:
+
+```text
+docs/milestones/034-targeted-project-restructuring-and-maintenance.md
 ```
 
 Milestone 033 goal:

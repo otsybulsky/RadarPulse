@@ -1,8 +1,9 @@
 # RadarPulse Project Progress
 
-Status: current after milestone 033 closeout with product demo polish and
-portfolio readiness accepted for deterministic local demo/archive-shaped
-workflows. The project is now in freeze mode.
+Status: current after milestone 033 closeout with milestone 034 opened as a
+freeze-mode container for targeted project restructuring and maintenance.
+Product demo polish and portfolio readiness remain accepted for deterministic
+local demo/archive-shaped workflows.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -49,6 +50,13 @@ post-closeout project mode:
   future work should be limited to documentation, screenshots/demo video,
   small portfolio wording polish, targeted refactoring that preserves accepted
   behavior, and maintenance fixes
+active milestone:
+  034 targeted project restructuring and maintenance
+active milestone posture:
+  documentation-level container for a sequence of point changes
+  no architecture milestone or detailed implementation plan by default
+  accepted milestone 020-033 runtime, product, HTTP, persistence, UI, and
+    demo/readiness decisions remain closed
 
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive
@@ -153,8 +161,8 @@ current runtime/live posture:
   broker/database adapter certification is not planned for this project
 
 current next action:
-  operate in freeze mode; do not plan additional feature/runtime milestones
-  unless explicitly reprioritized
+  use milestone 034 for targeted restructuring, cleanup, documentation
+  corrections, and maintenance fixes while preserving accepted behavior
 ```
 
 Current project scope decision:
