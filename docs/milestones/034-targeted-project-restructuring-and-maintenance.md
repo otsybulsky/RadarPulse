@@ -246,7 +246,8 @@ both directions.
 
 ### Change 3: Backend Responsibility Folder Structure
 
-Status: in progress; Processing, application, and archive slices complete.
+Status: in progress; Processing, application, archive, and product slices
+complete.
 
 Intent:
 
@@ -399,6 +400,21 @@ physically move archive tests out of the flat tests archive root into:
   tests/RadarPulse.Tests/Archive/Nexrad
 ```
 
+Slice 6 scope:
+
+```text
+physically move product code out of flat roots into responsibility folders:
+  src/Application/Product/Pipeline
+  src/Application/Product/History
+  src/Infrastructure/Product/Pipeline
+  src/Infrastructure/Product/History
+
+physically move product tests out of the flat tests product root into:
+  tests/RadarPulse.Tests/Product/Pipeline
+  tests/RadarPulse.Tests/Product/History
+  tests/RadarPulse.Tests/Product/Http
+```
+
 Slice 1 verification:
 
 ```text
@@ -488,10 +504,22 @@ dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
   passed: 160, failed: 0, skipped: 3
 ```
 
+Slice 6 verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore
+  passed, 0 warnings, 0 errors
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+  --no-restore --no-build
+  --filter "FullyQualifiedName~Product"
+  passed: 86, failed: 0, skipped: 0
+```
+
 Notes:
 
 ```text
-slice 1 intentionally preserves existing C# namespaces so this remains a
+move slices intentionally preserve existing C# namespaces so this remains a
 physical structure cleanup rather than a public API/using rewrite. Namespace
 alignment can be handled as a later explicit slice if it is worth the added
 blast radius. A broad combined Rebalance filter was also tried and exposed
