@@ -1,13 +1,14 @@
 # RadarPulse Project Progress
 
-Status: current after milestone 032 closeout with product demo/readiness
-packaging accepted for deterministic archive-shaped workflows.
+Status: current after milestone 033 closeout with product demo polish and
+portfolio readiness accepted for deterministic local demo/archive-shaped
+workflows. The project is now in freeze mode.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
 closeouts. This file records the broader arc: what has been achieved, what it
-prepared, where the project is now, and what remains before the intended
-production-ready result.
+prepared, where the project is now, and what remains within the accepted
+portfolio-ready scope.
 
 ## Current Position
 
@@ -23,15 +24,17 @@ milestone, the persistent durable adapter readiness milestone, the production
 pipeline integration milestone, the product-facing pipeline console/API
 milestone, the product HTTP host and persistent run history milestone, the
 product operator Angular SPA milestone, the operator UI hardening and
-integrated local delivery milestone, and the product demo/readiness packaging
-milestone. Milestone 032 is complete through closeout.
+integrated local delivery milestone, the product demo/readiness packaging
+milestone, and the product demo polish and portfolio readiness milestone.
+Milestone 033 is complete through closeout, and the project is now in freeze
+mode.
 
 Current state:
 
 ```text
-completed milestones: 001-032
+completed milestones: 001-033
 latest completed milestone:
-  032 product demo/readiness packaging
+  033 product demo polish and portfolio readiness
 latest completed milestone status:
   implementation slices complete
   Angular gate captured
@@ -40,8 +43,12 @@ latest completed milestone status:
   focused .NET HTTP/API/readiness Release gate captured
   decision trace written
   closeout written
-recommended next milestone input:
-  Product demo polish and portfolio readiness
+post-closeout project mode:
+  freeze mode
+  no new feature/runtime milestones by default
+  future work should be limited to documentation, screenshots/demo video,
+  small portfolio wording polish, targeted refactoring that preserves accepted
+  behavior, and maintenance fixes
 
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive
@@ -131,6 +138,12 @@ current runtime/live posture:
   history reset, product workflow documentation, and a packaged verify command
   over the accepted Angular, browser smoke, focused .NET, and Release build
   gates
+  product demo polish and portfolio readiness is accepted with scoped
+  warnings over deterministic local demo/archive-shaped workflows
+  the repository now has a portfolio README, concise happy-path demo
+  walkthrough, polished first-run script help, clearer operator UI wording,
+  visual checkpoint guidance, final gate evidence, and an explicit freeze
+  mode decision
   src/Presentation now contains the sibling presentation surfaces:
     OperatorUi, RadarPulse.Cli, and RadarPulse.Http
   true live network ingestion, public/deployed production HTTP/API/frontend
@@ -140,7 +153,8 @@ current runtime/live posture:
   broker/database adapter certification is not planned for this project
 
 current next action:
-  start the recommended Product demo polish and portfolio readiness milestone
+  operate in freeze mode; do not plan additional feature/runtime milestones
+  unless explicitly reprioritized
 ```
 
 Current project scope decision:
@@ -152,6 +166,14 @@ database adapter certification. The accepted persistence boundary for this
 project is the deterministic local file-based durable adapter plus the
 production-shaped pipeline built on top of it, and deterministic local
 file-backed product run history for product-level run records.
+
+After milestone 033, RadarPulse is portfolio-ready at the deterministic local
+product demo boundary. Future work should default to freeze mode:
+documentation, screenshots/demo video, small portfolio wording polish,
+targeted refactoring that preserves accepted behavior, and maintenance fixes.
+New runtime architecture, product feature, live-ingestion, deployment,
+external adapter, security, or delivery-certification milestones are not
+planned unless explicitly reprioritized.
 ```
 
 The current accepted direct benchmark contour is:
@@ -2232,6 +2254,148 @@ Recommended next milestone input:
 Product demo polish and portfolio readiness
 ```
 
+### 21. Product Demo Polish And Portfolio Readiness
+
+Status:
+
+```text
+complete as milestone 033
+architecture/concept document written
+implementation plan written
+portfolio entrypoint complete
+happy-path demo walkthrough and script help complete
+operator wording and visual checkpoints complete
+gate evidence captured
+decision trace written
+closeout written
+project freeze mode accepted
+```
+
+Milestone documents:
+
+```text
+docs/milestones/033-product-demo-polish-and-portfolio-readiness.md
+docs/milestones/033-product-demo-polish-and-portfolio-readiness-plan.md
+docs/milestones/033-product-demo-polish-and-portfolio-readiness-gate.md
+docs/milestones/033-product-demo-polish-and-portfolio-readiness-decision-trace.md
+docs/milestones/033-product-demo-polish-and-portfolio-readiness-closeout.md
+```
+
+Goal:
+
+```text
+make RadarPulse understandable, runnable, inspectable, and verifiable as a
+local portfolio product demo over the accepted local product demo/readiness
+package
+```
+
+Implemented work:
+
+```text
+README.md portfolio entrypoint
+portfolio framing for the local product demo, selected architecture, quick
+  start, verification, and non-claims
+docs/product-demo-readiness.md happy-path portfolio demo walkthrough
+scripts/radarpulse-product-demo.ps1 help output with typical first-run order,
+  default URL, docs pointers, scope boundary, and visible readiness-blocker
+  posture
+operator UI wording polish for product host, demo readiness, create run,
+  persisted runs, and local operator controls
+visual checkpoint guidance for readiness, latest/persisted runs, selected run
+  summary, batches/sources, handler output, diagnostics, capacity, and
+  controls
+OperatorUi README pointer to the root README and product demo workflow
+gate evidence, decision trace, closeout, handoff, and project-progress
+  updates
+```
+
+Verification summary:
+
+```text
+package script smoke:
+  help passed
+  paths passed
+
+packaged verify:
+  passed
+
+Angular gate:
+  20 passed, 0 failed
+  production build succeeded
+
+browser smoke gate:
+  dev-server smoke 4 passed, 0 failed
+  hosted same-origin smoke 1 passed, 0 failed
+
+focused .NET product HTTP/API/readiness Release gate:
+  21 passed, 0 failed, 0 skipped
+
+Release build:
+  succeeded, 0 warnings, 0 errors
+```
+
+Decision trace:
+
+```text
+accepted with scoped warnings for product demo polish and portfolio readiness
+over deterministic local demo/archive-shaped workflows
+
+warnings:
+the product demo/readiness package covers deterministic demo/archive-shaped
+  local workflows only
+the same-origin host is local RadarPulse.Http delivery, not public production
+  deployment
+the package does not add authentication, authorization, TLS termination,
+  production CORS hardening, deployment automation, autoscaling, alert
+  routing, or operator runbooks
+history remains deterministic local file-backed product history, not
+  database-backed product history
+the static asset root expects a built Angular bundle; RadarPulse.Http does
+  not perform frontend build orchestration at runtime
+external broker/cloud queue/database adapters remain outside the project plan
+cross-machine throughput certification is not claimed
+exactly-once end-to-end production delivery is not claimed
+accepted milestone 020-032 backend/runtime/product/UI/demo-readiness
+  decisions are not reopened
+```
+
+Closeout:
+
+```text
+accepted with scoped warnings for product demo polish and portfolio readiness
+over deterministic local demo/archive-shaped workflows
+```
+
+Prepared by milestone 033 implementation:
+
+```text
+RadarPulse now has a portfolio-ready local product demo instead of only a
+repeatable local product demo/readiness package
+reviewers can understand the project from README.md, run the accepted local
+package, inspect the Angular UI, follow visual checkpoints, and verify gates
+without reading milestone history first
+the accepted local deterministic scope and non-claims are visible in the
+README, product demo docs, package script help, gate evidence, decision trace,
+and closeout
+future work can stay in freeze mode instead of inventing new feature/runtime
+milestones
+live ingestion, public production deployment, auth/TLS/production CORS
+hardening, external broker/database adapters, operations automation, rich
+radar visualization, runtime frontend build orchestration, and exactly-once
+work remain explicitly separated
+```
+
+Recommended next project mode:
+
+```text
+freeze mode
+
+Do not plan additional feature/runtime architecture milestones by default.
+Future work should be limited to documentation, screenshots/demo video,
+small portfolio wording polish, targeted refactoring that preserves accepted
+behavior, and maintenance fixes.
+```
+
 ## Project Chain Summary
 
 ```text
@@ -2259,7 +2423,8 @@ Product demo polish and portfolio readiness
 [done] product operator Angular SPA
 [done] operator UI hardening and integrated local delivery
 [done] product demo/readiness packaging
-[recommended next] Product demo polish and portfolio readiness
+[done] product demo polish and portfolio readiness
+[freeze] documentation, demo assets, targeted refactoring, and maintenance
 ```
 
 ## Update Rules
@@ -2273,7 +2438,7 @@ what it prepared
 final closeout answer
 important warnings or scope limits
 verification summary
-recommended next milestone input
+recommended next milestone input or project mode
 whether the project chain changed
 ```
 
