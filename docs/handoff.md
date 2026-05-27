@@ -12,7 +12,9 @@ and Infrastructure, the Application Archive/Processing slice, the Archive
 source/test slice, the Product source/test slice, the Streaming source/test
 slice, and the Presentation source/test slice. Change 4 has audited current
 documentation paths and added source navigation for the new structure while
-leaving historical carry-forward evidence unchanged.
+leaving historical carry-forward evidence unchanged. Change 5 has rerun the
+accepted package verification flow through Windows PowerShell, WSL/Bash, and
+Windows PowerShell again after WSL restore metadata refresh.
 
 RadarPulse remains in freeze mode for the accepted portfolio-ready local
 product demo boundary. Milestone 034 is not a new architecture milestone and
@@ -21,8 +23,8 @@ does not start with a detailed implementation plan.
 Stop point:
 
 ```text
-milestone 034 change 4 complete; current README/demo/operator docs audited
-and aligned with the responsibility-first source layout
+milestone 034 change 5 complete; post-restructure packaged verify passed on
+Windows, WSL/Bash, and Windows again after WSL restore metadata refresh
 ```
 
 Most recently closed milestone:
@@ -68,6 +70,7 @@ Milestone 034 completed changes:
    Application Archive/Processing, Archive, Product, Streaming, and
    Presentation slices
 4. Current documentation path audit
+5. Post-restructure packaged verify
 ```
 
 Milestone 033 goal:
@@ -114,6 +117,43 @@ Milestone 033 planned slices:
 Latest verification:
 
 ```text
+milestone 034 change 5 post-restructure packaged verify:
+  Windows PowerShell package verify:
+    powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
+      verify
+    passed
+    Angular unit tests 20 passed, 0 failed
+    Angular production build succeeded
+    Operator UI browser smoke 4 passed, 0 failed
+    hosted same-origin browser smoke 1 passed, 0 failed
+    .NET dependency restore passed with --force
+    focused .NET product HTTP/API/readiness Release gate:
+      21 passed, 0 failed, 0 skipped
+    .NET Release build succeeded, 0 warnings, 0 errors
+  WSL/Bash package verify:
+    bash scripts/radarpulse-product-demo.sh verify
+    passed
+    Angular unit tests 20 passed, 0 failed
+    Angular production build succeeded
+    Operator UI browser smoke 4 passed, 0 failed
+    hosted same-origin browser smoke 1 passed, 0 failed
+    .NET dependency restore passed with --force
+    focused .NET product HTTP/API/readiness Release gate:
+      21 passed, 0 failed, 0 skipped
+    .NET Release build succeeded, 0 warnings, 0 errors
+  Windows PowerShell package verify after WSL/Bash restore metadata:
+    powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
+      verify
+    passed
+    Angular unit tests 20 passed, 0 failed
+    Angular production build succeeded
+    Operator UI browser smoke 4 passed, 0 failed
+    hosted same-origin browser smoke 1 passed, 0 failed
+    .NET dependency restore passed with --force
+    focused .NET product HTTP/API/readiness Release gate:
+      21 passed, 0 failed, 0 skipped
+    .NET Release build succeeded, 0 warnings, 0 errors
+
 milestone 034 change 4 documentation path audit:
   current documentation direct-file stale path audit:
     README.md

@@ -81,6 +81,8 @@ active milestone completed changes:
   current README, product demo/readiness, operator UI README, handoff, and
     progress docs are audited and aligned with the responsibility-first
     source layout
+  post-restructure packaged verify passed through Windows PowerShell,
+    WSL/Bash, and Windows PowerShell again after WSL restore metadata refresh
 
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive

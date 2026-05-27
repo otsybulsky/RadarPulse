@@ -648,3 +648,69 @@ responsibility-first structure. Historical lower sections in docs/handoff.md
 still contain older milestone-era file paths as carry-forward evidence and
 are intentionally left unchanged.
 ```
+
+### Change 5: Post-Restructure Packaged Verify
+
+Status: complete.
+
+Intent:
+
+```text
+prove the accepted local product demo/readiness package still passes after
+the responsibility-first source restructuring and documentation path audit
+```
+
+Scope:
+
+```text
+docs/milestones/034-targeted-project-restructuring-and-maintenance.md
+docs/handoff.md
+docs/project-progress.md
+```
+
+Verification:
+
+```text
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
+  verify
+  passed
+  Angular unit tests: 20 passed, 0 failed
+  Angular production build: succeeded
+  Operator UI browser smoke: 4 passed, 0 failed
+  hosted same-origin browser smoke: 1 passed, 0 failed
+  .NET dependency restore: passed with --force
+  focused .NET product HTTP/API/readiness Release gate:
+    21 passed, 0 failed, 0 skipped
+  .NET Release build: succeeded, 0 warnings, 0 errors
+
+bash scripts/radarpulse-product-demo.sh verify
+  passed
+  Angular unit tests: 20 passed, 0 failed
+  Angular production build: succeeded
+  Operator UI browser smoke: 4 passed, 0 failed
+  hosted same-origin browser smoke: 1 passed, 0 failed
+  .NET dependency restore: passed with --force
+  focused .NET product HTTP/API/readiness Release gate:
+    21 passed, 0 failed, 0 skipped
+  .NET Release build: succeeded, 0 warnings, 0 errors
+
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
+  verify
+  passed after the WSL/Bash verify refreshed restore metadata
+  Angular unit tests: 20 passed, 0 failed
+  Angular production build: succeeded
+  Operator UI browser smoke: 4 passed, 0 failed
+  hosted same-origin browser smoke: 1 passed, 0 failed
+  .NET dependency restore: passed with --force
+  focused .NET product HTTP/API/readiness Release gate:
+    21 passed, 0 failed, 0 skipped
+  .NET Release build: succeeded, 0 warnings, 0 errors
+```
+
+Notes:
+
+```text
+the final verify run is the Windows PowerShell entrypoint after the WSL/Bash
+run, so the checkout is left with Windows-refreshed restore metadata while
+preserving evidence that both package entrypoints pass after restructuring
+```
