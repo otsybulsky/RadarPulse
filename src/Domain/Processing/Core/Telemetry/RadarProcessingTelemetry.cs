@@ -1,5 +1,8 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Captures partition and shard telemetry for one partitioned or async batch route.
+/// </summary>
 public sealed class RadarProcessingTelemetry
 {
     private readonly IReadOnlyList<RadarProcessingPartitionTelemetry> partitions;
@@ -48,24 +51,54 @@ public sealed class RadarProcessingTelemetry
         HotShardId = hotShardId;
     }
 
+    /// <summary>
+    /// Gets the execution mode that produced the telemetry.
+    /// </summary>
     public RadarProcessingExecutionMode ExecutionMode { get; }
 
+    /// <summary>
+    /// Gets the topology version used by the route.
+    /// </summary>
     public RadarProcessingTopologyVersion TopologyVersion { get; }
 
+    /// <summary>
+    /// Gets aggregate batch route metrics.
+    /// </summary>
     public RadarProcessingRouteMetrics BatchMetrics { get; }
 
+    /// <summary>
+    /// Gets the number of partition telemetry entries.
+    /// </summary>
     public int PartitionCount => partitions.Count;
 
+    /// <summary>
+    /// Gets the number of shard telemetry entries.
+    /// </summary>
     public int ShardCount => shards.Count;
 
+    /// <summary>
+    /// Gets partition telemetry ordered by partition id.
+    /// </summary>
     public IReadOnlyList<RadarProcessingPartitionTelemetry> Partitions => partitions;
 
+    /// <summary>
+    /// Gets shard telemetry ordered by shard id.
+    /// </summary>
     public IReadOnlyList<RadarProcessingShardTelemetry> Shards => shards;
 
+    /// <summary>
+    /// Gets the partition id with the largest event count, or -1 when the batch had no routed work.
+    /// </summary>
     public int HotPartitionId { get; }
 
+    /// <summary>
+    /// Gets the shard id with the largest event count, or -1 when the batch had no routed work.
+    /// </summary>
     public int HotShardId { get; }
 
+    /// <summary>
+    /// Builds telemetry from a validated batch route.
+    /// </summary>
     public static RadarProcessingTelemetry FromRoute(
         RadarProcessingExecutionMode executionMode,
         RadarProcessingBatchRoute route)

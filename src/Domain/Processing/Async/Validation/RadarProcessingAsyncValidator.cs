@@ -1,7 +1,13 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Validates async processing results, transport assignment, deterministic parity, and retained worker telemetry.
+/// </summary>
 public static class RadarProcessingAsyncValidator
 {
+    /// <summary>
+    /// Validates an async shard transport processing result according to the selected profile.
+    /// </summary>
     public static RadarProcessingAsyncValidationResult ValidateProcessingResult(
         RadarProcessingResult result,
         RadarProcessingValidationProfile validationProfile = RadarProcessingValidationProfile.Diagnostic)
@@ -37,6 +43,9 @@ public static class RadarProcessingAsyncValidator
             : RadarProcessingAsyncValidationResult.Valid(validationProfile);
     }
 
+    /// <summary>
+    /// Validates an async rebalance result and ensures failed processing does not publish migration artifacts.
+    /// </summary>
     public static RadarProcessingAsyncValidationResult ValidateRebalanceResult(
         RadarProcessingRebalanceSessionResult result,
         RadarProcessingTopology? currentTopology = null,
@@ -83,6 +92,9 @@ public static class RadarProcessingAsyncValidator
         return RadarProcessingAsyncValidationResult.Valid(validationProfile);
     }
 
+    /// <summary>
+    /// Validates async work item coverage, completion scope, worker assignment, and aggregate metrics.
+    /// </summary>
     public static RadarProcessingAsyncValidationResult ValidateTransport(
         RadarProcessingBatchRoute route,
         IReadOnlyList<RadarProcessingAsyncWorkItem> workItems,
@@ -113,6 +125,9 @@ public static class RadarProcessingAsyncValidator
         return ValidateTransportDiagnostic(route, workItems, batchResult!, validationProfile, workerCount);
     }
 
+    /// <summary>
+    /// Compares synchronous and async outputs for benchmark-grade deterministic parity.
+    /// </summary>
     public static RadarProcessingAsyncValidationResult ValidateBenchmarkComparison(
         RadarProcessingResult synchronousResult,
         RadarProcessingResult asyncResult,
@@ -190,6 +205,9 @@ public static class RadarProcessingAsyncValidator
             asyncResult.Metrics.ProcessingChecksum);
     }
 
+    /// <summary>
+    /// Validates that retained worker telemetry obeys configured retention limits and counters.
+    /// </summary>
     public static RadarProcessingAsyncValidationResult ValidateWorkerTelemetryRetention(
         RadarProcessingWorkerTelemetrySummary workerTelemetry,
         RadarProcessingTelemetryRetentionOptions retentionOptions,

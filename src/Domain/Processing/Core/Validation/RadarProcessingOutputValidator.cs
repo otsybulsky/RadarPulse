@@ -2,8 +2,15 @@ using RadarPulse.Domain.Streaming;
 
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Recomputes expected processing output and compares it with result metrics and source snapshots.
+/// </summary>
 public static class RadarProcessingOutputValidator
 {
+    /// <summary>
+    /// Validates a processing result against before/after snapshots and optional previous metrics.
+    /// </summary>
+    /// <returns>A valid result when output is deterministic, otherwise the first detected mismatch.</returns>
     public static RadarProcessingValidationResult Validate(
         RadarEventBatch batch,
         RadarProcessingResult result,

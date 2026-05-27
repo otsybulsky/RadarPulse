@@ -1,5 +1,8 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Maintains the accepted lifecycle state machine for an async worker group.
+/// </summary>
 public sealed class RadarProcessingWorkerGroupLifecycle
 {
     private readonly int workerCount;
@@ -8,6 +11,9 @@ public sealed class RadarProcessingWorkerGroupLifecycle
     private RadarProcessingWorkerHealth health;
     private RadarProcessingWorkerLifecycleError lastError;
 
+    /// <summary>
+    /// Creates a lifecycle tracker using async execution capacity settings.
+    /// </summary>
     public RadarProcessingWorkerGroupLifecycle(
         RadarProcessingAsyncExecutionOptions? options = null)
     {
@@ -20,9 +26,15 @@ public sealed class RadarProcessingWorkerGroupLifecycle
         lastError = RadarProcessingWorkerLifecycleError.None;
     }
 
+    /// <summary>
+    /// Gets the current worker group status.
+    /// </summary>
     public RadarProcessingWorkerGroupStatus Status =>
         new(state, health, workerCount, queueCapacity, lastError);
 
+    /// <summary>
+    /// Transitions the group from not-started to running and healthy.
+    /// </summary>
     public RadarProcessingWorkerLifecycleResult Start()
     {
         if (state == RadarProcessingWorkerGroupState.NotStarted)
@@ -35,6 +47,9 @@ public sealed class RadarProcessingWorkerGroupLifecycle
         return Fail(RejectForCurrentState(starting: true));
     }
 
+    /// <summary>
+    /// Transitions a running group to draining so new dispatch is rejected.
+    /// </summary>
     public RadarProcessingWorkerLifecycleResult StopAccepting()
     {
         if (state == RadarProcessingWorkerGroupState.Running)
@@ -52,6 +67,9 @@ public sealed class RadarProcessingWorkerGroupLifecycle
         return Fail(RejectForCurrentState());
     }
 
+    /// <summary>
+    /// Stops a running or draining group.
+    /// </summary>
     public RadarProcessingWorkerLifecycleResult Stop()
     {
         if (state is RadarProcessingWorkerGroupState.Running or RadarProcessingWorkerGroupState.Stopping)
@@ -69,6 +87,9 @@ public sealed class RadarProcessingWorkerGroupLifecycle
         return Fail(RejectForCurrentState());
     }
 
+    /// <summary>
+    /// Marks the group faulted with an explicit lifecycle error.
+    /// </summary>
     public RadarProcessingWorkerLifecycleResult MarkFaulted(
         RadarProcessingWorkerLifecycleError error = RadarProcessingWorkerLifecycleError.Faulted)
     {
@@ -89,6 +110,9 @@ public sealed class RadarProcessingWorkerGroupLifecycle
         return Succeed();
     }
 
+    /// <summary>
+    /// Transitions the group to disposed state.
+    /// </summary>
     public RadarProcessingWorkerLifecycleResult Dispose()
     {
         if (state == RadarProcessingWorkerGroupState.Disposed)
@@ -101,6 +125,9 @@ public sealed class RadarProcessingWorkerGroupLifecycle
             RadarProcessingWorkerHealth.Disposed);
     }
 
+    /// <summary>
+    /// Validates that dispatch is allowed in the current state.
+    /// </summary>
     public RadarProcessingWorkerLifecycleResult ValidateDispatchAllowed()
     {
         if (state == RadarProcessingWorkerGroupState.Running &&

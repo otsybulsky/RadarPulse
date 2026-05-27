@@ -1,9 +1,15 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Aggregates work item completions for one async batch scope.
+/// </summary>
 public sealed record RadarProcessingAsyncBatchCompletion
 {
     private readonly IReadOnlyList<RadarProcessingAsyncWorkCompletion> completions;
 
+    /// <summary>
+    /// Creates a completion aggregate and validates completion scope, uniqueness, and counters.
+    /// </summary>
     public RadarProcessingAsyncBatchCompletion(
         long batchSequence,
         RadarProcessingTopologyVersion topologyVersion,
@@ -39,37 +45,82 @@ public sealed record RadarProcessingAsyncBatchCompletion
         IsClosed = isClosed;
     }
 
+    /// <summary>
+    /// Gets the batch sequence represented by the aggregate.
+    /// </summary>
     public long BatchSequence { get; }
 
+    /// <summary>
+    /// Gets the topology version shared by all completions.
+    /// </summary>
     public RadarProcessingTopologyVersion TopologyVersion { get; }
 
+    /// <summary>
+    /// Gets the number of work items expected for the batch.
+    /// </summary>
     public int ExpectedWorkItemCount { get; }
 
+    /// <summary>
+    /// Gets the number of recorded work item completions.
+    /// </summary>
     public int RecordedWorkItemCount => completions.Count;
 
+    /// <summary>
+    /// Gets the number of successful work item completions.
+    /// </summary>
     public int SucceededWorkItemCount { get; }
 
+    /// <summary>
+    /// Gets the number of failed work item completions.
+    /// </summary>
     public int FailedWorkItemCount { get; }
 
+    /// <summary>
+    /// Gets the number of canceled work item completions.
+    /// </summary>
     public int CanceledWorkItemCount { get; }
 
+    /// <summary>
+    /// Gets total queue wait time across recorded work items.
+    /// </summary>
     public TimeSpan TotalQueueWaitTime { get; }
 
+    /// <summary>
+    /// Gets total execution time across recorded work items.
+    /// </summary>
     public TimeSpan TotalExecutionTime { get; }
 
+    /// <summary>
+    /// Gets total processed stream events across recorded work items.
+    /// </summary>
     public long ProcessedStreamEventCount { get; }
 
+    /// <summary>
+    /// Gets total processed payload values across recorded work items.
+    /// </summary>
     public long ProcessedPayloadValueCount { get; }
 
+    /// <summary>
+    /// Gets whether the owning scope was closed when this snapshot was created.
+    /// </summary>
     public bool IsClosed { get; }
 
+    /// <summary>
+    /// Gets whether every expected work item has a recorded completion.
+    /// </summary>
     public bool IsComplete => RecordedWorkItemCount == ExpectedWorkItemCount;
 
+    /// <summary>
+    /// Gets whether the aggregate is complete and has no failed or canceled work.
+    /// </summary>
     public bool IsSuccessful =>
         IsComplete &&
         FailedWorkItemCount == 0 &&
         CanceledWorkItemCount == 0;
 
+    /// <summary>
+    /// Gets immutable recorded completions.
+    /// </summary>
     public IReadOnlyList<RadarProcessingAsyncWorkCompletion> Completions => completions;
 
     private static IReadOnlyList<RadarProcessingAsyncWorkCompletion> CopyCompletions(

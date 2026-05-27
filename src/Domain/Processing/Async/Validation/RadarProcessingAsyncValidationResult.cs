@@ -1,5 +1,8 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Reports async processing validation status and optional deterministic comparison checksums.
+/// </summary>
 public sealed class RadarProcessingAsyncValidationResult
 {
     private RadarProcessingAsyncValidationResult(
@@ -36,22 +39,46 @@ public sealed class RadarProcessingAsyncValidationResult
         AsyncChecksum = asyncChecksum;
     }
 
+    /// <summary>
+    /// Gets whether async validation passed.
+    /// </summary>
     public bool IsValid { get; }
 
+    /// <summary>
+    /// Gets the async validation error, or <see cref="RadarProcessingAsyncValidationError.None"/>.
+    /// </summary>
     public RadarProcessingAsyncValidationError Error { get; }
 
+    /// <summary>
+    /// Gets the diagnostic message for invalid results.
+    /// </summary>
     public string Message { get; }
 
+    /// <summary>
+    /// Gets the validation profile used to produce the result.
+    /// </summary>
     public RadarProcessingValidationProfile ValidationProfile { get; }
 
+    /// <summary>
+    /// Gets the synchronous reference checksum when benchmark comparison was run.
+    /// </summary>
     public ulong? SynchronousChecksum { get; }
 
+    /// <summary>
+    /// Gets the async processing checksum when benchmark comparison was run.
+    /// </summary>
     public ulong? AsyncChecksum { get; }
 
+    /// <summary>
+    /// Gets whether both deterministic comparison checksums are available.
+    /// </summary>
     public bool HasComparisonChecksums =>
         SynchronousChecksum.HasValue &&
         AsyncChecksum.HasValue;
 
+    /// <summary>
+    /// Creates a successful async validation result.
+    /// </summary>
     public static RadarProcessingAsyncValidationResult Valid(
         RadarProcessingValidationProfile validationProfile = RadarProcessingValidationProfile.Diagnostic,
         ulong? synchronousChecksum = null,
@@ -64,6 +91,9 @@ public sealed class RadarProcessingAsyncValidationResult
             synchronousChecksum,
             asyncChecksum);
 
+    /// <summary>
+    /// Creates a failed async validation result with an error and diagnostic message.
+    /// </summary>
     public static RadarProcessingAsyncValidationResult Invalid(
         RadarProcessingAsyncValidationError error,
         string message,

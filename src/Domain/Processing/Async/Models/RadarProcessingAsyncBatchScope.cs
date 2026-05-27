@@ -1,11 +1,17 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Collects async work completions for one batch and produces an aggregate completion snapshot.
+/// </summary>
 public sealed class RadarProcessingAsyncBatchScope
 {
     private readonly RadarProcessingAsyncWorkCompletion?[] completions;
     private int recordedCompletionCount;
     private bool isClosed;
 
+    /// <summary>
+    /// Creates a batch scope with a fixed expected work item count.
+    /// </summary>
     public RadarProcessingAsyncBatchScope(
         long batchSequence,
         RadarProcessingTopologyVersion topologyVersion,
@@ -20,16 +26,34 @@ public sealed class RadarProcessingAsyncBatchScope
         completions = new RadarProcessingAsyncWorkCompletion[expectedWorkItemCount];
     }
 
+    /// <summary>
+    /// Gets the batch sequence guarded by the scope.
+    /// </summary>
     public long BatchSequence { get; }
 
+    /// <summary>
+    /// Gets the topology version shared by all work items and completions.
+    /// </summary>
     public RadarProcessingTopologyVersion TopologyVersion { get; }
 
+    /// <summary>
+    /// Gets the exact number of work item completions required to close the scope.
+    /// </summary>
     public int ExpectedWorkItemCount { get; }
 
+    /// <summary>
+    /// Gets the number of unique completions recorded so far.
+    /// </summary>
     public int RecordedCompletionCount => recordedCompletionCount;
 
+    /// <summary>
+    /// Gets whether the scope has been completed and closed to further completions.
+    /// </summary>
     public bool IsClosed => isClosed;
 
+    /// <summary>
+    /// Creates a scoped work item with this batch sequence and topology version.
+    /// </summary>
     public RadarProcessingAsyncWorkItem CreateWorkItem(
         int workItemId,
         RadarProcessingWorkerId workerId,
@@ -46,6 +70,9 @@ public sealed class RadarProcessingAsyncBatchScope
             partitionIds);
     }
 
+    /// <summary>
+    /// Records one completion when it matches the scope and has not already been recorded.
+    /// </summary>
     public RadarProcessingAsyncBatchScopeResult RecordCompletion(
         RadarProcessingAsyncWorkCompletion completion)
     {
@@ -81,6 +108,9 @@ public sealed class RadarProcessingAsyncBatchScope
         return Succeeded();
     }
 
+    /// <summary>
+    /// Closes the scope once all expected work items have completed.
+    /// </summary>
     public RadarProcessingAsyncBatchScopeResult Complete()
     {
         if (recordedCompletionCount != ExpectedWorkItemCount)
@@ -107,6 +137,9 @@ public sealed class RadarProcessingAsyncBatchScope
         return new RadarProcessingAsyncBatchScopeResult(completion);
     }
 
+    /// <summary>
+    /// Creates an immutable snapshot of currently recorded completions.
+    /// </summary>
     public RadarProcessingAsyncBatchCompletion CreateSnapshot() =>
         new(
             BatchSequence,

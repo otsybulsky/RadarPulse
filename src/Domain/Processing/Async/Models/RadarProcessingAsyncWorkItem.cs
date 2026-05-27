@@ -1,9 +1,19 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Describes one shard-scoped unit of async processing work for a batch route.
+/// </summary>
+/// <remarks>
+/// Partition ids are copied, must be non-empty, ordered, and unique, and are interpreted inside
+/// the captured <see cref="TopologyVersion"/>.
+/// </remarks>
 public sealed record RadarProcessingAsyncWorkItem
 {
     private readonly IReadOnlyList<int> partitionIds;
 
+    /// <summary>
+    /// Creates an async work item for a worker, shard, and ordered partition set.
+    /// </summary>
     public RadarProcessingAsyncWorkItem(
         long batchSequence,
         int workItemId,
@@ -25,18 +35,39 @@ public sealed record RadarProcessingAsyncWorkItem
         this.partitionIds = CopyPartitionIds(partitionIds);
     }
 
+    /// <summary>
+    /// Gets the batch sequence that owns the work item.
+    /// </summary>
     public long BatchSequence { get; }
 
+    /// <summary>
+    /// Gets the zero-based work item id within the batch scope.
+    /// </summary>
     public int WorkItemId { get; }
 
+    /// <summary>
+    /// Gets the topology version captured when the route was created.
+    /// </summary>
     public RadarProcessingTopologyVersion TopologyVersion { get; }
 
+    /// <summary>
+    /// Gets the worker assigned to execute the work item.
+    /// </summary>
     public RadarProcessingWorkerId WorkerId { get; }
 
+    /// <summary>
+    /// Gets the shard whose routed events are covered by the work item.
+    /// </summary>
     public int ShardId { get; }
 
+    /// <summary>
+    /// Gets ordered partition ids owned by the work item.
+    /// </summary>
     public IReadOnlyList<int> PartitionIds => partitionIds;
 
+    /// <summary>
+    /// Gets the number of partitions owned by the work item.
+    /// </summary>
     public int PartitionCount => partitionIds.Count;
 
     private static IReadOnlyList<int> CopyPartitionIds(

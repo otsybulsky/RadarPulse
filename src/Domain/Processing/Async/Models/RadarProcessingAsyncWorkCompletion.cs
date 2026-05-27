@@ -1,7 +1,13 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Reports the outcome and metrics for one async work item.
+/// </summary>
 public sealed record RadarProcessingAsyncWorkCompletion
 {
+    /// <summary>
+    /// Creates a work completion and enforces consistency between status, failure, and cancellation codes.
+    /// </summary>
     public RadarProcessingAsyncWorkCompletion(
         long batchSequence,
         int workItemId,
@@ -57,34 +63,79 @@ public sealed record RadarProcessingAsyncWorkCompletion
         CancellationKind = cancellationKind;
     }
 
+    /// <summary>
+    /// Gets the batch sequence associated with the completed work.
+    /// </summary>
     public long BatchSequence { get; }
 
+    /// <summary>
+    /// Gets the work item id completed within the batch scope.
+    /// </summary>
     public int WorkItemId { get; }
 
+    /// <summary>
+    /// Gets the topology version of the completed route.
+    /// </summary>
     public RadarProcessingTopologyVersion TopologyVersion { get; }
 
+    /// <summary>
+    /// Gets the worker that completed or attempted the item.
+    /// </summary>
     public RadarProcessingWorkerId WorkerId { get; }
 
+    /// <summary>
+    /// Gets the terminal status of the work item.
+    /// </summary>
     public RadarProcessingAsyncWorkStatus Status { get; }
 
+    /// <summary>
+    /// Gets how long the item waited before execution began.
+    /// </summary>
     public TimeSpan QueueWaitTime { get; }
 
+    /// <summary>
+    /// Gets how long execution took once the worker accepted the item.
+    /// </summary>
     public TimeSpan ExecutionTime { get; }
 
+    /// <summary>
+    /// Gets the number of stream events processed by the work item.
+    /// </summary>
     public long ProcessedStreamEventCount { get; }
 
+    /// <summary>
+    /// Gets the number of payload values processed by the work item.
+    /// </summary>
     public long ProcessedPayloadValueCount { get; }
 
+    /// <summary>
+    /// Gets the failure kind for failed work items.
+    /// </summary>
     public RadarProcessingAsyncFailureKind FailureKind { get; }
 
+    /// <summary>
+    /// Gets the cancellation kind for canceled work items.
+    /// </summary>
     public RadarProcessingAsyncCancellationKind CancellationKind { get; }
 
+    /// <summary>
+    /// Gets whether the item completed successfully.
+    /// </summary>
     public bool IsSuccessful => Status == RadarProcessingAsyncWorkStatus.Succeeded;
 
+    /// <summary>
+    /// Gets whether the item failed.
+    /// </summary>
     public bool IsFailed => Status == RadarProcessingAsyncWorkStatus.Failed;
 
+    /// <summary>
+    /// Gets whether the item was canceled.
+    /// </summary>
     public bool IsCanceled => Status == RadarProcessingAsyncWorkStatus.Canceled;
 
+    /// <summary>
+    /// Creates a successful completion from a work item.
+    /// </summary>
     public static RadarProcessingAsyncWorkCompletion Succeeded(
         RadarProcessingAsyncWorkItem workItem,
         TimeSpan queueWaitTime = default,
@@ -99,6 +150,9 @@ public sealed record RadarProcessingAsyncWorkCompletion
             processedStreamEventCount,
             processedPayloadValueCount);
 
+    /// <summary>
+    /// Creates a failed completion from a work item.
+    /// </summary>
     public static RadarProcessingAsyncWorkCompletion Failed(
         RadarProcessingAsyncWorkItem workItem,
         TimeSpan queueWaitTime = default,
@@ -111,6 +165,9 @@ public sealed record RadarProcessingAsyncWorkCompletion
             executionTime,
             failureKind: failureKind);
 
+    /// <summary>
+    /// Creates a canceled completion from a work item.
+    /// </summary>
     public static RadarProcessingAsyncWorkCompletion Canceled(
         RadarProcessingAsyncWorkItem workItem,
         TimeSpan queueWaitTime = default,

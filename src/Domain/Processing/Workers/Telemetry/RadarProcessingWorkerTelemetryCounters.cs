@@ -1,7 +1,13 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Carries aggregate counters and durations for async worker dispatch and execution.
+/// </summary>
 public sealed record RadarProcessingWorkerTelemetryCounters
 {
+    /// <summary>
+    /// Creates worker telemetry counters and validates count and duration consistency.
+    /// </summary>
     public RadarProcessingWorkerTelemetryCounters(
         long dispatchedBatchCount = 0,
         long completedBatchCount = 0,
@@ -78,38 +84,89 @@ public sealed record RadarProcessingWorkerTelemetryCounters
         TotalBarrierWaitTime = totalBarrierWaitTime;
     }
 
+    /// <summary>
+    /// Gets the number of batches submitted to worker dispatch.
+    /// </summary>
     public long DispatchedBatchCount { get; }
 
+    /// <summary>
+    /// Gets the number of dispatched batches completed by the worker group.
+    /// </summary>
     public long CompletedBatchCount { get; }
 
+    /// <summary>
+    /// Gets the number of dispatched batches that failed.
+    /// </summary>
     public long FailedBatchCount { get; }
 
+    /// <summary>
+    /// Gets the number of dispatched batches that were canceled.
+    /// </summary>
     public long CanceledBatchCount { get; }
 
+    /// <summary>
+    /// Gets the number of dispatched batches that timed out.
+    /// </summary>
     public long TimedOutBatchCount { get; }
 
+    /// <summary>
+    /// Gets the number of dispatch attempts rejected by lifecycle or capacity checks.
+    /// </summary>
     public long RejectedDispatchCount { get; }
 
+    /// <summary>
+    /// Gets the total number of work items submitted for dispatch.
+    /// </summary>
     public long SubmittedWorkItemCount { get; }
 
+    /// <summary>
+    /// Gets the total number of work items accepted by worker queues.
+    /// </summary>
     public long AcceptedWorkItemCount { get; }
 
+    /// <summary>
+    /// Gets the total number of work items that reached a terminal completion.
+    /// </summary>
     public long CompletedWorkItemCount { get; }
 
+    /// <summary>
+    /// Gets the total number of successful work item completions.
+    /// </summary>
     public long SucceededWorkItemCount { get; }
 
+    /// <summary>
+    /// Gets the total number of failed work item completions.
+    /// </summary>
     public long FailedWorkItemCount { get; }
 
+    /// <summary>
+    /// Gets the total number of canceled work item completions.
+    /// </summary>
     public long CanceledWorkItemCount { get; }
 
+    /// <summary>
+    /// Gets total dispatch orchestration time.
+    /// </summary>
     public TimeSpan TotalDispatchTime { get; }
 
+    /// <summary>
+    /// Gets total time work items spent waiting in queues.
+    /// </summary>
     public TimeSpan TotalQueueWaitTime { get; }
 
+    /// <summary>
+    /// Gets total time workers spent executing work items.
+    /// </summary>
     public TimeSpan TotalExecutionTime { get; }
 
+    /// <summary>
+    /// Gets total time spent aggregating worker completions.
+    /// </summary>
     public TimeSpan TotalAggregationTime { get; }
 
+    /// <summary>
+    /// Gets total time spent at the completion barrier.
+    /// </summary>
     public TimeSpan TotalBarrierWaitTime { get; }
 
     private static void ThrowIfNegative(

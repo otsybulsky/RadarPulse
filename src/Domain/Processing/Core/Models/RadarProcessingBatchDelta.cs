@@ -3,6 +3,13 @@ using RadarPulse.Domain.Streaming;
 
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Holds the pooled per-source changes produced by processing one routed radar event batch.
+/// </summary>
+/// <remarks>
+/// Instances rent backing arrays and must be disposed after the delta is committed or abandoned.
+/// The delta is tied to the topology version captured by <see cref="Route"/>.
+/// </remarks>
 public sealed class RadarProcessingBatchDelta : IDisposable
 {
     private readonly int sourceCount;
@@ -39,10 +46,19 @@ public sealed class RadarProcessingBatchDelta : IDisposable
         this.touchedSourceCount = touchedSourceCount;
     }
 
+    /// <summary>
+    /// Gets the batch whose routed events were used to compute this delta.
+    /// </summary>
     public RadarEventBatch Batch { get; private set; }
 
+    /// <summary>
+    /// Gets the route that defines partition, shard, and topology ownership for the delta.
+    /// </summary>
     public RadarProcessingBatchRoute Route { get; private set; }
 
+    /// <summary>
+    /// Gets the number of sources that received at least one event in this delta.
+    /// </summary>
     public int TouchedSourceCount => touchedSourceCount;
 
     internal int SourceCount => sourceCount;
@@ -188,6 +204,9 @@ public sealed class RadarProcessingBatchDelta : IDisposable
                 touchedSourceIds);
     }
 
+    /// <summary>
+    /// Returns rented arrays and clears references so the delta cannot retain batch payloads.
+    /// </summary>
     public void Dispose()
     {
         if (disposed)

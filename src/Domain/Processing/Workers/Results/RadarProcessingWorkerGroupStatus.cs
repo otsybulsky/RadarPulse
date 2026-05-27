@@ -1,7 +1,13 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Reports current lifecycle, health, and capacity posture for an async worker group.
+/// </summary>
 public sealed record RadarProcessingWorkerGroupStatus
 {
+    /// <summary>
+    /// Creates a worker group status and validates lifecycle, health, and error values.
+    /// </summary>
     public RadarProcessingWorkerGroupStatus(
         RadarProcessingWorkerGroupState state = RadarProcessingWorkerGroupState.NotStarted,
         RadarProcessingWorkerHealth health = RadarProcessingWorkerHealth.NotReady,
@@ -22,16 +28,34 @@ public sealed record RadarProcessingWorkerGroupStatus
         LastError = lastError;
     }
 
+    /// <summary>
+    /// Gets the lifecycle state of the worker group.
+    /// </summary>
     public RadarProcessingWorkerGroupState State { get; }
 
+    /// <summary>
+    /// Gets the health posture of the worker group.
+    /// </summary>
     public RadarProcessingWorkerHealth Health { get; }
 
+    /// <summary>
+    /// Gets the number of workers in the group.
+    /// </summary>
     public int WorkerCount { get; }
 
+    /// <summary>
+    /// Gets the queue capacity configured for workers in the group.
+    /// </summary>
     public int QueueCapacity { get; }
 
+    /// <summary>
+    /// Gets the last lifecycle error observed by the group.
+    /// </summary>
     public RadarProcessingWorkerLifecycleError LastError { get; }
 
+    /// <summary>
+    /// Gets whether the group can accept a new dispatch request.
+    /// </summary>
     public bool CanAcceptDispatch =>
         State == RadarProcessingWorkerGroupState.Running &&
         Health == RadarProcessingWorkerHealth.Healthy;

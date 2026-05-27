@@ -2,6 +2,13 @@ using RadarPulse.Domain.Streaming;
 
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Applies radar event batches to source state and produces deterministic processing metrics.
+/// </summary>
+/// <remarks>
+/// The core owns source state and topology manager state. Async shard transport callers compute
+/// work outside the core but still commit through the same validation and state application paths.
+/// </remarks>
 public sealed class RadarProcessingCore
 {
     private readonly RadarSourceUniverse sourceUniverse;
@@ -10,6 +17,9 @@ public sealed class RadarProcessingCore
     private readonly object asyncHandlerStateSync = new();
     private long processedBatchCount;
 
+    /// <summary>
+    /// Creates a processing core for a source universe and optional execution configuration.
+    /// </summary>
     public RadarProcessingCore(
         RadarSourceUniverse sourceUniverse,
         RadarProcessingCoreOptions? options = null)
@@ -24,8 +34,14 @@ public sealed class RadarProcessingCore
         stateStore = new RadarSourceProcessingStateStore(sourceUniverse, options.HandlerSlotLayout);
     }
 
+    /// <summary>
+    /// Gets the immutable configuration used by this core.
+    /// </summary>
     public RadarProcessingCoreOptions Options { get; }
 
+    /// <summary>
+    /// Gets the current processing topology.
+    /// </summary>
     public RadarProcessingTopology Topology => topologyManager.Current;
 
     internal RadarProcessingTopologyManager TopologyManager => topologyManager;
@@ -34,6 +50,10 @@ public sealed class RadarProcessingCore
 
     internal int SourceCount => sourceUniverse.SourceCount;
 
+    /// <summary>
+    /// Processes a batch synchronously using the configured sequential or partitioned-barrier mode.
+    /// </summary>
+    /// <returns>The committed processing result, or an invalid result when validation rejects the batch.</returns>
     public RadarProcessingResult Process(
         RadarEventBatch batch,
         CancellationToken cancellationToken = default)
@@ -56,25 +76,49 @@ public sealed class RadarProcessingCore
         };
     }
 
+    /// <summary>
+    /// Gets the current processing snapshot for one source id.
+    /// </summary>
     public RadarSourceProcessingSnapshot GetSourceSnapshot(int sourceId) =>
         stateStore.GetSnapshot(sourceId);
 
+    /// <summary>
+    /// Creates an ordered snapshot of every source state.
+    /// </summary>
     public RadarSourceProcessingSnapshot[] CreateSourceSnapshots() =>
         stateStore.CreateSnapshots();
 
+    /// <summary>
+    /// Gets the current handler snapshot for one source id.
+    /// </summary>
     public RadarSourceProcessingHandlerSnapshot GetSourceHandlerSnapshot(int sourceId) =>
         stateStore.GetHandlerSnapshot(sourceId);
 
+    /// <summary>
+    /// Creates an ordered snapshot of every source handler state.
+    /// </summary>
     public RadarSourceProcessingHandlerSnapshot[] CreateSourceHandlerSnapshots() =>
         stateStore.CreateHandlerSnapshots();
 
+    /// <summary>
+    /// Creates cumulative metrics from the current source state and processed batch count.
+    /// </summary>
     public RadarProcessingMetrics CreateMetrics() =>
         stateStore.CreateMetrics(processedBatchCount);
 
+    /// <summary>
+    /// Captures source state for a topology partition.
+    /// </summary>
     public RadarProcessingPartitionStateSnapshot CapturePartitionState(
         RadarProcessingPartitionAssignment partition) =>
         RadarProcessingPartitionStateSnapshot.Capture(partition, stateStore);
 
+    /// <summary>
+    /// Computes a handler-free ordered concurrent processing delta without committing it.
+    /// </summary>
+    /// <remarks>
+    /// The returned delta owns pooled arrays and must be disposed by the caller after commit or rejection.
+    /// </remarks>
     public RadarProcessingBatchDelta ComputeProcessingDelta(
         RadarEventBatch batch,
         CancellationToken cancellationToken = default)
@@ -113,6 +157,10 @@ public sealed class RadarProcessingCore
         return RadarProcessingBatchDelta.Create(batch, route, sourceUniverse.SourceCount);
     }
 
+    /// <summary>
+    /// Validates and commits a previously computed processing delta to source state.
+    /// </summary>
+    /// <returns>A valid committed result, or an invalid result when state validation rejects the delta.</returns>
     public RadarProcessingResult CommitProcessingDelta(
         RadarProcessingBatchDelta delta,
         RadarProcessingWorkerTelemetrySummary? workerTelemetry = null,

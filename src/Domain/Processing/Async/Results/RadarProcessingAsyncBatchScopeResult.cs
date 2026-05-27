@@ -1,7 +1,13 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Reports the result of recording or closing an async batch scope.
+/// </summary>
 public sealed record RadarProcessingAsyncBatchScopeResult
 {
+    /// <summary>
+    /// Creates a scope result with the current aggregate snapshot and completion error.
+    /// </summary>
     public RadarProcessingAsyncBatchScopeResult(
         RadarProcessingAsyncBatchCompletion completion,
         RadarProcessingAsyncBatchCompletionError error = RadarProcessingAsyncBatchCompletionError.None)
@@ -13,10 +19,19 @@ public sealed record RadarProcessingAsyncBatchScopeResult
         Error = error;
     }
 
+    /// <summary>
+    /// Gets the aggregate completion snapshot at the time of the operation.
+    /// </summary>
     public RadarProcessingAsyncBatchCompletion Completion { get; }
 
+    /// <summary>
+    /// Gets the scope error, or <see cref="RadarProcessingAsyncBatchCompletionError.None"/>.
+    /// </summary>
     public RadarProcessingAsyncBatchCompletionError Error { get; }
 
+    /// <summary>
+    /// Gets whether the scope operation succeeded.
+    /// </summary>
     public bool IsSuccess => Error == RadarProcessingAsyncBatchCompletionError.None;
 
     internal static void EnsureKnownError(

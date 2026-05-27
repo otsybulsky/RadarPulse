@@ -1,10 +1,16 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Summarizes async worker group counters plus bounded recent batch and failure detail.
+/// </summary>
 public sealed class RadarProcessingWorkerTelemetrySummary
 {
     private readonly IReadOnlyList<RadarProcessingRecentWorkerBatch> recentBatches;
     private readonly IReadOnlyList<RadarProcessingRecentWorkerFailure> recentFailures;
 
+    /// <summary>
+    /// Creates a worker telemetry summary and copies retained detail collections.
+    /// </summary>
     public RadarProcessingWorkerTelemetrySummary(
         RadarProcessingWorkerTelemetryCounters counters,
         int workerCount,
@@ -28,18 +34,39 @@ public sealed class RadarProcessingWorkerTelemetrySummary
         RetentionStats = retentionStats;
     }
 
+    /// <summary>
+    /// Gets aggregate worker telemetry counters.
+    /// </summary>
     public RadarProcessingWorkerTelemetryCounters Counters { get; }
 
+    /// <summary>
+    /// Gets the worker count associated with the telemetry snapshot.
+    /// </summary>
     public int WorkerCount { get; }
 
+    /// <summary>
+    /// Gets the queue capacity associated with the telemetry snapshot.
+    /// </summary>
     public int QueueCapacity { get; }
 
+    /// <summary>
+    /// Gets bounded recent batch telemetry in retention order.
+    /// </summary>
     public IReadOnlyList<RadarProcessingRecentWorkerBatch> RecentBatches => recentBatches;
 
+    /// <summary>
+    /// Gets bounded recent failure telemetry in retention order.
+    /// </summary>
     public IReadOnlyList<RadarProcessingRecentWorkerFailure> RecentFailures => recentFailures;
 
+    /// <summary>
+    /// Gets retention counters for retained and dropped detail.
+    /// </summary>
     public RadarProcessingWorkerRetentionStats RetentionStats { get; }
 
+    /// <summary>
+    /// Gets an empty telemetry summary used when no worker group participated.
+    /// </summary>
     public static RadarProcessingWorkerTelemetrySummary Empty { get; } =
         new(
             new RadarProcessingWorkerTelemetryCounters(),

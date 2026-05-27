@@ -134,23 +134,22 @@ touched-file trailing whitespace check
   result: passed
 ```
 
-### Change 9: Processing Infrastructure Contract Documentation
+### Change 3: Processing Queueing And Durable Contract Documentation
 
 Status: complete.
 
 Intent:
 
 ```text
-document processing infrastructure runtime contracts for queues, workers,
-async dispatch, durable envelope persistence, retained payload ownership,
-archive benchmark/runtime adapters, synthetic benchmarks, and production
-pipeline orchestration
+document the domain contracts that carry provider queue ownership, ordering,
+telemetry, readiness, durable envelope lifecycle, and recovery semantics
 ```
 
 Scope:
 
 ```text
-src/Infrastructure/Processing
+src/Domain/Processing/Queueing
+src/Domain/Processing/Durable
 ```
 
 Verification:
@@ -203,35 +202,6 @@ this change intentionally avoids enabling CS1591 or GenerateDocumentationFile
 as a required project-wide gate; the repository did not previously have broad
 XML documentation coverage, so enforcement should be considered only after
 the important contract surface has descriptions
-```
-
-### Change 3: Processing Queueing And Durable Contract Documentation
-
-Status: complete.
-
-Intent:
-
-```text
-document the domain contracts that carry provider queue ownership, ordering,
-telemetry, readiness, durable envelope lifecycle, and recovery semantics
-```
-
-Scope:
-
-```text
-src/Domain/Processing/Queueing
-src/Domain/Processing/Durable
-```
-
-Verification:
-
-```text
-dotnet build RadarPulse.sln -c Release --no-restore
-  result: passed, 0 warnings, 0 errors
-git diff --check
-  result: passed
-touched-file trailing whitespace check
-  result: passed
 ```
 
 ### Change 5: Processing Rebalance And Topology Contract Documentation
@@ -345,6 +315,68 @@ Scope:
 src/Application/Archive
 src/Domain/Archive
 src/Infrastructure/Archive
+```
+
+Verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore
+  result: passed, 0 warnings, 0 errors
+git diff --check
+  result: passed
+touched-file trailing whitespace check
+  result: passed
+```
+
+### Change 9: Processing Infrastructure Contract Documentation
+
+Status: complete.
+
+Intent:
+
+```text
+document processing infrastructure runtime contracts for queues, workers,
+async dispatch, durable envelope persistence, retained payload ownership,
+archive benchmark/runtime adapters, synthetic benchmarks, and production
+pipeline orchestration
+```
+
+Scope:
+
+```text
+src/Infrastructure/Processing
+```
+
+Verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore
+  result: passed, 0 warnings, 0 errors
+git diff --check
+  result: passed
+touched-file trailing whitespace check
+  result: passed
+```
+
+### Change 10: Processing Core Async Worker Benchmark Contract Documentation
+
+Status: complete.
+
+Intent:
+
+```text
+document the remaining domain processing core, async transport, worker
+lifecycle/telemetry, validation, metrics, and benchmark evidence contracts
+that support the accepted processing queue and infrastructure flows
+```
+
+Scope:
+
+```text
+src/Domain/Processing/Core
+src/Domain/Processing/Async
+src/Domain/Processing/Workers
+src/Domain/Processing/Benchmarks
 ```
 
 Verification:

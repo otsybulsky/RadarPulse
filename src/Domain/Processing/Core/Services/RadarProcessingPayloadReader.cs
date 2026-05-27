@@ -2,8 +2,14 @@ using RadarPulse.Domain.Streaming;
 
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Reads radar event payload slices and computes deterministic payload metrics.
+/// </summary>
 public static class RadarProcessingPayloadReader
 {
+    /// <summary>
+    /// Computes aggregate payload metrics for every event in a batch.
+    /// </summary>
     public static RadarProcessingPayloadMetrics ComputeBatchMetrics(RadarEventBatch batch)
     {
         ArgumentNullException.ThrowIfNull(batch);
@@ -20,6 +26,9 @@ public static class RadarProcessingPayloadReader
         return metrics;
     }
 
+    /// <summary>
+    /// Computes gate count and raw value checksum for one event payload.
+    /// </summary>
     public static RadarProcessingPayloadMetrics ComputeEventMetrics(
         RadarStreamEvent streamEvent,
         ReadOnlySpan<byte> batchPayload)
@@ -35,6 +44,9 @@ public static class RadarProcessingPayloadReader
         return new RadarProcessingPayloadMetrics(streamEvent.GateCount, rawValueChecksum);
     }
 
+    /// <summary>
+    /// Returns the payload slice referenced by an event after validating offset, length, and word size.
+    /// </summary>
     public static ReadOnlySpan<byte> GetEventPayload(
         RadarStreamEvent streamEvent,
         ReadOnlySpan<byte> batchPayload)

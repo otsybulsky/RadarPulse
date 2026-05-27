@@ -1,7 +1,13 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Captures a worker group health/status transition caused by an async failure.
+/// </summary>
 public sealed record RadarProcessingWorkerGroupHealthTransition
 {
+    /// <summary>
+    /// Creates a transition between previous and current statuses with an explicit failure kind.
+    /// </summary>
     public RadarProcessingWorkerGroupHealthTransition(
         RadarProcessingWorkerGroupStatus previousStatus,
         RadarProcessingWorkerGroupStatus currentStatus,
@@ -23,12 +29,24 @@ public sealed record RadarProcessingWorkerGroupHealthTransition
         FailureKind = failureKind;
     }
 
+    /// <summary>
+    /// Gets the status before the health transition.
+    /// </summary>
     public RadarProcessingWorkerGroupStatus PreviousStatus { get; }
 
+    /// <summary>
+    /// Gets the status after the health transition.
+    /// </summary>
     public RadarProcessingWorkerGroupStatus CurrentStatus { get; }
 
+    /// <summary>
+    /// Gets the failure kind that caused the transition.
+    /// </summary>
     public RadarProcessingAsyncFailureKind FailureKind { get; }
 
+    /// <summary>
+    /// Gets whether state, health, or last error changed.
+    /// </summary>
     public bool Changed =>
         PreviousStatus.State != CurrentStatus.State ||
         PreviousStatus.Health != CurrentStatus.Health ||
