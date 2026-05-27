@@ -6,11 +6,11 @@ Milestone 034 has been opened after milestone 033 closeout as a
 documentation-level container for targeted project restructuring, small
 cleanup, documentation corrections, and maintenance fixes. Change 2 has
 added separate Windows PowerShell and native Linux/macOS/WSL2 Bash demo
-entrypoints. Change 3 has started the responsibility-first backend folder
+entrypoints. Change 3 has completed the responsibility-first code folder
 structure with namespace-preserving Processing source slices across Domain
 and Infrastructure, the Application Archive/Processing slice, the Archive
-source/test slice, the Product source/test slice, and the Streaming
-source/test slice.
+source/test slice, the Product source/test slice, the Streaming source/test
+slice, and the Presentation source/test slice.
 
 RadarPulse remains in freeze mode for the accepted portfolio-ready local
 product demo boundary. Milestone 034 is not a new architecture milestone and
@@ -19,9 +19,9 @@ does not start with a detailed implementation plan.
 Stop point:
 
 ```text
-milestone 034 change 3 Streaming slice complete; Domain Streaming files and
-streaming tests moved out of flat roots after Processing, Application,
-Archive, and Product slices
+milestone 034 change 3 complete; Presentation entrypoints/product HTTP
+adapter code and presentation tests moved out of flat roots after Processing,
+Application, Archive, Product, and Streaming slices
 ```
 
 Most recently closed milestone:
@@ -63,8 +63,9 @@ Milestone 034 completed changes:
 ```text
 1. Open maintenance milestone
 2. Cross-platform demo entrypoints
-3. Backend responsibility folder structure, Processing source slices plus
-   Application Archive/Processing, Archive, Product, and Streaming slices
+3. Code responsibility folder structure, Processing source slices plus
+   Application Archive/Processing, Archive, Product, Streaming, and
+   Presentation slices
 ```
 
 Milestone 033 goal:
@@ -111,6 +112,23 @@ Milestone 033 planned slices:
 Latest verification:
 
 ```text
+milestone 034 change 3 Presentation slice:
+  Release build:
+    dotnet build RadarPulse.sln -c Release --no-restore
+    passed, 0 warnings, 0 errors
+  focused presentation gate:
+    RadarPulseProductHttp, RadarPulseProductPipelineCli, and RadarPulseCli
+      filter
+    54 passed, 0 failed, 0 skipped
+  moved source/test shape:
+    src/Presentation/RadarPulse.Cli has its Program.cs under EntryPoint
+    src/Presentation/RadarPulse.Http has its Program.cs under Hosting
+    src/Presentation/RadarPulse.Http/Product has 5 .cs files under
+      responsibility folders
+    tests/RadarPulse.Tests/Presentation has 3 .cs files under responsibility
+      folders
+    no .cs files remain directly under the targeted presentation roots
+
 milestone 034 change 3 Streaming slice:
   Release build:
     dotnet build RadarPulse.sln -c Release --no-restore

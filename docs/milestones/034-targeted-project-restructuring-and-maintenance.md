@@ -244,15 +244,14 @@ keeps the same checkout usable when switching between Windows and WSL/Linux in
 both directions.
 ```
 
-### Change 3: Backend Responsibility Folder Structure
+### Change 3: Code Responsibility Folder Structure
 
-Status: in progress; Processing, application, archive, product, and streaming
-slices complete.
+Status: complete.
 
 Intent:
 
 ```text
-make backend code navigation responsibility-first and type-second while
+make code navigation responsibility-first and type-second while
 preserving accepted runtime behavior and avoiding namespace/API churn in the
 initial move slices
 ```
@@ -283,13 +282,22 @@ within each layer, group by responsibility/capability first:
   Streaming/Identity
   Streaming/Sources
   Streaming/Streams
+  Presentation/RadarPulse.Cli/EntryPoint
+  Presentation/RadarPulse.Http/Hosting
+  Presentation/RadarPulse.Http/Product
 
 inside a responsibility folder, split by type only when it improves
 navigation:
+  Composition
+  Endpoints
+  EntryPoint
+  Hosting
   Models
   Options
   Policies
+  Readiness
   Services
+  StaticDelivery
   Telemetry
   Validation
   Results
@@ -435,6 +443,24 @@ physically move streaming tests out of the flat tests streaming root into:
   tests/RadarPulse.Tests/Streaming/Streams
 ```
 
+Slice 8 scope:
+
+```text
+physically move presentation entrypoints and HTTP product adapter code into:
+  src/Presentation/RadarPulse.Cli/EntryPoint
+  src/Presentation/RadarPulse.Http/Hosting
+  src/Presentation/RadarPulse.Http/Product/Composition
+  src/Presentation/RadarPulse.Http/Product/Endpoints
+  src/Presentation/RadarPulse.Http/Product/Options
+  src/Presentation/RadarPulse.Http/Product/Readiness
+  src/Presentation/RadarPulse.Http/Product/StaticDelivery
+
+physically move presentation tests out of the flat tests presentation root
+into:
+  tests/RadarPulse.Tests/Presentation/Cli/Benchmarks
+  tests/RadarPulse.Tests/Presentation/Cli/Product
+```
+
 Slice 1 verification:
 
 ```text
@@ -548,13 +574,26 @@ dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
   passed: 112, failed: 0, skipped: 0
 ```
 
+Slice 8 verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore
+  passed, 0 warnings, 0 errors
+
+dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release
+  --no-restore --no-build
+  --filter "FullyQualifiedName~RadarPulseProductHttp|FullyQualifiedName~RadarPulseProductPipelineCli|FullyQualifiedName~RadarPulseCli"
+  passed: 54, failed: 0, skipped: 0
+```
+
 Notes:
 
 ```text
 move slices intentionally preserve existing C# namespaces so this remains a
 physical structure cleanup rather than a public API/using rewrite. Namespace
 alignment can be handled as a later explicit slice if it is worth the added
-blast radius. A broad combined Rebalance filter was also tried and exposed
+blast radius. Change 3 does not restructure the Angular OperatorUi app. A
+broad combined Rebalance filter was also tried and exposed
 the existing allocation benchmark sensitivity when the synthetic rebalance
 allocation gate shares a process with 200+ other tests; the same synthetic
 rebalance class passes when isolated. The full all-tests process also exposes
