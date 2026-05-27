@@ -11,32 +11,32 @@ objects.
 
 Install dependencies:
 
-```powershell
+```sh
 npm install
 ```
 
 Run tests:
 
-```powershell
+```sh
 npm test -- --watch=false
 ```
 
 Run browser smoke tests against the Angular dev server with deterministic
 product HTTP route fixtures:
 
-```powershell
+```sh
 npm run smoke
 ```
 
 Build the production bundle:
 
-```powershell
+```sh
 npm run build
 ```
 
 Start the Angular dev server:
 
-```powershell
+```sh
 npm start
 ```
 
@@ -50,8 +50,8 @@ http://localhost:4200
 
 Run the local product HTTP host from the repository root:
 
-```powershell
-dotnet run --project src\Presentation\RadarPulse.Http\RadarPulse.Http.csproj
+```sh
+dotnet run --project src/Presentation/RadarPulse.Http/RadarPulse.Http.csproj
 ```
 
 The UI defaults to:
@@ -85,14 +85,14 @@ same origin.
 
 Build the UI first:
 
-```powershell
+```sh
 npm run build
 ```
 
 Then run the HTTP host:
 
-```powershell
-dotnet run --project ..\RadarPulse.Http\RadarPulse.Http.csproj --urls http://127.0.0.1:5129
+```sh
+dotnet run --project ../RadarPulse.Http/RadarPulse.Http.csproj --urls http://127.0.0.1:5129
 ```
 
 Open:
@@ -120,7 +120,7 @@ src/Presentation/OperatorUi/dist/OperatorUi/browser
 The integrated hosted browser smoke gate uses a local in-memory product
 history store:
 
-```powershell
+```sh
 npm run smoke:hosted
 ```
 
@@ -130,10 +130,18 @@ fresh Angular bundle to serve.
 ## Product Demo/Readiness Package
 
 Milestone 032 adds a repository-level local product demo/readiness workflow
-over this same-origin host:
+over this same-origin host. Run these commands from the repository root.
+
+Windows:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 help
+```
+
+Linux/macOS/WSL2:
+
+```sh
+bash scripts/radarpulse-product-demo.sh help
 ```
 
 The full operator workflow is documented in:

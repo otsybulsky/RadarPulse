@@ -24,25 +24,59 @@ function Get-RepositoryRoot {
     return [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 }
 
+function Join-DemoPath {
+    param(
+        [string]$Root,
+        [string[]]$Segments
+    )
+
+    $path = $Root
+    foreach ($segment in $Segments) {
+        $path = Join-Path $path $segment
+    }
+
+    return [System.IO.Path]::GetFullPath($path)
+}
+
+function Convert-ToNativePath {
+    param([string]$Value)
+
+    if ([System.IO.Path]::DirectorySeparatorChar -eq "/") {
+        return $Value.Replace("\", "/")
+    }
+
+    return $Value
+}
+
+function Get-PathStringComparison {
+    if ([System.IO.Path]::DirectorySeparatorChar -eq "\") {
+        return [System.StringComparison]::OrdinalIgnoreCase
+    }
+
+    return [System.StringComparison]::Ordinal
+}
+
 function Resolve-PackagePath {
     param(
         [string]$Value,
         [string]$BasePath
     )
 
-    if ([System.IO.Path]::IsPathRooted($Value)) {
-        return [System.IO.Path]::GetFullPath($Value)
+    $nativeValue = Convert-ToNativePath $Value
+
+    if ([System.IO.Path]::IsPathRooted($nativeValue)) {
+        return [System.IO.Path]::GetFullPath($nativeValue)
     }
 
-    return [System.IO.Path]::GetFullPath((Join-Path $BasePath $Value))
+    return [System.IO.Path]::GetFullPath((Join-Path $BasePath $nativeValue))
 }
 
 function Get-DemoPaths {
     $repoRoot = Get-RepositoryRoot
-    $operatorUiProject = Join-Path $repoRoot "src\Presentation\OperatorUi"
-    $operatorUiDist = Join-Path $operatorUiProject "dist\OperatorUi\browser"
-    $productHttpProject = Join-Path $repoRoot "src\Presentation\RadarPulse.Http\RadarPulse.Http.csproj"
-    $demoRoot = Join-Path $repoRoot ".tmp\product-demo"
+    $operatorUiProject = Join-DemoPath -Root $repoRoot -Segments @("src", "Presentation", "OperatorUi")
+    $operatorUiDist = Join-DemoPath -Root $operatorUiProject -Segments @("dist", "OperatorUi", "browser")
+    $productHttpProject = Join-DemoPath -Root $repoRoot -Segments @("src", "Presentation", "RadarPulse.Http", "RadarPulse.Http.csproj")
+    $demoRoot = Join-DemoPath -Root $repoRoot -Segments @(".tmp", "product-demo")
 
     if ([string]::IsNullOrWhiteSpace($HistoryPath)) {
         $resolvedHistoryPath = Join-Path $demoRoot "radarpulse-product-history.json"
@@ -64,32 +98,51 @@ function Get-DemoPaths {
 
 function Show-Help {
     $scriptName = Split-Path -Leaf $PSCommandPath
+    $psCoreCommand = "pwsh -File scripts/$scriptName"
+    $windowsPowerShellCommand = "powershell -ExecutionPolicy Bypass -File scripts\$scriptName"
+    $unixShellCommand = "bash scripts/radarpulse-product-demo.sh"
+
     Write-Host "RadarPulse local product demo/readiness package"
     Write-Host "Default URL: http://127.0.0.1:5129"
     Write-Host ""
-    Write-Host "Typical first run:"
-    Write-Host "  1. powershell -ExecutionPolicy Bypass -File scripts\$scriptName paths"
-    Write-Host "  2. powershell -ExecutionPolicy Bypass -File scripts\$scriptName reset-history"
-    Write-Host "  3. powershell -ExecutionPolicy Bypass -File scripts\$scriptName start"
+    Write-Host "Entrypoints:"
+    Write-Host "  Windows PowerShell: $windowsPowerShellCommand help"
+    Write-Host "  PowerShell 7:       $psCoreCommand help"
+    Write-Host "  Linux/macOS/WSL2:   $unixShellCommand help"
+    Write-Host ""
+    Write-Host "Typical first run on Windows:"
+    Write-Host "  1. $windowsPowerShellCommand paths"
+    Write-Host "  2. $windowsPowerShellCommand reset-history"
+    Write-Host "  3. $windowsPowerShellCommand start"
     Write-Host "  4. open http://127.0.0.1:5129"
-    Write-Host "  5. powershell -ExecutionPolicy Bypass -File scripts\$scriptName readiness"
-    Write-Host "  6. powershell -ExecutionPolicy Bypass -File scripts\$scriptName demo -RunId product-demo"
-    Write-Host "  7. powershell -ExecutionPolicy Bypass -File scripts\$scriptName history"
+    Write-Host "  5. $windowsPowerShellCommand readiness"
+    Write-Host "  6. $windowsPowerShellCommand demo -RunId product-demo"
+    Write-Host "  7. $windowsPowerShellCommand history"
+    Write-Host ""
+    Write-Host "Typical first run on Linux/macOS/WSL2:"
+    Write-Host "  1. $unixShellCommand paths"
+    Write-Host "  2. $unixShellCommand reset-history"
+    Write-Host "  3. $unixShellCommand start"
+    Write-Host "  4. open http://127.0.0.1:5129"
+    Write-Host "  5. $unixShellCommand readiness"
+    Write-Host "  6. $unixShellCommand demo --run-id product-demo"
+    Write-Host "  7. $unixShellCommand history"
     Write-Host ""
     Write-Host "Commands:"
-    Write-Host "  powershell -ExecutionPolicy Bypass -File scripts\$scriptName help"
-    Write-Host "  powershell -ExecutionPolicy Bypass -File scripts\$scriptName paths"
-    Write-Host "  powershell -ExecutionPolicy Bypass -File scripts\$scriptName start [-SkipUiBuild] [-Url http://127.0.0.1:5129]"
-    Write-Host "  powershell -ExecutionPolicy Bypass -File scripts\$scriptName readiness [-Url http://127.0.0.1:5129]"
-    Write-Host "  powershell -ExecutionPolicy Bypass -File scripts\$scriptName demo [-RunId product-demo]"
-    Write-Host "  powershell -ExecutionPolicy Bypass -File scripts\$scriptName history"
-    Write-Host "  powershell -ExecutionPolicy Bypass -File scripts\$scriptName reset-history"
-    Write-Host "  powershell -ExecutionPolicy Bypass -File scripts\$scriptName verify"
+    Write-Host "  $windowsPowerShellCommand help"
+    Write-Host "  $windowsPowerShellCommand paths"
+    Write-Host "  $windowsPowerShellCommand start [-SkipUiBuild] [-Url http://127.0.0.1:5129]"
+    Write-Host "  $windowsPowerShellCommand readiness [-Url http://127.0.0.1:5129]"
+    Write-Host "  $windowsPowerShellCommand demo [-RunId product-demo]"
+    Write-Host "  $windowsPowerShellCommand history"
+    Write-Host "  $windowsPowerShellCommand reset-history"
+    Write-Host "  $windowsPowerShellCommand verify"
     Write-Host ""
     Write-Host "Scope:"
     Write-Host "  Local deterministic demo/archive-shaped workflows only."
     Write-Host "  This is not public production deployment, auth/TLS hardening, external adapter certification, or exactly-once delivery."
     Write-Host "  Readiness blockers and warning-only scope posture stay visible."
+    Write-Host "  Verify refreshes .NET restore metadata for the current OS before no-restore gates."
     Write-Host ""
     Write-Host "Docs:"
     Write-Host "  README.md"
@@ -310,12 +363,18 @@ function Reset-History {
     $demoRoot = [System.IO.Path]::GetFullPath($Paths.DemoRoot)
     $historyPath = [System.IO.Path]::GetFullPath($Paths.HistoryPath)
     $prefix = $demoRoot.TrimEnd([System.IO.Path]::DirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+    $comparison = Get-PathStringComparison
 
-    if (-not $historyPath.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+    if (-not $historyPath.StartsWith($prefix, $comparison)) {
         throw "Refusing to reset history outside the demo workspace: $historyPath"
     }
 
     if (Test-Path -LiteralPath $historyPath) {
+        $item = Get-Item -LiteralPath $historyPath
+        if ($item.PSIsContainer) {
+            throw "Refusing to reset a directory as product demo history: $historyPath"
+        }
+
         Remove-Item -LiteralPath $historyPath -Force
         Write-Host "Removed product demo history: $historyPath"
     }
@@ -327,7 +386,7 @@ function Reset-History {
 function Invoke-PackagedVerify {
     param([pscustomobject]$Paths)
 
-    $testProject = Join-Path $Paths.RepositoryRoot "tests\RadarPulse.Tests\RadarPulse.Tests.csproj"
+    $testProject = Join-DemoPath -Root $Paths.RepositoryRoot -Segments @("tests", "RadarPulse.Tests", "RadarPulse.Tests.csproj")
     $solution = Join-Path $Paths.RepositoryRoot "RadarPulse.sln"
     $focusedFilter = "FullyQualifiedName~RadarPulseProductHttpHostTests|FullyQualifiedName~RadarPulseProductHttpControlTests|FullyQualifiedName~RadarPulseProductPipelineApiContractTests"
 
@@ -342,6 +401,12 @@ function Invoke-PackagedVerify {
 
     Write-VerifyStep "Hosted same-origin browser smoke"
     Invoke-CheckedProcess -Executable "npm" -CommandArguments @("run", "smoke:hosted") -WorkingDirectory $Paths.OperatorUiProject
+
+    Write-VerifyStep ".NET dependency restore"
+    Invoke-CheckedProcess -Executable "dotnet" -CommandArguments @(
+        "restore",
+        $solution,
+        "--force") -WorkingDirectory $Paths.RepositoryRoot
 
     Write-VerifyStep "Focused .NET product HTTP/API/readiness Release gate"
     Invoke-CheckedProcess -Executable "dotnet" -CommandArguments @(

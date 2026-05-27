@@ -136,6 +136,8 @@ package script or demo workflow touched:
     help
   powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
     paths
+  bash scripts/radarpulse-product-demo.sh help
+  bash scripts/radarpulse-product-demo.sh paths
   packaged verify when behavior or delivery assumptions change
 ```
 
@@ -174,3 +176,70 @@ time; future entries should stay lightweight unless a change grows beyond
 targeted maintenance scope
 ```
 
+### Change 2: Cross-Platform Demo Entrypoints
+
+Status: complete.
+
+Intent:
+
+```text
+make the local product demo package runnable from Windows, Linux, macOS, and
+WSL2 without requiring PowerShell on Unix-like environments
+```
+
+Scope:
+
+```text
+scripts/radarpulse-product-demo.ps1
+scripts/radarpulse-product-demo.sh
+.gitattributes
+README.md
+docs/product-demo-readiness.md
+src/Presentation/OperatorUi/README.md
+```
+
+Verification:
+
+```text
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
+  help
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
+  paths
+bash -n scripts/radarpulse-product-demo.sh
+bash scripts/radarpulse-product-demo.sh help
+bash scripts/radarpulse-product-demo.sh paths
+bash scripts/radarpulse-product-demo.sh paths --json
+bash scripts/radarpulse-product-demo.sh reset-history
+bash scripts/radarpulse-product-demo.sh reset-history --history-path
+  .tmp/product-demo/nested/history.json
+bash scripts/radarpulse-product-demo.sh reset-history --history-path
+  .tmp-outside-guard-*/history.json
+bash scripts/radarpulse-product-demo.sh reset-history --history-path
+  .tmp/product-demo/../outside-guard-*/history.json
+bash scripts/radarpulse-product-demo.sh reset-history --history-path
+  .tmp/product-demo
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
+  verify
+bash scripts/radarpulse-product-demo.sh start --url http://127.0.0.1:5141
+bash scripts/radarpulse-product-demo.sh readiness --url http://127.0.0.1:5141
+bash scripts/radarpulse-product-demo.sh demo --url http://127.0.0.1:5141
+  --run-id bash-host-mode-demo
+bash scripts/radarpulse-product-demo.sh history --url http://127.0.0.1:5141
+bash scripts/radarpulse-product-demo.sh verify
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1
+  verify
+```
+
+Notes:
+
+```text
+Windows keeps the accepted PowerShell package script. Linux, macOS, and WSL2
+use a native Bash package script that calls dotnet, npm, and curl directly.
+PowerShell 7 remains optional for users who prefer it, but it is not required
+for the Unix workflow. Reset-history guards reject outside paths and
+dot-dot traversal before deleting the resolved history file. Directory
+targets are rejected instead of being removed. Packaged verify refreshes
+.NET restore metadata for the current OS before the no-restore gates, which
+keeps the same checkout usable when switching between Windows and WSL/Linux in
+both directions.
+```

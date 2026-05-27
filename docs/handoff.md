@@ -4,7 +4,9 @@
 
 Milestone 034 has been opened after milestone 033 closeout as a
 documentation-level container for targeted project restructuring, small
-cleanup, documentation corrections, and maintenance fixes.
+cleanup, documentation corrections, and maintenance fixes. Change 2 has
+added separate Windows PowerShell and native Linux/macOS/WSL2 Bash demo
+entrypoints.
 
 RadarPulse remains in freeze mode for the accepted portfolio-ready local
 product demo boundary. Milestone 034 is not a new architecture milestone and
@@ -13,7 +15,8 @@ does not start with a detailed implementation plan.
 Stop point:
 
 ```text
-milestone 034 opened as a lightweight maintenance/restructuring container
+milestone 034 change 2 complete; cross-platform demo entrypoints documented
+and smoke checked
 ```
 
 Most recently closed milestone:
@@ -48,6 +51,13 @@ Milestone 034 documents:
 
 ```text
 docs/milestones/034-targeted-project-restructuring-and-maintenance.md
+```
+
+Milestone 034 completed changes:
+
+```text
+1. Open maintenance milestone
+2. Cross-platform demo entrypoints
 ```
 
 Milestone 033 goal:
@@ -94,6 +104,51 @@ Milestone 033 planned slices:
 Latest verification:
 
 ```text
+milestone 034 change 2:
+  Windows package script smoke:
+    help passed
+    paths passed
+  Linux/macOS/WSL2 Bash package script smoke:
+    bash syntax passed
+    help passed
+    paths passed under WSL2 path resolution
+    paths --json passed under WSL2 path resolution
+    reset-history passed with demo-workspace guard
+    inside custom history path reset passed
+    outside custom history path rejected without creating the outside path
+    dot-dot traversal path rejected without creating the outside path
+    directory target rejected instead of removed
+    start/readiness/demo/history passed against WSL2 local host
+  packaged verify, Windows PowerShell:
+    Angular unit tests 20 passed, 0 failed
+    Angular production build succeeded
+    dev-server smoke 4 passed, 0 failed
+    hosted same-origin smoke 1 passed, 0 failed
+    .NET dependency restore passed with --force
+    focused .NET product HTTP/API/readiness Release gate 21 passed, 0 failed,
+      0 skipped
+    Release build succeeded, 0 warnings, 0 errors
+  packaged verify, WSL2 Bash after Windows restore metadata:
+    Angular unit tests 20 passed, 0 failed
+    Angular production build succeeded
+    dev-server smoke 4 passed, 0 failed
+    hosted same-origin smoke 1 passed, 0 failed
+    .NET dependency restore passed with --force
+    focused .NET product HTTP/API/readiness Release gate 21 passed, 0 failed,
+      0 skipped
+    Release build succeeded, 0 warnings, 0 errors
+  packaged verify, Windows PowerShell after WSL2 restore metadata:
+    Angular unit tests 20 passed, 0 failed
+    Angular production build succeeded
+    dev-server smoke 4 passed, 0 failed
+    hosted same-origin smoke 1 passed, 0 failed
+    .NET dependency restore passed with --force
+    focused .NET product HTTP/API/readiness Release gate 21 passed, 0 failed,
+      0 skipped
+    Release build succeeded, 0 warnings, 0 errors
+  whitespace check:
+    git diff --check passed
+
 milestone 033 slice 1:
   documentation-only portfolio README update
   no runtime gate required

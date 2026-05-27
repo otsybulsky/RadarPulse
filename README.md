@@ -4,10 +4,11 @@ RadarPulse is a local product demo for a radar-processing pipeline. It shows
 how deterministic archive-shaped workloads move through the accepted product
 API, local HTTP host, file-backed product history, and Angular operator UI.
 
-The repository is intentionally set up as a repeatable local portfolio demo:
-one script can build the UI, start the same-origin product host, run a
-deterministic demo workload, inspect readiness/history, reset local demo
-history, and run the focused verification gates.
+The repository is intentionally set up as a repeatable local portfolio demo
+for Windows, Linux, and macOS: the package script can build the UI, start the
+same-origin product host, run a deterministic demo workload, inspect
+readiness/history, reset local demo history, and run the focused verification
+gates.
 
 ## What The Demo Shows
 
@@ -35,32 +36,71 @@ workflow:
 The detailed local operator workflow is documented in
 [docs/product-demo-readiness.md](docs/product-demo-readiness.md).
 
+## Prerequisites
+
+Use the same local prerequisites on Windows, Linux, and macOS:
+
+```text
+.NET SDK for the solution target framework
+Node.js/npm for src/Presentation/OperatorUi
+Bash and curl for Linux/macOS/WSL2 package commands
+```
+
+Windows uses the PowerShell package script. Linux, macOS, and WSL2 use the
+native Bash package script. PowerShell 7 (`pwsh`) also works with the `.ps1`
+script when installed, but it is not required for the Unix workflow.
+
 ## Quick Start
 
 Install UI dependencies when needed:
 
-```powershell
-cd src\Presentation\OperatorUi
+```sh
+cd src/Presentation/OperatorUi
 npm install
-cd ..\..\..
+cd ../../..
+```
+
+Windows package command:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 help
+```
+
+Linux/macOS/WSL2 package command:
+
+```sh
+bash scripts/radarpulse-product-demo.sh help
+```
+
+PowerShell 7 optional command:
+
+```sh
+pwsh -File scripts/radarpulse-product-demo.ps1 help
+```
+
+The commands below use the native Linux/macOS/WSL2 entrypoint. On Windows,
+run the same package command names through:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 <command>
 ```
 
 Inspect the package paths:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 paths
+```sh
+bash scripts/radarpulse-product-demo.sh paths
 ```
 
 Reset the default local demo history for a clean run:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 reset-history
+```sh
+bash scripts/radarpulse-product-demo.sh reset-history
 ```
 
 Start the local same-origin product host:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 start
+```sh
+bash scripts/radarpulse-product-demo.sh start
 ```
 
 Open the operator UI:
@@ -71,9 +111,9 @@ http://127.0.0.1:5129
 
 In another terminal, check readiness and create a deterministic demo run:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 readiness
-powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 demo -RunId product-demo
+```sh
+bash scripts/radarpulse-product-demo.sh readiness
+bash scripts/radarpulse-product-demo.sh demo --run-id product-demo
 ```
 
 Use the browser UI to inspect the latest run, selected run detail, batches,
@@ -83,24 +123,26 @@ sources, handler output, diagnostics, and capacity evidence.
 
 Run the packaged local verification command:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 verify
+```sh
+bash scripts/radarpulse-product-demo.sh verify
 ```
 
-The packaged command runs the accepted Angular, browser smoke, focused .NET
-HTTP/API/readiness, and Release build gates. Each underlying command remains
-visible for diagnosis.
+The packaged command runs the accepted Angular, browser smoke, .NET restore,
+focused .NET HTTP/API/readiness, and Release build gates. Each underlying
+command remains visible for diagnosis. The restore step refreshes .NET assets
+for the current OS before the `--no-restore` gates, which matters when the same
+checkout is used from both Windows and WSL/Linux.
 
 ## Useful Commands
 
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 help
-powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 paths
-powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 readiness
-powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 demo -RunId product-demo
-powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 history
-powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 reset-history
-powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 verify
+```sh
+bash scripts/radarpulse-product-demo.sh help
+bash scripts/radarpulse-product-demo.sh paths
+bash scripts/radarpulse-product-demo.sh readiness
+bash scripts/radarpulse-product-demo.sh demo --run-id product-demo
+bash scripts/radarpulse-product-demo.sh history
+bash scripts/radarpulse-product-demo.sh reset-history
+bash scripts/radarpulse-product-demo.sh verify
 ```
 
 ## Scope

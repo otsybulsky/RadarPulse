@@ -57,6 +57,12 @@ active milestone posture:
   no architecture milestone or detailed implementation plan by default
   accepted milestone 020-033 runtime, product, HTTP, persistence, UI, and
     demo/readiness decisions remain closed
+active milestone completed changes:
+  Windows PowerShell and native Linux/macOS/WSL2 Bash demo entrypoints are
+    documented, smoke checked, and covered by packaged verify
+  packaged verify refreshes .NET restore metadata for the current OS before
+    no-restore gates so one checkout can switch between Windows and WSL/Linux
+    in both directions
 
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive

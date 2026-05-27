@@ -32,29 +32,55 @@ Use the same local prerequisites as the existing product surfaces:
 ```text
 .NET SDK for the solution target framework
 Node/npm dependencies for src/Presentation/OperatorUi
+Bash and curl for Linux/macOS/WSL2 package commands
 ```
 
 Install UI dependencies when needed:
 
-```powershell
-cd src\Presentation\OperatorUi
+```sh
+cd src/Presentation/OperatorUi
 npm install
 ```
 
 Return to the repository root before using the package script:
 
-```powershell
-cd C:\projects\ProjectT\Portfolio\Projects\RadarPulse
+```sh
+cd ../../..
 ```
+
+Package entrypoints:
+
+```text
+Windows:
+  powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 help
+
+Linux/macOS/WSL2:
+  bash scripts/radarpulse-product-demo.sh help
+
+PowerShell 7 optional:
+  pwsh -File scripts/radarpulse-product-demo.ps1 help
+```
+
+The Linux/macOS/WSL2 path is native Bash and does not require PowerShell.
 
 ## Happy-Path Portfolio Demo
 
 Use this sequence for a clean local portfolio demo:
 
+Windows:
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 paths
 powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 reset-history
 powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 start
+```
+
+Linux/macOS/WSL2:
+
+```sh
+bash scripts/radarpulse-product-demo.sh paths
+bash scripts/radarpulse-product-demo.sh reset-history
+bash scripts/radarpulse-product-demo.sh start
 ```
 
 Open the same-origin operator UI after the host starts:
@@ -66,10 +92,20 @@ http://127.0.0.1:5129
 In another terminal, check readiness and create the default deterministic
 demo run:
 
+Windows:
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 readiness
 powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 demo -RunId product-demo
 powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 history
+```
+
+Linux/macOS/WSL2:
+
+```sh
+bash scripts/radarpulse-product-demo.sh readiness
+bash scripts/radarpulse-product-demo.sh demo --run-id product-demo
+bash scripts/radarpulse-product-demo.sh history
 ```
 
 Use the UI to inspect the latest run, selected run detail, batches, sources,
@@ -80,8 +116,16 @@ restart, skip reset and use the `history` command before opening the UI.
 Run the packaged verification command when you want to prove the accepted
 local gates after changes:
 
+Windows:
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 verify
+```
+
+Linux/macOS/WSL2:
+
+```sh
+bash scripts/radarpulse-product-demo.sh verify
 ```
 
 The happy path is intentionally narrow. Blocked readiness, missing UI build
@@ -92,14 +136,30 @@ posture should remain visible instead of being hidden by the package script.
 
 The local package entrypoint is:
 
+Windows:
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 help
 ```
 
+Linux/macOS/WSL2:
+
+```sh
+bash scripts/radarpulse-product-demo.sh help
+```
+
 Inspect resolved package paths:
+
+Windows:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 paths
+```
+
+Linux/macOS/WSL2:
+
+```sh
+bash scripts/radarpulse-product-demo.sh paths
 ```
 
 Default resolved local paths:
@@ -128,14 +188,23 @@ local product URL:
 
 Start the local same-origin product host:
 
+Windows:
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 start
+```
+
+Linux/macOS/WSL2:
+
+```sh
+bash scripts/radarpulse-product-demo.sh start
 ```
 
 The start command:
 
 ```text
-builds the Angular operator UI unless -SkipUiBuild is supplied
+builds the Angular operator UI unless -SkipUiBuild / --skip-ui-build is
+  supplied
 starts RadarPulse.Http on the configured local URL
 configures deterministic local file-backed history
 configures the built Angular UI dist folder as the static asset root
@@ -150,16 +219,32 @@ http://127.0.0.1:5129
 
 Use a different URL when needed:
 
+Windows:
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 start -Url http://127.0.0.1:5130
+```
+
+Linux/macOS/WSL2:
+
+```sh
+bash scripts/radarpulse-product-demo.sh start --url http://127.0.0.1:5130
 ```
 
 ## Check Readiness
 
 In another terminal, check local product demo readiness:
 
+Windows:
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 readiness
+```
+
+Linux/macOS/WSL2:
+
+```sh
+bash scripts/radarpulse-product-demo.sh readiness
 ```
 
 The readiness command calls:
@@ -185,11 +270,21 @@ warnings and does not mean the local deterministic package is broken.
 
 Create a deterministic product demo run:
 
+Windows:
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 demo -RunId product-demo
 ```
 
+Linux/macOS/WSL2:
+
+```sh
+bash scripts/radarpulse-product-demo.sh demo --run-id product-demo
+```
+
 Useful options:
+
+Windows:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 demo `
@@ -198,6 +293,17 @@ powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 dem
   -Batches 2 `
   -EventsPerBatch 2 `
   -Handlers counter-checksum
+```
+
+Linux/macOS/WSL2:
+
+```sh
+bash scripts/radarpulse-product-demo.sh demo \
+  --run-id product-demo-small \
+  --sources 2 \
+  --batches 2 \
+  --events-per-batch 2 \
+  --handlers counter-checksum
 ```
 
 Handler profiles accepted by the script:
@@ -245,8 +351,16 @@ field:
 
 Inspect history from the command line:
 
+Windows:
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 history
+```
+
+Linux/macOS/WSL2:
+
+```sh
+bash scripts/radarpulse-product-demo.sh history
 ```
 
 The history command calls:
@@ -299,8 +413,16 @@ delivery claims.
 
 Reset the default local demo history:
 
+Windows:
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 reset-history
+```
+
+Linux/macOS/WSL2:
+
+```sh
+bash scripts/radarpulse-product-demo.sh reset-history
 ```
 
 The reset command is intentionally narrow:
@@ -308,6 +430,9 @@ The reset command is intentionally narrow:
 ```text
 it only removes the resolved product history file
 the default reset path must stay inside .tmp/product-demo
+custom history paths are rejected before deletion when they resolve outside
+  the demo workspace
+directory targets are rejected instead of removed
 normal startup never clears history implicitly
 ```
 
@@ -318,8 +443,16 @@ across host restarts.
 
 Run the packaged milestone 032 verification command from the repository root:
 
+Windows:
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\radarpulse-product-demo.ps1 verify
+```
+
+Linux/macOS/WSL2:
+
+```sh
+bash scripts/radarpulse-product-demo.sh verify
 ```
 
 The verify command runs:
@@ -329,37 +462,41 @@ Angular unit tests
 Angular production build
 Operator UI browser smoke
 hosted same-origin browser smoke
+.NET dependency restore
 focused .NET product HTTP/API/readiness Release gate
 .NET Release build
 ```
 
 It stops at the first failed step and leaves each underlying command visible
-for diagnosis.
+for diagnosis. The .NET restore step uses `--force` so the same checkout can
+switch between Windows and WSL/Linux restore metadata before the subsequent
+`--no-restore` gates.
 
 ## Manual Verification
 
 The accepted individual gates remain directly runnable:
 
-```powershell
-cd src\Presentation\OperatorUi
+```sh
+cd src/Presentation/OperatorUi
 npm test -- --watch=false
 npm run build
 npm run smoke
 npm run smoke:hosted
-cd ..\..\..
+cd ../../..
 ```
 
 Focused .NET product HTTP/API/readiness gate:
 
-```powershell
-dotnet test tests\RadarPulse.Tests\RadarPulse.Tests.csproj -c Release `
-  --no-restore `
+```sh
+dotnet restore RadarPulse.sln --force
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj -c Release \
+  --no-restore \
   --filter "FullyQualifiedName~RadarPulseProductHttpHostTests|FullyQualifiedName~RadarPulseProductHttpControlTests|FullyQualifiedName~RadarPulseProductPipelineApiContractTests"
 ```
 
 Release build:
 
-```powershell
+```sh
 dotnet build RadarPulse.sln -c Release --no-restore
 ```
 
@@ -369,7 +506,7 @@ If readiness says the operator UI is blocked:
 
 ```text
 run npm run build in src/Presentation/OperatorUi
-or start through the package script without -SkipUiBuild
+or start through the package script without -SkipUiBuild / --skip-ui-build
 ```
 
 If readiness says history is blocked:
@@ -377,7 +514,7 @@ If readiness says history is blocked:
 ```text
 check the configured history path
 reset the default demo history when using .tmp/product-demo
-avoid pointing HistoryPath at a directory
+avoid pointing HistoryPath / --history-path at a directory
 ```
 
 If the UI opens but API calls fail:
