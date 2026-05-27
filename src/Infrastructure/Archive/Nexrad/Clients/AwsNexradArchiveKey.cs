@@ -3,16 +3,31 @@ using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Infrastructure.Archive;
 
+/// <summary>
+/// Helpers for AWS public NEXRAD Level II S3 object keys.
+/// </summary>
 public static class AwsNexradArchiveKey
 {
+    /// <summary>
+    /// Public S3 bucket that hosts NEXRAD Level II archive data.
+    /// </summary>
     public const string BucketName = "unidata-nexrad-level2";
 
+    /// <summary>
+    /// Builds the S3 prefix for all radar files on an archive date.
+    /// </summary>
     public static string DatePrefix(DateOnly date) =>
         string.Create(CultureInfo.InvariantCulture, $"{date:yyyy/MM/dd}/");
 
+    /// <summary>
+    /// Builds the S3 prefix for one radar on an archive date.
+    /// </summary>
     public static string RadarPrefix(DateOnly date, string radarId) =>
         $"{DatePrefix(date)}{HistoricalArchiveRequest.NormalizeRadarId(radarId)}/";
 
+    /// <summary>
+    /// Attempts to parse an S3 object key and metadata into a historical archive file entry.
+    /// </summary>
     public static bool TryParse(
         string s3Key,
         long sizeBytes,
@@ -52,6 +67,9 @@ public static class AwsNexradArchiveKey
         return true;
     }
 
+    /// <summary>
+    /// Attempts to parse the volume timestamp embedded in a NEXRAD archive file name.
+    /// </summary>
     public static DateTimeOffset? TryParseVolumeTimestamp(string fileName, DateOnly archiveDate)
     {
         const int timestampLength = 15;

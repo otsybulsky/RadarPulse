@@ -1,5 +1,12 @@
 namespace RadarPulse.Domain.Archive;
 
+/// <summary>
+/// Request for discovering historical archive files for a date and radar selection.
+/// </summary>
+/// <remarks>
+/// A request can target explicit radar ids or all radars, with optional file and byte limits used by discovery and
+/// later manifest selection.
+/// </remarks>
 public sealed record HistoricalArchiveRequest(
     DateOnly Date,
     IReadOnlyCollection<string>? RadarIds = null,
@@ -7,10 +14,16 @@ public sealed record HistoricalArchiveRequest(
     int? MaxFiles = null,
     long? MaxBytes = null)
 {
+    /// <summary>
+    /// Gets normalized distinct four-character radar ids, or an empty collection when all-radar mode is used.
+    /// </summary>
     public IReadOnlyCollection<string> NormalizedRadarIds =>
         RadarIds?.Select(NormalizeRadarId).Distinct().ToArray()
         ?? Array.Empty<string>();
 
+    /// <summary>
+    /// Normalizes a radar id to the accepted four-character uppercase archive key format.
+    /// </summary>
     public static string NormalizeRadarId(string radarId)
     {
         var normalized = radarId.Trim().ToUpperInvariant();
@@ -22,6 +35,9 @@ public sealed record HistoricalArchiveRequest(
         return normalized;
     }
 
+    /// <summary>
+    /// Validates that the request has a usable discovery scope and positive optional limits.
+    /// </summary>
     public void ValidateForDiscovery()
     {
         if (!AllRadars && NormalizedRadarIds.Count == 0)

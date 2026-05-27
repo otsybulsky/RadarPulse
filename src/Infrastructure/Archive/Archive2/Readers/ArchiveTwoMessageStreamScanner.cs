@@ -3,6 +3,13 @@ using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Infrastructure.Archive;
 
+/// <summary>
+/// Incrementally scans decompressed Archive II bytes for complete RDA/RPG messages.
+/// </summary>
+/// <remarks>
+/// The scanner tolerates zero padding between messages, retains a small search tail across chunks, and forwards each
+/// complete message with its compressed-record source metadata.
+/// </remarks>
 public sealed class ArchiveTwoMessageStreamScanner
 {
     private const int MessageHeaderLength = 16;
@@ -15,11 +22,17 @@ public sealed class ArchiveTwoMessageStreamScanner
     private int sourceRecordSequenceNumber;
     private int sourceMessageSequenceNumber;
 
+    /// <summary>
+    /// Creates a scanner that forwards completed messages to the supplied consumer.
+    /// </summary>
     public ArchiveTwoMessageStreamScanner(IArchiveTwoMessageConsumer messageConsumer)
     {
         this.messageConsumer = messageConsumer ?? throw new ArgumentNullException(nameof(messageConsumer));
     }
 
+    /// <summary>
+    /// Resets pending bytes and starts message numbering for a compressed record.
+    /// </summary>
     public void Reset(int sourceRecordSequenceNumber = 0)
     {
         pendingLength = 0;
@@ -27,6 +40,9 @@ public sealed class ArchiveTwoMessageStreamScanner
         sourceMessageSequenceNumber = 0;
     }
 
+    /// <summary>
+    /// Appends a decompressed byte chunk and emits any complete messages found.
+    /// </summary>
     public void Append(ReadOnlySpan<byte> chunk)
     {
         EnsurePendingCapacity(pendingLength + chunk.Length);
@@ -35,6 +51,9 @@ public sealed class ArchiveTwoMessageStreamScanner
         ProcessPending(final: false);
     }
 
+    /// <summary>
+    /// Completes the current record and validates that no non-padding trailing bytes remain.
+    /// </summary>
     public void Complete()
     {
         ProcessPending(final: true);

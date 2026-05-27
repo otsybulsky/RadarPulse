@@ -2,32 +2,74 @@ using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Infrastructure.Archive;
 
+/// <summary>
+/// Accumulates deterministic replay publish totals for ordered gate-moment events.
+/// </summary>
 internal sealed class ArchiveReplayEventAccumulator
 {
+    /// <summary>
+    /// Gets the number of accepted replay events.
+    /// </summary>
     public long PublishedEvents { get; private set; }
 
+    /// <summary>
+    /// Gets the number of valid replay events.
+    /// </summary>
     public long ValidEvents { get; private set; }
 
+    /// <summary>
+    /// Gets the number of below-threshold replay events.
+    /// </summary>
     public long BelowThresholdEvents { get; private set; }
 
+    /// <summary>
+    /// Gets the number of range-folded replay events.
+    /// </summary>
     public long RangeFoldedEvents { get; private set; }
 
+    /// <summary>
+    /// Gets the number of clutter-filter-not-applied replay events.
+    /// </summary>
     public long ClutterFilterNotAppliedEvents { get; private set; }
 
+    /// <summary>
+    /// Gets the number of point-clutter-filter-applied replay events.
+    /// </summary>
     public long PointClutterFilterAppliedEvents { get; private set; }
 
+    /// <summary>
+    /// Gets the number of dual-polarization-filtered replay events.
+    /// </summary>
     public long DualPolarizationFilteredEvents { get; private set; }
 
+    /// <summary>
+    /// Gets the number of reserved replay events.
+    /// </summary>
     public long ReservedEvents { get; private set; }
 
+    /// <summary>
+    /// Gets the number of unsupported replay events.
+    /// </summary>
     public long UnsupportedEvents { get; private set; }
 
+    /// <summary>
+    /// Gets the sum of raw gate values.
+    /// </summary>
     public long RawValueChecksum { get; private set; }
 
+    /// <summary>
+    /// Gets the sum of calibrated values scaled to thousandths.
+    /// </summary>
     public long CalibratedValueScaledChecksum { get; private set; }
 
+    /// <summary>
+    /// Gets the deterministic ordered chronology checksum.
+    /// </summary>
     public ulong ChronologyChecksum { get; private set; }
 
+    /// <summary>
+    /// Clears accumulated replay totals.
+    /// </summary>
     public void Reset()
     {
         PublishedEvents = 0;
@@ -44,6 +86,9 @@ internal sealed class ArchiveReplayEventAccumulator
         ChronologyChecksum = 0;
     }
 
+    /// <summary>
+    /// Accepts one replay event and updates status counters and checksums.
+    /// </summary>
     public void AcceptEvent(ArchiveTwoGateMomentEvent gateMomentEvent)
     {
         PublishedEvents++;
@@ -86,6 +131,9 @@ internal sealed class ArchiveReplayEventAccumulator
         }
     }
 
+    /// <summary>
+    /// Adds another accumulator as the next ordered segment.
+    /// </summary>
     public void AddOrdered(ArchiveReplayEventAccumulator other)
     {
         if (other.PublishedEvents == 0)
@@ -111,6 +159,9 @@ internal sealed class ArchiveReplayEventAccumulator
         UnsupportedEvents += other.UnsupportedEvents;
     }
 
+    /// <summary>
+    /// Builds an immutable publish result from accumulated totals and file metadata.
+    /// </summary>
     public ArchiveReplayPublishResult BuildResult(
         string filePath,
         string decompressor,

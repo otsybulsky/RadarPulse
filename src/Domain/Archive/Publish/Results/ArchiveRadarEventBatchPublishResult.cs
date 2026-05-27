@@ -2,6 +2,9 @@ using RadarPulse.Domain.Streaming;
 
 namespace RadarPulse.Domain.Archive;
 
+/// <summary>
+/// Result for publishing stream-oriented radar event batches from one Archive II file.
+/// </summary>
 public sealed record ArchiveRadarEventBatchPublishResult(
     string FilePath,
     string Decompressor,

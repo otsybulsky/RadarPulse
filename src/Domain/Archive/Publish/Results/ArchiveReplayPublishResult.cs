@@ -1,5 +1,8 @@
 namespace RadarPulse.Domain.Archive;
 
+/// <summary>
+/// Result for publishing gate-moment replay events from one Archive II file.
+/// </summary>
 public sealed record ArchiveReplayPublishResult(
     string FilePath,
     string Decompressor,
@@ -21,6 +24,9 @@ public sealed record ArchiveReplayPublishResult(
     long CalibratedValueScaledChecksum,
     ulong ChronologyChecksum)
 {
+    /// <summary>
+    /// Gets the valid-event share among all published events.
+    /// </summary>
     public double ValidEventShare =>
         PublishedEvents == 0
             ? 0

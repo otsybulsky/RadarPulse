@@ -6,6 +6,13 @@ using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Infrastructure.Archive;
 
+/// <summary>
+/// Reusable session for projecting Archive II files into radar event batches.
+/// </summary>
+/// <remarks>
+/// Parallel mode decompresses records concurrently and drains decompressed payloads in record order before projection,
+/// preserving deterministic batch and dictionary results while reusing worker buffers across files.
+/// </remarks>
 public sealed class NexradArchiveRadarEventBatchPublishSession : IDisposable
 {
     private const int OutputBufferSize = 81920;
@@ -27,6 +34,9 @@ public sealed class NexradArchiveRadarEventBatchPublishSession : IDisposable
     private ArchiveTwoMessageStreamScanner? scanner;
     private bool disposed;
 
+    /// <summary>
+    /// Creates a reusable radar event batch publish session.
+    /// </summary>
     public NexradArchiveRadarEventBatchPublishSession(
         IArchiveBZip2Decompressor decompressor,
         ArchiveRadarEventBatchPublishOptions options)
@@ -41,8 +51,14 @@ public sealed class NexradArchiveRadarEventBatchPublishSession : IDisposable
         }
     }
 
+    /// <summary>
+    /// Gets the number of worker sessions used for compressed-record processing.
+    /// </summary>
     public int DegreeOfParallelism => options.DegreeOfParallelism;
 
+    /// <summary>
+    /// Publishes one Archive II file to an internal counting batch publisher.
+    /// </summary>
     public ArchiveRadarEventBatchPublishResult PublishFile(
         string filePath,
         CancellationToken cancellationToken)
@@ -55,6 +71,9 @@ public sealed class NexradArchiveRadarEventBatchPublishSession : IDisposable
             cancellationToken);
     }
 
+    /// <summary>
+    /// Publishes one Archive II file to the supplied radar event batch publisher.
+    /// </summary>
     public ArchiveRadarEventBatchPublishResult PublishFile(
         string filePath,
         IArchiveRadarEventBatchPublisher publisher,
@@ -354,6 +373,7 @@ public sealed class NexradArchiveRadarEventBatchPublishSession : IDisposable
         return fileInfo;
     }
 
+    /// <inheritdoc />
     public void Dispose()
     {
         if (disposed)

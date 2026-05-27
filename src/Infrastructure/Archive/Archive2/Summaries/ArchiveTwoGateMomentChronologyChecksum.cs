@@ -2,11 +2,17 @@ using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Infrastructure.Archive;
 
+/// <summary>
+/// Deterministic chronology checksum helper for ordered gate-moment replay events.
+/// </summary>
 internal static class ArchiveTwoGateMomentChronologyChecksum
 {
     private const ulong Prime = 1_099_511_628_211UL;
     private const ulong Offset = 14_695_981_039_346_656_037UL;
 
+    /// <summary>
+    /// Appends one event to an ordered chronology checksum.
+    /// </summary>
     public static ulong Append(ulong checksum, ArchiveTwoGateMomentEvent gateMomentEvent)
     {
         unchecked
@@ -15,6 +21,9 @@ internal static class ArchiveTwoGateMomentChronologyChecksum
         }
     }
 
+    /// <summary>
+    /// Combines two ordered chronology checksum segments without replaying the right segment.
+    /// </summary>
     public static ulong Combine(ulong left, ulong right, long rightEventCount)
     {
         unchecked

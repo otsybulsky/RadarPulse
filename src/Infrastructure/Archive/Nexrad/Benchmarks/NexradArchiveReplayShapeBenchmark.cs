@@ -6,10 +6,16 @@ using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Infrastructure.Archive;
 
+/// <summary>
+/// Measures Archive II replay-shape projection throughput and deterministic event totals.
+/// </summary>
 public sealed class NexradArchiveReplayShapeBenchmark
 {
     private const int OutputBufferSize = 81920;
 
+    /// <summary>
+    /// Measures replay-shape projection with sequential processing.
+    /// </summary>
     public ArchiveTwoReplayShapeBenchmarkResult Measure(
         string filePath,
         int iterations,
@@ -24,6 +30,9 @@ public sealed class NexradArchiveReplayShapeBenchmark
             decompressorName,
             cancellationToken);
 
+    /// <summary>
+    /// Measures replay-shape projection with an explicit parallelism degree.
+    /// </summary>
     public ArchiveTwoReplayShapeBenchmarkResult Measure(
         string filePath,
         int iterations,

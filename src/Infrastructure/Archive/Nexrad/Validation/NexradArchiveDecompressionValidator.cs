@@ -3,6 +3,9 @@ using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Infrastructure.Archive;
 
+/// <summary>
+/// Compares a candidate Archive II BZip2 decompressor against a reference implementation.
+/// </summary>
 public sealed class NexradArchiveDecompressionValidator
 {
     private const int OutputBufferSize = 81920;
@@ -10,6 +13,9 @@ public sealed class NexradArchiveDecompressionValidator
     private readonly IArchiveBZip2Decompressor candidateDecompressor;
     private readonly IArchiveBZip2Decompressor referenceDecompressor;
 
+    /// <summary>
+    /// Creates a validator using the default RadarPulse decompressor and SharpZipLib as reference.
+    /// </summary>
     public NexradArchiveDecompressionValidator()
         : this(
             ArchiveBZip2Decompressors.Create(ArchiveBZip2Decompressors.DefaultName),
@@ -17,6 +23,9 @@ public sealed class NexradArchiveDecompressionValidator
     {
     }
 
+    /// <summary>
+    /// Creates a validator with explicit candidate and reference decompressors.
+    /// </summary>
     public NexradArchiveDecompressionValidator(
         IArchiveBZip2Decompressor candidateDecompressor,
         IArchiveBZip2Decompressor referenceDecompressor)
@@ -25,6 +34,9 @@ public sealed class NexradArchiveDecompressionValidator
         this.referenceDecompressor = referenceDecompressor ?? throw new ArgumentNullException(nameof(referenceDecompressor));
     }
 
+    /// <summary>
+    /// Validates decompression output for one Archive II file.
+    /// </summary>
     public ArchiveTwoDecompressionValidationResult ValidateFile(
         string filePath,
         CancellationToken cancellationToken)
@@ -48,6 +60,9 @@ public sealed class NexradArchiveDecompressionValidator
             files);
     }
 
+    /// <summary>
+    /// Validates decompression output for matching Archive II files in a cache directory.
+    /// </summary>
     public ArchiveTwoDecompressionValidationResult ValidateCache(
         string cachePath,
         string? radarId,

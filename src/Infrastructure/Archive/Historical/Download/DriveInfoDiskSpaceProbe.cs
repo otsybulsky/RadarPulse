@@ -1,7 +1,11 @@
 namespace RadarPulse.Infrastructure.Archive;
 
+/// <summary>
+/// Disk-space probe backed by <see cref="DriveInfo"/>.
+/// </summary>
 public sealed class DriveInfoDiskSpaceProbe : IDiskSpaceProbe
 {
+    /// <inheritdoc />
     public long GetAvailableBytes(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);

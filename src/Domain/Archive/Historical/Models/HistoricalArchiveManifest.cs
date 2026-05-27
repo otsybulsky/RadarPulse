@@ -1,9 +1,15 @@
 namespace RadarPulse.Domain.Archive;
 
+/// <summary>
+/// Ordered set of archive files discovered for a historical archive date.
+/// </summary>
 public sealed record HistoricalArchiveManifest(
     DateOnly ArchiveDate,
     IReadOnlyList<HistoricalArchiveFile> Files)
 {
+    /// <summary>
+    /// Computes aggregate file and byte totals grouped by radar id.
+    /// </summary>
     public HistoricalArchiveSummary Summarize()
     {
         var radarSummaries = Files

@@ -6,6 +6,13 @@ using RadarPulse.Infrastructure.Processing;
 
 namespace RadarPulse.Infrastructure.Archive;
 
+/// <summary>
+/// Archive batch publisher that retains batch memory and enqueues owned processing batches.
+/// </summary>
+/// <remarks>
+/// The publisher converts possibly leased archive batches into retained processing payload resources, records enqueue
+/// and retention telemetry, and exposes resource leases so queue consumers can release retained memory deterministically.
+/// </remarks>
 public sealed class ArchiveOwnedRadarEventBatchQueueingPublisher : IArchiveRadarEventBatchPublisher, IDisposable
 {
     private readonly object sync = new();
@@ -44,6 +51,9 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisher : IArchiveRadar
     private TimeSpan totalReleaseTime;
     private bool disposed;
 
+    /// <summary>
+    /// Creates a queueing publisher with an owned processing queue.
+    /// </summary>
     public ArchiveOwnedRadarEventBatchQueueingPublisher(
         RadarProcessingProviderQueueOptions? queueOptions = null,
         RadarProcessingRetainedPayloadOptions? retainedPayloadOptions = null,
@@ -56,6 +66,9 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisher : IArchiveRadar
     {
     }
 
+    /// <summary>
+    /// Creates a queueing publisher over an explicit processing queue.
+    /// </summary>
     public ArchiveOwnedRadarEventBatchQueueingPublisher(
         RadarProcessingOwnedBatchQueue queue,
         bool ownsQueue = false,
@@ -68,8 +81,14 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisher : IArchiveRadar
         this.retainedPayloadFactory = retainedPayloadFactory ?? new RadarProcessingRetainedPayloadFactory();
     }
 
+    /// <summary>
+    /// Gets the processing queue that receives retained archive batches.
+    /// </summary>
     public RadarProcessingOwnedBatchQueue Queue => queue;
 
+    /// <summary>
+    /// Gets a snapshot of enqueue results recorded by publish calls.
+    /// </summary>
     public IReadOnlyList<RadarProcessingQueuedBatchEnqueueResult> EnqueueResults
     {
         get
@@ -81,6 +100,7 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisher : IArchiveRadar
         }
     }
 
+    /// <inheritdoc />
     public void Publish(RadarEventBatch batch, CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(IsDisposed, this);
@@ -133,11 +153,20 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisher : IArchiveRadar
         }
     }
 
+    /// <summary>
+    /// Closes the underlying processing queue to additional batches.
+    /// </summary>
     public void CompleteAdding() => queue.Close();
 
+    /// <summary>
+    /// Creates a queueing provider result from current enqueue and retention telemetry.
+    /// </summary>
     public RadarProcessingArchiveQueuedProviderResult CreateResult() =>
         new(GetEnqueueResultsSnapshot(), CreateQueueTelemetrySummary(), CreateRetentionTelemetrySummary());
 
+    /// <summary>
+    /// Acquires the retained payload resource associated with a queued batch sequence for consumer ownership.
+    /// </summary>
     public ArchiveOwnedRadarEventBatchConsumerResourceLease AcquireConsumerResourceLease(
         RadarProcessingQueuedBatchSequence sequence)
     {
@@ -158,6 +187,9 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisher : IArchiveRadar
             entry.PressurePayloadBytes);
     }
 
+    /// <summary>
+    /// Acquires and releases the retained payload resource for a queued batch sequence.
+    /// </summary>
     public RadarProcessingRetainedPayloadReleaseResult ReleaseConsumerResource(
         RadarProcessingQueuedBatchSequence sequence)
     {
@@ -165,6 +197,9 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisher : IArchiveRadar
         return lease.Release();
     }
 
+    /// <summary>
+    /// Releases all retained resources that were enqueued but not yet acquired by a consumer.
+    /// </summary>
     public RadarProcessingRetainedResourceCleanupResult ReleasePendingResources()
     {
         RetainedResourceEntry[] pending;
@@ -186,6 +221,9 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisher : IArchiveRadar
         return new RadarProcessingRetainedResourceCleanupResult(releaseResults);
     }
 
+    /// <summary>
+    /// Consumer-owned lease for a retained archive batch resource.
+    /// </summary>
     public sealed class ArchiveOwnedRadarEventBatchConsumerResourceLease : IDisposable
     {
         private readonly object sync = new();
@@ -204,6 +242,9 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisher : IArchiveRadar
             this.pressurePayloadBytes = pressurePayloadBytes;
         }
 
+        /// <summary>
+        /// Releases the retained resource once and returns the release result.
+        /// </summary>
         public RadarProcessingRetainedPayloadReleaseResult Release()
         {
             lock (sync)
@@ -213,12 +254,14 @@ public sealed class ArchiveOwnedRadarEventBatchQueueingPublisher : IArchiveRadar
             }
         }
 
+        /// <inheritdoc />
         public void Dispose()
         {
             Release();
         }
     }
 
+    /// <inheritdoc />
     public void Dispose()
     {
         bool shouldDispose;

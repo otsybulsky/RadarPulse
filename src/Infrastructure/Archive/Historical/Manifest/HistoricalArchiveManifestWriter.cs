@@ -4,6 +4,9 @@ using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Infrastructure.Archive;
 
+/// <summary>
+/// Writes historical archive manifests as local JSON files.
+/// </summary>
 public sealed class HistoricalArchiveManifestWriter
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -13,6 +16,9 @@ public sealed class HistoricalArchiveManifestWriter
         Converters = { new JsonStringEnumConverter() }
     };
 
+    /// <summary>
+    /// Serializes a manifest to the supplied path, creating the parent directory when needed.
+    /// </summary>
     public async Task WriteAsync(
         HistoricalArchiveManifest manifest,
         string manifestPath,

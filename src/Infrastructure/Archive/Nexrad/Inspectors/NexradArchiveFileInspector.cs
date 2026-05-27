@@ -3,6 +3,9 @@ using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Infrastructure.Archive;
 
+/// <summary>
+/// Inspects a single NEXRAD archive file and extracts Archive II record/message summaries when possible.
+/// </summary>
 public sealed class NexradArchiveFileInspector
 {
     private const int ProbeLength = 4096;
@@ -10,16 +13,25 @@ public sealed class NexradArchiveFileInspector
 
     private readonly IArchiveBZip2Decompressor decompressor;
 
+    /// <summary>
+    /// Creates a file inspector with the default archive BZip2 decompressor.
+    /// </summary>
     public NexradArchiveFileInspector()
         : this(ArchiveBZip2Decompressors.Create(ArchiveBZip2Decompressors.DefaultName))
     {
     }
 
+    /// <summary>
+    /// Creates a file inspector with an explicit archive BZip2 decompressor.
+    /// </summary>
     public NexradArchiveFileInspector(IArchiveBZip2Decompressor decompressor)
     {
         this.decompressor = decompressor ?? throw new ArgumentNullException(nameof(decompressor));
     }
 
+    /// <summary>
+    /// Inspects one file and classifies its NEXRAD archive kind and Archive II metadata.
+    /// </summary>
     public async Task<NexradArchiveFileInspection> InspectAsync(string filePath, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);

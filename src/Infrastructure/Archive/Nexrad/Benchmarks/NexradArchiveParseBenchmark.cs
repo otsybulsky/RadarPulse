@@ -5,10 +5,16 @@ using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Infrastructure.Archive;
 
+/// <summary>
+/// Measures Archive II message parsing throughput, optional moment decoding, and allocation.
+/// </summary>
 public sealed class NexradArchiveParseBenchmark
 {
     private const int OutputBufferSize = 81920;
 
+    /// <summary>
+    /// Measures message parsing without moment-value decoding.
+    /// </summary>
     public ArchiveTwoParseBenchmarkResult Measure(
         string filePath,
         int iterations,
@@ -26,6 +32,9 @@ public sealed class NexradArchiveParseBenchmark
             decodeCalibratedMomentValues: false,
             cancellationToken);
 
+    /// <summary>
+    /// Measures message parsing with optional raw moment-value decoding.
+    /// </summary>
     public ArchiveTwoParseBenchmarkResult Measure(
         string filePath,
         int iterations,
@@ -44,6 +53,9 @@ public sealed class NexradArchiveParseBenchmark
             decodeCalibratedMomentValues: false,
             cancellationToken);
 
+    /// <summary>
+    /// Measures message parsing with optional raw and calibrated moment-value decoding.
+    /// </summary>
     public ArchiveTwoParseBenchmarkResult Measure(
         string filePath,
         int iterations,

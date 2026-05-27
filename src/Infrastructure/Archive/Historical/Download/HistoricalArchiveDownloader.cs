@@ -3,6 +3,13 @@ using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Infrastructure.Archive;
 
+/// <summary>
+/// Downloads historical archive manifest files into the local NEXRAD cache layout.
+/// </summary>
+/// <remarks>
+/// The downloader verifies disk space before transfer, skips matching cached files, writes metadata sidecars, and
+/// uses temporary part files so incomplete downloads are not mistaken for valid cache entries.
+/// </remarks>
 public sealed class HistoricalArchiveDownloader(
     IHistoricalArchiveClient client,
     NexradCachePathMapper pathMapper,
@@ -12,6 +19,9 @@ public sealed class HistoricalArchiveDownloader(
     private readonly IDiskSpaceProbe _diskSpaceProbe = diskSpaceProbe ?? new DriveInfoDiskSpaceProbe();
     private readonly HistoricalArchiveCacheMetadataStore _metadataStore = metadataStore ?? new HistoricalArchiveCacheMetadataStore();
 
+    /// <summary>
+    /// Computes required download bytes and available disk space for a manifest selection.
+    /// </summary>
     public HistoricalArchiveDownloadPreflight CheckPreflight(
         HistoricalArchiveManifest manifest,
         string outputDirectory,
@@ -27,6 +37,9 @@ public sealed class HistoricalArchiveDownloader(
         return new HistoricalArchiveDownloadPreflight(requiredDownloadBytes, availableBytes);
     }
 
+    /// <summary>
+    /// Downloads missing manifest files with bounded concurrency and cache metadata validation.
+    /// </summary>
     public async Task<HistoricalArchiveDownloadResult> DownloadAsync(
         HistoricalArchiveManifest manifest,
         string outputDirectory,

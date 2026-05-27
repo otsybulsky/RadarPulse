@@ -2,8 +2,14 @@ using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Application.Archive;
 
+/// <summary>
+/// Applies operator selection limits to a historical archive manifest.
+/// </summary>
 public sealed class HistoricalArchiveManifestSelector
 {
+    /// <summary>
+    /// Selects files by radar id and optional file/byte limits while preserving manifest order.
+    /// </summary>
     public HistoricalArchiveManifest Select(
         HistoricalArchiveManifest manifest,
         IReadOnlyCollection<string>? radarIds,

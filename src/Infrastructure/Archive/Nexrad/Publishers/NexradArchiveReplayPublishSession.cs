@@ -7,6 +7,13 @@ using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Infrastructure.Archive;
 
+/// <summary>
+/// Reusable session for publishing Archive II files or cache selections as replay events.
+/// </summary>
+/// <remarks>
+/// The session owns reusable worker buffers and projector state across files. Parallel mode performs a metadata pass
+/// to preserve sweep/radial continuity before ordered event accumulation.
+/// </remarks>
 public sealed class NexradArchiveReplayPublishSession : IDisposable
 {
     private const int OutputBufferSize = 81920;
@@ -22,6 +29,9 @@ public sealed class NexradArchiveReplayPublishSession : IDisposable
     private long[] decompressedBytesByRecord = [];
     private bool disposed;
 
+    /// <summary>
+    /// Creates a reusable replay publish session.
+    /// </summary>
     public NexradArchiveReplayPublishSession(
         IArchiveBZip2Decompressor decompressor,
         int degreeOfParallelism)
@@ -40,8 +50,14 @@ public sealed class NexradArchiveReplayPublishSession : IDisposable
         }
     }
 
+    /// <summary>
+    /// Gets the number of worker sessions used for compressed-record processing.
+    /// </summary>
     public int DegreeOfParallelism { get; }
 
+    /// <summary>
+    /// Publishes one Archive II file and returns deterministic replay totals.
+    /// </summary>
     public ArchiveReplayPublishResult PublishFile(
         string filePath,
         CancellationToken cancellationToken)
@@ -59,6 +75,9 @@ public sealed class NexradArchiveReplayPublishSession : IDisposable
             : PublishFileParallel(fileInfo, cancellationToken);
     }
 
+    /// <summary>
+    /// Publishes matching Archive II files from a cache directory and returns aggregate replay totals.
+    /// </summary>
     public ArchiveReplayCachePublishResult PublishCache(
         string cachePath,
         DateOnly? date,
@@ -438,6 +457,7 @@ public sealed class NexradArchiveReplayPublishSession : IDisposable
         return false;
     }
 
+    /// <inheritdoc />
     public void Dispose()
     {
         if (disposed)

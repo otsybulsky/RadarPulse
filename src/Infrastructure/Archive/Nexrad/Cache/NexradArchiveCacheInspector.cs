@@ -2,20 +2,32 @@ using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Infrastructure.Archive;
 
+/// <summary>
+/// Inspects NEXRAD cache files and aggregates Archive II file metadata.
+/// </summary>
 public sealed class NexradArchiveCacheInspector
 {
     private readonly NexradArchiveFileInspector fileInspector;
 
+    /// <summary>
+    /// Creates a cache inspector with the default file inspector.
+    /// </summary>
     public NexradArchiveCacheInspector()
         : this(new NexradArchiveFileInspector())
     {
     }
 
+    /// <summary>
+    /// Creates a cache inspector with an explicit file inspector.
+    /// </summary>
     public NexradArchiveCacheInspector(NexradArchiveFileInspector fileInspector)
     {
         this.fileInspector = fileInspector ?? throw new ArgumentNullException(nameof(fileInspector));
     }
 
+    /// <summary>
+    /// Inspects matching files under a cache path, optionally filtered by date and radar id.
+    /// </summary>
     public async Task<NexradArchiveCacheInspection> InspectAsync(
         string cachePath,
         DateOnly? date,

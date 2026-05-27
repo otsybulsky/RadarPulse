@@ -4,6 +4,9 @@ using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Infrastructure.Archive;
 
+/// <summary>
+/// Reads historical archive manifests from local JSON files.
+/// </summary>
 public sealed class HistoricalArchiveManifestReader
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -12,6 +15,9 @@ public sealed class HistoricalArchiveManifestReader
         Converters = { new JsonStringEnumConverter() }
     };
 
+    /// <summary>
+    /// Reads and deserializes a historical archive manifest.
+    /// </summary>
     public async Task<HistoricalArchiveManifest> ReadAsync(
         string manifestPath,
         CancellationToken cancellationToken)

@@ -1,5 +1,8 @@
 namespace RadarPulse.Domain.Archive;
 
+/// <summary>
+/// Parsed 24-byte Archive II volume header metadata.
+/// </summary>
 public sealed record ArchiveTwoVolumeHeader(
     string ArchiveFilename,
     string Version,

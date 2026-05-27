@@ -6,6 +6,13 @@ using RadarPulse.Domain.Streaming;
 
 namespace RadarPulse.Infrastructure.Archive;
 
+/// <summary>
+/// Projects Archive II type 31 generic moment blocks into compact radar stream event batches.
+/// </summary>
+/// <remarks>
+/// The projector uses a source universe for deterministic SourceId arithmetic and an identity normalizer for
+/// dictionary-backed radar and moment ids.
+/// </remarks>
 internal sealed class ArchiveTwoRadarEventBatchProjector : IArchiveTwoMessageConsumer
 {
     private const int MessageHeaderLength = 16;
@@ -40,6 +47,9 @@ internal sealed class ArchiveTwoRadarEventBatchProjector : IArchiveTwoMessageCon
     private DictionaryVersion dictionarySnapshotVersion = DictionaryVersion.Initial;
     private int radialSequenceNumber;
 
+    /// <summary>
+    /// Creates a batch projector for one Archive II volume and source universe.
+    /// </summary>
     public ArchiveTwoRadarEventBatchProjector(
         string radarId,
         DateTimeOffset volumeTimestamp,
@@ -62,13 +72,25 @@ internal sealed class ArchiveTwoRadarEventBatchProjector : IArchiveTwoMessageCon
         ResetVolume(radarId, volumeTimestamp, initialEventCapacity, initialPayloadCapacity);
     }
 
+    /// <summary>
+    /// Gets the current radar id.
+    /// </summary>
     public string RadarId => radarId;
 
+    /// <summary>
+    /// Gets the current Archive II volume timestamp.
+    /// </summary>
     public DateTimeOffset VolumeTimestamp => volumeTimestamp;
 
+    /// <summary>
+    /// Gets the dictionary snapshot needed to resolve compact ids produced by built batches.
+    /// </summary>
     public RadarStreamDictionarySnapshot DictionarySnapshot =>
         identityNormalizer.CreateDictionarySnapshot(dictionarySnapshotVersion);
 
+    /// <summary>
+    /// Resets the projector for a new Archive II volume while reusing buffers and dictionaries where possible.
+    /// </summary>
     public void ResetVolume(
         string radarId,
         DateTimeOffset volumeTimestamp,
@@ -101,6 +123,9 @@ internal sealed class ArchiveTwoRadarEventBatchProjector : IArchiveTwoMessageCon
         }
     }
 
+    /// <summary>
+    /// Builds an owned batch from currently staged events and resets the batch builder.
+    /// </summary>
     public RadarEventBatch BuildBatch()
     {
         var batch = batchBuilder.BuildAndReset();
@@ -112,6 +137,9 @@ internal sealed class ArchiveTwoRadarEventBatchProjector : IArchiveTwoMessageCon
         return batch;
     }
 
+    /// <summary>
+    /// Publishes a leased batch when events are staged and records the published dictionary version.
+    /// </summary>
     public void PublishLeasedBatch(
         IArchiveRadarEventBatchPublisher publisher,
         CancellationToken cancellationToken)
@@ -135,6 +163,7 @@ internal sealed class ArchiveTwoRadarEventBatchProjector : IArchiveTwoMessageCon
         }
     }
 
+    /// <inheritdoc />
     public void AcceptMessage(ReadOnlySpan<byte> message, ArchiveTwoMessageSource source)
     {
         if (message.Length < MessageHeaderLength || message[3] != 31)

@@ -5,10 +5,16 @@ using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Infrastructure.Archive;
 
+/// <summary>
+/// Measures Archive II compressed-record BZip2 decompression throughput and allocation.
+/// </summary>
 public sealed class NexradArchiveDecompressionBenchmark
 {
     private const int OutputBufferSize = 81920;
 
+    /// <summary>
+    /// Measures decompression with the default decompressor and sequential processing.
+    /// </summary>
     public ArchiveTwoDecompressionBenchmarkResult Measure(
         string filePath,
         int iterations,
@@ -22,6 +28,9 @@ public sealed class NexradArchiveDecompressionBenchmark
             ArchiveBZip2Decompressors.DefaultName,
             cancellationToken);
 
+    /// <summary>
+    /// Measures decompression with the default decompressor and an explicit parallelism degree.
+    /// </summary>
     public ArchiveTwoDecompressionBenchmarkResult Measure(
         string filePath,
         int iterations,
@@ -36,6 +45,9 @@ public sealed class NexradArchiveDecompressionBenchmark
             ArchiveBZip2Decompressors.DefaultName,
             cancellationToken);
 
+    /// <summary>
+    /// Measures decompression with an explicit decompressor and parallelism degree.
+    /// </summary>
     public ArchiveTwoDecompressionBenchmarkResult Measure(
         string filePath,
         int iterations,

@@ -5,11 +5,19 @@ using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Infrastructure.Archive;
 
+/// <summary>
+/// Historical archive client backed by the public AWS NEXRAD Level II bucket.
+/// </summary>
+/// <remarks>
+/// Listing and download requests use bounded retry for transient HTTP responses while preserving the local
+/// historical archive manifest contract.
+/// </remarks>
 public sealed class AwsNexradArchiveClient(HttpClient httpClient) : IHistoricalArchiveClient
 {
     private static readonly XNamespace AwsBucketListNamespace = "http://s3.amazonaws.com/doc/2006-03-01/";
     private const int MaxAttempts = 4;
 
+    /// <inheritdoc />
     public async Task<HistoricalArchiveManifest> BuildManifestAsync(
         HistoricalArchiveRequest request,
         CancellationToken cancellationToken)
@@ -44,6 +52,7 @@ public sealed class AwsNexradArchiveClient(HttpClient httpClient) : IHistoricalA
         return new HistoricalArchiveManifest(request.Date, files);
     }
 
+    /// <inheritdoc />
     public async Task DownloadFileAsync(
         HistoricalArchiveFile file,
         Stream destination,

@@ -4,20 +4,32 @@ using RadarPulse.Domain.Streaming;
 
 namespace RadarPulse.Infrastructure.Archive;
 
+/// <summary>
+/// Measures Archive II projection into radar event batch streams.
+/// </summary>
 public sealed class NexradArchiveRadarEventBatchStreamBenchmark
 {
     private readonly IArchiveBZip2Decompressor decompressor;
 
+    /// <summary>
+    /// Creates a stream benchmark with the default archive BZip2 decompressor.
+    /// </summary>
     public NexradArchiveRadarEventBatchStreamBenchmark()
         : this(ArchiveBZip2Decompressors.Create(ArchiveBZip2Decompressors.DefaultName))
     {
     }
 
+    /// <summary>
+    /// Creates a stream benchmark with an explicit archive BZip2 decompressor.
+    /// </summary>
     public NexradArchiveRadarEventBatchStreamBenchmark(IArchiveBZip2Decompressor decompressor)
     {
         this.decompressor = decompressor ?? throw new ArgumentNullException(nameof(decompressor));
     }
 
+    /// <summary>
+    /// Measures one file with an explicit decompressor name.
+    /// </summary>
     public ArchiveRadarEventBatchStreamBenchmarkResult Measure(
         string filePath,
         int iterations,
@@ -28,6 +40,9 @@ public sealed class NexradArchiveRadarEventBatchStreamBenchmark
         new NexradArchiveRadarEventBatchStreamBenchmark(ArchiveBZip2Decompressors.Create(decompressorName))
             .Measure(filePath, iterations, warmupIterations, degreeOfParallelism, cancellationToken);
 
+    /// <summary>
+    /// Measures one file using this benchmark instance's decompressor.
+    /// </summary>
     public ArchiveRadarEventBatchStreamBenchmarkResult Measure(
         string filePath,
         int iterations,
@@ -116,6 +131,9 @@ public sealed class NexradArchiveRadarEventBatchStreamBenchmark
             allocatedBytes);
     }
 
+    /// <summary>
+    /// Measures a cache selection with an explicit decompressor name.
+    /// </summary>
     public ArchiveRadarEventBatchStreamCacheBenchmarkResult MeasureCache(
         string cachePath,
         DateOnly? date,
@@ -137,6 +155,9 @@ public sealed class NexradArchiveRadarEventBatchStreamBenchmark
                 degreeOfParallelism,
                 cancellationToken);
 
+    /// <summary>
+    /// Measures a cache selection using this benchmark instance's decompressor.
+    /// </summary>
     public ArchiveRadarEventBatchStreamCacheBenchmarkResult MeasureCache(
         string cachePath,
         DateOnly? date,

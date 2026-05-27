@@ -295,3 +295,35 @@ git diff --check
 touched-file trailing whitespace check
   result: passed
 ```
+
+### Change 8: Archive Contract Documentation
+
+Status: complete.
+
+Intent:
+
+```text
+document historical archive discovery/download contracts, Archive II file and
+message models, NEXRAD inspection and cache mapping, decompression adapter
+boundaries, replay publishing, radar event batch publishing, validation, and
+benchmark result contracts
+```
+
+Scope:
+
+```text
+src/Application/Archive
+src/Domain/Archive
+src/Infrastructure/Archive
+```
+
+Verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore
+  result: passed, 0 warnings, 0 errors
+git diff --check
+  result: passed
+touched-file trailing whitespace check
+  result: passed
+```

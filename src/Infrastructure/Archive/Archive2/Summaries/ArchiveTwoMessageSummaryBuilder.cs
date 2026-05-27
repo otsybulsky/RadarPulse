@@ -4,6 +4,13 @@ using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Infrastructure.Archive;
 
+/// <summary>
+/// Builds aggregate Archive II message summaries from decompressed RDA/RPG messages.
+/// </summary>
+/// <remarks>
+/// The builder can cheaply count message and type 31 radial structure, or additionally decode raw and calibrated
+/// moment values when benchmark and inspection workflows need deterministic value totals.
+/// </remarks>
 public sealed class ArchiveTwoMessageSummaryBuilder : IArchiveTwoMessageConsumer
 {
     private const int MessageHeaderLength = 16;
@@ -47,6 +54,9 @@ public sealed class ArchiveTwoMessageSummaryBuilder : IArchiveTwoMessageConsumer
     private int radialConstantBlockCount;
     private SweepAccumulator? currentSweep;
 
+    /// <summary>
+    /// Creates a message summary builder with optional moment-value and sweep-summary collection.
+    /// </summary>
     public ArchiveTwoMessageSummaryBuilder(
         bool decodeMomentValues = false,
         bool collectSweepSummaries = true,
@@ -57,38 +67,89 @@ public sealed class ArchiveTwoMessageSummaryBuilder : IArchiveTwoMessageConsumer
         this.decodeCalibratedMomentValues = decodeCalibratedMomentValues;
     }
 
+    /// <summary>
+    /// Gets the number of RDA/RPG messages accepted by the builder.
+    /// </summary>
     public int MessageCount => messageCount;
 
+    /// <summary>
+    /// Gets the number of type 31 radials accepted by the builder.
+    /// </summary>
     public int Type31RadialCount => type31RadialCount;
 
+    /// <summary>
+    /// Gets the estimated gate-moment event count represented by accepted type 31 moment blocks.
+    /// </summary>
     public long EstimatedGateMomentEventCount => estimatedGateMomentEvents;
 
+    /// <summary>
+    /// Gets the number of decoded raw gate-moment values.
+    /// </summary>
     public long DecodedGateMomentValueCount => decodedGateMomentValues;
 
+    /// <summary>
+    /// Gets the deterministic checksum over decoded raw gate-moment values.
+    /// </summary>
     public ulong DecodedGateMomentValueChecksum => decodedGateMomentValueChecksum;
 
+    /// <summary>
+    /// Gets the number of decoded calibrated gate-moment values.
+    /// </summary>
     public long CalibratedGateMomentValueCount => calibratedGateMomentValues;
 
+    /// <summary>
+    /// Gets the number of below-threshold decoded gate values.
+    /// </summary>
     public long BelowThresholdGateMomentValueCount => belowThresholdGateMomentValues;
 
+    /// <summary>
+    /// Gets the number of range-folded decoded gate values.
+    /// </summary>
     public long RangeFoldedGateMomentValueCount => rangeFoldedGateMomentValues;
 
+    /// <summary>
+    /// Gets the number of clutter-filter-not-applied decoded gate values.
+    /// </summary>
     public long ClutterFilterNotAppliedGateMomentValueCount => clutterFilterNotAppliedGateMomentValues;
 
+    /// <summary>
+    /// Gets the number of point-clutter-filter-applied decoded gate values.
+    /// </summary>
     public long PointClutterFilterAppliedGateMomentValueCount => pointClutterFilterAppliedGateMomentValues;
 
+    /// <summary>
+    /// Gets the number of dual-polarization-filtered decoded gate values.
+    /// </summary>
     public long DualPolarizationFilteredGateMomentValueCount => dualPolarizationFilteredGateMomentValues;
 
+    /// <summary>
+    /// Gets the number of reserved decoded gate values.
+    /// </summary>
     public long ReservedGateMomentValueCount => reservedGateMomentValues;
 
+    /// <summary>
+    /// Gets the number of unsupported calibrated gate values.
+    /// </summary>
     public long UnsupportedCalibratedGateMomentValueCount => unsupportedCalibratedGateMomentValues;
 
+    /// <summary>
+    /// Gets a deterministic checksum over calibrated values scaled to thousandths.
+    /// </summary>
     public long CalibratedGateMomentValueScaledChecksum => calibratedGateMomentValueScaledChecksum;
 
+    /// <summary>
+    /// Gets the minimum calibrated gate-moment value observed.
+    /// </summary>
     public double MinimumCalibratedGateMomentValue => minimumCalibratedGateMomentValue;
 
+    /// <summary>
+    /// Gets the maximum calibrated gate-moment value observed.
+    /// </summary>
     public double MaximumCalibratedGateMomentValue => maximumCalibratedGateMomentValue;
 
+    /// <summary>
+    /// Clears accumulated summary state for reuse.
+    /// </summary>
     public void Reset()
     {
         messageTypeCounts.Clear();
@@ -116,6 +177,9 @@ public sealed class ArchiveTwoMessageSummaryBuilder : IArchiveTwoMessageConsumer
         currentSweep = null;
     }
 
+    /// <summary>
+    /// Adds a previously built summary into the current accumulator.
+    /// </summary>
     public void Add(ArchiveTwoMessageSummary summary)
     {
         messageCount += summary.MessageCount;
@@ -147,9 +211,13 @@ public sealed class ArchiveTwoMessageSummaryBuilder : IArchiveTwoMessageConsumer
         }
     }
 
+    /// <summary>
+    /// Accepts one complete RDA/RPG message without source-order metadata.
+    /// </summary>
     public void AcceptMessage(ReadOnlySpan<byte> message) =>
         AcceptMessage(message, default);
 
+    /// <inheritdoc />
     public void AcceptMessage(ReadOnlySpan<byte> message, ArchiveTwoMessageSource source)
     {
         if (message.Length < MessageHeaderLength)
@@ -168,6 +236,9 @@ public sealed class ArchiveTwoMessageSummaryBuilder : IArchiveTwoMessageConsumer
         }
     }
 
+    /// <summary>
+    /// Builds an immutable summary from the accumulated message and type 31 state.
+    /// </summary>
     public ArchiveTwoMessageSummary Build() =>
         new(
             messageCount,

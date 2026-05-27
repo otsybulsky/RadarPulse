@@ -2,20 +2,32 @@ using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Infrastructure.Archive;
 
+/// <summary>
+/// Measures Archive II replay publishing throughput and deterministic totals.
+/// </summary>
 public sealed class NexradArchiveReplayPublishBenchmark
 {
     private readonly IArchiveBZip2Decompressor decompressor;
 
+    /// <summary>
+    /// Creates a replay publish benchmark with the default archive BZip2 decompressor.
+    /// </summary>
     public NexradArchiveReplayPublishBenchmark()
         : this(ArchiveBZip2Decompressors.Create(ArchiveBZip2Decompressors.DefaultName))
     {
     }
 
+    /// <summary>
+    /// Creates a replay publish benchmark with an explicit archive BZip2 decompressor.
+    /// </summary>
     public NexradArchiveReplayPublishBenchmark(IArchiveBZip2Decompressor decompressor)
     {
         this.decompressor = decompressor ?? throw new ArgumentNullException(nameof(decompressor));
     }
 
+    /// <summary>
+    /// Measures one file with an explicit decompressor name.
+    /// </summary>
     public ArchiveReplayPublishBenchmarkResult Measure(
         string filePath,
         int iterations,
@@ -26,6 +38,9 @@ public sealed class NexradArchiveReplayPublishBenchmark
         new NexradArchiveReplayPublishBenchmark(ArchiveBZip2Decompressors.Create(decompressorName))
             .Measure(filePath, iterations, warmupIterations, degreeOfParallelism, cancellationToken);
 
+    /// <summary>
+    /// Measures one file using this benchmark instance's decompressor.
+    /// </summary>
     public ArchiveReplayPublishBenchmarkResult Measure(
         string filePath,
         int iterations,
@@ -110,6 +125,9 @@ public sealed class NexradArchiveReplayPublishBenchmark
             allocatedBytes);
     }
 
+    /// <summary>
+    /// Measures a cache selection with an explicit decompressor name.
+    /// </summary>
     public ArchiveReplayPublishCacheBenchmarkResult MeasureCache(
         string cachePath,
         DateOnly? date,
@@ -131,6 +149,9 @@ public sealed class NexradArchiveReplayPublishBenchmark
                 degreeOfParallelism,
                 cancellationToken);
 
+    /// <summary>
+    /// Measures a cache selection using this benchmark instance's decompressor.
+    /// </summary>
     public ArchiveReplayPublishCacheBenchmarkResult MeasureCache(
         string cachePath,
         DateOnly? date,

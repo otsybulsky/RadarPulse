@@ -6,11 +6,24 @@ using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Infrastructure.Archive;
 
+/// <summary>
+/// Low-level Archive II file reader for volume headers, compressed record headers, and exact file reads.
+/// </summary>
 internal static class ArchiveTwoFileReader
 {
+    /// <summary>
+    /// Archive II fixed volume header length in bytes.
+    /// </summary>
     public const int VolumeHeaderLength = 24;
+
+    /// <summary>
+    /// BZip2 payload signature length in bytes.
+    /// </summary>
     public const int BZip2SignatureLength = 3;
 
+    /// <summary>
+    /// Returns whether a file starts with the Archive II base-data volume signature.
+    /// </summary>
     public static bool IsArchiveTwoBaseData(FileInfo fileInfo)
     {
         if (fileInfo.Length < 4)
@@ -24,6 +37,9 @@ internal static class ArchiveTwoFileReader
         return StartsWithArchiveTwoSignature(signature);
     }
 
+    /// <summary>
+    /// Returns whether a buffer starts with the Archive II volume signature.
+    /// </summary>
     public static bool StartsWithArchiveTwoSignature(ReadOnlySpan<byte> buffer) =>
         buffer.Length >= 4 &&
         buffer[0] == (byte)'A' &&
@@ -31,6 +47,9 @@ internal static class ArchiveTwoFileReader
         buffer[2] == (byte)'2' &&
         buffer[3] == (byte)'V';
 
+    /// <summary>
+    /// Reads and parses the fixed Archive II volume header from a file.
+    /// </summary>
     public static ArchiveTwoVolumeHeader ReadVolumeHeader(FileInfo fileInfo)
     {
         if (fileInfo.Length < VolumeHeaderLength)
@@ -44,6 +63,9 @@ internal static class ArchiveTwoFileReader
         return ParseVolumeHeader(header);
     }
 
+    /// <summary>
+    /// Validates that a file has a complete Archive II volume header signature.
+    /// </summary>
     public static void ValidateVolumeHeaderSignature(FileInfo fileInfo)
     {
         if (fileInfo.Length < VolumeHeaderLength)
@@ -60,6 +82,9 @@ internal static class ArchiveTwoFileReader
         }
     }
 
+    /// <summary>
+    /// Parses a 24-byte Archive II volume header span.
+    /// </summary>
     public static ArchiveTwoVolumeHeader ParseVolumeHeader(ReadOnlySpan<byte> header)
     {
         if (header.Length < VolumeHeaderLength)
@@ -98,6 +123,9 @@ internal static class ArchiveTwoFileReader
             radarId);
     }
 
+    /// <summary>
+    /// Reads all compressed record descriptors without decompressing their payloads.
+    /// </summary>
     public static IReadOnlyList<ArchiveTwoCompressedRecordDescriptor> ReadCompressedRecordDescriptors(
         FileInfo fileInfo,
         CancellationToken cancellationToken)
@@ -134,6 +162,9 @@ internal static class ArchiveTwoFileReader
         return records;
     }
 
+    /// <summary>
+    /// Reads one compressed record control word and decodes its record header.
+    /// </summary>
     public static ArchiveTwoCompressedRecordHeader ReadCompressedRecordHeader(
         Stream stream,
         byte[] controlWordBuffer,
@@ -149,6 +180,9 @@ internal static class ArchiveTwoFileReader
         return DecodeCompressedRecordHeader(stream, controlWordBuffer, controlWordOffset);
     }
 
+    /// <summary>
+    /// Asynchronously reads one compressed record control word and decodes its record header.
+    /// </summary>
     public static async ValueTask<ArchiveTwoCompressedRecordHeader> ReadCompressedRecordHeaderAsync(
         Stream stream,
         byte[] controlWordBuffer,
@@ -165,18 +199,27 @@ internal static class ArchiveTwoFileReader
         return DecodeCompressedRecordHeader(stream, controlWordBuffer, controlWordOffset);
     }
 
+    /// <summary>
+    /// Reads a compressed record control word and returns its payload length.
+    /// </summary>
     public static int ReadCompressedRecordSize(
         Stream stream,
         byte[] controlWordBuffer,
         long controlWordOffset) =>
         ReadCompressedRecordHeader(stream, controlWordBuffer, controlWordOffset).CompressedSizeBytes;
 
+    /// <summary>
+    /// Returns whether a buffer starts with a BZip2 payload signature.
+    /// </summary>
     public static bool StartsWithBZip2Signature(ReadOnlySpan<byte> buffer) =>
         buffer.Length >= BZip2SignatureLength &&
         buffer[0] == (byte)'B' &&
         buffer[1] == (byte)'Z' &&
         buffer[2] == (byte)'h';
 
+    /// <summary>
+    /// Throws when a compressed record payload does not start with a BZip2 signature.
+    /// </summary>
     public static void ValidateBZip2Signature(ReadOnlySpan<byte> buffer, long controlWordOffset)
     {
         if (!StartsWithBZip2Signature(buffer))
@@ -185,6 +228,9 @@ internal static class ArchiveTwoFileReader
         }
     }
 
+    /// <summary>
+    /// Ensures a shared-array-pool buffer is large enough for the requested length.
+    /// </summary>
     public static byte[] EnsurePooledBufferCapacity(byte[]? buffer, int requiredLength)
     {
         if (buffer is not null && buffer.Length >= requiredLength)
@@ -200,6 +246,9 @@ internal static class ArchiveTwoFileReader
         return ArrayPool<byte>.Shared.Rent(requiredLength);
     }
 
+    /// <summary>
+    /// Reads exactly the requested number of bytes from a stream.
+    /// </summary>
     public static void ReadExactly(Stream stream, Span<byte> buffer)
     {
         var totalBytesRead = 0;
@@ -215,6 +264,9 @@ internal static class ArchiveTwoFileReader
         }
     }
 
+    /// <summary>
+    /// Reads exactly the requested number of bytes from a file handle at a specific offset.
+    /// </summary>
     public static void ReadExactly(SafeFileHandle fileHandle, Span<byte> buffer, long fileOffset)
     {
         var totalBytesRead = 0;
@@ -230,6 +282,9 @@ internal static class ArchiveTwoFileReader
         }
     }
 
+    /// <summary>
+    /// Asynchronously reads exactly the requested number of bytes from a stream.
+    /// </summary>
     public static async ValueTask ReadExactlyAsync(
         Stream stream,
         Memory<byte> buffer,

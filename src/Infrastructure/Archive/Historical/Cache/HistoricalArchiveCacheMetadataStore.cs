@@ -4,6 +4,9 @@ using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Infrastructure.Archive;
 
+/// <summary>
+/// Reads and writes historical archive cache metadata sidecars.
+/// </summary>
 public sealed class HistoricalArchiveCacheMetadataStore
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -13,10 +16,19 @@ public sealed class HistoricalArchiveCacheMetadataStore
         Converters = { new JsonStringEnumConverter() }
     };
 
+    /// <summary>
+    /// Gets the metadata sidecar path for a local archive file path.
+    /// </summary>
     public string GetMetadataPath(string localPath) => $"{localPath}.metadata.json";
 
+    /// <summary>
+    /// Returns whether a metadata sidecar exists for a local archive file.
+    /// </summary>
     public bool HasMetadata(string localPath) => File.Exists(GetMetadataPath(localPath));
 
+    /// <summary>
+    /// Returns whether the local file and optional sidecar match a manifest file entry.
+    /// </summary>
     public bool Matches(string localPath, HistoricalArchiveFile file)
     {
         if (!File.Exists(localPath) || new FileInfo(localPath).Length != file.SizeBytes)
@@ -51,6 +63,9 @@ public sealed class HistoricalArchiveCacheMetadataStore
         }
     }
 
+    /// <summary>
+    /// Writes a metadata sidecar atomically for a downloaded archive file.
+    /// </summary>
     public async Task WriteAsync(
         string localPath,
         HistoricalArchiveFile file,

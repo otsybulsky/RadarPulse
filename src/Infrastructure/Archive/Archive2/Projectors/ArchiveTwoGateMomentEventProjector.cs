@@ -4,6 +4,13 @@ using RadarPulse.Domain.Archive;
 
 namespace RadarPulse.Infrastructure.Archive;
 
+/// <summary>
+/// Projects Archive II type 31 generic moment blocks into gate-moment replay events.
+/// </summary>
+/// <remarks>
+/// The projector keeps sweep and radial sequence state across messages so sequential and parallel record replay can
+/// reconstruct stable chronology.
+/// </remarks>
 public sealed class ArchiveTwoGateMomentEventProjector : IArchiveTwoMessageConsumer
 {
     private const int MessageHeaderLength = 16;
@@ -26,6 +33,9 @@ public sealed class ArchiveTwoGateMomentEventProjector : IArchiveTwoMessageConsu
     private int currentSweepElevationNumber;
     private int currentSweepRadialCount;
 
+    /// <summary>
+    /// Creates a projector for one Archive II volume.
+    /// </summary>
     public ArchiveTwoGateMomentEventProjector(
         string radarId,
         DateTimeOffset volumeTimestamp,
@@ -35,10 +45,19 @@ public sealed class ArchiveTwoGateMomentEventProjector : IArchiveTwoMessageConsu
         Reset(radarId, volumeTimestamp, acceptEvent, default);
     }
 
+    /// <summary>
+    /// Gets the radar id assigned to projected events.
+    /// </summary>
     public string RadarId { get; private set; } = string.Empty;
 
+    /// <summary>
+    /// Gets the volume timestamp assigned to projected events.
+    /// </summary>
     public DateTimeOffset VolumeTimestamp { get; private set; }
 
+    /// <summary>
+    /// Resets only continuing projection sequence state.
+    /// </summary>
     public void Reset() => Reset(default);
 
     internal void Reset(ArchiveTwoGateMomentProjectorState state)
@@ -62,6 +81,7 @@ public sealed class ArchiveTwoGateMomentEventProjector : IArchiveTwoMessageConsu
         Reset(state);
     }
 
+    /// <inheritdoc />
     public void AcceptMessage(ReadOnlySpan<byte> message, ArchiveTwoMessageSource source)
     {
         if (message.Length < MessageHeaderLength || message[3] != 31)
