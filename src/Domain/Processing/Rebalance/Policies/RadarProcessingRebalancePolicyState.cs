@@ -1,5 +1,13 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Stateful rebalance policy evaluator for budgets, cooldowns, and residency.
+/// </summary>
+/// <remarks>
+/// The state advances once per rebalance evaluation. Accepted moves consume
+/// global, source-shard, and target-shard budgets and reset residency/cooldown
+/// sequences for the moved partition and participating shards.
+/// </remarks>
 public sealed class RadarProcessingRebalancePolicyState
 {
     private readonly long[] partitionResidencyStartSequences;
@@ -11,6 +19,9 @@ public sealed class RadarProcessingRebalancePolicyState
     private long budgetWindowStartSequence;
     private int globalMoveCount;
 
+    /// <summary>
+    /// Creates policy state for a fixed processing topology shape.
+    /// </summary>
     public RadarProcessingRebalancePolicyState(
         int partitionCount,
         int shardCount,
@@ -30,17 +41,35 @@ public sealed class RadarProcessingRebalancePolicyState
         targetShardReceiveCounts = new int[shardCount];
     }
 
+    /// <summary>
+    /// Policy options used by this state.
+    /// </summary>
     public RadarProcessingRebalanceOptions Options { get; }
 
+    /// <summary>
+    /// Number of partitions tracked by the policy state.
+    /// </summary>
     public int PartitionCount { get; }
 
+    /// <summary>
+    /// Number of shards tracked by the policy state.
+    /// </summary>
     public int ShardCount { get; }
 
+    /// <summary>
+    /// Monotonic rebalance evaluation sequence.
+    /// </summary>
     public long EvaluationSequence { get; private set; }
 
+    /// <summary>
+    /// Current global move budget for the active budget window.
+    /// </summary>
     public RadarProcessingRebalanceBudget GlobalMoveBudget =>
         new(Options.GlobalMoveBudgetPerWindow, globalMoveCount);
 
+    /// <summary>
+    /// Advances the evaluation sequence and resets budgets when a window expires.
+    /// </summary>
     public void AdvanceEvaluation()
     {
         EvaluationSequence = checked(EvaluationSequence + 1);
@@ -50,6 +79,9 @@ public sealed class RadarProcessingRebalancePolicyState
         }
     }
 
+    /// <summary>
+    /// Evaluates whether a candidate move satisfies residency, cooldown, budget, and benefit rules.
+    /// </summary>
     public RadarProcessingRebalancePolicyResult EvaluateMove(
         RadarProcessingRebalanceMovePolicyInput input)
     {
@@ -125,6 +157,13 @@ public sealed class RadarProcessingRebalancePolicyState
             : RadarProcessingRebalancePolicyResult.Rejected(input, rejections);
     }
 
+    /// <summary>
+    /// Records an accepted move after re-evaluating policy eligibility.
+    /// </summary>
+    /// <returns>
+    /// Allowed result when counters were updated; rejected result when the input no
+    /// longer satisfies policy.
+    /// </returns>
     public RadarProcessingRebalancePolicyResult RecordAcceptedMove(
         RadarProcessingRebalanceMovePolicyInput input)
     {
@@ -145,6 +184,9 @@ public sealed class RadarProcessingRebalancePolicyState
         return result;
     }
 
+    /// <summary>
+    /// Returns current owner residency for a partition.
+    /// </summary>
     public RadarProcessingPartitionResidency GetPartitionResidency(int partitionId)
     {
         EnsurePartitionId(partitionId);
@@ -155,6 +197,9 @@ public sealed class RadarProcessingRebalancePolicyState
             Options.MinimumPartitionResidencyEvaluations);
     }
 
+    /// <summary>
+    /// Returns remaining partition cooldown after its most recent move.
+    /// </summary>
     public RadarProcessingPartitionCooldown GetPartitionCooldown(int partitionId)
     {
         EnsurePartitionId(partitionId);
@@ -166,6 +211,9 @@ public sealed class RadarProcessingRebalancePolicyState
                 Options.PartitionMoveCooldownEvaluations));
     }
 
+    /// <summary>
+    /// Returns remaining cooldown for moving work away from a source shard.
+    /// </summary>
     public RadarProcessingShardCooldown GetSourceShardCooldown(int shardId)
     {
         EnsureShardId(shardId);
@@ -177,6 +225,9 @@ public sealed class RadarProcessingRebalancePolicyState
                 Options.SourceShardMoveCooldownEvaluations));
     }
 
+    /// <summary>
+    /// Returns remaining cooldown for receiving work into a target shard.
+    /// </summary>
     public RadarProcessingShardCooldown GetTargetShardCooldown(int shardId)
     {
         EnsureShardId(shardId);
@@ -188,6 +239,9 @@ public sealed class RadarProcessingRebalancePolicyState
                 Options.TargetShardReceiveCooldownEvaluations));
     }
 
+    /// <summary>
+    /// Returns the active budget for moves away from a source shard.
+    /// </summary>
     public RadarProcessingRebalanceBudget GetSourceShardMoveBudget(int shardId)
     {
         EnsureShardId(shardId);
@@ -197,6 +251,9 @@ public sealed class RadarProcessingRebalancePolicyState
             sourceShardMoveCounts[shardId]);
     }
 
+    /// <summary>
+    /// Returns the active budget for moves into a target shard.
+    /// </summary>
     public RadarProcessingRebalanceBudget GetTargetShardReceiveBudget(int shardId)
     {
         EnsureShardId(shardId);

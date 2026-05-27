@@ -1,9 +1,20 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Validates accepted decisions and publishes topology owner moves.
+/// </summary>
+/// <remarks>
+/// The coordinator is the rebalance boundary between planner decisions and the
+/// topology manager. It rejects stale decisions and maps topology publication
+/// errors back into migration validation errors.
+/// </remarks>
 public sealed class RadarProcessingMigrationCoordinator
 {
     private readonly RadarProcessingTopologyManager topologyManager;
 
+    /// <summary>
+    /// Creates a migration coordinator for a topology manager.
+    /// </summary>
     public RadarProcessingMigrationCoordinator(
         RadarProcessingTopologyManager topologyManager)
     {
@@ -12,6 +23,13 @@ public sealed class RadarProcessingMigrationCoordinator
         this.topologyManager = topologyManager;
     }
 
+    /// <summary>
+    /// Validates and publishes the move represented by an accepted decision.
+    /// </summary>
+    /// <returns>
+    /// Published result when the topology move succeeds; otherwise a rejected or
+    /// validation-failed result with the current topology unchanged.
+    /// </returns>
     public RadarProcessingMigrationResult Apply(
         RadarProcessingRebalanceDecision decision)
     {
@@ -40,6 +58,9 @@ public sealed class RadarProcessingMigrationCoordinator
         return RadarProcessingMigrationResult.Published(validation, moveResult);
     }
 
+    /// <summary>
+    /// Validates whether a rebalance decision can become a partition migration.
+    /// </summary>
     public RadarProcessingMigrationValidationResult Validate(
         RadarProcessingRebalanceDecision decision)
     {

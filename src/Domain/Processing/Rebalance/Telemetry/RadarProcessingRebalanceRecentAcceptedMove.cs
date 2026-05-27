@@ -1,7 +1,13 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Retained compact detail for a recently accepted rebalance move.
+/// </summary>
 public sealed record RadarProcessingRebalanceRecentAcceptedMove
 {
+    /// <summary>
+    /// Creates a retained accepted-move detail entry.
+    /// </summary>
     public RadarProcessingRebalanceRecentAcceptedMove(
         long decisionId,
         long evaluationSequence,
@@ -53,26 +59,59 @@ public sealed record RadarProcessingRebalanceRecentAcceptedMove
         ExpectedRelief = expectedRelief;
     }
 
+    /// <summary>
+    /// Decision id that accepted the move.
+    /// </summary>
     public long DecisionId { get; }
 
+    /// <summary>
+    /// Policy evaluation sequence for the decision.
+    /// </summary>
     public long EvaluationSequence { get; }
 
+    /// <summary>
+    /// Topology version evaluated before publication.
+    /// </summary>
     public RadarProcessingTopologyVersion TopologyVersion { get; }
 
+    /// <summary>
+    /// Topology version produced by the publication, when known.
+    /// </summary>
     public RadarProcessingTopologyVersion? ResultTopologyVersion { get; }
 
+    /// <summary>
+    /// Strategy that produced the accepted move.
+    /// </summary>
     public RadarProcessingRebalanceMoveKind MoveKind { get; }
 
+    /// <summary>
+    /// Partition that moved.
+    /// </summary>
     public int PartitionId { get; }
 
+    /// <summary>
+    /// Source owner shard before the move.
+    /// </summary>
     public int SourceShardId { get; }
 
+    /// <summary>
+    /// Target owner shard after the move.
+    /// </summary>
     public int TargetShardId { get; }
 
+    /// <summary>
+    /// Projected pressure used when the move was accepted.
+    /// </summary>
     public RadarProcessingProjectedPressure ProjectedPressure { get; }
 
+    /// <summary>
+    /// Expected pressure relief used when the move was accepted.
+    /// </summary>
     public double ExpectedRelief { get; }
 
+    /// <summary>
+    /// Creates retained accepted-move detail from an accepted decision.
+    /// </summary>
     public static RadarProcessingRebalanceRecentAcceptedMove FromDecision(
         RadarProcessingRebalanceDecision decision)
     {

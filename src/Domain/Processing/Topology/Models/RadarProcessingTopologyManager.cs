@@ -2,8 +2,19 @@ using RadarPulse.Domain.Streaming;
 
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Owns the mutable current processing topology snapshot.
+/// </summary>
+/// <remarks>
+/// Callers publish rebalance moves through this manager so stale topology
+/// versions and mismatched source ownership are rejected before a new topology
+/// version becomes current.
+/// </remarks>
 public sealed class RadarProcessingTopologyManager
 {
+    /// <summary>
+    /// Creates a manager with an initial topology for the source universe.
+    /// </summary>
     public RadarProcessingTopologyManager(
         RadarSourceUniverse sourceUniverse,
         RadarProcessingCoreOptions options)
@@ -11,8 +22,18 @@ public sealed class RadarProcessingTopologyManager
         Current = new RadarProcessingTopology(sourceUniverse, options);
     }
 
+    /// <summary>
+    /// Current topology snapshot used for routing and validation.
+    /// </summary>
     public RadarProcessingTopology Current { get; private set; }
 
+    /// <summary>
+    /// Attempts to move a partition to a target shard and publish a new topology version.
+    /// </summary>
+    /// <returns>
+    /// Accepted result when the expected version and owner match; otherwise a rejected result
+    /// with the current topology unchanged.
+    /// </returns>
     public RadarProcessingTopologyMoveResult MovePartition(
         RadarProcessingTopologyMoveRequest request)
     {

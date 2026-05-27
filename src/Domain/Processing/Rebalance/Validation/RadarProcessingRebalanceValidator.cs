@@ -1,7 +1,19 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Contract validator for rebalance topology, telemetry, pressure, and session artifacts.
+/// </summary>
+/// <remarks>
+/// Validation is used as executable documentation for the rebalance contract:
+/// topology shape is stable, versions advance monotonically, route telemetry
+/// matches topology ownership, and accepted moves carry migration plus state
+/// handoff evidence.
+/// </remarks>
 public static class RadarProcessingRebalanceValidator
 {
+    /// <summary>
+    /// Validates that a topology publication advanced version while preserving shape.
+    /// </summary>
     public static RadarProcessingRebalanceValidationResult ValidateTopologySequence(
         RadarProcessingTopology previous,
         RadarProcessingTopology current)
@@ -53,6 +65,9 @@ public static class RadarProcessingRebalanceValidator
         return RadarProcessingRebalanceValidationResult.Valid();
     }
 
+    /// <summary>
+    /// Validates that an accepted move changed only the migrated partition owner.
+    /// </summary>
     public static RadarProcessingRebalanceValidationResult ValidateAcceptedMove(
         RadarProcessingTopology previous,
         RadarProcessingTopology current,
@@ -100,6 +115,9 @@ public static class RadarProcessingRebalanceValidator
         return RadarProcessingRebalanceValidationResult.Valid();
     }
 
+    /// <summary>
+    /// Validates that route and processing telemetry match the same topology snapshot.
+    /// </summary>
     public static RadarProcessingRebalanceValidationResult ValidateRouteTelemetry(
         RadarProcessingBatchRoute route,
         RadarProcessingTelemetry telemetry,
@@ -168,6 +186,9 @@ public static class RadarProcessingRebalanceValidator
         return RadarProcessingRebalanceValidationResult.Valid();
     }
 
+    /// <summary>
+    /// Validates that a pressure sample faithfully summarizes processing telemetry.
+    /// </summary>
     public static RadarProcessingRebalanceValidationResult ValidatePressureSample(
         RadarProcessingPressureSample sample,
         RadarProcessingTelemetry telemetry)
@@ -217,6 +238,9 @@ public static class RadarProcessingRebalanceValidator
         return RadarProcessingRebalanceValidationResult.Valid();
     }
 
+    /// <summary>
+    /// Validates a complete rebalance session result using the diagnostic profile.
+    /// </summary>
     public static RadarProcessingRebalanceValidationResult ValidateSessionResult(
         RadarProcessingRebalanceSessionResult result,
         RadarProcessingTopology currentTopology)
@@ -227,6 +251,9 @@ public static class RadarProcessingRebalanceValidator
         return ValidateSessionResult(result, currentTopology, RadarProcessingValidationProfile.Diagnostic);
     }
 
+    /// <summary>
+    /// Validates a complete rebalance session result with an explicit validation profile.
+    /// </summary>
     public static RadarProcessingRebalanceValidationResult ValidateSessionResult(
         RadarProcessingRebalanceSessionResult result,
         RadarProcessingTopology currentTopology,
@@ -246,6 +273,9 @@ public static class RadarProcessingRebalanceValidator
             validationProfile);
     }
 
+    /// <summary>
+    /// Validates raw rebalance session artifacts without requiring a session result wrapper.
+    /// </summary>
     public static RadarProcessingRebalanceValidationResult ValidateSessionResult(
         RadarProcessingResult processingResult,
         RadarProcessingPressureSample? pressureSample,

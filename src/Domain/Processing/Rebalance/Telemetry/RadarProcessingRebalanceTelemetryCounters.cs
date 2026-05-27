@@ -1,7 +1,13 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Aggregate rebalance telemetry counters retained across evaluations.
+/// </summary>
 public sealed record RadarProcessingRebalanceTelemetryCounters
 {
+    /// <summary>
+    /// Creates a rebalance counter snapshot.
+    /// </summary>
     public RadarProcessingRebalanceTelemetryCounters(
         long evaluationCount = 0,
         long noActionDecisionCount = 0,
@@ -51,27 +57,63 @@ public sealed record RadarProcessingRebalanceTelemetryCounters
         QuarantineReentryCount = quarantineReentryCount;
     }
 
+    /// <summary>
+    /// Number of planner decisions recorded as evaluations.
+    /// </summary>
     public long EvaluationCount { get; }
 
+    /// <summary>
+    /// Number of no-action decisions.
+    /// </summary>
     public long NoActionDecisionCount { get; }
 
+    /// <summary>
+    /// Number of accepted move decisions.
+    /// </summary>
     public long AcceptedMoveCount { get; }
 
+    /// <summary>
+    /// Number of rejected candidate decisions.
+    /// </summary>
     public long RejectedCandidateCount { get; }
 
+    /// <summary>
+    /// Number of accepted direct hot-relief moves.
+    /// </summary>
     public long DirectHotReliefMoveCount { get; }
 
+    /// <summary>
+    /// Number of accepted cold-evacuation moves.
+    /// </summary>
     public long ColdEvacuationMoveCount { get; }
 
+    /// <summary>
+    /// Number of accepted decisions whose migration failed.
+    /// </summary>
     public long FailedMigrationCount { get; }
 
+    /// <summary>
+    /// Number of invalid rebalance validation results.
+    /// </summary>
     public long ValidationFailureCount { get; }
 
+    /// <summary>
+    /// Number of quarantine entry transitions.
+    /// </summary>
     public long QuarantineEntryCount { get; }
 
+    /// <summary>
+    /// Number of quarantine clear transitions.
+    /// </summary>
     public long QuarantineClearCount { get; }
 
+    /// <summary>
+    /// Number of transitions that made a quarantined partition retry-eligible.
+    /// </summary>
     public long QuarantineRetryCount { get; }
 
+    /// <summary>
+    /// Number of quarantine reentry transitions.
+    /// </summary>
     public long QuarantineReentryCount { get; }
 }

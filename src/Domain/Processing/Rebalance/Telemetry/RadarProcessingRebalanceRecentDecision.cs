@@ -1,10 +1,16 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Retained compact detail for a recent rebalance decision.
+/// </summary>
 public sealed class RadarProcessingRebalanceRecentDecision
 {
     private readonly IReadOnlyList<RadarProcessingRebalanceSkippedReason> skippedReasons;
     private readonly IReadOnlyList<RadarProcessingRebalancePolicyRejection> policyRejections;
 
+    /// <summary>
+    /// Creates a retained decision detail entry.
+    /// </summary>
     public RadarProcessingRebalanceRecentDecision(
         long decisionId,
         long evaluationSequence,
@@ -43,28 +49,61 @@ public sealed class RadarProcessingRebalanceRecentDecision
             nameof(policyRejections));
     }
 
+    /// <summary>
+    /// Decision id retained from the source decision.
+    /// </summary>
     public long DecisionId { get; }
 
+    /// <summary>
+    /// Policy evaluation sequence for the decision.
+    /// </summary>
     public long EvaluationSequence { get; }
 
+    /// <summary>
+    /// Topology version evaluated by the decision.
+    /// </summary>
     public RadarProcessingTopologyVersion TopologyVersion { get; }
 
+    /// <summary>
+    /// Decision outcome category.
+    /// </summary>
     public RadarProcessingRebalanceDecisionKind Kind { get; }
 
+    /// <summary>
+    /// Candidate move kind, or none when no candidate existed.
+    /// </summary>
     public RadarProcessingRebalanceMoveKind MoveKind { get; }
 
+    /// <summary>
+    /// Candidate partition id, when available.
+    /// </summary>
     public int? PartitionId { get; }
 
+    /// <summary>
+    /// Candidate source shard id, when available.
+    /// </summary>
     public int? SourceShardId { get; }
 
+    /// <summary>
+    /// Candidate target shard id, when available.
+    /// </summary>
     public int? TargetShardId { get; }
 
+    /// <summary>
+    /// Planner skipped reasons retained for the decision.
+    /// </summary>
     public IReadOnlyList<RadarProcessingRebalanceSkippedReason> SkippedReasons =>
         skippedReasons;
 
+    /// <summary>
+    /// Policy rejections retained for the decision.
+    /// </summary>
     public IReadOnlyList<RadarProcessingRebalancePolicyRejection> PolicyRejections =>
         policyRejections;
 
+    /// <summary>
+    /// Creates retained decision detail from a full decision.
+    /// </summary>
     public static RadarProcessingRebalanceRecentDecision FromDecision(
         RadarProcessingRebalanceDecision decision)
     {

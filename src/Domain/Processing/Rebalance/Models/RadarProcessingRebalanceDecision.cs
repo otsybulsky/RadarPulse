@@ -1,5 +1,13 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Immutable planner decision for one rebalance evaluation.
+/// </summary>
+/// <remarks>
+/// Decisions preserve the topology version, pressure-window sample count,
+/// optional candidate, and explicit skipped or policy reasons. Accepted decisions
+/// are the only decisions eligible for migration publication.
+/// </remarks>
 public sealed class RadarProcessingRebalanceDecision
 {
     private readonly IReadOnlyList<RadarProcessingRebalanceSkippedReason> skippedReasons;
@@ -33,42 +41,93 @@ public sealed class RadarProcessingRebalanceDecision
         this.policyRejections = CopyPolicyRejections(policyRejections);
     }
 
+    /// <summary>
+    /// Monotonic decision id within the rebalance session.
+    /// </summary>
     public long DecisionId { get; }
 
+    /// <summary>
+    /// Rebalance policy evaluation sequence used by the planner.
+    /// </summary>
     public long EvaluationSequence { get; }
 
+    /// <summary>
+    /// Topology version evaluated by the planner.
+    /// </summary>
     public RadarProcessingTopologyVersion TopologyVersion { get; }
 
+    /// <summary>
+    /// Published topology version after an accepted move, when known.
+    /// </summary>
     public RadarProcessingTopologyVersion? ResultTopologyVersion { get; }
 
+    /// <summary>
+    /// Number of pressure samples available to the planner.
+    /// </summary>
     public int PressureWindowSampleCount { get; }
 
+    /// <summary>
+    /// Decision outcome category.
+    /// </summary>
     public RadarProcessingRebalanceDecisionKind Kind { get; }
 
+    /// <summary>
+    /// Candidate associated with accepted or rejected-candidate decisions.
+    /// </summary>
     public RadarProcessingRebalanceCandidate? Candidate { get; }
 
+    /// <summary>
+    /// Candidate move kind, or none when no candidate exists.
+    /// </summary>
     public RadarProcessingRebalanceMoveKind MoveKind =>
         Candidate?.MoveKind ?? RadarProcessingRebalanceMoveKind.None;
 
+    /// <summary>
+    /// Candidate partition id, when a candidate exists.
+    /// </summary>
     public int? PartitionId => Candidate?.PartitionId;
 
+    /// <summary>
+    /// Candidate source shard id, when a candidate exists.
+    /// </summary>
     public int? SourceShardId => Candidate?.SourceShardId;
 
+    /// <summary>
+    /// Candidate target shard id, when a candidate exists.
+    /// </summary>
     public int? TargetShardId => Candidate?.TargetShardId;
 
+    /// <summary>
+    /// Candidate projected pressure, or zero when no candidate exists.
+    /// </summary>
     public RadarProcessingProjectedPressure ProjectedPressure =>
         Candidate?.ProjectedPressure ?? RadarProcessingProjectedPressure.Zero;
 
+    /// <summary>
+    /// Candidate expected relief, or zero when no candidate exists.
+    /// </summary>
     public double ExpectedRelief => Candidate?.ExpectedRelief ?? 0.0;
 
+    /// <summary>
+    /// Planner-level reasons that explain no-action or rejected-candidate outcomes.
+    /// </summary>
     public IReadOnlyList<RadarProcessingRebalanceSkippedReason> SkippedReasons =>
         skippedReasons;
 
+    /// <summary>
+    /// Policy-level rejections that blocked a candidate.
+    /// </summary>
     public IReadOnlyList<RadarProcessingRebalancePolicyRejection> PolicyRejections =>
         policyRejections;
 
+    /// <summary>
+    /// Indicates whether the decision can be published as a migration.
+    /// </summary>
     public bool HasAcceptedMove => Kind == RadarProcessingRebalanceDecisionKind.AcceptedMove;
 
+    /// <summary>
+    /// Creates a decision indicating that no candidate should be attempted.
+    /// </summary>
     public static RadarProcessingRebalanceDecision NoAction(
         long decisionId,
         long evaluationSequence,
@@ -95,6 +154,9 @@ public sealed class RadarProcessingRebalanceDecision
             Array.Empty<RadarProcessingRebalancePolicyRejection>());
     }
 
+    /// <summary>
+    /// Creates a decision for a candidate accepted by the planner and policy.
+    /// </summary>
     public static RadarProcessingRebalanceDecision AcceptedMove(
         long decisionId,
         long evaluationSequence,
@@ -117,6 +179,9 @@ public sealed class RadarProcessingRebalanceDecision
             Array.Empty<RadarProcessingRebalancePolicyRejection>());
     }
 
+    /// <summary>
+    /// Creates a rejected-candidate decision from a policy rejection result.
+    /// </summary>
     public static RadarProcessingRebalanceDecision RejectedCandidate(
         long decisionId,
         long evaluationSequence,
@@ -148,6 +213,9 @@ public sealed class RadarProcessingRebalanceDecision
             policyResult.Rejections);
     }
 
+    /// <summary>
+    /// Creates a rejected-candidate decision from explicit planner and policy reasons.
+    /// </summary>
     public static RadarProcessingRebalanceDecision RejectedCandidate(
         long decisionId,
         long evaluationSequence,

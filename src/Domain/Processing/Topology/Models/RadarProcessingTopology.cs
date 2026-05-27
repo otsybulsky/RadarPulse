@@ -2,11 +2,22 @@ using RadarPulse.Domain.Streaming;
 
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Immutable partition-to-shard topology used to route processing batches.
+/// </summary>
+/// <remarks>
+/// The topology fixes source count, partition count, shard count, and source-id
+/// partition boundaries. A rebalance move creates a new topology version with a
+/// changed partition owner while preserving all source-to-partition mapping.
+/// </remarks>
 public sealed class RadarProcessingTopology
 {
     private readonly RadarProcessingPartitionAssignment[] partitions;
     private readonly IReadOnlyList<RadarProcessingPartitionAssignment> partitionView;
 
+    /// <summary>
+    /// Creates the initial topology for the source universe and processing options.
+    /// </summary>
     public RadarProcessingTopology(
         RadarSourceUniverse sourceUniverse,
         RadarProcessingCoreOptions options)
@@ -60,24 +71,52 @@ public sealed class RadarProcessingTopology
         partitionView = Array.AsReadOnly(partitions);
     }
 
+    /// <summary>
+    /// Source-universe version that routed batches must match.
+    /// </summary>
     public SourceUniverseVersion SourceUniverseVersion { get; }
 
+    /// <summary>
+    /// Current topology version.
+    /// </summary>
     public RadarProcessingTopologyVersion Version { get; }
 
+    /// <summary>
+    /// Number of sources in the source universe.
+    /// </summary>
     public int SourceCount { get; }
 
+    /// <summary>
+    /// Number of stable source-id partitions.
+    /// </summary>
     public int PartitionCount { get; }
 
+    /// <summary>
+    /// Number of processing shards that can own partitions.
+    /// </summary>
     public int ShardCount { get; }
 
+    /// <summary>
+    /// Read-only partition assignments ordered by partition id.
+    /// </summary>
     public IReadOnlyList<RadarProcessingPartitionAssignment> Partitions => partitionView;
 
+    /// <summary>
+    /// Returns the assignment for a partition id.
+    /// </summary>
     public RadarProcessingPartitionAssignment GetPartition(int partitionId)
     {
         EnsurePartitionId(partitionId);
         return partitions[partitionId];
     }
 
+    /// <summary>
+    /// Maps a source id to its stable partition id.
+    /// </summary>
+    /// <remarks>
+    /// Larger partitions receive the earliest source ranges when the source
+    /// count is not evenly divisible by the partition count.
+    /// </remarks>
     public int GetPartitionIdForSource(int sourceId)
     {
         EnsureSourceId(sourceId);
@@ -96,12 +135,21 @@ public sealed class RadarProcessingTopology
                ((sourceId - largerPartitionSourceCount) / baseSourcesPerPartition);
     }
 
+    /// <summary>
+    /// Returns the partition assignment that owns the source id.
+    /// </summary>
     public RadarProcessingPartitionAssignment GetPartitionForSource(int sourceId) =>
         partitions[GetPartitionIdForSource(sourceId)];
 
+    /// <summary>
+    /// Returns the current owner shard for a partition.
+    /// </summary>
     public int GetShardIdForPartition(int partitionId) =>
         GetPartition(partitionId).ShardId;
 
+    /// <summary>
+    /// Returns the current owner shard for a source id.
+    /// </summary>
     public int GetShardIdForSource(int sourceId) =>
         GetPartitionForSource(sourceId).ShardId;
 

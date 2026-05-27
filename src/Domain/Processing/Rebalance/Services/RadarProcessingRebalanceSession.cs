@@ -2,6 +2,15 @@ using RadarPulse.Domain.Streaming;
 
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Stateful processing session that evaluates pressure and publishes rebalance moves.
+/// </summary>
+/// <remarks>
+/// The session wraps a partitioned processing core, records pressure samples,
+/// runs direct hot-relief before cold evacuation, validates state handoff before
+/// and after publication, and retains diagnostic telemetry according to hardening
+/// options. It is synchronous; async shard transport uses a separate async session.
+/// </remarks>
 public sealed class RadarProcessingRebalanceSession
 {
     private readonly RadarProcessingCore core;
@@ -18,6 +27,9 @@ public sealed class RadarProcessingRebalanceSession
     private readonly RadarProcessingMigrationCoordinator migrationCoordinator;
     private long nextDecisionId = 1;
 
+    /// <summary>
+    /// Creates a rebalance session around a compatible processing core.
+    /// </summary>
     public RadarProcessingRebalanceSession(
         RadarProcessingCore core,
         RadarProcessingPressureOptions? pressureOptions = null,
@@ -66,24 +78,58 @@ public sealed class RadarProcessingRebalanceSession
         EnsureCompatibleShape(this.policyState, this.hotPartitionClassifier, this.quarantineLifecycleTracker);
     }
 
+    /// <summary>
+    /// Processing core owned by the session.
+    /// </summary>
     public RadarProcessingCore Core => core;
 
+    /// <summary>
+    /// Current topology snapshot of the processing core.
+    /// </summary>
     public RadarProcessingTopology CurrentTopology => core.Topology;
 
+    /// <summary>
+    /// Rolling pressure window used by rebalance planners.
+    /// </summary>
     public RadarProcessingPressureWindow PressureWindow => pressureWindow;
 
+    /// <summary>
+    /// Stateful policy budget, cooldown, and residency evaluator.
+    /// </summary>
     public RadarProcessingRebalancePolicyState PolicyState => policyState;
 
+    /// <summary>
+    /// Hot partition classifier used to block intrinsic-hot direct moves.
+    /// </summary>
     public RadarProcessingHotPartitionClassifier HotPartitionClassifier => hotPartitionClassifier;
 
+    /// <summary>
+    /// Quarantine lifecycle tracker used to block or retry problematic partitions.
+    /// </summary>
     public RadarProcessingQuarantineLifecycleTracker QuarantineLifecycleTracker => quarantineLifecycleTracker;
 
+    /// <summary>
+    /// Telemetry recorder for decisions, moves, validation failures, and quarantine transitions.
+    /// </summary>
     public RadarProcessingRebalanceTelemetryRecorder TelemetryRecorder => telemetryRecorder;
 
+    /// <summary>
+    /// Hardening options applied by the session.
+    /// </summary>
     public RadarProcessingRebalanceHardeningOptions HardeningOptions => hardeningOptions;
 
+    /// <summary>
+    /// Validation profile selected from hardening options.
+    /// </summary>
     public RadarProcessingValidationProfile ValidationProfile => hardeningOptions.ValidationProfile;
 
+    /// <summary>
+    /// Processes a batch through the core and evaluates rebalance after processing completes.
+    /// </summary>
+    /// <returns>
+    /// Session result containing processing output, pressure sample, decisions, migration,
+    /// handoff validation, telemetry summary, and contract validation.
+    /// </returns>
     public RadarProcessingRebalanceSessionResult Process(
         RadarEventBatch batch,
         CancellationToken cancellationToken = default)
@@ -98,6 +144,9 @@ public sealed class RadarProcessingRebalanceSession
         return ProcessCompletedResult(processingResult, cancellationToken);
     }
 
+    /// <summary>
+    /// Commits a worker processing delta and evaluates rebalance after the delta is applied.
+    /// </summary>
     public RadarProcessingRebalanceSessionResult CommitProcessingDelta(
         RadarProcessingBatchDelta delta,
         RadarProcessingWorkerTelemetrySummary? workerTelemetry = null,

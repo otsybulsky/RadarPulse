@@ -1,5 +1,8 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Result of validating and publishing a rebalance partition migration.
+/// </summary>
 public sealed class RadarProcessingMigrationResult
 {
     private RadarProcessingMigrationResult(
@@ -42,20 +45,44 @@ public sealed class RadarProcessingMigrationResult
         TopologyMoveError = topologyMoveError;
     }
 
+    /// <summary>
+    /// Indicates whether the topology move was published.
+    /// </summary>
     public bool Succeeded { get; }
 
+    /// <summary>
+    /// Final migration publication state.
+    /// </summary>
     public RadarProcessingPartitionMigrationState State { get; }
 
+    /// <summary>
+    /// Validation evidence used before publication.
+    /// </summary>
     public RadarProcessingMigrationValidationResult Validation { get; }
 
+    /// <summary>
+    /// Migration command associated with the result, when available.
+    /// </summary>
     public RadarProcessingPartitionMigration? Migration { get; }
 
+    /// <summary>
+    /// Topology version before the publication attempt.
+    /// </summary>
     public RadarProcessingTopologyVersion PreviousTopologyVersion { get; }
 
+    /// <summary>
+    /// Topology version after the publication attempt.
+    /// </summary>
     public RadarProcessingTopologyVersion CurrentTopologyVersion { get; }
 
+    /// <summary>
+    /// Low-level topology move error, or none when not applicable.
+    /// </summary>
     public RadarProcessingTopologyMoveError TopologyMoveError { get; }
 
+    /// <summary>
+    /// Creates a successful published migration result.
+    /// </summary>
     public static RadarProcessingMigrationResult Published(
         RadarProcessingMigrationValidationResult validation,
         RadarProcessingTopologyMoveResult topologyMoveResult)
@@ -83,6 +110,9 @@ public sealed class RadarProcessingMigrationResult
             RadarProcessingTopologyMoveError.None);
     }
 
+    /// <summary>
+    /// Creates a result for a decision that could not become a migration.
+    /// </summary>
     public static RadarProcessingMigrationResult RejectedDecision(
         RadarProcessingMigrationValidationResult validation) =>
         Rejected(
@@ -91,6 +121,9 @@ public sealed class RadarProcessingMigrationResult
             validation.CurrentTopologyVersion,
             RadarProcessingTopologyMoveError.None);
 
+    /// <summary>
+    /// Creates a result for migration validation failure.
+    /// </summary>
     public static RadarProcessingMigrationResult ValidationFailed(
         RadarProcessingMigrationValidationResult validation,
         RadarProcessingTopologyMoveError topologyMoveError = RadarProcessingTopologyMoveError.None) =>

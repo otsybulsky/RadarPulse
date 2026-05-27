@@ -1,5 +1,8 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Validation result for converting a rebalance decision to a migration.
+/// </summary>
 public sealed class RadarProcessingMigrationValidationResult
 {
     private RadarProcessingMigrationValidationResult(
@@ -24,14 +27,29 @@ public sealed class RadarProcessingMigrationValidationResult
         Migration = migration;
     }
 
+    /// <summary>
+    /// Indicates whether the migration can be published.
+    /// </summary>
     public bool IsValid { get; }
 
+    /// <summary>
+    /// Validation error, or none when valid.
+    /// </summary>
     public RadarProcessingMigrationValidationError Error { get; }
 
+    /// <summary>
+    /// Topology version observed during validation.
+    /// </summary>
     public RadarProcessingTopologyVersion CurrentTopologyVersion { get; }
 
+    /// <summary>
+    /// Migration command when one could be derived.
+    /// </summary>
     public RadarProcessingPartitionMigration? Migration { get; }
 
+    /// <summary>
+    /// Creates a valid migration validation result.
+    /// </summary>
     public static RadarProcessingMigrationValidationResult Valid(
         RadarProcessingTopologyVersion currentTopologyVersion,
         RadarProcessingPartitionMigration migration)
@@ -45,6 +63,9 @@ public sealed class RadarProcessingMigrationValidationResult
             migration);
     }
 
+    /// <summary>
+    /// Creates an invalid migration validation result.
+    /// </summary>
     public static RadarProcessingMigrationValidationResult Invalid(
         RadarProcessingMigrationValidationError error,
         RadarProcessingTopologyVersion currentTopologyVersion,

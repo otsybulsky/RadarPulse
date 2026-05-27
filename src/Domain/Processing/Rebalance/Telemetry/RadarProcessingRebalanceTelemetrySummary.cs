@@ -1,5 +1,8 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Snapshot of rebalance counters and retained diagnostic detail.
+/// </summary>
 public sealed class RadarProcessingRebalanceTelemetrySummary
 {
     private readonly IReadOnlyList<RadarProcessingRebalanceSkippedReasonCounter> skippedReasonCounters;
@@ -8,6 +11,9 @@ public sealed class RadarProcessingRebalanceTelemetrySummary
     private readonly IReadOnlyList<RadarProcessingRebalanceRecentAcceptedMove> recentAcceptedMoves;
     private readonly IReadOnlyList<RadarProcessingRebalanceRecentValidationFailure> recentValidationFailures;
 
+    /// <summary>
+    /// Creates a rebalance telemetry summary.
+    /// </summary>
     public RadarProcessingRebalanceTelemetrySummary(
         RadarProcessingRebalanceTelemetryCounters counters,
         IReadOnlyCollection<RadarProcessingRebalanceSkippedReasonCounter> skippedReasonCounters,
@@ -35,25 +41,49 @@ public sealed class RadarProcessingRebalanceTelemetrySummary
         RetentionStats = retentionStats;
     }
 
+    /// <summary>
+    /// Aggregate rebalance counters.
+    /// </summary>
     public RadarProcessingRebalanceTelemetryCounters Counters { get; }
 
+    /// <summary>
+    /// Skipped-reason counters sorted by recorder output.
+    /// </summary>
     public IReadOnlyList<RadarProcessingRebalanceSkippedReasonCounter> SkippedReasonCounters =>
         skippedReasonCounters;
 
+    /// <summary>
+    /// Bounded recent decision detail.
+    /// </summary>
     public IReadOnlyList<RadarProcessingRebalanceRecentDecision> RecentDecisions =>
         recentDecisions;
 
+    /// <summary>
+    /// Bounded recent quarantine lifecycle transition detail.
+    /// </summary>
     public IReadOnlyList<RadarProcessingRebalanceRecentLifecycleTransition> RecentLifecycleTransitions =>
         recentLifecycleTransitions;
 
+    /// <summary>
+    /// Bounded recent accepted move detail.
+    /// </summary>
     public IReadOnlyList<RadarProcessingRebalanceRecentAcceptedMove> RecentAcceptedMoves =>
         recentAcceptedMoves;
 
+    /// <summary>
+    /// Bounded recent validation failure detail.
+    /// </summary>
     public IReadOnlyList<RadarProcessingRebalanceRecentValidationFailure> RecentValidationFailures =>
         recentValidationFailures;
 
+    /// <summary>
+    /// Retention and drop counts for detail windows.
+    /// </summary>
     public RadarProcessingRebalanceRetentionStats RetentionStats { get; }
 
+    /// <summary>
+    /// Empty telemetry summary.
+    /// </summary>
     public static RadarProcessingRebalanceTelemetrySummary Empty { get; } =
         new(
             new RadarProcessingRebalanceTelemetryCounters(),

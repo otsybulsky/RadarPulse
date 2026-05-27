@@ -1,7 +1,13 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Ownership and payload metrics for one event in a routed batch.
+/// </summary>
 public readonly record struct RadarProcessingRoutedEvent
 {
+    /// <summary>
+    /// Creates a routed event entry for an original batch event index.
+    /// </summary>
     public RadarProcessingRoutedEvent(
         int eventIndex,
         int sourceId,
@@ -21,13 +27,28 @@ public readonly record struct RadarProcessingRoutedEvent
         PayloadMetrics = payloadMetrics;
     }
 
+    /// <summary>
+    /// Original event index in the routed batch.
+    /// </summary>
     public int EventIndex { get; }
 
+    /// <summary>
+    /// Source id carried by the event.
+    /// </summary>
     public int SourceId { get; }
 
+    /// <summary>
+    /// Partition selected for the source id.
+    /// </summary>
     public int PartitionId { get; }
 
+    /// <summary>
+    /// Owner shard selected for the partition.
+    /// </summary>
     public int ShardId { get; }
 
+    /// <summary>
+    /// Payload metrics computed for this event.
+    /// </summary>
     public RadarProcessingPayloadMetrics PayloadMetrics { get; }
 }

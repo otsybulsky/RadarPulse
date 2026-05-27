@@ -1,7 +1,13 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Retained compact detail for a recent rebalance validation failure.
+/// </summary>
 public sealed record RadarProcessingRebalanceRecentValidationFailure
 {
+    /// <summary>
+    /// Creates a retained validation failure entry.
+    /// </summary>
     public RadarProcessingRebalanceRecentValidationFailure(
         long evaluationSequence,
         RadarProcessingTopologyVersion topologyVersion,
@@ -33,16 +39,34 @@ public sealed record RadarProcessingRebalanceRecentValidationFailure
         HandoffError = handoffError;
     }
 
+    /// <summary>
+    /// Policy evaluation sequence that produced the failure.
+    /// </summary>
     public long EvaluationSequence { get; }
 
+    /// <summary>
+    /// Topology version associated with the failed validation.
+    /// </summary>
     public RadarProcessingTopologyVersion TopologyVersion { get; }
 
+    /// <summary>
+    /// High-level validation error.
+    /// </summary>
     public RadarProcessingRebalanceValidationError Error { get; }
 
+    /// <summary>
+    /// Migration-specific validation error, when relevant.
+    /// </summary>
     public RadarProcessingMigrationValidationError MigrationError { get; }
 
+    /// <summary>
+    /// Handoff-specific validation error, when relevant.
+    /// </summary>
     public RadarProcessingStateHandoffValidationError HandoffError { get; }
 
+    /// <summary>
+    /// Creates retained failure detail from a validation result.
+    /// </summary>
     public static RadarProcessingRebalanceRecentValidationFailure FromResult(
         long evaluationSequence,
         RadarProcessingTopologyVersion topologyVersion,

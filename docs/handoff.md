@@ -29,9 +29,9 @@ did not start with a detailed implementation plan.
 Stop point:
 
 ```text
-milestone 035 change 2 product API contract documentation complete; Release
-build and diff check passed; milestone 035 remains active for broader code
-contract documentation
+milestone 035 change 5 processing rebalance and topology contract
+documentation complete; Release build and whitespace checks passed; milestone
+035 remains active for broader code contract documentation
 ```
 
 Most recently closed milestone:
@@ -62,8 +62,8 @@ Milestone 035 current scope:
 
 ```text
 add concise XML documentation to accepted code contracts
-start with product/API DTO, service, history, HTTP endpoint, and demo
-  readiness surfaces
+document accepted product/API, processing queueing/durable, handler,
+  topology, and rebalance contracts
 preserve accepted behavior and public DTO/API semantics
 do not enable project-wide XML documentation enforcement yet
 ```
@@ -142,6 +142,14 @@ Milestone 033 planned slices:
 Latest verification:
 
 ```text
+milestone 035 change 5 processing rebalance/topology contract documentation:
+  Release build:
+    dotnet build RadarPulse.sln -c Release --no-restore
+    passed, 0 warnings, 0 errors
+  whitespace check:
+    git diff --check passed
+    touched-file trailing whitespace check passed
+
 milestone 035 change 4 processing handler contract documentation:
   Release build:
     dotnet build RadarPulse.sln -c Release --no-restore

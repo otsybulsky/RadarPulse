@@ -1,7 +1,17 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Compares partition state snapshots around a rebalance owner handoff.
+/// </summary>
 public static class RadarProcessingStateHandoffValidator
 {
+    /// <summary>
+    /// Validates that ownership handoff did not mutate partition processing state.
+    /// </summary>
+    /// <returns>
+    /// Valid result when the partition identity, source range, counters, and checksum
+    /// lanes match; otherwise the first mismatch category.
+    /// </returns>
     public static RadarProcessingStateHandoffValidationResult Validate(
         RadarProcessingPartitionStateSnapshot beforeSnapshot,
         RadarProcessingPartitionStateSnapshot afterSnapshot)

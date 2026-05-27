@@ -1,5 +1,8 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Result of validating rebalance topology, telemetry, migration, or session artifacts.
+/// </summary>
 public sealed class RadarProcessingRebalanceValidationResult
 {
     private RadarProcessingRebalanceValidationResult(
@@ -36,16 +39,34 @@ public sealed class RadarProcessingRebalanceValidationResult
         HandoffError = handoffError;
     }
 
+    /// <summary>
+    /// Indicates whether validation passed.
+    /// </summary>
     public bool IsValid { get; }
 
+    /// <summary>
+    /// High-level validation error, or none when valid.
+    /// </summary>
     public RadarProcessingRebalanceValidationError Error { get; }
 
+    /// <summary>
+    /// Human-readable diagnostic for invalid results.
+    /// </summary>
     public string Message { get; }
 
+    /// <summary>
+    /// Migration validation error associated with a migration failure.
+    /// </summary>
     public RadarProcessingMigrationValidationError MigrationError { get; }
 
+    /// <summary>
+    /// Handoff validation error associated with a state mismatch.
+    /// </summary>
     public RadarProcessingStateHandoffValidationError HandoffError { get; }
 
+    /// <summary>
+    /// Creates a valid rebalance validation result.
+    /// </summary>
     public static RadarProcessingRebalanceValidationResult Valid() =>
         new(
             isValid: true,
@@ -54,6 +75,9 @@ public sealed class RadarProcessingRebalanceValidationResult
             RadarProcessingMigrationValidationError.None,
             RadarProcessingStateHandoffValidationError.None);
 
+    /// <summary>
+    /// Creates an invalid rebalance validation result.
+    /// </summary>
     public static RadarProcessingRebalanceValidationResult Invalid(
         RadarProcessingRebalanceValidationError error,
         string message,

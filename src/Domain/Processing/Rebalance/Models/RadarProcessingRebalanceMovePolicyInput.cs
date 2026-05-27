@@ -1,7 +1,13 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Candidate move details evaluated by rebalance policy.
+/// </summary>
 public readonly record struct RadarProcessingRebalanceMovePolicyInput
 {
+    /// <summary>
+    /// Creates policy input for a candidate owner move.
+    /// </summary>
     public RadarProcessingRebalanceMovePolicyInput(
         int partitionId,
         int sourceShardId,
@@ -33,13 +39,28 @@ public readonly record struct RadarProcessingRebalanceMovePolicyInput
         TargetProjectedPressure = targetProjectedPressure;
     }
 
+    /// <summary>
+    /// Partition proposed for movement.
+    /// </summary>
     public int PartitionId { get; }
 
+    /// <summary>
+    /// Current owner shard of the partition.
+    /// </summary>
     public int SourceShardId { get; }
 
+    /// <summary>
+    /// Proposed target owner shard.
+    /// </summary>
     public int TargetShardId { get; }
 
+    /// <summary>
+    /// Expected reduction in maximum pressure after the move.
+    /// </summary>
     public double ProjectedBenefit { get; }
 
+    /// <summary>
+    /// Projected pressure score for the target shard after the move.
+    /// </summary>
     public RadarProcessingPressureScore TargetProjectedPressure { get; }
 }

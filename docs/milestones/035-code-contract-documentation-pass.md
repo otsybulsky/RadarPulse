@@ -203,3 +203,34 @@ git diff --check
 touched-file trailing whitespace check
   result: passed
 ```
+
+### Change 5: Processing Rebalance And Topology Contract Documentation
+
+Status: complete.
+
+Intent:
+
+```text
+document the topology versioning, source-to-partition mapping, route telemetry,
+rebalance policy, planner decision, migration validation, handoff validation,
+session result, and retained telemetry contracts used by processing rebalance
+workflows
+```
+
+Scope:
+
+```text
+src/Domain/Processing/Topology
+src/Domain/Processing/Rebalance
+```
+
+Verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore
+  result: passed, 0 warnings, 0 errors
+git diff --check
+  result: passed
+touched-file trailing whitespace check
+  result: passed
+```

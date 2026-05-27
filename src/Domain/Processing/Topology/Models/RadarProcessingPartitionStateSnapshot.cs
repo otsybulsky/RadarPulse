@@ -2,8 +2,20 @@ using RadarPulse.Domain.Streaming;
 
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Captured processing state for a partition before or after ownership handoff.
+/// </summary>
+/// <remarks>
+/// Snapshots aggregate counters and checksums from the source processing state
+/// store without mutating it. Rebalance handoff validation compares a before
+/// snapshot against a projected or published after snapshot to ensure moving the
+/// owner shard did not alter source state.
+/// </remarks>
 public sealed class RadarProcessingPartitionStateSnapshot
 {
+    /// <summary>
+    /// Creates a partition state snapshot with aggregate counters and checksums.
+    /// </summary>
     public RadarProcessingPartitionStateSnapshot(
         int partitionId,
         int shardId,
@@ -50,26 +62,62 @@ public sealed class RadarProcessingPartitionStateSnapshot
         Checksum = checksum;
     }
 
+    /// <summary>
+    /// Partition id represented by the snapshot.
+    /// </summary>
     public int PartitionId { get; }
 
+    /// <summary>
+    /// Owner shard id associated with the snapshot.
+    /// </summary>
     public int ShardId { get; }
 
+    /// <summary>
+    /// Inclusive first source id covered by the snapshot.
+    /// </summary>
     public int SourceIdStart { get; }
 
+    /// <summary>
+    /// Exclusive upper source-id boundary covered by the snapshot.
+    /// </summary>
     public int SourceIdEndExclusive { get; }
 
+    /// <summary>
+    /// Number of source ids in the snapshot range.
+    /// </summary>
     public int SourceCount => SourceIdEndExclusive - SourceIdStart;
 
+    /// <summary>
+    /// Number of sources in the range with active processing state.
+    /// </summary>
     public long ActiveSourceCount { get; }
 
+    /// <summary>
+    /// Total processed event count across active sources.
+    /// </summary>
     public long ProcessedEventCount { get; }
 
+    /// <summary>
+    /// Total processed payload value count across active sources.
+    /// </summary>
     public long ProcessedPayloadValueCount { get; }
 
+    /// <summary>
+    /// Total raw value checksum across active sources.
+    /// </summary>
     public long RawValueChecksum { get; }
 
+    /// <summary>
+    /// Deterministic checksums for state categories validated during handoff.
+    /// </summary>
     public RadarProcessingPartitionStateChecksum Checksum { get; }
 
+    /// <summary>
+    /// Captures current state-store aggregates for a partition assignment.
+    /// </summary>
+    /// <returns>
+    /// Snapshot that can be compared before and after a rebalance owner move.
+    /// </returns>
     public static RadarProcessingPartitionStateSnapshot Capture(
         RadarProcessingPartitionAssignment partition,
         RadarSourceProcessingStateStore stateStore)

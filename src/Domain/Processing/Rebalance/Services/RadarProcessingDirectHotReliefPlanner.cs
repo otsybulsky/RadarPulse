@@ -1,7 +1,22 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Planner that tries to move a hot partition from a hot shard to a cold shard.
+/// </summary>
+/// <remarks>
+/// The planner prioritizes the hottest shards and partitions, rejects targets
+/// that would become warm or hot, and consults optional hot-partition/quarantine
+/// state before returning an accepted or rejected candidate.
+/// </remarks>
 public sealed class RadarProcessingDirectHotReliefPlanner
 {
+    /// <summary>
+    /// Plans one direct hot-relief rebalance decision for the current pressure window.
+    /// </summary>
+    /// <returns>
+    /// No-action when pressure is not eligible or no safe candidate exists; otherwise
+    /// an accepted or rejected candidate decision with explicit reasons.
+    /// </returns>
     public RadarProcessingRebalanceDecision Plan(
         long decisionId,
         RadarProcessingPressureWindow pressureWindow,

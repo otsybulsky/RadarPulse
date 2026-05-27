@@ -1,5 +1,8 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Result of comparing partition state before and after owner handoff.
+/// </summary>
 public sealed class RadarProcessingStateHandoffValidationResult
 {
     private RadarProcessingStateHandoffValidationResult(
@@ -27,14 +30,29 @@ public sealed class RadarProcessingStateHandoffValidationResult
         AfterSnapshot = afterSnapshot;
     }
 
+    /// <summary>
+    /// Indicates whether all compared state categories matched.
+    /// </summary>
     public bool IsValid { get; }
 
+    /// <summary>
+    /// First mismatch category, or none when valid.
+    /// </summary>
     public RadarProcessingStateHandoffValidationError Error { get; }
 
+    /// <summary>
+    /// Snapshot captured before or before-projecting the handoff.
+    /// </summary>
     public RadarProcessingPartitionStateSnapshot BeforeSnapshot { get; }
 
+    /// <summary>
+    /// Snapshot captured after projection or publication.
+    /// </summary>
     public RadarProcessingPartitionStateSnapshot AfterSnapshot { get; }
 
+    /// <summary>
+    /// Creates a valid handoff result.
+    /// </summary>
     public static RadarProcessingStateHandoffValidationResult Valid(
         RadarProcessingPartitionStateSnapshot beforeSnapshot,
         RadarProcessingPartitionStateSnapshot afterSnapshot) =>
@@ -44,6 +62,9 @@ public sealed class RadarProcessingStateHandoffValidationResult
             beforeSnapshot,
             afterSnapshot);
 
+    /// <summary>
+    /// Creates an invalid handoff result with an explicit mismatch category.
+    /// </summary>
     public static RadarProcessingStateHandoffValidationResult Invalid(
         RadarProcessingStateHandoffValidationError error,
         RadarProcessingPartitionStateSnapshot beforeSnapshot,

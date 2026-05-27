@@ -1,9 +1,15 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Durable queued-session result that includes rebalance topology posture.
+/// </summary>
 public sealed class RadarProcessingDurableRebalanceSessionResult
 {
     private readonly IReadOnlyList<RadarProcessingQueuedBatchProcessingResult> processingResults;
 
+    /// <summary>
+    /// Creates a durable rebalance session result.
+    /// </summary>
     public RadarProcessingDurableRebalanceSessionResult(
         RadarProcessingQueuedSessionStatus status,
         RadarProcessingDurableQueueSummary? queueSummary = null,
@@ -24,22 +30,49 @@ public sealed class RadarProcessingDurableRebalanceSessionResult
         FinalTopologyVersion = finalTopologyVersion;
     }
 
+    /// <summary>
+    /// Final durable queued-session status.
+    /// </summary>
     public RadarProcessingQueuedSessionStatus Status { get; }
 
+    /// <summary>
+    /// Durable queue summary captured at completion.
+    /// </summary>
     public RadarProcessingDurableQueueSummary QueueSummary { get; }
 
+    /// <summary>
+    /// Runtime readiness derived from durable queue posture.
+    /// </summary>
     public RadarProcessingDurableRuntimeReadinessSummary ReadinessSummary { get; }
 
+    /// <summary>
+    /// Per-batch processing results committed during the session.
+    /// </summary>
     public IReadOnlyList<RadarProcessingQueuedBatchProcessingResult> ProcessingResults => processingResults;
 
+    /// <summary>
+    /// Operator-facing completion or failure message.
+    /// </summary>
     public string Message { get; }
 
+    /// <summary>
+    /// Last topology version observed by the durable rebalance session.
+    /// </summary>
     public RadarProcessingTopologyVersion? FinalTopologyVersion { get; }
 
+    /// <summary>
+    /// Indicates successful session completion.
+    /// </summary>
     public bool IsCompleted => Status == RadarProcessingQueuedSessionStatus.Completed;
 
+    /// <summary>
+    /// Indicates session failure.
+    /// </summary>
     public bool IsFaulted => Status == RadarProcessingQueuedSessionStatus.Faulted;
 
+    /// <summary>
+    /// Indicates session cancellation.
+    /// </summary>
     public bool IsCanceled => Status == RadarProcessingQueuedSessionStatus.Canceled;
 
     private static IReadOnlyList<T> CopyRequired<T>(

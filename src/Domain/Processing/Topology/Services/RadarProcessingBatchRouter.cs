@@ -2,10 +2,21 @@ using RadarPulse.Domain.Streaming;
 
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Routes a radar event batch through a fixed processing topology snapshot.
+/// </summary>
+/// <remarks>
+/// Routing validates source-universe compatibility, preserves original event
+/// indexes, and builds per-partition and per-shard metrics that later pressure
+/// and rebalance validation compare against processing telemetry.
+/// </remarks>
 public sealed class RadarProcessingBatchRouter
 {
     private readonly RadarProcessingTopology topology;
 
+    /// <summary>
+    /// Creates a router bound to a topology snapshot.
+    /// </summary>
     public RadarProcessingBatchRouter(RadarProcessingTopology topology)
     {
         ArgumentNullException.ThrowIfNull(topology);
@@ -13,8 +24,18 @@ public sealed class RadarProcessingBatchRouter
         this.topology = topology;
     }
 
+    /// <summary>
+    /// Topology snapshot used by this router.
+    /// </summary>
     public RadarProcessingTopology Topology => topology;
 
+    /// <summary>
+    /// Builds a partition and shard route for the batch.
+    /// </summary>
+    /// <returns>
+    /// Route containing per-event ownership, per-partition work lists, per-shard work
+    /// lists, and aggregate payload metrics for the topology version.
+    /// </returns>
     public RadarProcessingBatchRoute Route(RadarEventBatch batch)
     {
         ArgumentNullException.ThrowIfNull(batch);

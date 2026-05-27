@@ -1,7 +1,17 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Migration command derived from an accepted rebalance decision.
+/// </summary>
+/// <remarks>
+/// A migration carries the expected topology version and current owner shard so
+/// publication can reject stale or ownership-mismatched decisions.
+/// </remarks>
 public sealed class RadarProcessingPartitionMigration
 {
+    /// <summary>
+    /// Creates a partition migration command.
+    /// </summary>
     public RadarProcessingPartitionMigration(
         long decisionId,
         RadarProcessingRebalanceMoveKind moveKind,
@@ -34,18 +44,39 @@ public sealed class RadarProcessingPartitionMigration
         TargetShardId = targetShardId;
     }
 
+    /// <summary>
+    /// Decision id that produced the migration.
+    /// </summary>
     public long DecisionId { get; }
 
+    /// <summary>
+    /// Planner strategy that produced the move.
+    /// </summary>
     public RadarProcessingRebalanceMoveKind MoveKind { get; }
 
+    /// <summary>
+    /// Topology version that must still be current for publication.
+    /// </summary>
     public RadarProcessingTopologyVersion ExpectedTopologyVersion { get; }
 
+    /// <summary>
+    /// Partition being migrated.
+    /// </summary>
     public int PartitionId { get; }
 
+    /// <summary>
+    /// Shard that must currently own the partition.
+    /// </summary>
     public int SourceShardId { get; }
 
+    /// <summary>
+    /// Target owner shard after publication.
+    /// </summary>
     public int TargetShardId { get; }
 
+    /// <summary>
+    /// Converts the migration to a topology move request.
+    /// </summary>
     public RadarProcessingTopologyMoveRequest ToTopologyMoveRequest() =>
         new(
             ExpectedTopologyVersion,
@@ -53,6 +84,9 @@ public sealed class RadarProcessingPartitionMigration
             SourceShardId,
             TargetShardId);
 
+    /// <summary>
+    /// Creates a migration from an accepted rebalance decision.
+    /// </summary>
     public static RadarProcessingPartitionMigration FromDecision(
         RadarProcessingRebalanceDecision decision)
     {

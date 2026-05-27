@@ -1,7 +1,22 @@
 namespace RadarPulse.Domain.Processing;
 
+/// <summary>
+/// Planner that evacuates a colder partition from a hot shard to create relief.
+/// </summary>
+/// <remarks>
+/// Cold evacuation is a fallback after direct hot-relief fails. It selects lower
+/// pressure non-hot partitions from hot shards, preserving target safety and then
+/// applying the same policy state as other rebalance candidates.
+/// </remarks>
 public sealed class RadarProcessingColdEvacuationPlanner
 {
+    /// <summary>
+    /// Plans one cold-evacuation rebalance decision for the current pressure window.
+    /// </summary>
+    /// <returns>
+    /// No-action when pressure is not eligible or no evacuation candidate exists;
+    /// otherwise an accepted or rejected candidate decision.
+    /// </returns>
     public RadarProcessingRebalanceDecision Plan(
         long decisionId,
         RadarProcessingPressureWindow pressureWindow,
