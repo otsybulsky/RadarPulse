@@ -31,50 +31,25 @@ public sealed partial class RadarProcessingArchiveRebalanceBenchmark
         RadarProcessingRetainedPayloadFactory? retainedPayloadFactory = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
-        EnsureKnownMode(mode);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(iterations);
-        ArgumentOutOfRangeException.ThrowIfNegative(warmupIterations);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(partitionCount);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(shardCount);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(degreeOfParallelism);
-        ValidateQueueTimeout(queueTimeout);
-        ValidateQueueRetainedPayloadBytes(queueRetainedPayloadBytes);
-        ValidateOverlapConsumerDelay(overlapConsumerDelay);
-
-        var useRolloutDefaults = !providerMode.HasValue;
-        var effectiveProviderMode = providerMode ?? RadarProcessingArchiveRebalanceRolloutDefaults.ProviderMode;
-        var effectiveExecutionMode = executionMode ??
-                                     (useRolloutDefaults
-                                         ? RadarProcessingArchiveRebalanceRolloutDefaults.ExecutionMode
-                                         : RadarProcessingExecutionMode.PartitionedBarrier);
-        var effectiveQueueCapacity = queueCapacity ??
-                                     (useRolloutDefaults
-                                         ? RadarProcessingArchiveRebalanceRolloutDefaults.ProviderQueueCapacity
-                                         : 1);
-        var effectiveProviderOverlapMode = providerOverlapMode ??
-                                           (useRolloutDefaults
-                                               ? RadarProcessingArchiveRebalanceRolloutDefaults.ProviderOverlapMode
-                                               : RadarProcessingQueuedProviderOverlapMode.None);
-        var effectiveRetentionStrategy = retentionStrategy ??
-                                         (useRolloutDefaults
-                                             ? RadarProcessingArchiveRebalanceRolloutDefaults.RetentionStrategy
-                                             : RadarProcessingRetainedPayloadStrategy.SnapshotCopy);
-        var effectiveQueueRetainedPayloadBytes = queueRetainedPayloadBytes ??
-                                                 (useRolloutDefaults
-                                                     ? RadarProcessingArchiveRebalanceRolloutDefaults.RetainedPayloadBytes
-                                                     : null);
-
-        EnsureKnownExecutionMode(effectiveExecutionMode);
-        EnsureKnownProviderMode(effectiveProviderMode);
-        EnsureKnownProviderOverlapMode(effectiveProviderOverlapMode);
-        RadarProcessingRetainedPayloadOptions.EnsureKnownStrategy(effectiveRetentionStrategy);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(effectiveQueueCapacity);
-        ValidateQueuedProviderControls(
-            effectiveProviderMode,
-            effectiveProviderOverlapMode,
-            effectiveRetentionStrategy,
-            effectiveQueueRetainedPayloadBytes,
-            overlapConsumerDelay);
+        var plan = CreateArchiveBenchmarkMeasurementPlan(
+            mode,
+            iterations,
+            warmupIterations,
+            partitionCount,
+            shardCount,
+            degreeOfParallelism,
+            hardeningOptions,
+            pressureSkewOptions,
+            executionMode,
+            asyncExecution,
+            providerMode,
+            queueCapacity,
+            queueTimeout,
+            providerOverlapMode,
+            retentionStrategy,
+            queueRetainedPayloadBytes,
+            overlapConsumerDelay,
+            retainedPayloadFactory);
 
         if (partitionCount < shardCount)
         {
@@ -83,25 +58,6 @@ public sealed partial class RadarProcessingArchiveRebalanceBenchmark
                 partitionCount,
                 "Partition count must be greater than or equal to shard count.");
         }
-
-        var effectiveHardeningOptions = hardeningOptions ?? RadarProcessingRebalanceHardeningOptions.Default;
-        var effectiveAsyncExecution = effectiveExecutionMode == RadarProcessingExecutionMode.AsyncShardTransport
-            ? asyncExecution ?? (useRolloutDefaults
-                ? RadarProcessingArchiveRebalanceRolloutDefaults.CreateAsyncExecution()
-                : new RadarProcessingAsyncExecutionOptions(workerCount: shardCount, queueCapacity: 1))
-            : asyncExecution;
-        var defaultRetainedPayloadPrewarm = CreateDefaultRetainedPayloadPrewarm(
-            effectiveProviderMode,
-            effectiveProviderOverlapMode,
-            effectiveRetentionStrategy,
-            effectiveExecutionMode,
-            effectiveAsyncExecution,
-            effectiveQueueCapacity,
-            effectiveQueueRetainedPayloadBytes,
-            overlapConsumerDelay,
-            retainedPayloadFactory);
-        var effectiveRetainedPayloadFactory =
-            defaultRetainedPayloadPrewarm?.Factory ?? retainedPayloadFactory;
 
         var fileInfo = new FileInfo(filePath);
         if (!fileInfo.Exists)
@@ -122,15 +78,15 @@ public sealed partial class RadarProcessingArchiveRebalanceBenchmark
         using var archiveSession = new NexradArchiveRadarEventBatchPublishSession(
             decompressor,
             publishOptions);
-        var workerTelemetryRecorder = effectiveExecutionMode == RadarProcessingExecutionMode.AsyncShardTransport
-            ? new RadarProcessingWorkerTelemetryRecorder(effectiveHardeningOptions.TelemetryRetention)
+        var workerTelemetryRecorder = plan.ExecutionMode == RadarProcessingExecutionMode.AsyncShardTransport
+            ? new RadarProcessingWorkerTelemetryRecorder(plan.HardeningOptions.TelemetryRetention)
             : null;
         RadarProcessingAsyncWorkerGroup? workerGroup = null;
         try
         {
-            workerGroup = effectiveExecutionMode == RadarProcessingExecutionMode.AsyncShardTransport
+            workerGroup = plan.ExecutionMode == RadarProcessingExecutionMode.AsyncShardTransport
                 ? new RadarProcessingAsyncWorkerGroup(
-                    new RadarProcessingAsyncWorkerGroupOptions(effectiveAsyncExecution))
+                    new RadarProcessingAsyncWorkerGroupOptions(plan.AsyncExecution))
                 : null;
 
             for (var warmupIteration = 0; warmupIteration < warmupIterations; warmupIteration++)
@@ -143,20 +99,20 @@ public sealed partial class RadarProcessingArchiveRebalanceBenchmark
                     mode,
                     partitionCount,
                     shardCount,
-                    effectiveHardeningOptions,
-                    pressureSkewOptions ?? RadarProcessingPressureSkewOptions.None,
-                    effectiveExecutionMode,
-                    effectiveAsyncExecution,
+                    plan.HardeningOptions,
+                    plan.PressureSkewOptions,
+                    plan.ExecutionMode,
+                    plan.AsyncExecution,
                     workerTelemetryRecorder: null,
                     workerGroup,
-                    effectiveProviderMode,
-                    effectiveQueueCapacity,
-                    queueTimeout,
-                    effectiveProviderOverlapMode,
-                    effectiveRetentionStrategy,
-                    effectiveQueueRetainedPayloadBytes,
-                    overlapConsumerDelay,
-                    effectiveRetainedPayloadFactory,
+                    plan.ProviderMode,
+                    plan.QueueCapacity,
+                    plan.QueueTimeout,
+                    plan.ProviderOverlapMode,
+                    plan.RetentionStrategy,
+                    plan.QueueRetainedPayloadBytes,
+                    plan.OverlapConsumerDelay,
+                    plan.RetainedPayloadFactory,
                     cancellationToken);
             }
 
@@ -175,20 +131,20 @@ public sealed partial class RadarProcessingArchiveRebalanceBenchmark
                     mode,
                     partitionCount,
                     shardCount,
-                    effectiveHardeningOptions,
-                    pressureSkewOptions ?? RadarProcessingPressureSkewOptions.None,
-                    effectiveExecutionMode,
-                    effectiveAsyncExecution,
+                    plan.HardeningOptions,
+                    plan.PressureSkewOptions,
+                    plan.ExecutionMode,
+                    plan.AsyncExecution,
                     workerTelemetryRecorder,
                     workerGroup,
-                    effectiveProviderMode,
-                    effectiveQueueCapacity,
-                    queueTimeout,
-                    effectiveProviderOverlapMode,
-                    effectiveRetentionStrategy,
-                    effectiveQueueRetainedPayloadBytes,
-                    overlapConsumerDelay,
-                    effectiveRetainedPayloadFactory,
+                    plan.ProviderMode,
+                    plan.QueueCapacity,
+                    plan.QueueTimeout,
+                    plan.ProviderOverlapMode,
+                    plan.RetentionStrategy,
+                    plan.QueueRetainedPayloadBytes,
+                    plan.OverlapConsumerDelay,
+                    plan.RetainedPayloadFactory,
                     cancellationToken);
                 if (expectedIteration.HasValue && !expectedIteration.Value.HasSameStableTotals(iterationTelemetry))
                 {
@@ -208,7 +164,7 @@ public sealed partial class RadarProcessingArchiveRebalanceBenchmark
             var measuredIteration = expectedIteration ??
                                     throw new InvalidOperationException("Archive rebalance benchmark did not run.");
             var workerTelemetry = workerTelemetryRecorder?.CreateSummary();
-            ValidateWorkerTelemetry(workerTelemetry, workerTelemetryRecorder, effectiveHardeningOptions);
+            ValidateWorkerTelemetry(workerTelemetry, workerTelemetryRecorder, plan.HardeningOptions);
 
             return new RadarProcessingArchiveRebalanceBenchmarkResult(
                 fileInfo.FullName,
@@ -245,29 +201,29 @@ public sealed partial class RadarProcessingArchiveRebalanceBenchmark
                 stopwatch.Elapsed,
                 aggregate.ProcessingElapsed,
                 allocatedBytes,
-                effectiveHardeningOptions.ValidationProfile,
-                effectiveHardeningOptions.TelemetryRetention.RetentionMode,
-                effectiveHardeningOptions.QuarantineLifecycle.QuarantineTtlEvaluations,
-                effectiveHardeningOptions.QuarantineLifecycle.SustainedCoolingSampleCount,
-                effectiveHardeningOptions.QuarantineLifecycle.MaterialPressureChangeThreshold,
-                effectiveHardeningOptions.TelemetryRetention.MaxRetainedDecisions,
-                effectiveHardeningOptions.TelemetryRetention.MaxRetainedLifecycleTransitions,
-                effectiveHardeningOptions.TelemetryRetention.MaxRetainedAcceptedMoves,
-                effectiveHardeningOptions.TelemetryRetention.MaxRetainedValidationFailures,
-                pressureSkewOptions ?? RadarProcessingPressureSkewOptions.None,
+                plan.HardeningOptions.ValidationProfile,
+                plan.HardeningOptions.TelemetryRetention.RetentionMode,
+                plan.HardeningOptions.QuarantineLifecycle.QuarantineTtlEvaluations,
+                plan.HardeningOptions.QuarantineLifecycle.SustainedCoolingSampleCount,
+                plan.HardeningOptions.QuarantineLifecycle.MaterialPressureChangeThreshold,
+                plan.HardeningOptions.TelemetryRetention.MaxRetainedDecisions,
+                plan.HardeningOptions.TelemetryRetention.MaxRetainedLifecycleTransitions,
+                plan.HardeningOptions.TelemetryRetention.MaxRetainedAcceptedMoves,
+                plan.HardeningOptions.TelemetryRetention.MaxRetainedValidationFailures,
+                plan.PressureSkewOptions,
                 allocationSummary,
-                effectiveExecutionMode,
+                plan.ExecutionMode,
                 workerTelemetry,
-                effectiveProviderMode,
-                effectiveProviderMode == RadarProcessingArchiveProviderMode.QueuedOwned ? effectiveQueueCapacity : 0,
-                effectiveProviderOverlapMode,
-                effectiveRetentionStrategy,
-                effectiveProviderMode == RadarProcessingArchiveProviderMode.QueuedOwned ? effectiveQueueRetainedPayloadBytes : null,
+                plan.ProviderMode,
+                plan.ProviderMode == RadarProcessingArchiveProviderMode.QueuedOwned ? plan.QueueCapacity : 0,
+                plan.ProviderOverlapMode,
+                plan.RetentionStrategy,
+                plan.ProviderMode == RadarProcessingArchiveProviderMode.QueuedOwned ? plan.QueueRetainedPayloadBytes : null,
                 aggregate.QueueTelemetry,
                 aggregate.RetentionTelemetry,
                 aggregate.OverlapTelemetry,
-                overlapConsumerDelay,
-                defaultRetainedPayloadPrewarm?.Result,
+                plan.OverlapConsumerDelay,
+                plan.DefaultRetainedPayloadPrewarm?.Result,
                 aggregate.ProcessingValidationFailedBatchCount);
         }
         finally
@@ -279,7 +235,4 @@ public sealed partial class RadarProcessingArchiveRebalanceBenchmark
         }
     }
 
-    /// <summary>
-    /// Measures archive rebalance behavior over a bounded cache selection using explicit or rollout-default adapters.
-    /// </summary>
 }
