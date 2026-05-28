@@ -1,6 +1,10 @@
-# Handoff: Freeze Mode After Milestone 035
+# Handoff: Milestone 036 Active
 
 ## Current State
+
+Milestone 036 is active after milestone 035 closeout. The current goal is a
+targeted behavior-preserving architecture hardening pass that raises the
+reviewed Clean Architecture, GRASP, SOLID, and GoF posture to 9/10.
 
 Milestone 035 is closed after milestone 034 closeout as a freeze-mode
 maintenance pass for code contract documentation. It added XML descriptions
@@ -22,16 +26,16 @@ accepted package verification flow through Windows PowerShell, WSL/Bash, and
 Windows PowerShell again after WSL restore metadata refresh. The closeout is
 written.
 
-RadarPulse remains in freeze mode for the accepted portfolio-ready local
-product demo boundary. Milestone 035 was a documentation-only maintenance
-milestone and did not start a new architecture track.
+RadarPulse has left freeze mode only for milestone 036. The milestone is
+explicitly scoped to architecture hardening around product/application,
+infrastructure adapters, presentation dependencies, architecture tests, and
+bounded SRP cleanup. It must preserve accepted product API, CLI, HTTP,
+persistence, runtime defaults, and demo/readiness behavior.
 
 Stop point:
 
 ```text
-milestone 035 closeout complete; top-level public C# surface audit, Release
-build, and whitespace checks passed; project is in freeze mode with no active
-milestone by default
+milestone 036 opened; detailed implementation plan is next
 ```
 
 Most recently closed milestone:
@@ -43,13 +47,32 @@ Most recently closed milestone:
 Current project mode:
 
 ```text
-freeze mode
+targeted architecture-hardening milestone
 ```
 
 Active milestone:
 
 ```text
-none
+036 Clean Architecture Hardening Toward 9/10
+```
+
+Milestone 036 documents:
+
+```text
+docs/milestones/036-clean-architecture-hardening.md
+```
+
+Milestone 036 objective:
+
+```text
+raise the reviewed architecture posture from roughly 7/10 to 9/10
+move product-facing API/use-case contracts into Application
+keep Infrastructure as adapters behind Application ports
+make Presentation depend on Application contracts instead of concrete
+  Infrastructure API classes
+add architecture tests for layer and namespace dependency direction
+reduce or explicitly bound major SRP hotspots without changing accepted
+  behavior
 ```
 
 Milestone 035 documents:

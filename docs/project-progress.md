@@ -1,8 +1,9 @@
 # RadarPulse Project Progress
 
-Status: current after milestone 035 closeout. Code contract documentation is
-complete as a freeze-mode maintenance pass over the accepted local product
-demo boundary.
+Status: current during milestone 036. Clean architecture hardening is active
+with an explicit target of raising the reviewed Clean Architecture, GRASP,
+SOLID, and GoF posture to 9/10 while preserving accepted local product demo
+behavior.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -27,8 +28,9 @@ product operator Angular SPA milestone, the operator UI hardening and
 integrated local delivery milestone, the product demo/readiness packaging
 milestone, the product demo polish and portfolio readiness milestone, the
 targeted project restructuring and maintenance milestone, and the code
-contract documentation pass. Milestone 035 is complete through closeout, and
-the project remains in freeze mode.
+contract documentation pass. Milestone 035 is complete through closeout.
+Milestone 036 is now active as a targeted architecture-hardening milestone
+over the accepted product/application/infrastructure/presentation boundary.
 
 Current state:
 
@@ -43,15 +45,18 @@ latest completed milestone status:
     surfaces covered
   final top-level public C# surface audit captured
   closeout written
-post-closeout project mode:
-  freeze mode
-  no new feature/runtime milestones by default
-  future work should be limited to documentation, screenshots/demo video,
-  small portfolio wording polish, targeted refactoring that preserves accepted
-  behavior, and maintenance fixes
 active milestone:
-  none
-latest milestone completed changes:
+  036 clean architecture hardening toward 9/10
+active milestone goal:
+  raise reviewed Clean Architecture, GRASP, SOLID, and GoF posture from
+    roughly 7/10 to 9/10
+  move product-facing API/use-case contracts into Application
+  keep Infrastructure as adapters behind Application ports
+  make Presentation depend on Application product API abstractions
+  add architecture tests that guard layer and namespace dependency direction
+  reduce or explicitly bound major SRP hotspots without changing accepted
+    runtime/product behavior
+latest completed milestone changes:
   product/API, HTTP, CLI, product history, and product pipeline contract
     documentation
   processing queueing, durable, handler, topology, rebalance, pressure,
