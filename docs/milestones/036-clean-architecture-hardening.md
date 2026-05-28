@@ -244,6 +244,57 @@ dotnet build RadarPulse.sln -c Release --no-restore
   result: passed, 0 warnings, 0 errors
 ```
 
+### Change 6: Product CLI Entrypoint Extraction
+
+Status: complete.
+
+Intent:
+
+```text
+move product pipeline CLI workflow and output formatting out of the broad
+top-level entrypoint while preserving the accepted product CLI command shape,
+output, and exit-code behavior
+```
+
+Scope:
+
+```text
+src/Presentation/RadarPulse.Cli/EntryPoint/Program.cs
+src/Presentation/RadarPulse.Cli/Product/ProductPipelineCliWorkflow.cs
+docs/milestones/036-clean-architecture-hardening.md
+docs/handoff.md
+```
+
+Outcome:
+
+```text
+Program.cs now only routes product pipeline demo and archive commands to a
+focused workflow helper
+ProductPipelineCliWorkflow owns product pipeline service execution, request
+construction, product run detail printing, and product-specific formatting
+product CLI option records remain unchanged as the accepted command-line
+contract
+```
+
+Bounded note:
+
+```text
+the CLI entrypoint remains large because archive and processing benchmark
+commands are still in Program.cs; this slice removes the product workflow
+hotspot without reopening unrelated command families
+```
+
+Verification:
+
+```text
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+  "FullyQualifiedName~Presentation.Cli.Product|FullyQualifiedName~RadarPulseProductPipelineCli"
+  -c Release --no-restore
+  result: passed, 4 passed, 0 failed, 0 skipped
+dotnet build RadarPulse.sln -c Release --no-restore
+  result: passed, 0 warnings, 0 errors
+```
+
 ### Change 5: Product Pipeline SRP Cleanup
 
 Status: complete.

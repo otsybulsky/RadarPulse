@@ -35,7 +35,7 @@ persistence, runtime defaults, and demo/readiness behavior.
 Stop point:
 
 ```text
-milestone 036 slice 3 complete; slice 4 product CLI entrypoint extraction is next
+milestone 036 implementation slices complete; stop before decision trace
 ```
 
 Most recently closed milestone:
@@ -91,7 +91,7 @@ Milestone 036 planned slices:
    capture helpers from the product pipeline service. [complete]
 4. Product CLI entrypoint extraction:
    route product pipeline CLI workflows through a focused helper and record
-   any remaining large-entrypoint risk as a bounded warning.
+   any remaining large-entrypoint risk as a bounded warning. [complete]
 ```
 
 Milestone 036 completed changes:
@@ -112,15 +112,20 @@ Milestone 036 completed changes:
    synthetic batch creation, product handler-set creation, and archive batch
    capture are now focused Infrastructure product helpers; the product service
    stays focused on orchestration, history, queries, and control delegation.
+6. Product CLI entrypoint extraction:
+   product pipeline demo/archive workflow, request construction, output
+   formatting, and exit-code handling moved into ProductPipelineCliWorkflow;
+   Program.cs now only routes product pipeline subcommands.
 ```
 
 Latest verification:
 
 ```text
-milestone 036 slice 3 product pipeline SRP cleanup:
+milestone 036 slice 4 product CLI entrypoint extraction:
   dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
-    "FullyQualifiedName~Product" -c Release --no-restore
-    passed, 88 passed, 0 failed, 0 skipped
+    "FullyQualifiedName~Presentation.Cli.Product|FullyQualifiedName~RadarPulseProductPipelineCli"
+    -c Release --no-restore
+    passed, 4 passed, 0 failed, 0 skipped
   dotnet build RadarPulse.sln -c Release --no-restore
     passed, 0 warnings, 0 errors
 ```
