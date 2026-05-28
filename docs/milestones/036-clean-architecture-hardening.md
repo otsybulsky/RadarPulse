@@ -1,6 +1,6 @@
 # Milestone 036: Clean Architecture Hardening Toward 10/10
 
-Status: active.
+Status: active; decision trace written, closeout pending.
 
 Milestone 036 starts after the closed milestone 035 code contract
 documentation pass. RadarPulse leaves freeze mode for one targeted
@@ -368,7 +368,7 @@ implementation slices 1-4 are committed
 product API boundary now points Presentation at Application contracts
 architecture guardrails are executable tests
 product service and product CLI SRP hotspots are reduced with bounded notes
-decision trace and closeout are intentionally not written yet
+decision trace is written; closeout is intentionally not written yet
 10/10 expansion adds follow-up slices for port segregation, Domain friend
   assembly removal, and remaining CLI command-family extraction
 ```
@@ -1025,12 +1025,12 @@ dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj -c Release --no-build
 
 ## Final 10/10 Pre-Decision Validation
 
-Status: ready for discussion before decision trace.
+Status: decision trace written, closeout pending.
 
 Summary:
 
 ```text
-implementation and evidence slices 1-9 are complete
+implementation and evidence slices 1-14 are complete
 Product API boundary points Presentation at Application contracts
 Application product API contract depends on focused ports
 architecture guardrails cover project direction, namespace direction, Product
@@ -1045,7 +1045,7 @@ processing benchmark allocation gates no longer depend on full-suite process
 order for the accepted Release test run
 performance evidence is captured separately for full-cache end-to-end runtime
 and processing-only handler-engine throughput
-decision trace and closeout are intentionally not written yet
+decision trace is written; closeout is intentionally not written yet
 ```
 
 Large-class SRP extension summary:
@@ -1060,7 +1060,7 @@ folders
 src/tests physical C# file-size guardrail is clean: 0 files above 250 code-ish
 lines
 full Release build and test suite pass after all SRP extension slices
-decision trace and closeout are intentionally not written yet
+decision trace is written; closeout is intentionally not written yet
 ```
 
 Final architecture assessment:
@@ -1072,7 +1072,7 @@ Final architecture assessment:
 | SOLID | 10/10 | SRP pressure was reduced in production orchestration, CLI entrypoints, benchmark/session surfaces, and oversized test fixtures; ISP is addressed through focused run/query/history/control ports, DIP is enforced through Application contracts, and no substitutability break was found in the accepted service-port implementations. |
 | GoF | 10/10 | The design uses patterns pragmatically where they solve current problems: facade/adapter behavior at the Product API contract boundary, strategy-like handler/policy variation, and composition/factory wiring without pattern-chasing. |
 | Automated guardrails | 10/10 | Architecture tests now guard project direction, namespace direction, Product API ownership, Product API port segregation, Domain friend access, HTTP endpoint dependencies, and the thin CLI Program.cs entrypoint shape. |
-| Evidence posture | 10/10 | Release build, focused architecture/product/CLI tests, the full Release test suite, benchmark stabilization, and performance evidence are all captured before decision trace discussion. |
+| Evidence posture | 10/10 | Release build, focused architecture/product/CLI tests, the full Release test suite, benchmark stabilization, and performance evidence are all captured and accepted by decision trace. |
 
 Overall verdict:
 
@@ -1096,8 +1096,8 @@ RadarPulseCliApplication still owns command-family routing, but Program.cs is
 Full-cache active=4 heavy-handler allocation pressure remains a performance
   optimization signal, not a Clean Architecture, GRASP, SOLID, or GoF
   violation.
-Decision trace and closeout remain intentionally unwritten until the final
-  posture, warnings, and assessment are discussed.
+Decision trace is written after final posture discussion; closeout remains
+  intentionally unwritten.
 ```
 
 Post-SRP physical file validation:
@@ -1124,6 +1124,8 @@ dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj -c Release --no-build
   result: passed, 1016 passed, 0 failed, 3 skipped
 docs/milestones/036-clean-architecture-hardening-performance-evidence.md
   result: captured full-cache and processing-only performance evidence
+docs/milestones/036-clean-architecture-hardening-decision-trace.md
+  result: written
 git diff --check
   result: passed
 ```

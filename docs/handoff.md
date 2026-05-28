@@ -33,19 +33,19 @@ Application port segregation, Domain friend assembly removal, and CLI
 command-family extraction. It must preserve accepted product API, CLI, HTTP,
 persistence, runtime defaults, and demo/readiness behavior.
 
-Stop point:
+Current stop point:
 
 ```text
 milestone 036 10/10 boundary implementation slices, full-suite
 stabilization, performance evidence, and SRP large-class treatment are
-complete; no src/tests C# file remains above 250 code-ish lines; stopped
-before decision trace
+complete; no src/tests C# file remains above 250 code-ish lines; decision
+trace is written; closeout is pending
 ```
 
 Architecture assessment verdict:
 
 ```text
-Milestone 036 has reached a defensible 10/10 pre-decision architecture
+Milestone 036 has reached and decision-traced a defensible 10/10 architecture
 posture for the accepted local product demo/runtime boundary. The conclusion
 is recorded in
 docs/milestones/036-clean-architecture-hardening.md#final-1010-pre-decision-validation.
@@ -84,6 +84,7 @@ Milestone 036 documents:
 docs/milestones/036-clean-architecture-hardening.md
 docs/milestones/036-clean-architecture-hardening-plan.md
 docs/milestones/036-clean-architecture-hardening-performance-evidence.md
+docs/milestones/036-clean-architecture-hardening-decision-trace.md
 ```
 
 Milestone 036 objective:
@@ -105,7 +106,9 @@ stabilize processing benchmark allocation gates so full-suite verification is
 capture full-cache and processing-only performance evidence before decision
   trace discussion
 complete SRP treatment for oversized CLI, benchmark, session, and test fixture
-  files before decision trace
+  files before decision trace was written
+write the decision trace in the standard format after final architecture
+  posture discussion
 ```
 
 Milestone 036 planned slices:
@@ -153,6 +156,13 @@ Milestone 036 planned slices:
 13. Large-class guardrail and final validation:
     capture remaining class-size inventory, document residual large classes,
     run focused/full gates, and stop before decision trace. [complete]
+14. Oversized test fixture SRP sweep:
+    split remaining oversized test fixture files into dedicated per-class
+    responsibility folders until no src/tests C# file exceeds 250 code-ish
+    lines. [complete]
+15. Decision trace:
+    record the accepted 10/10 clean architecture posture, scoped residual
+    risks, evidence, and claim boundary in the standard format. [complete]
 ```
 
 Milestone 036 completed changes:
@@ -202,7 +212,7 @@ Milestone 036 completed changes:
     performance are documented with throughput, allocation, correctness,
     source coverage, raw artifact paths, and claim boundaries.
 13. Extend SRP large-class treatment slices:
-    milestone 036 remains open before decision trace; partial class conversion
+    milestone 036 remained open before decision trace; partial class conversion
     is allowed only with a dedicated per-class folder and responsibility-named
     files, while real collaborator extraction remains preferred.
 14. CLI SRP split:
@@ -227,8 +237,15 @@ Milestone 036 completed changes:
 17. Large-class guardrail and final validation:
     post-SRP inventory captured; production max physical class declaration is
     now 1_089 code-ish lines versus the pre-SRP 2_411 maximum; full Release
-    build and full Release test suite pass; milestone is stopped before
-    decision trace.
+    build and full Release test suite pass.
+18. Oversized test fixture SRP sweep:
+    remaining oversized test fixtures were split into dedicated per-class
+    responsibility folders; final src/tests inventory reports 0 C# files
+    above 250 code-ish lines and a current maximum of 249.
+19. Decision trace:
+    standard-format decision trace is written for the accepted 10/10
+    architecture posture, residual warnings, performance evidence, and
+    closeout boundary.
 ```
 
 Latest verification:
@@ -274,6 +291,16 @@ milestone 036 slice 13 large-class guardrail and final validation:
   dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj -c Release
     --no-build
     passed, 1011 passed, 0 failed, 3 skipped
+milestone 036 slice 14 oversized test fixture SRP sweep:
+  src/tests C# file inventory:
+    0 files above 250 code-ish lines
+    current maximum: 249 code-ish lines
+  dotnet build RadarPulse.sln -c Release --no-restore
+    /p:UseSharedCompilation=false
+    passed, 0 warnings, 0 errors
+  dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj -c Release
+    --no-build
+    passed, 1016 passed, 0 failed, 3 skipped
 milestone 036 slice 9 performance evidence capture:
   full-cache raw logs:
     data/perf/m036-full-cache-20260528-142529
@@ -303,6 +330,10 @@ milestone 036 slice 9 performance evidence capture:
     passed, 1011 passed, 0 failed, 3 skipped
   git diff --check:
     passed
+milestone 036 decision trace:
+  docs/milestones/036-clean-architecture-hardening-decision-trace.md
+  status: written
+  closeout: pending
 ```
 
 Milestone 035 documents:

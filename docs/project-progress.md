@@ -2,16 +2,16 @@
 
 Status: current during milestone 036. Clean architecture hardening has been
 expanded from the earlier 9/10 target to a 10/10 target inside the same
-milestone, and the 10/10 implementation slices are complete. The project is
-stopped before decision trace discussion after full-suite benchmark
-stabilization removed the remaining process-order allocation test sensitivity
-and milestone 036 performance evidence was captured. The final pre-decision
-architecture assessment records a defensible 10/10 posture for the accepted
-local product demo/runtime boundary across Clean Architecture, GRASP, SOLID,
-pragmatic GoF use, automated guardrails, and evidence posture. After review,
-the milestone stayed active for additional SRP treatment of oversized CLI,
-benchmark, session, and test fixture files; that SRP sweep is now complete,
-with no src/tests C# file above 250 code-ish lines.
+milestone, and the 10/10 implementation slices are complete. Full-suite
+benchmark stabilization removed the remaining process-order allocation test
+sensitivity, milestone 036 performance evidence was captured, and the
+standard-format decision trace is now written. The final architecture
+assessment records a defensible 10/10 posture for the accepted local product
+demo/runtime boundary across Clean Architecture, GRASP, SOLID, pragmatic GoF
+use, automated guardrails, and evidence posture. After review, the milestone
+stayed active for additional SRP treatment of oversized CLI, benchmark,
+session, and test fixture files; that SRP sweep is now complete, with no
+src/tests C# file above 250 code-ish lines.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -40,8 +40,8 @@ contract documentation pass. Milestone 035 is complete through closeout.
 Milestone 036 is now active as a targeted architecture-hardening milestone
 over the accepted product/application/infrastructure/presentation boundary.
 The 10/10 implementation slices are complete for port segregation, Domain
-friend assembly removal, and CLI command-family extraction. Decision trace
-discussion is pending.
+friend assembly removal, and CLI command-family extraction. Decision trace is
+written and closeout is pending.
 
 Current state:
 
@@ -60,7 +60,7 @@ active milestone:
   036 clean architecture hardening toward 10/10
 active milestone implementation status:
   10/10 boundary implementation slices complete
-  final pre-decision architecture assessment recorded as defensible 10/10
+  final architecture assessment recorded as defensible 10/10
   full Release test suite passes in one combined run after benchmark
     stabilization
   latest full Release test suite: 1016 passed, 0 failed, 3 skipped
@@ -73,7 +73,8 @@ active milestone implementation status:
   final oversized test fixture SRP sweep complete
   src/tests C# file inventory: 0 files above 250 code-ish lines; current
     maximum is 249
-  stopped before decision trace
+  decision trace written
+  closeout pending
 active milestone goal:
   raise reviewed Clean Architecture, GRASP, SOLID, and GoF posture from
     roughly 7/10 to 10/10
