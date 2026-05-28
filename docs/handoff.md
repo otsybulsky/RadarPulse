@@ -36,7 +36,7 @@ persistence, runtime defaults, and demo/readiness behavior.
 Stop point:
 
 ```text
-milestone 036 slice 6 complete; slice 7 CLI command-family extraction is next
+milestone 036 implementation slices complete; final pre-decision validation is next
 ```
 
 Most recently closed milestone:
@@ -105,7 +105,7 @@ Milestone 036 planned slices:
    contracts or Domain-owned operations. [complete]
 7. CLI command-family extraction:
    split archive and processing command-family workflows out of Program.cs so
-   the top-level entrypoint is a thin router.
+   the top-level entrypoint is a thin router. [complete]
 ```
 
 Milestone 036 completed changes:
@@ -141,26 +141,26 @@ Milestone 036 completed changes:
    Domain no longer grants InternalsVisibleTo access to Infrastructure;
    retained release owner indirection was removed; Infrastructure now uses
    explicit public Domain contracts for the processing APIs it consumes.
+10. CLI command-family extraction:
+    Program.cs is now a thin top-level entrypoint delegating to
+    RadarPulseCliApplication; architecture tests guard that it does not regain
+    command workflow functions.
 ```
 
 Latest verification:
 
 ```text
-milestone 036 slice 6 Domain friend assembly removal:
+milestone 036 slice 7 CLI command-family extraction:
   dotnet build RadarPulse.sln -c Release --no-restore
     /p:UseSharedCompilation=false
     passed, 0 warnings, 0 errors
   dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
     "FullyQualifiedName~Architecture" -c Release --no-build
-    passed, 6 passed, 0 failed, 0 skipped
+    passed, 7 passed, 0 failed, 0 skipped
   dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
-    "FullyQualifiedName~Processing" -c Release --no-build
-    failed in combined processing process, 744 passed, 1 failed, 0 skipped
-  isolated rerun of
-    RadarProcessingSyntheticRebalanceBenchmarkTests.AcceptedMovePressureAggregationDoesNotCopyPreviousIterations:
-    passed, 1 passed, 0 failed, 0 skipped
-  git diff --check:
-    passed
+    "FullyQualifiedName~RadarPulseCli|FullyQualifiedName~ProductPipelineCli"
+    -c Release --no-build
+    passed, 37 passed, 0 failed, 0 skipped
 ```
 
 Milestone 035 documents:

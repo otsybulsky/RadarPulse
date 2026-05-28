@@ -533,3 +533,52 @@ dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
 git diff --check
   result: passed
 ```
+
+### Change 10: CLI Command-Family Extraction
+
+Status: complete.
+
+Intent:
+
+```text
+remove the remaining Presentation entrypoint SRP hotspot by making Program.cs
+a thin entrypoint and moving CLI command-family application logic out of the
+top-level file
+```
+
+Scope:
+
+```text
+src/Presentation/RadarPulse.Cli/EntryPoint/Program.cs
+src/Presentation/RadarPulse.Cli/EntryPoint/RadarPulseCliApplication.cs
+tests/RadarPulse.Tests/Architecture/RadarPulseArchitectureTests.cs
+docs/milestones/036-clean-architecture-hardening.md
+docs/handoff.md
+```
+
+Outcome:
+
+```text
+Program.cs now delegates to RadarPulseCliApplication.RunAsync and contains no
+command workflow functions
+RadarPulseCliApplication owns the accepted archive, processing, and product
+command-family routing/application logic and preserves the existing global
+option record contracts used by tests
+architecture tests now fail if Program.cs grows beyond the thin entrypoint
+shape or regains static command workflow functions
+```
+
+Verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore /p:UseSharedCompilation=false
+  result: passed, 0 warnings, 0 errors
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+  "FullyQualifiedName~Architecture" -c Release --no-restore
+  /p:UseSharedCompilation=false
+  result: passed, 7 passed, 0 failed, 0 skipped
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+  "FullyQualifiedName~RadarPulseCli|FullyQualifiedName~ProductPipelineCli"
+  -c Release --no-build
+  result: passed, 37 passed, 0 failed, 0 skipped
+```

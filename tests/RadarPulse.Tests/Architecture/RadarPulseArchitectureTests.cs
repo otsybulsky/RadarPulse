@@ -144,6 +144,19 @@ public sealed class RadarPulseArchitectureTests
             static parameter => parameter.ParameterType == typeof(RadarPulseProductPipelineApiContract));
     }
 
+    [Fact]
+    public void CliProgramEntrypointStaysThin()
+    {
+        var programPath = Path.Combine(
+            RepositoryRoot,
+            @"src\Presentation\RadarPulse.Cli\EntryPoint\Program.cs");
+        var lines = File.ReadAllLines(programPath);
+
+        Assert.True(lines.Length <= 5);
+        Assert.Contains(lines, static line => line.Contains("RadarPulseCliApplication.RunAsync", StringComparison.Ordinal));
+        Assert.DoesNotContain(lines, static line => line.Contains("static ", StringComparison.Ordinal));
+    }
+
     private static void AssertProjectReferences(
         string relativeProjectPath,
         IReadOnlyCollection<string> expectedReferences)
