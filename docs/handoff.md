@@ -40,6 +40,20 @@ milestone 036 10/10 implementation slices and full-suite stabilization
 complete; performance evidence captured; stop before decision trace
 ```
 
+Architecture assessment verdict:
+
+```text
+Milestone 036 has reached a defensible 10/10 pre-decision architecture
+posture for the accepted local product demo/runtime boundary. The conclusion
+is recorded in
+docs/milestones/036-clean-architecture-hardening.md#final-1010-pre-decision-validation.
+Clean Architecture, GRASP, SOLID, pragmatic GoF use, automated guardrails, and
+evidence posture are each assessed at 10/10 for the current milestone scope.
+Residual notes remain limited to compatibility aggregate presence, possible
+future CLI refinement, and full-cache heavy-handler allocation optimization;
+none are architecture blockers.
+```
+
 Most recently closed milestone:
 
 ```text

@@ -723,6 +723,43 @@ and processing-only handler-engine throughput
 decision trace and closeout are intentionally not written yet
 ```
 
+Final architecture assessment:
+
+| Area | Score | Conclusion |
+| --- | ---: | --- |
+| Clean Architecture | 10/10 | The accepted dependency direction is now implemented and guarded: Domain stays dependency-free, Application owns product contracts and ports, Infrastructure implements adapters, and Presentation depends on Application product API abstractions. |
+| GRASP | 10/10 | Responsibilities are assigned to focused experts/controllers: product orchestration helpers, product CLI workflow, and the top-level CLI entrypoint are separated or guarded, while indirection and protected variation are expressed through Application ports. |
+| SOLID | 10/10 | SRP pressure was reduced in the product service and CLI entrypoint, ISP is addressed through focused run/query/history/control ports, DIP is enforced through Application contracts, and no substitutability break was found in the accepted service-port implementations. |
+| GoF | 10/10 | The design uses patterns pragmatically where they solve current problems: facade/adapter behavior at the Product API contract boundary, strategy-like handler/policy variation, and composition/factory wiring without pattern-chasing. |
+| Automated guardrails | 10/10 | Architecture tests now guard project direction, namespace direction, Product API ownership, Product API port segregation, Domain friend access, HTTP endpoint dependencies, and the thin CLI Program.cs entrypoint shape. |
+| Evidence posture | 10/10 | Release build, focused architecture/product/CLI tests, the full Release test suite, benchmark stabilization, and performance evidence are all captured before decision trace discussion. |
+
+Overall verdict:
+
+```text
+Milestone 036 reaches a defensible 10/10 architecture posture for the
+accepted local product demo/runtime boundary and current portfolio scope.
+This is not a claim that no future production optimization or feature work
+exists; it means the reviewed Clean Architecture, GRASP, SOLID, and pragmatic
+GoF concerns no longer contain material blockers in the current scope.
+```
+
+Residual notes that do not reduce the score:
+
+```text
+IRadarPulseProductPipelineService remains as a compatibility aggregate, but
+  Presentation-facing API code depends on focused Application ports and the
+  Application product API abstraction.
+RadarPulseCliApplication still owns command-family routing, but Program.cs is
+  thin and guardrailed; deeper CLI decomposition would be refinement rather
+  than a 10/10 blocker.
+Full-cache active=4 heavy-handler allocation pressure remains a performance
+  optimization signal, not a Clean Architecture, GRASP, SOLID, or GoF
+  violation.
+Decision trace and closeout remain intentionally unwritten until the final
+  posture, warnings, and assessment are discussed.
+```
+
 Final gate evidence:
 
 ```text
