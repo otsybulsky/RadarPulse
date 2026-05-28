@@ -121,13 +121,21 @@ Milestone 036 completed changes:
 Latest verification:
 
 ```text
-milestone 036 slice 4 product CLI entrypoint extraction:
-  dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
-    "FullyQualifiedName~Presentation.Cli.Product|FullyQualifiedName~RadarPulseProductPipelineCli"
-    -c Release --no-restore
-    passed, 4 passed, 0 failed, 0 skipped
+milestone 036 pre-decision validation:
   dotnet build RadarPulse.sln -c Release --no-restore
     passed, 0 warnings, 0 errors
+  dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+    "FullyQualifiedName~Architecture|FullyQualifiedName~Product|FullyQualifiedName~RadarPulseProductPipelineCli"
+    -c Release --no-build
+    passed, 90 passed, 0 failed, 0 skipped
+  dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj -c Release
+    --no-build
+    failed in combined all-tests process, 1006 passed, 2 failed, 3 skipped
+  isolated rerun of both failed processing tests:
+    passed, 1 passed each
+  interpretation:
+    existing process-order/benchmark sensitivity, not a milestone 036 slice
+    regression
 ```
 
 Milestone 035 documents:

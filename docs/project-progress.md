@@ -1,9 +1,10 @@
 # RadarPulse Project Progress
 
-Status: current during milestone 036. Clean architecture hardening is active
-with an explicit target of raising the reviewed Clean Architecture, GRASP,
-SOLID, and GoF posture to 9/10 while preserving accepted local product demo
-behavior.
+Status: current during milestone 036. Clean architecture hardening
+implementation slices are complete and the project is stopped before decision
+trace discussion. The milestone keeps the explicit target of raising the
+reviewed Clean Architecture, GRASP, SOLID, and GoF posture to 9/10 while
+preserving accepted local product demo behavior.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -31,6 +32,8 @@ targeted project restructuring and maintenance milestone, and the code
 contract documentation pass. Milestone 035 is complete through closeout.
 Milestone 036 is now active as a targeted architecture-hardening milestone
 over the accepted product/application/infrastructure/presentation boundary.
+Its planned implementation slices are complete and decision trace discussion
+is pending.
 
 Current state:
 
@@ -47,6 +50,9 @@ latest completed milestone status:
   closeout written
 active milestone:
   036 clean architecture hardening toward 9/10
+active milestone implementation status:
+  implementation slices complete
+  stopped before decision trace
 active milestone goal:
   raise reviewed Clean Architecture, GRASP, SOLID, and GoF posture from
     roughly 7/10 to 9/10
@@ -56,6 +62,15 @@ active milestone goal:
   add architecture tests that guard layer and namespace dependency direction
   reduce or explicitly bound major SRP hotspots without changing accepted
     runtime/product behavior
+active milestone completed implementation:
+  Application now owns the product pipeline service/API ports and API
+    contract
+  Infrastructure product service implements the Application service port
+  HTTP endpoints depend on the Application product API port
+  architecture tests guard project-reference direction, Domain/Application
+    namespace direction, product API ownership, and HTTP endpoint dependency
+  product pipeline service helper responsibilities were extracted
+  product pipeline CLI workflow was extracted from Program.cs
 latest completed milestone changes:
   product/API, HTTP, CLI, product history, and product pipeline contract
     documentation

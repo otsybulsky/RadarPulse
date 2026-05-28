@@ -244,6 +244,51 @@ dotnet build RadarPulse.sln -c Release --no-restore
   result: passed, 0 warnings, 0 errors
 ```
 
+### Change 5: Product Pipeline SRP Cleanup
+
+Status: complete.
+
+Intent:
+
+```text
+reduce the product pipeline service SRP pressure by moving deterministic input
+creation, handler-set creation, and archive batch capture into focused
+Infrastructure product helpers
+```
+
+Scope:
+
+```text
+src/Infrastructure/Product/Pipeline/Services/RadarPulseProductPipelineService.cs
+src/Infrastructure/Product/Pipeline/Archive/CapturingArchiveRadarEventBatchPublisher.cs
+src/Infrastructure/Product/Pipeline/Batching/RadarPulseProductSyntheticBatchFactory.cs
+src/Infrastructure/Product/Pipeline/Handlers/RadarPulseProductHandlerFactory.cs
+docs/milestones/036-clean-architecture-hardening.md
+docs/handoff.md
+```
+
+Outcome:
+
+```text
+RadarPulseProductPipelineService now stays focused on run orchestration,
+history persistence, queries, and control delegation
+synthetic RadarEventBatch construction is isolated in
+RadarPulseProductSyntheticBatchFactory
+product handler-set selection and product-only test handlers are isolated in
+RadarPulseProductHandlerFactory
+archive publish capture is isolated in CapturingArchiveRadarEventBatchPublisher
+```
+
+Verification:
+
+```text
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+  "FullyQualifiedName~Product" -c Release --no-restore
+  result: passed, 88 passed, 0 failed, 0 skipped
+dotnet build RadarPulse.sln -c Release --no-restore
+  result: passed, 0 warnings, 0 errors
+```
+
 ### Change 6: Product CLI Entrypoint Extraction
 
 Status: complete.
@@ -295,47 +340,33 @@ dotnet build RadarPulse.sln -c Release --no-restore
   result: passed, 0 warnings, 0 errors
 ```
 
-### Change 5: Product Pipeline SRP Cleanup
+## Pre-Decision Validation
 
-Status: complete.
+Status: ready for discussion before decision trace.
 
-Intent:
+Summary:
 
 ```text
-reduce the product pipeline service SRP pressure by moving deterministic input
-creation, handler-set creation, and archive batch capture into focused
-Infrastructure product helpers
+implementation slices 1-4 are committed
+product API boundary now points Presentation at Application contracts
+architecture guardrails are executable tests
+product service and product CLI SRP hotspots are reduced with bounded notes
+decision trace and closeout are intentionally not written yet
 ```
 
-Scope:
+Final gate evidence:
 
 ```text
-src/Infrastructure/Product/Pipeline/Services/RadarPulseProductPipelineService.cs
-src/Infrastructure/Product/Pipeline/Archive/CapturingArchiveRadarEventBatchPublisher.cs
-src/Infrastructure/Product/Pipeline/Batching/RadarPulseProductSyntheticBatchFactory.cs
-src/Infrastructure/Product/Pipeline/Handlers/RadarPulseProductHandlerFactory.cs
-docs/milestones/036-clean-architecture-hardening.md
-docs/handoff.md
-```
-
-Outcome:
-
-```text
-RadarPulseProductPipelineService now stays focused on run orchestration,
-history persistence, queries, and control delegation
-synthetic RadarEventBatch construction is isolated in
-RadarPulseProductSyntheticBatchFactory
-product handler-set selection and product-only test handlers are isolated in
-RadarPulseProductHandlerFactory
-archive publish capture is isolated in CapturingArchiveRadarEventBatchPublisher
-```
-
-Verification:
-
-```text
-dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
-  "FullyQualifiedName~Product" -c Release --no-restore
-  result: passed, 88 passed, 0 failed, 0 skipped
 dotnet build RadarPulse.sln -c Release --no-restore
   result: passed, 0 warnings, 0 errors
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+  "FullyQualifiedName~Architecture|FullyQualifiedName~Product|FullyQualifiedName~RadarPulseProductPipelineCli"
+  -c Release --no-build
+  result: passed, 90 passed, 0 failed, 0 skipped
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj -c Release --no-build
+  result: failed in combined all-tests process, 1006 passed, 2 failed,
+    3 skipped
+  isolated rerun of both failed processing tests passed, confirming the
+    existing process-order/benchmark sensitivity rather than a slice
+    regression
 ```
