@@ -115,7 +115,7 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmark
                     cancellationToken).ConfigureAwait(false);
             }
 
-            var allocationBefore = RadarProcessingBenchmarkAllocationSnapshot.Capture();
+            var allocationBefore = CaptureAllocationSnapshot(executionMode);
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
             IterationTelemetry? expectedIteration = null;
@@ -143,7 +143,7 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmark
             }
 
             stopwatch.Stop();
-            var allocatedBytes = RadarProcessingBenchmarkAllocationSnapshot.Capture().DeltaSince(allocationBefore);
+            var allocatedBytes = CaptureAllocationSnapshot(executionMode).DeltaSince(allocationBefore);
             var allocationSummary = RadarProcessingRebalanceAllocationSummary.ForProcessingOnly(allocatedBytes);
             var measuredIteration = expectedIteration ??
                                     throw new InvalidOperationException("Synthetic rebalance benchmark did not run.");
@@ -509,6 +509,12 @@ public sealed class RadarProcessingSyntheticRebalanceBenchmark
             throw new ArgumentOutOfRangeException(nameof(executionMode));
         }
     }
+
+    private static RadarProcessingBenchmarkAllocationSnapshot CaptureAllocationSnapshot(
+        RadarProcessingExecutionMode executionMode) =>
+        executionMode == RadarProcessingExecutionMode.AsyncShardTransport
+            ? RadarProcessingBenchmarkAllocationSnapshot.Capture()
+            : RadarProcessingBenchmarkAllocationSnapshot.CaptureCurrentThread();
 
     private static ulong AppendByte(ulong checksum, byte value) =>
         unchecked((checksum ^ value) * ChecksumPrime);

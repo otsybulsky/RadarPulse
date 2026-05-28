@@ -36,7 +36,8 @@ persistence, runtime defaults, and demo/readiness behavior.
 Stop point:
 
 ```text
-milestone 036 10/10 implementation slices complete; stop before decision trace
+milestone 036 10/10 implementation slices and full-suite stabilization
+complete; stop before decision trace
 ```
 
 Most recently closed milestone:
@@ -78,6 +79,8 @@ reduce or explicitly bound major SRP hotspots without changing accepted
 remove the remaining broad Application product port warning
 remove Domain InternalsVisibleTo access for Infrastructure
 make Program.cs a thin command-family router
+stabilize processing benchmark allocation gates so full-suite verification is
+  not sensitive to test process order
 ```
 
 Milestone 036 planned slices:
@@ -106,6 +109,9 @@ Milestone 036 planned slices:
 7. CLI command-family extraction:
    split archive and processing command-family workflows out of Program.cs so
    the top-level entrypoint is a thin router. [complete]
+8. Full suite benchmark stabilization:
+   remove processing benchmark allocation process-order sensitivity so the
+   full Release test suite passes in one combined run. [complete]
 ```
 
 Milestone 036 completed changes:
@@ -145,12 +151,21 @@ Milestone 036 completed changes:
     Program.cs is now a thin top-level entrypoint delegating to
     RadarPulseCliApplication; architecture tests guard that it does not regain
     command workflow functions.
+11. Full suite benchmark stabilization:
+    synthetic rebalance allocation measurement now uses execution-mode
+    appropriate snapshots, the startup-prewarm runtime default test asserts
+    deterministic run-local retention telemetry, and the full Release test
+    suite passes in one combined run.
 ```
 
 Latest verification:
 
 ```text
-milestone 036 slice 7 CLI command-family extraction:
+milestone 036 slice 8 full suite benchmark stabilization:
+  dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+    "FullyQualifiedName=RadarPulse.Tests.Processing.RadarProcessingArchiveQueuedOverlapRunnerTests.OmittedOptionsApplyRuntimeDefaultStartupPrewarm|FullyQualifiedName=RadarPulse.Tests.Processing.RadarProcessingSyntheticRebalanceBenchmarkTests.AcceptedMovePressureAggregationDoesNotCopyPreviousIterations"
+    -c Release --no-restore /p:UseSharedCompilation=false
+    passed, 2 passed, 0 failed, 0 skipped
   dotnet build RadarPulse.sln -c Release --no-restore
     /p:UseSharedCompilation=false
     passed, 0 warnings, 0 errors
@@ -160,9 +175,7 @@ milestone 036 slice 7 CLI command-family extraction:
     passed, 126 passed, 0 failed, 0 skipped
   dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj -c Release
     --no-build
-    failed in combined all-tests process, 1009 passed, 2 failed, 3 skipped
-  isolated rerun of both failed processing tests:
-    passed, 1 passed each
+    passed, 1011 passed, 0 failed, 3 skipped
   git diff --check:
     passed
 ```

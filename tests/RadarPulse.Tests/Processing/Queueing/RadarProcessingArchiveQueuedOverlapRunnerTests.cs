@@ -189,7 +189,7 @@ public sealed class RadarProcessingArchiveQueuedOverlapRunnerTests
             result.RetainedPayloadPrewarm.RetainedBatchCount);
         Assert.True(result.RetainedPayloadPrewarm.AllocatedBytes > 0);
         Assert.True(result.RetainedPayloadPrewarm.RetainedBytes > 0);
-        Assert.True(result.OverlapTelemetry.MeasuredAllocatedBytes < result.RetainedPayloadPrewarm.AllocatedBytes);
+        Assert.True(result.OverlapTelemetry.RetentionAllocatedBytes < result.RetainedPayloadPrewarm.AllocatedBytes);
         Assert.Equal(RadarProcessingRetainedPayloadStrategy.PooledCopy, result.OverlapTelemetry.RetentionStrategy);
         Assert.Equal(1, result.ProviderResult.RetentionTelemetry.ReleaseAttemptCount);
         Assert.Equal(1, result.ProviderResult.RetentionTelemetry.ReleasedBatchCount);

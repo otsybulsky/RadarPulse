@@ -3,7 +3,8 @@
 Status: current during milestone 036. Clean architecture hardening has been
 expanded from the earlier 9/10 target to a 10/10 target inside the same
 milestone, and the 10/10 implementation slices are complete. The project is
-stopped before decision trace discussion.
+stopped before decision trace discussion after full-suite benchmark
+stabilization removed the remaining process-order allocation test sensitivity.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -52,6 +53,8 @@ active milestone:
   036 clean architecture hardening toward 10/10
 active milestone implementation status:
   10/10 implementation slices complete
+  full Release test suite passes in one combined run after benchmark
+    stabilization
   stopped before decision trace
 active milestone goal:
   raise reviewed Clean Architecture, GRASP, SOLID, and GoF posture from
@@ -79,6 +82,8 @@ active milestone completed implementation:
     control ports
   Domain no longer grants InternalsVisibleTo access to Infrastructure
   Program.cs is now a thin top-level entrypoint guarded by architecture tests
+  processing benchmark allocation checks are stabilized against test process
+    order by using deterministic run-local evidence where appropriate
 latest completed milestone changes:
   product/API, HTTP, CLI, product history, and product pipeline contract
     documentation

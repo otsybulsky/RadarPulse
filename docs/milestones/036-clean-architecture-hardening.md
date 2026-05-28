@@ -583,6 +583,55 @@ dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
   result: passed, 37 passed, 0 failed, 0 skipped
 ```
 
+### Change 11: Full Suite Benchmark Stabilization
+
+Status: complete.
+
+Intent:
+
+```text
+remove process-order sensitivity from processing benchmark allocation gates so
+the full Release test suite does not fail because unrelated tests ran first
+```
+
+Scope:
+
+```text
+src/Infrastructure/Processing/Benchmarks/Services/RadarProcessingSyntheticRebalanceBenchmark.cs
+tests/RadarPulse.Tests/Processing/Queueing/RadarProcessingArchiveQueuedOverlapRunnerTests.cs
+docs/milestones/036-clean-architecture-hardening.md
+docs/milestones/036-clean-architecture-hardening-plan.md
+docs/project-progress.md
+docs/handoff.md
+```
+
+Outcome:
+
+```text
+synthetic rebalance benchmarking now uses current-thread allocation snapshots
+for non-async execution modes and keeps process-wide snapshots for async
+shard transport, where worker allocations can occur on other threads
+the startup-prewarm runtime default test now compares deterministic run-local
+retention telemetry instead of process-wide allocation counters
+the previously order-sensitive processing tests pass directly and the full
+Release test suite now passes in one combined run
+```
+
+Verification:
+
+```text
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+  "FullyQualifiedName=RadarPulse.Tests.Processing.RadarProcessingArchiveQueuedOverlapRunnerTests.OmittedOptionsApplyRuntimeDefaultStartupPrewarm|FullyQualifiedName=RadarPulse.Tests.Processing.RadarProcessingSyntheticRebalanceBenchmarkTests.AcceptedMovePressureAggregationDoesNotCopyPreviousIterations"
+  -c Release --no-restore /p:UseSharedCompilation=false
+  result: passed, 2 passed, 0 failed, 0 skipped
+dotnet build RadarPulse.sln -c Release --no-restore /p:UseSharedCompilation=false
+  result: passed, 0 warnings, 0 errors
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj -c Release --no-build
+  result: passed, 1011 passed, 0 failed, 3 skipped
+git diff --check
+  result: passed
+```
+
 ## Final 10/10 Pre-Decision Validation
 
 Status: ready for discussion before decision trace.
@@ -590,7 +639,7 @@ Status: ready for discussion before decision trace.
 Summary:
 
 ```text
-implementation slices 1-7 are committed
+implementation slices 1-8 are committed
 Product API boundary points Presentation at Application contracts
 Application product API contract depends on focused ports
 architecture guardrails cover project direction, namespace direction, Product
@@ -599,6 +648,8 @@ dependency, and thin CLI Program.cs entrypoint shape
 Domain no longer grants friend access to Infrastructure
 Product service, Product CLI workflow, and CLI entrypoint SRP hotspots are
 reduced or guarded without changing accepted behavior
+processing benchmark allocation gates no longer depend on full-suite process
+order for the accepted Release test run
 decision trace and closeout are intentionally not written yet
 ```
 
@@ -612,11 +663,7 @@ dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
   -c Release --no-build
   result: passed, 126 passed, 0 failed, 0 skipped
 dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj -c Release --no-build
-  result: failed in combined all-tests process, 1009 passed, 2 failed,
-    3 skipped
-  isolated rerun of both failed processing tests passed, confirming the
-    existing process-order/benchmark sensitivity rather than a milestone 036
-    slice regression
+  result: passed, 1011 passed, 0 failed, 3 skipped
 git diff --check
   result: passed
 ```

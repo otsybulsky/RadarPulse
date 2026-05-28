@@ -23,6 +23,8 @@ then remove the remaining product Application ISP warning
 then remove the Domain-to-Infrastructure friend assembly escape hatch
 then split the remaining broad CLI command-family responsibilities out of
   the top-level entrypoint
+then stabilize the processing benchmark allocation gates so the full test
+  suite is not sensitive to process order
 ```
 
 Each slice should leave the solution buildable and independently reviewable.
@@ -248,6 +250,42 @@ Verification:
 dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
   "FullyQualifiedName~Presentation.Cli" -c Release --no-restore
 dotnet build RadarPulse.sln -c Release --no-restore
+git diff --check
+```
+
+## Slice 8: Full Suite Benchmark Stabilization
+
+Goal:
+
+```text
+remove the remaining process-order sensitivity from processing benchmark
+allocation checks so the full Release test suite passes in one process
+```
+
+Planned changes:
+
+```text
+use execution-mode-appropriate allocation snapshots in synthetic rebalance
+  benchmarking so single-threaded/partitioned runs are not polluted by
+  unrelated test-process allocations
+make runtime default startup-prewarm assertions compare deterministic
+  run-local retention telemetry instead of process-wide allocation counters
+preserve async shard transport allocation measurement semantics where worker
+  allocations may occur on other threads
+rerun the previously order-sensitive tests both directly and inside the full
+  suite
+```
+
+Verification:
+
+```text
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+  "FullyQualifiedName=RadarPulse.Tests.Processing.RadarProcessingArchiveQueuedOverlapRunnerTests.OmittedOptionsApplyRuntimeDefaultStartupPrewarm|FullyQualifiedName=RadarPulse.Tests.Processing.RadarProcessingSyntheticRebalanceBenchmarkTests.AcceptedMovePressureAggregationDoesNotCopyPreviousIterations"
+  -c Release --no-restore /p:UseSharedCompilation=false
+dotnet build RadarPulse.sln -c Release --no-restore
+  /p:UseSharedCompilation=false
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj -c Release
+  --no-build
 git diff --check
 ```
 
