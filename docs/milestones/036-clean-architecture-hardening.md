@@ -828,6 +828,59 @@ dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
   result: passed, 44 passed, 0 failed, 0 skipped
 ```
 
+### Change 15: Benchmark SRP Split
+
+Status: complete.
+
+Intent:
+
+```text
+reduce benchmark orchestrator concentration without changing benchmark public
+APIs, measurement semantics, output semantics, or accepted benchmark defaults
+use dedicated partial folders for compatibility shells where private nested
+telemetry/state models make direct collaborator extraction high churn
+extract shared collaborators where duplicated benchmark responsibility is
+safe to remove
+```
+
+Scope:
+
+```text
+src/Infrastructure/Processing/ArchiveRuntime/Services/
+  RadarProcessingArchiveRebalanceBenchmark/
+  RadarProcessingArchiveOrderedProcessingBenchmark/
+  RadarProcessingArchiveBenchmarkCacheSelection.cs
+src/Infrastructure/Processing/Benchmarks/Services/
+  RadarProcessingSyntheticRebalanceBenchmark/
+```
+
+Result:
+
+```text
+RadarProcessingArchiveRebalanceBenchmark is split into public API,
+source-universe/prewarm, iteration execution, cache selection, telemetry,
+validation, batch processor, and model zones
+RadarProcessingArchiveOrderedProcessingBenchmark is split into public API,
+iteration execution, result factory, cache selection, validation, and model
+zones
+RadarProcessingSyntheticRebalanceBenchmark is split into public API,
+iteration execution, validation, and model zones
+shared NEXRAD cache file matching, date/radar filtering, and auto-sized
+source-universe logic moved into RadarProcessingArchiveBenchmarkCacheSelection
+partial conversion used the dedicated per-class folder rule
+```
+
+Verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore /p:UseSharedCompilation=false
+  result: passed, 0 warnings, 0 errors
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+  "FullyQualifiedName~Benchmark|FullyQualifiedName~ArchiveQueuedOverlap|FullyQualifiedName~Architecture"
+  -c Release --no-build
+  result: passed, 123 passed, 0 failed, 0 skipped
+```
+
 ## Final 10/10 Pre-Decision Validation
 
 Status: superseded by the large-class SRP extension.

@@ -143,7 +143,7 @@ Milestone 036 planned slices:
     intact. [complete]
 11. Benchmark SRP split:
     extract focused collaborators from the largest benchmark orchestrators.
-    [planned]
+    [complete]
 12. Queue/session SRP split:
     isolate safe lifecycle, completion, retry, ordering, and telemetry
     responsibilities from queued and durable session classes. [planned]
@@ -208,6 +208,13 @@ Milestone 036 completed changes:
     processing benchmark execution, processing benchmark reporting, product
     routing, usage, formatting, and option records live in focused files under
     EntryPoint/RadarPulseCliApplication.
+15. Benchmark SRP split:
+    RadarProcessingArchiveRebalanceBenchmark,
+    RadarProcessingArchiveOrderedProcessingBenchmark, and
+    RadarProcessingSyntheticRebalanceBenchmark now use dedicated per-class
+    partial folders with responsibility-named files; shared NEXRAD cache
+    file/date/radar matching and auto-sized source-universe logic moved into
+    RadarProcessingArchiveBenchmarkCacheSelection.
 ```
 
 Latest verification:
@@ -221,6 +228,14 @@ milestone 036 slice 10 CLI SRP split:
     "FullyQualifiedName~RadarPulseCli|FullyQualifiedName~ProductPipelineCli|FullyQualifiedName~Architecture"
     -c Release --no-build
     passed, 44 passed, 0 failed, 0 skipped
+milestone 036 slice 11 benchmark SRP split:
+  dotnet build RadarPulse.sln -c Release --no-restore
+    /p:UseSharedCompilation=false
+    passed, 0 warnings, 0 errors
+  dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+    "FullyQualifiedName~Benchmark|FullyQualifiedName~ArchiveQueuedOverlap|FullyQualifiedName~Architecture"
+    -c Release --no-build
+    passed, 123 passed, 0 failed, 0 skipped
 milestone 036 slice 9 performance evidence capture:
   full-cache raw logs:
     data/perf/m036-full-cache-20260528-142529

@@ -64,7 +64,8 @@ active milestone implementation status:
     stabilization
   full-cache and processing-only performance evidence captured
   CLI SRP split complete inside the large-class treatment extension
-  benchmark and session SRP slices remain before decision trace
+  benchmark SRP split complete inside the large-class treatment extension
+  session SRP slice remains before decision trace
 active milestone goal:
   raise reviewed Clean Architecture, GRASP, SOLID, and GoF posture from
     roughly 7/10 to 10/10
@@ -98,6 +99,9 @@ active milestone completed implementation:
   RadarPulseCliApplication is now a thin top-level router with archive,
     processing, product, usage, formatting, and option responsibilities moved
     to focused CLI collaborator files
+  the largest benchmark orchestrators are split into responsibility-named
+    partial folders, and shared NEXRAD cache/source-universe selection moved
+    into a benchmark collaborator
 latest completed milestone changes:
   product/API, HTTP, CLI, product history, and product pipeline contract
     documentation

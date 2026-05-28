@@ -360,6 +360,8 @@ git diff --check
 
 ## Slice 11: Benchmark SRP Split
 
+Status: complete.
+
 Goal:
 
 ```text
@@ -379,14 +381,28 @@ use dedicated partial folders only for compatibility shells where a split
 without new collaborators is the least risky behavior-preserving step
 ```
 
+Implementation result:
+
+```text
+RadarProcessingArchiveRebalanceBenchmark, RadarProcessingArchiveOrderedProcessingBenchmark,
+and RadarProcessingSyntheticRebalanceBenchmark now use dedicated per-class
+partial folders with responsibility-named files
+NEXRAD cache file/date/radar matching and auto-sized source-universe logic
+were extracted into RadarProcessingArchiveBenchmarkCacheSelection as a shared
+benchmark collaborator
+public benchmark APIs and measurement semantics are unchanged
+```
+
 Verification:
 
 ```text
 dotnet build RadarPulse.sln -c Release --no-restore
   /p:UseSharedCompilation=false
+  result: passed, 0 warnings, 0 errors
 dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
   "FullyQualifiedName~Benchmark|FullyQualifiedName~ArchiveQueuedOverlap|FullyQualifiedName~Architecture"
   -c Release --no-build
+  result: passed, 123 passed, 0 failed, 0 skipped
 git diff --check
 ```
 
