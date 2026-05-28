@@ -312,6 +312,8 @@ places all partial files for that class in that folder
 
 ## Slice 10: CLI SRP Split
 
+Status: complete.
+
 Goal:
 
 ```text
@@ -330,14 +332,29 @@ EntryPoint/RadarPulseCliApplication folder with responsibility-named files
 keep Program.cs as the thin entrypoint guarded by architecture tests
 ```
 
+Implementation result:
+
+```text
+RadarPulseCliApplication was reduced to top-level dispatch and expected
+exception handling
+archive, archive benchmark, archive inspection, archive validation,
+processing, processing benchmark execution, processing benchmark reporting,
+product routing, shared usage, shared formatting, and CLI option records now
+have focused files under the dedicated EntryPoint/RadarPulseCliApplication
+folder
+no partial class conversion was required
+```
+
 Verification:
 
 ```text
 dotnet build RadarPulse.sln -c Release --no-restore
   /p:UseSharedCompilation=false
+  result: passed, 0 warnings, 0 errors
 dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
   "FullyQualifiedName~RadarPulseCli|FullyQualifiedName~ProductPipelineCli|FullyQualifiedName~Architecture"
   -c Release --no-build
+  result: passed, 44 passed, 0 failed, 0 skipped
 git diff --check
 ```
 

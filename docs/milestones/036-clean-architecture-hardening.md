@@ -710,7 +710,7 @@ processing-only raw logs:
 
 ### Change 13: Extend SRP Large-Class Treatment Slices
 
-Status: planned.
+Status: complete.
 
 Intent:
 
@@ -765,6 +765,67 @@ Verification:
 ```text
 documentation-only scope expansion; code slices run focused Release build and
 tests before each slice commit
+```
+
+### Change 14: CLI SRP Split
+
+Status: complete.
+
+Intent:
+
+```text
+replace the large RadarPulseCliApplication command-family class with focused
+CLI collaborators while preserving accepted arguments, output, and exit codes
+make RadarPulseCliApplication a thin application router rather than a
+container for archive, processing, product, benchmark, inspection, validation,
+usage, option, and formatting responsibilities
+```
+
+Scope:
+
+```text
+src/Presentation/RadarPulse.Cli/EntryPoint/RadarPulseCliApplication/
+  RadarPulseCliApplication.cs
+  ArchiveCliApplication.cs
+  ArchiveBenchmarkCliApplication.cs
+  ArchiveInspectionCliApplication.cs
+  ArchiveValidationCliApplication.cs
+  ProcessingCliApplication.cs
+  ProcessingBenchmarkCliApplication.cs
+  ProcessingBenchmarkCliReporter.cs
+  ProductCliApplication.cs
+  RadarPulseCliUsage.cs
+  CliFormat.cs
+  RadarPulseCliOptions.cs
+src/Presentation/RadarPulse.Cli/EntryPoint/RadarPulseCliApplication.cs
+  removed
+```
+
+Result:
+
+```text
+RadarPulseCliApplication now owns only top-level error handling and top-level
+archive/processing/product dispatch
+archive list/download/replay/stream behavior is isolated from archive
+benchmark, inspection, and validation behavior
+processing command routing is isolated from processing benchmark execution and
+processing benchmark reporting/formatting
+product command routing remains focused around the existing product pipeline
+workflow
+shared usage and formatting helpers are no longer hidden inside the top-level
+application router
+no partial class conversion was needed for this slice
+```
+
+Verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore /p:UseSharedCompilation=false
+  result: passed, 0 warnings, 0 errors
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+  "FullyQualifiedName~RadarPulseCli|FullyQualifiedName~ProductPipelineCli|FullyQualifiedName~Architecture"
+  -c Release --no-build
+  result: passed, 44 passed, 0 failed, 0 skipped
 ```
 
 ## Final 10/10 Pre-Decision Validation

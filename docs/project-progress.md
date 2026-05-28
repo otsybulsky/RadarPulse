@@ -63,7 +63,8 @@ active milestone implementation status:
   full Release test suite passes in one combined run after benchmark
     stabilization
   full-cache and processing-only performance evidence captured
-  SRP large-class treatment extension active before decision trace
+  CLI SRP split complete inside the large-class treatment extension
+  benchmark and session SRP slices remain before decision trace
 active milestone goal:
   raise reviewed Clean Architecture, GRASP, SOLID, and GoF posture from
     roughly 7/10 to 10/10
@@ -94,6 +95,9 @@ active milestone completed implementation:
     order by using deterministic run-local evidence where appropriate
   performance evidence records full-cache end-to-end custom-handler throughput
     and a separate processing-only handler-engine benchmark for claim review
+  RadarPulseCliApplication is now a thin top-level router with archive,
+    processing, product, usage, formatting, and option responsibilities moved
+    to focused CLI collaborator files
 latest completed milestone changes:
   product/API, HTTP, CLI, product history, and product pipeline contract
     documentation

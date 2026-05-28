@@ -140,7 +140,7 @@ Milestone 036 planned slices:
 10. CLI SRP split:
     extract command-family collaborators from RadarPulseCliApplication and
     use the dedicated partial-folder rule only where class identity remains
-    intact. [planned]
+    intact. [complete]
 11. Benchmark SRP split:
     extract focused collaborators from the largest benchmark orchestrators.
     [planned]
@@ -202,11 +202,25 @@ Milestone 036 completed changes:
     milestone 036 remains open before decision trace; partial class conversion
     is allowed only with a dedicated per-class folder and responsibility-named
     files, while real collaborator extraction remains preferred.
+14. CLI SRP split:
+    RadarPulseCliApplication is now a thin top-level router; archive,
+    archive benchmark, archive inspection, archive validation, processing,
+    processing benchmark execution, processing benchmark reporting, product
+    routing, usage, formatting, and option records live in focused files under
+    EntryPoint/RadarPulseCliApplication.
 ```
 
 Latest verification:
 
 ```text
+milestone 036 slice 10 CLI SRP split:
+  dotnet build RadarPulse.sln -c Release --no-restore
+    /p:UseSharedCompilation=false
+    passed, 0 warnings, 0 errors
+  dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+    "FullyQualifiedName~RadarPulseCli|FullyQualifiedName~ProductPipelineCli|FullyQualifiedName~Architecture"
+    -c Release --no-build
+    passed, 44 passed, 0 failed, 0 skipped
 milestone 036 slice 9 performance evidence capture:
   full-cache raw logs:
     data/perf/m036-full-cache-20260528-142529
