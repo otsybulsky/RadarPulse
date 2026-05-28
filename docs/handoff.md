@@ -36,8 +36,9 @@ persistence, runtime defaults, and demo/readiness behavior.
 Stop point:
 
 ```text
-milestone 036 10/10 implementation slices and full-suite stabilization
-complete; performance evidence captured; stop before decision trace
+milestone 036 10/10 boundary implementation slices and full-suite
+stabilization complete; performance evidence captured; milestone extended
+with SRP large-class treatment slices before decision trace
 ```
 
 Architecture assessment verdict:
@@ -50,8 +51,10 @@ docs/milestones/036-clean-architecture-hardening.md#final-1010-pre-decision-vali
 Clean Architecture, GRASP, SOLID, pragmatic GoF use, automated guardrails, and
 evidence posture are each assessed at 10/10 for the current milestone scope.
 Residual notes remain limited to compatibility aggregate presence, possible
-future CLI refinement, and full-cache heavy-handler allocation optimization;
-none are architecture blockers.
+future CLI refinement, and full-cache heavy-handler allocation optimization.
+After review, the CLI refinement note was pulled into the active milestone as
+part of a broader oversized-class SRP treatment extension; the 10/10 boundary
+posture remains accepted while maintainability is improved.
 ```
 
 Most recently closed milestone:
@@ -98,6 +101,8 @@ stabilize processing benchmark allocation gates so full-suite verification is
   not sensitive to test process order
 capture full-cache and processing-only performance evidence before decision
   trace discussion
+continue with SRP treatment for oversized CLI, benchmark, and session classes
+  before decision trace
 ```
 
 Milestone 036 planned slices:
@@ -132,6 +137,19 @@ Milestone 036 planned slices:
 9. Performance evidence capture:
    record the full-cache matrix and a separate processing-only benchmark for
    a restrained world-class technology claim. [complete]
+10. CLI SRP split:
+    extract command-family collaborators from RadarPulseCliApplication and
+    use the dedicated partial-folder rule only where class identity remains
+    intact. [planned]
+11. Benchmark SRP split:
+    extract focused collaborators from the largest benchmark orchestrators.
+    [planned]
+12. Queue/session SRP split:
+    isolate safe lifecycle, completion, retry, ordering, and telemetry
+    responsibilities from queued and durable session classes. [planned]
+13. Large-class guardrail and final validation:
+    capture remaining class-size inventory, document residual large classes,
+    run focused/full gates, and stop before decision trace. [planned]
 ```
 
 Milestone 036 completed changes:
@@ -180,6 +198,10 @@ Milestone 036 completed changes:
     full-cache end-to-end performance and processing-only handler-engine
     performance are documented with throughput, allocation, correctness,
     source coverage, raw artifact paths, and claim boundaries.
+13. Extend SRP large-class treatment slices:
+    milestone 036 remains open before decision trace; partial class conversion
+    is allowed only with a dedicated per-class folder and responsibility-named
+    files, while real collaborator extraction remains preferred.
 ```
 
 Latest verification:

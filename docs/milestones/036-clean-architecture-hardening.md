@@ -23,6 +23,8 @@ add automated architecture tests for project references and namespace
   dependency direction
 reduce SRP pressure around product orchestration and presentation entrypoint
   hotspots where changes are behavior-preserving
+continue SRP treatment for remaining oversized adapter, benchmark, and
+  session/state-machine classes after the 10/10 boundary posture is recorded
 preserve the accepted product API, CLI behavior, runtime defaults, local
   persistence, and demo/readiness posture
 ```
@@ -55,6 +57,9 @@ split focused helper responsibilities out of product orchestration where it
 split broad Application product ports into focused use-case ports
 remove privileged Domain friend access from Infrastructure
 split remaining broad CLI command-family responsibilities out of Program.cs
+split or isolate oversized class responsibilities through focused
+  collaborators first, using partial class folder layout only as a navigation
+  aid when the class identity must remain intact
 add architecture tests for layer and namespace dependency rules
 add focused tests around moved contracts and DI wiring
 update docs/handoff/progress after every slice
@@ -96,6 +101,9 @@ Domain does not grant InternalsVisibleTo access to Infrastructure
 architecture tests fail if Domain grants friend access to Infrastructure
 Program.cs is a thin command router for product, archive, and processing
   command families
+oversized adapter/benchmark/session classes are reduced through real SRP
+  collaborators where behavior-preserving; any partial class conversion uses
+  a dedicated per-class folder with files named by responsibility zone
 all accepted product, HTTP, CLI, persistence, and runtime tests still pass
 ```
 
@@ -700,9 +708,68 @@ processing-only raw logs:
   data/perf/m036-world-class-20260528-151123
 ```
 
+### Change 13: Extend SRP Large-Class Treatment Slices
+
+Status: planned.
+
+Intent:
+
+```text
+continue milestone 036 before decision trace with behavior-preserving SRP
+treatment for oversized classes found after the 10/10 boundary assessment
+prefer focused collaborators over partial-only splits
+allow partial classes only when class identity must remain intact, and then
+  place every partial file in a dedicated folder named after that class
+```
+
+Rules:
+
+```text
+do not use partial as a substitute for extracting domain/runtime
+  responsibility when a collaborator can own that behavior
+partial is acceptable for presentation adapter, benchmark surface, and
+  compatibility shell organization when behavior-preserving extraction would
+  create more churn than value
+every partial class conversion creates a personal folder:
+  <Parent>/<ClassName>/<ClassName>.<Responsibility>.cs
+shared mutable state must not increase during partial conversion
+each new file name must describe one responsibility zone, such as Routing,
+  Options, Formatting, Execution, Telemetry, Iteration, or Reporting
+runtime, API, CLI, and benchmark output semantics remain accepted unless a
+  later decision explicitly changes them
+```
+
+Planned slices:
+
+```text
+10. CLI SRP split:
+    extract command-family collaborators from RadarPulseCliApplication and
+    keep any remaining partial files under the dedicated
+    EntryPoint/RadarPulseCliApplication folder.
+11. Archive/processing benchmark SRP split:
+    extract focused collaborators from the largest benchmark orchestrators,
+    especially cache/file selection, iteration execution, telemetry capture,
+    validation, and report formatting responsibilities.
+12. Queue/session SRP split:
+    isolate safe lifecycle, completion, retry, ordering, and telemetry
+    responsibilities from queued and durable session classes without changing
+    state-machine semantics.
+13. Large-class guardrail and final validation:
+    capture the remaining class-size inventory, document accepted residual
+    large classes, run focused and full Release gates, and stop before
+    decision trace.
+```
+
+Verification:
+
+```text
+documentation-only scope expansion; code slices run focused Release build and
+tests before each slice commit
+```
+
 ## Final 10/10 Pre-Decision Validation
 
-Status: ready for discussion before decision trace.
+Status: superseded by the large-class SRP extension.
 
 Summary:
 

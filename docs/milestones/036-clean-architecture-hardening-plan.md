@@ -293,6 +293,147 @@ git diff --check
 
 ## Final Pre-Decision State
 
+The earlier 10/10 boundary assessment was recorded before decision trace.
+After review, milestone 036 stays open for a final SRP large-class treatment
+extension. The extension keeps the accepted 10/10 Clean Architecture boundary
+posture and adds targeted maintainability slices for oversized classes.
+
+Partial class rule:
+
+```text
+partial classes are allowed only when the class identity intentionally remains
+intact and the split improves navigation around an adapter, benchmark, or
+compatibility surface
+partial is not a substitute for SRP extraction when a focused collaborator can
+own a responsibility
+every partial conversion creates a dedicated folder named after the class and
+places all partial files for that class in that folder
+```
+
+## Slice 10: CLI SRP Split
+
+Goal:
+
+```text
+reduce RadarPulseCliApplication responsibility by extracting command-family
+collaborators while preserving accepted CLI arguments, output, and exit codes
+```
+
+Planned changes:
+
+```text
+move archive command execution, processing command execution, product command
+routing, option parsing, and formatting into focused collaborators where the
+call graph permits behavior-preserving extraction
+if any RadarPulseCliApplication partial remains, place it under a dedicated
+EntryPoint/RadarPulseCliApplication folder with responsibility-named files
+keep Program.cs as the thin entrypoint guarded by architecture tests
+```
+
+Verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore
+  /p:UseSharedCompilation=false
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+  "FullyQualifiedName~RadarPulseCli|FullyQualifiedName~ProductPipelineCli|FullyQualifiedName~Architecture"
+  -c Release --no-build
+git diff --check
+```
+
+## Slice 11: Benchmark SRP Split
+
+Goal:
+
+```text
+reduce the largest archive/processing benchmark orchestrators by extracting
+cache selection, iteration execution, telemetry capture, validation, and
+report formatting responsibilities
+```
+
+Planned changes:
+
+```text
+target RadarProcessingArchiveRebalanceBenchmark,
+RadarProcessingArchiveOrderedProcessingBenchmark, and
+RadarProcessingSyntheticRebalanceBenchmark first
+prefer focused collaborators over partial files
+use dedicated partial folders only for compatibility shells where a split
+without new collaborators is the least risky behavior-preserving step
+```
+
+Verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore
+  /p:UseSharedCompilation=false
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+  "FullyQualifiedName~Benchmark|FullyQualifiedName~ArchiveQueuedOverlap|FullyQualifiedName~Architecture"
+  -c Release --no-build
+git diff --check
+```
+
+## Slice 12: Queue And Durable Session SRP Split
+
+Goal:
+
+```text
+reduce state-machine class concentration without changing deterministic
+ordering, retry, retention, durable, or completion semantics
+```
+
+Planned changes:
+
+```text
+target RadarProcessingQueuedProcessingSession,
+RadarProcessingQueuedRebalanceSession,
+RadarProcessingDurableEnvelopeQueue,
+RadarProcessingDurableProcessingSession, and
+RadarProcessingDurableRebalanceSession only through safe collaborator
+extractions
+keep lifecycle/state transition invariants local when extraction would make
+correctness harder to reason about
+```
+
+Verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore
+  /p:UseSharedCompilation=false
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+  "FullyQualifiedName~QueuedProcessingSession|FullyQualifiedName~QueuedRebalanceSession|FullyQualifiedName~DurableEnvelopeQueue|FullyQualifiedName~DurableProcessingSession|FullyQualifiedName~DurableRebalanceSession|FullyQualifiedName~Architecture"
+  -c Release --no-build
+git diff --check
+```
+
+## Slice 13: Large-Class Guardrail And Final Validation
+
+Goal:
+
+```text
+record the post-refactor class-size inventory, document accepted residual
+large classes, and stop before decision trace with updated evidence
+```
+
+Planned changes:
+
+```text
+capture src/test class-size counts after SRP slices
+document residual large classes as accepted adapter/benchmark/session
+surfaces or name follow-up extraction opportunities
+update milestone, handoff, and project-progress
+```
+
+Verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore
+  /p:UseSharedCompilation=false
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj -c Release
+  --no-build
+git diff --check
+```
+
 ## Slice 9: Performance Evidence Capture
 
 Goal:

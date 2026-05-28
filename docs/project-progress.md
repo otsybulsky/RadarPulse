@@ -8,7 +8,9 @@ stabilization removed the remaining process-order allocation test sensitivity
 and milestone 036 performance evidence was captured. The final pre-decision
 architecture assessment records a defensible 10/10 posture for the accepted
 local product demo/runtime boundary across Clean Architecture, GRASP, SOLID,
-pragmatic GoF use, automated guardrails, and evidence posture.
+pragmatic GoF use, automated guardrails, and evidence posture. After review,
+the milestone remains active for additional SRP treatment of oversized CLI,
+benchmark, and session classes before decision trace.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -56,12 +58,12 @@ latest completed milestone status:
 active milestone:
   036 clean architecture hardening toward 10/10
 active milestone implementation status:
-  10/10 implementation slices complete
+  10/10 boundary implementation slices complete
   final pre-decision architecture assessment recorded as defensible 10/10
   full Release test suite passes in one combined run after benchmark
     stabilization
   full-cache and processing-only performance evidence captured
-  stopped before decision trace
+  SRP large-class treatment extension active before decision trace
 active milestone goal:
   raise reviewed Clean Architecture, GRASP, SOLID, and GoF posture from
     roughly 7/10 to 10/10
