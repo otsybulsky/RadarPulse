@@ -146,7 +146,7 @@ Milestone 036 planned slices:
     [complete]
 12. Queue/session SRP split:
     isolate safe lifecycle, completion, retry, ordering, and telemetry
-    responsibilities from queued and durable session classes. [planned]
+    responsibilities from queued and durable session classes. [complete]
 13. Large-class guardrail and final validation:
     capture remaining class-size inventory, document residual large classes,
     run focused/full gates, and stop before decision trace. [planned]
@@ -215,6 +215,12 @@ Milestone 036 completed changes:
     partial folders with responsibility-named files; shared NEXRAD cache
     file/date/radar matching and auto-sized source-universe logic moved into
     RadarProcessingArchiveBenchmarkCacheSelection.
+16. Queue and durable session SRP split:
+    queued processing, queued rebalance, durable envelope queue, durable
+    processing, and durable rebalance classes now use dedicated per-class
+    partial folders with responsibility-named public API, ordered work,
+    transitions, state/telemetry, completion, and model zones while keeping
+    state-machine invariants local.
 ```
 
 Latest verification:
@@ -236,6 +242,14 @@ milestone 036 slice 11 benchmark SRP split:
     "FullyQualifiedName~Benchmark|FullyQualifiedName~ArchiveQueuedOverlap|FullyQualifiedName~Architecture"
     -c Release --no-build
     passed, 123 passed, 0 failed, 0 skipped
+milestone 036 slice 12 queue and durable session SRP split:
+  dotnet build RadarPulse.sln -c Release --no-restore
+    /p:UseSharedCompilation=false
+    passed, 0 warnings, 0 errors
+  dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+    "FullyQualifiedName~QueuedProcessingSession|FullyQualifiedName~QueuedRebalanceSession|FullyQualifiedName~DurableEnvelopeQueue|FullyQualifiedName~DurableProcessingSession|FullyQualifiedName~DurableRebalanceSession|FullyQualifiedName~Architecture"
+    -c Release --no-build
+    passed, 60 passed, 0 failed, 0 skipped
 milestone 036 slice 9 performance evidence capture:
   full-cache raw logs:
     data/perf/m036-full-cache-20260528-142529

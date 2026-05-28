@@ -408,6 +408,8 @@ git diff --check
 
 ## Slice 12: Queue And Durable Session SRP Split
 
+Status: complete.
+
 Goal:
 
 ```text
@@ -428,14 +430,30 @@ keep lifecycle/state transition invariants local when extraction would make
 correctness harder to reason about
 ```
 
+Implementation result:
+
+```text
+RadarProcessingQueuedProcessingSession and RadarProcessingQueuedRebalanceSession
+now use dedicated per-class partial folders for public API, ordered concurrent
+work, state/telemetry, and completion models
+RadarProcessingDurableEnvelopeQueue now uses a dedicated per-class partial
+folder for public operations, transitions/persistence, and envelope models
+RadarProcessingDurableProcessingSession and RadarProcessingDurableRebalanceSession
+now use dedicated per-class partial folders for public API, completion/ordered
+commit, and completion models
+ordering/retry/durable lifecycle invariants remain local to each owning class
+```
+
 Verification:
 
 ```text
 dotnet build RadarPulse.sln -c Release --no-restore
   /p:UseSharedCompilation=false
+  result: passed, 0 warnings, 0 errors
 dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
   "FullyQualifiedName~QueuedProcessingSession|FullyQualifiedName~QueuedRebalanceSession|FullyQualifiedName~DurableEnvelopeQueue|FullyQualifiedName~DurableProcessingSession|FullyQualifiedName~DurableRebalanceSession|FullyQualifiedName~Architecture"
   -c Release --no-build
+  result: passed, 60 passed, 0 failed, 0 skipped
 git diff --check
 ```
 

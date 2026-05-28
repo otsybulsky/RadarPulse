@@ -881,6 +881,57 @@ dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
   result: passed, 123 passed, 0 failed, 0 skipped
 ```
 
+### Change 16: Queue And Durable Session SRP Split
+
+Status: complete.
+
+Intent:
+
+```text
+reduce state-machine/session file concentration while preserving deterministic
+provider ordering, retry, durable lifecycle, retained resource release, and
+ordered commit semantics
+avoid aggressive collaborator extraction where moving lifecycle state would
+make correctness harder to audit
+```
+
+Scope:
+
+```text
+src/Infrastructure/Processing/Queueing/Services/
+  RadarProcessingQueuedProcessingSession/
+  RadarProcessingQueuedRebalanceSession/
+src/Infrastructure/Processing/Durable/Services/
+  RadarProcessingDurableEnvelopeQueue/
+  RadarProcessingDurableProcessingSession/
+  RadarProcessingDurableRebalanceSession/
+```
+
+Result:
+
+```text
+queued processing and queued rebalance sessions are split into public API,
+ordered concurrent execution, session state/telemetry, and completion model
+zones
+durable envelope queue is split into public operations, transition/persistence,
+and envelope-entry model zones
+durable processing and durable rebalance sessions are split into public API,
+completion/ordered commit, and completion model zones
+partial conversion used the dedicated per-class folder rule
+state-machine invariants remain inside their owning session classes
+```
+
+Verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore /p:UseSharedCompilation=false
+  result: passed, 0 warnings, 0 errors
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+  "FullyQualifiedName~QueuedProcessingSession|FullyQualifiedName~QueuedRebalanceSession|FullyQualifiedName~DurableEnvelopeQueue|FullyQualifiedName~DurableProcessingSession|FullyQualifiedName~DurableRebalanceSession|FullyQualifiedName~Architecture"
+  -c Release --no-build
+  result: passed, 60 passed, 0 failed, 0 skipped
+```
+
 ## Final 10/10 Pre-Decision Validation
 
 Status: superseded by the large-class SRP extension.

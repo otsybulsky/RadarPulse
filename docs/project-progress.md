@@ -65,7 +65,9 @@ active milestone implementation status:
   full-cache and processing-only performance evidence captured
   CLI SRP split complete inside the large-class treatment extension
   benchmark SRP split complete inside the large-class treatment extension
-  session SRP slice remains before decision trace
+  queue and durable session SRP split complete inside the large-class
+    treatment extension
+  final large-class guardrail/validation slice remains before decision trace
 active milestone goal:
   raise reviewed Clean Architecture, GRASP, SOLID, and GoF posture from
     roughly 7/10 to 10/10
@@ -102,6 +104,9 @@ active milestone completed implementation:
   the largest benchmark orchestrators are split into responsibility-named
     partial folders, and shared NEXRAD cache/source-universe selection moved
     into a benchmark collaborator
+  queued/durable session state-machine classes are split into
+    responsibility-named partial folders while keeping ordering/retry/commit
+    invariants local to their owning classes
 latest completed milestone changes:
   product/API, HTTP, CLI, product history, and product pipeline contract
     documentation
