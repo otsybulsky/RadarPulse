@@ -1,10 +1,10 @@
 # RadarPulse Project Progress
 
-Status: current during milestone 036. Clean architecture hardening
-implementation slices are complete and the project is stopped before decision
-trace discussion. The milestone keeps the explicit target of raising the
-reviewed Clean Architecture, GRASP, SOLID, and GoF posture to 9/10 while
-preserving accepted local product demo behavior.
+Status: current during milestone 036. Clean architecture hardening has been
+expanded from the earlier 9/10 target to a 10/10 target inside the same
+milestone. The project remains stopped before decision trace discussion until
+the additional 10/10 slices are implemented while preserving accepted local
+product demo behavior.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -32,8 +32,9 @@ targeted project restructuring and maintenance milestone, and the code
 contract documentation pass. Milestone 035 is complete through closeout.
 Milestone 036 is now active as a targeted architecture-hardening milestone
 over the accepted product/application/infrastructure/presentation boundary.
-Its planned implementation slices are complete and decision trace discussion
-is pending.
+The first implementation slices are complete; additional 10/10 slices are now
+planned for port segregation, Domain friend assembly removal, and CLI
+command-family extraction.
 
 Current state:
 
@@ -49,19 +50,24 @@ latest completed milestone status:
   final top-level public C# surface audit captured
   closeout written
 active milestone:
-  036 clean architecture hardening toward 9/10
+  036 clean architecture hardening toward 10/10
 active milestone implementation status:
-  implementation slices complete
+  initial implementation slices complete
+  10/10 expansion planned
   stopped before decision trace
 active milestone goal:
   raise reviewed Clean Architecture, GRASP, SOLID, and GoF posture from
-    roughly 7/10 to 9/10
+    roughly 7/10 to 10/10
   move product-facing API/use-case contracts into Application
   keep Infrastructure as adapters behind Application ports
   make Presentation depend on Application product API abstractions
   add architecture tests that guard layer and namespace dependency direction
   reduce or explicitly bound major SRP hotspots without changing accepted
     runtime/product behavior
+  remove the remaining Product Application ISP warning
+  remove Domain friend access to Infrastructure
+  split remaining archive/processing CLI command-family workflows out of
+    Program.cs
 active milestone completed implementation:
   Application now owns the product pipeline service/API ports and API
     contract

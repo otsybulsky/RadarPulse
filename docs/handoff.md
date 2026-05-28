@@ -4,7 +4,7 @@
 
 Milestone 036 is active after milestone 035 closeout. The current goal is a
 targeted behavior-preserving architecture hardening pass that raises the
-reviewed Clean Architecture, GRASP, SOLID, and GoF posture to 9/10.
+reviewed Clean Architecture, GRASP, SOLID, and GoF posture to 10/10.
 
 Milestone 035 is closed after milestone 034 closeout as a freeze-mode
 maintenance pass for code contract documentation. It added XML descriptions
@@ -28,14 +28,15 @@ written.
 
 RadarPulse has left freeze mode only for milestone 036. The milestone is
 explicitly scoped to architecture hardening around product/application,
-infrastructure adapters, presentation dependencies, architecture tests, and
-bounded SRP cleanup. It must preserve accepted product API, CLI, HTTP,
+infrastructure adapters, presentation dependencies, architecture tests,
+Application port segregation, Domain friend assembly removal, and CLI
+command-family extraction. It must preserve accepted product API, CLI, HTTP,
 persistence, runtime defaults, and demo/readiness behavior.
 
 Stop point:
 
 ```text
-milestone 036 implementation slices complete; stop before decision trace
+milestone 036 10/10 scope expansion complete; slice 5 port segregation is next
 ```
 
 Most recently closed milestone:
@@ -53,7 +54,7 @@ targeted architecture-hardening milestone
 Active milestone:
 
 ```text
-036 Clean Architecture Hardening Toward 9/10
+036 Clean Architecture Hardening Toward 10/10
 ```
 
 Milestone 036 documents:
@@ -66,7 +67,7 @@ docs/milestones/036-clean-architecture-hardening-plan.md
 Milestone 036 objective:
 
 ```text
-raise the reviewed architecture posture from roughly 7/10 to 9/10
+raise the reviewed architecture posture from roughly 7/10 to 10/10
 move product-facing API/use-case contracts into Application
 keep Infrastructure as adapters behind Application ports
 make Presentation depend on Application contracts instead of concrete
@@ -74,6 +75,9 @@ make Presentation depend on Application contracts instead of concrete
 add architecture tests for layer and namespace dependency direction
 reduce or explicitly bound major SRP hotspots without changing accepted
   behavior
+remove the remaining broad Application product port warning
+remove Domain InternalsVisibleTo access for Infrastructure
+make Program.cs a thin command-family router
 ```
 
 Milestone 036 planned slices:
@@ -92,6 +96,16 @@ Milestone 036 planned slices:
 4. Product CLI entrypoint extraction:
    route product pipeline CLI workflows through a focused helper and record
    any remaining large-entrypoint risk as a bounded warning. [complete]
+5. Product Application port segregation:
+   split the broad product service dependency into focused run, query,
+   history, and control ports. [next]
+6. Remove Domain friend assembly:
+   remove Domain InternalsVisibleTo("RadarPulse.Infrastructure") and replace
+   Infrastructure use of internal Domain APIs with explicit public Domain
+   contracts or Domain-owned operations.
+7. CLI command-family extraction:
+   split archive and processing command-family workflows out of Program.cs so
+   the top-level entrypoint is a thin router.
 ```
 
 Milestone 036 completed changes:
@@ -116,26 +130,17 @@ Milestone 036 completed changes:
    product pipeline demo/archive workflow, request construction, output
    formatting, and exit-code handling moved into ProductPipelineCliWorkflow;
    Program.cs now only routes product pipeline subcommands.
+7. Expand scope to 10/10 architecture target:
+   new slices added for Product Application port segregation, Domain friend
+   assembly removal, and remaining CLI command-family extraction.
 ```
 
 Latest verification:
 
 ```text
-milestone 036 pre-decision validation:
-  dotnet build RadarPulse.sln -c Release --no-restore
-    passed, 0 warnings, 0 errors
-  dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
-    "FullyQualifiedName~Architecture|FullyQualifiedName~Product|FullyQualifiedName~RadarPulseProductPipelineCli"
-    -c Release --no-build
-    passed, 90 passed, 0 failed, 0 skipped
-  dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj -c Release
-    --no-build
-    failed in combined all-tests process, 1006 passed, 2 failed, 3 skipped
-  isolated rerun of both failed processing tests:
-    passed, 1 passed each
-  interpretation:
-    existing process-order/benchmark sensitivity, not a milestone 036 slice
-    regression
+milestone 036 10/10 scope expansion:
+  documentation-only plan update
+  git diff --check passed
 ```
 
 Milestone 035 documents:

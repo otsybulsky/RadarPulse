@@ -1,4 +1,4 @@
-# Milestone 036: Clean Architecture Hardening Toward 9/10
+# Milestone 036: Clean Architecture Hardening Toward 10/10
 
 Status: active.
 
@@ -6,7 +6,7 @@ Milestone 036 starts after the closed milestone 035 code contract
 documentation pass. RadarPulse leaves freeze mode for one targeted
 behavior-preserving architecture hardening milestone with an explicit quality
 goal: raise the current clean architecture, GRASP, SOLID, and GoF assessment
-from roughly 7/10 to 9/10 without reopening accepted runtime semantics.
+from roughly 7/10 to 10/10 without reopening accepted runtime semantics.
 
 ## Milestone Goal
 
@@ -27,9 +27,9 @@ preserve the accepted product API, CLI behavior, runtime defaults, local
   persistence, and demo/readiness posture
 ```
 
-The intended outcome is a 9/10 architecture posture, not a broad rewrite. The
-score should improve because the most important Clean Architecture and SOLID
-risks become mechanically guarded or isolated:
+The intended outcome is a 10/10 architecture posture, not a broad rewrite.
+The score should improve because the most important Clean Architecture and
+SOLID risks become mechanically guarded, removed, or isolated:
 
 ```text
 Domain remains pure and dependency-free
@@ -37,7 +37,8 @@ Application owns product contracts, use-case vocabulary, and ports
 Infrastructure implements adapters over those ports
 Presentation maps HTTP/CLI input to Application contracts
 architecture tests prevent dependency drift
-known large-file/SRP risks are either reduced or explicitly bounded
+remaining Application ISP, Domain friend-assembly, and Presentation SRP risks
+  are removed rather than accepted as bounded warnings
 ```
 
 ## Scope Rules
@@ -51,6 +52,9 @@ change DI registration to bind Application contracts to Infrastructure
   implementations
 split focused helper responsibilities out of product orchestration where it
   keeps public behavior unchanged
+split broad Application product ports into focused use-case ports
+remove privileged Domain friend access from Infrastructure
+split remaining broad CLI command-family responsibilities out of Program.cs
 add architecture tests for layer and namespace dependency rules
 add focused tests around moved contracts and DI wiring
 update docs/handoff/progress after every slice
@@ -69,7 +73,7 @@ add production hosting/security/live-ingestion/external adapter scope
 close the milestone with a decision trace before discussion
 ```
 
-## 9/10 Acceptance Criteria
+## 10/10 Acceptance Criteria
 
 Milestone 036 is successful when the following are true:
 
@@ -84,8 +88,14 @@ architecture tests fail if Domain/Application depend on Infrastructure or
   Presentation namespaces
 architecture tests fail if product HTTP endpoints take concrete Infrastructure
   product API contracts
-major SRP hotspots have either a focused extraction or a documented bounded
-  warning that does not block the 9/10 score
+major SRP hotspots have focused extractions rather than score-blocking
+  bounded warnings
+Application product API contract depends on focused run/query/history/control
+  ports rather than one broad service dependency
+Domain does not grant InternalsVisibleTo access to Infrastructure
+architecture tests fail if Domain grants friend access to Infrastructure
+Program.cs is a thin command router for product, archive, and processing
+  command families
 all accepted product, HTTP, CLI, persistence, and runtime tests still pass
 ```
 
@@ -98,7 +108,8 @@ Status: complete.
 Intent:
 
 ```text
-open a targeted architecture-hardening milestone with an explicit 9/10 goal
+open a targeted architecture-hardening milestone with an explicit initial
+9/10 goal that was later expanded to 10/10
 and a scoped implementation boundary
 ```
 
@@ -125,8 +136,8 @@ Intent:
 
 ```text
 define behavior-preserving slices that move product API/use-case contracts
-inward, add architecture guardrails, and reduce SRP hotspots toward the 9/10
-architecture goal
+inward, add architecture guardrails, and reduce SRP hotspots toward the
+initial 9/10 architecture goal that was later expanded to 10/10
 ```
 
 Scope:
@@ -342,7 +353,7 @@ dotnet build RadarPulse.sln -c Release --no-restore
 
 ## Pre-Decision Validation
 
-Status: ready for discussion before decision trace.
+Status: superseded by the 10/10 scope expansion.
 
 Summary:
 
@@ -352,6 +363,8 @@ product API boundary now points Presentation at Application contracts
 architecture guardrails are executable tests
 product service and product CLI SRP hotspots are reduced with bounded notes
 decision trace and closeout are intentionally not written yet
+10/10 expansion adds follow-up slices for port segregation, Domain friend
+  assembly removal, and remaining CLI command-family extraction
 ```
 
 Final gate evidence:
@@ -369,4 +382,44 @@ dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj -c Release --no-build
   isolated rerun of both failed processing tests passed, confirming the
     existing process-order/benchmark sensitivity rather than a slice
     regression
+```
+
+### Change 7: Expand Scope To 10/10 Architecture Target
+
+Status: complete.
+
+Intent:
+
+```text
+replace the earlier 9/10 target with a full 10/10 architecture target inside
+milestone 036 rather than deferring the remaining warnings to later
+milestones
+```
+
+Scope:
+
+```text
+docs/milestones/036-clean-architecture-hardening.md
+docs/milestones/036-clean-architecture-hardening-plan.md
+docs/project-progress.md
+docs/handoff.md
+```
+
+Outcome:
+
+```text
+milestone 036 now requires removal of the remaining Product Application ISP
+warning, Domain-to-Infrastructure friend assembly warning, and broad CLI
+entrypoint SRP warning
+new slices 5-7 are planned for Application port segregation, Domain friend
+assembly removal, and CLI command-family extraction
+decision trace remains blocked until the 10/10 target can be reviewed
+```
+
+Verification:
+
+```text
+documentation-only scope expansion
+git diff --check
+  result: passed
 ```

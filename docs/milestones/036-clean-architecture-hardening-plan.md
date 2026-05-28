@@ -3,7 +3,7 @@
 Status: active.
 
 This plan implements the milestone 036 architecture-hardening boundary in
-small behavior-preserving slices. The target is a defensible 9/10 score for
+small behavior-preserving slices. The target is a defensible 10/10 score for
 Clean Architecture, GRASP, SOLID, and GoF without changing accepted product,
 HTTP, CLI, persistence, runtime, or demo/readiness behavior.
 
@@ -19,6 +19,10 @@ then add architecture tests so the direction cannot regress silently
 then split product orchestration responsibilities that are currently
   concentrated in one service
 then extract a safe product CLI workflow helper from the large entrypoint
+then remove the remaining product Application ISP warning
+then remove the Domain-to-Infrastructure friend assembly escape hatch
+then split the remaining broad CLI command-family responsibilities out of
+  the top-level entrypoint
 ```
 
 Each slice should leave the solution buildable and independently reviewable.
@@ -148,6 +152,105 @@ dotnet build RadarPulse.sln -c Release --no-restore
 git diff --check
 ```
 
+## Slice 5: Product Application Port Segregation
+
+Goal:
+
+```text
+remove the remaining Interface Segregation warning by making the
+Application product API contract depend on focused run, query, history, and
+control ports instead of one broad service port
+```
+
+Planned changes:
+
+```text
+split the Application product service surface into focused ports:
+  run service, query service, history readiness service, and control service
+keep IRadarPulseProductPipelineService as a compatibility aggregate only if
+  existing direct tests or composition still need it
+make RadarPulseProductPipelineApiContract depend on the focused ports
+make Infrastructure RadarPulseProductPipelineService implement the focused
+  ports
+update HTTP DI and tests to register/verify the segmented ports
+extend architecture tests so Presentation/API boundary does not regress to a
+  concrete Infrastructure contract or one broad service dependency
+```
+
+Verification:
+
+```text
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+  "FullyQualifiedName~Architecture|FullyQualifiedName~Product" -c Release
+  --no-restore
+dotnet build RadarPulse.sln -c Release --no-restore
+git diff --check
+```
+
+## Slice 6: Remove Domain Friend Assembly
+
+Goal:
+
+```text
+remove Domain InternalsVisibleTo("RadarPulse.Infrastructure") so the Domain
+assembly has no privileged Infrastructure adapter access path
+```
+
+Planned changes:
+
+```text
+delete src/Domain/Properties/AssemblyInfo.cs
+replace Infrastructure calls to internal Domain factories, validation helpers,
+  exceptions, and retained-resource owner contracts with explicit public
+  domain APIs or domain-owned operations
+keep behavior and runtime defaults unchanged
+add architecture guardrail coverage that fails if Domain grants friend access
+  to Infrastructure again
+run processing-focused gates because the affected surface is processing-heavy
+```
+
+Verification:
+
+```text
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+  "FullyQualifiedName~Architecture|FullyQualifiedName~Processing" -c Release
+  --no-restore
+dotnet build RadarPulse.sln -c Release --no-restore
+git diff --check
+```
+
+## Slice 7: CLI Command-Family Extraction
+
+Goal:
+
+```text
+remove the remaining broad Presentation SRP warning by splitting archive and
+processing command-family workflows out of Program.cs so the top-level
+entrypoint is a thin command router
+```
+
+Planned changes:
+
+```text
+extract archive command routing/workflows and archive-specific output helpers
+  into focused CLI command helpers
+extract processing benchmark command routing/workflows and processing-specific
+  output helpers into focused CLI command helpers
+leave option records and public command shapes compatible unless a focused
+  helper can safely own them without changing tests
+add or update presentation CLI tests where routing ownership changes
+preserve all accepted CLI output text and exit-code behavior
+```
+
+Verification:
+
+```text
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+  "FullyQualifiedName~Presentation.Cli" -c Release --no-restore
+dotnet build RadarPulse.sln -c Release --no-restore
+git diff --check
+```
+
 ## Final Pre-Decision State
 
 Before decision trace discussion, update:
@@ -171,5 +274,5 @@ Stop condition:
 
 ```text
 do not write decision trace or closeout until the final architecture posture,
-remaining warnings, and 9/10 assessment are discussed
+remaining warnings, and 10/10 assessment are discussed
 ```
