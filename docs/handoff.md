@@ -36,7 +36,7 @@ persistence, runtime defaults, and demo/readiness behavior.
 Stop point:
 
 ```text
-milestone 036 implementation slices complete; final pre-decision validation is next
+milestone 036 10/10 implementation slices complete; stop before decision trace
 ```
 
 Most recently closed milestone:
@@ -155,12 +155,16 @@ milestone 036 slice 7 CLI command-family extraction:
     /p:UseSharedCompilation=false
     passed, 0 warnings, 0 errors
   dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
-    "FullyQualifiedName~Architecture" -c Release --no-build
-    passed, 7 passed, 0 failed, 0 skipped
-  dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
-    "FullyQualifiedName~RadarPulseCli|FullyQualifiedName~ProductPipelineCli"
+    "FullyQualifiedName~Architecture|FullyQualifiedName~Product|FullyQualifiedName~RadarPulseCli|FullyQualifiedName~ProductPipelineCli"
     -c Release --no-build
-    passed, 37 passed, 0 failed, 0 skipped
+    passed, 126 passed, 0 failed, 0 skipped
+  dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj -c Release
+    --no-build
+    failed in combined all-tests process, 1009 passed, 2 failed, 3 skipped
+  isolated rerun of both failed processing tests:
+    passed, 1 passed each
+  git diff --check:
+    passed
 ```
 
 Milestone 035 documents:

@@ -2,9 +2,8 @@
 
 Status: current during milestone 036. Clean architecture hardening has been
 expanded from the earlier 9/10 target to a 10/10 target inside the same
-milestone. The project remains stopped before decision trace discussion until
-the additional 10/10 slices are implemented while preserving accepted local
-product demo behavior.
+milestone, and the 10/10 implementation slices are complete. The project is
+stopped before decision trace discussion.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -32,9 +31,9 @@ targeted project restructuring and maintenance milestone, and the code
 contract documentation pass. Milestone 035 is complete through closeout.
 Milestone 036 is now active as a targeted architecture-hardening milestone
 over the accepted product/application/infrastructure/presentation boundary.
-The first implementation slices are complete; additional 10/10 slices are now
-planned for port segregation, Domain friend assembly removal, and CLI
-command-family extraction.
+The 10/10 implementation slices are complete for port segregation, Domain
+friend assembly removal, and CLI command-family extraction. Decision trace
+discussion is pending.
 
 Current state:
 
@@ -52,8 +51,7 @@ latest completed milestone status:
 active milestone:
   036 clean architecture hardening toward 10/10
 active milestone implementation status:
-  initial implementation slices complete
-  10/10 expansion planned
+  10/10 implementation slices complete
   stopped before decision trace
 active milestone goal:
   raise reviewed Clean Architecture, GRASP, SOLID, and GoF posture from
@@ -77,6 +75,10 @@ active milestone completed implementation:
     namespace direction, product API ownership, and HTTP endpoint dependency
   product pipeline service helper responsibilities were extracted
   product pipeline CLI workflow was extracted from Program.cs
+  Product Application ports were split into focused run, query, history, and
+    control ports
+  Domain no longer grants InternalsVisibleTo access to Infrastructure
+  Program.cs is now a thin top-level entrypoint guarded by architecture tests
 latest completed milestone changes:
   product/API, HTTP, CLI, product history, and product pipeline contract
     documentation

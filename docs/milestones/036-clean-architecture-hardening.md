@@ -582,3 +582,41 @@ dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
   -c Release --no-build
   result: passed, 37 passed, 0 failed, 0 skipped
 ```
+
+## Final 10/10 Pre-Decision Validation
+
+Status: ready for discussion before decision trace.
+
+Summary:
+
+```text
+implementation slices 1-7 are committed
+Product API boundary points Presentation at Application contracts
+Application product API contract depends on focused ports
+architecture guardrails cover project direction, namespace direction, Product
+API ownership, API port segregation, Domain friend access, HTTP endpoint API
+dependency, and thin CLI Program.cs entrypoint shape
+Domain no longer grants friend access to Infrastructure
+Product service, Product CLI workflow, and CLI entrypoint SRP hotspots are
+reduced or guarded without changing accepted behavior
+decision trace and closeout are intentionally not written yet
+```
+
+Final gate evidence:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore /p:UseSharedCompilation=false
+  result: passed, 0 warnings, 0 errors
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+  "FullyQualifiedName~Architecture|FullyQualifiedName~Product|FullyQualifiedName~RadarPulseCli|FullyQualifiedName~ProductPipelineCli"
+  -c Release --no-build
+  result: passed, 126 passed, 0 failed, 0 skipped
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj -c Release --no-build
+  result: failed in combined all-tests process, 1009 passed, 2 failed,
+    3 skipped
+  isolated rerun of both failed processing tests passed, confirming the
+    existing process-order/benchmark sensitivity rather than a milestone 036
+    slice regression
+git diff --check
+  result: passed
+```
