@@ -1,0 +1,116 @@
+using RadarPulse.Domain.Processing;
+
+namespace RadarPulse.Infrastructure.Processing;
+
+public static partial class RadarProcessingBenchmarkHandlers
+{
+    private const int HeavySampleCount = 16;
+    private const ulong HeavyChecksumInitial = 14_695_981_039_346_656_037UL;
+    private const ulong HeavyChecksumPrime = 1_099_511_628_211UL;
+
+    private sealed class HeavySampledChecksumBenchmarkHandler :
+        IRadarSourceProcessingHandler,
+        IRadarSourceProcessingHandlerExecutionMetadata,
+        IRadarProcessingHandlerDeltaMerger,
+        IRadarProcessingHandlerDeltaAccumulatorFactory
+    {
+        public RadarSourceProcessingHandlerDescriptor Descriptor { get; } =
+            new(
+                "benchmark.heavy_sampled_checksum",
+                int64SlotCount: 3,
+                doubleSlotCount: 0,
+                new[]
+                {
+                    new RadarSourceProcessingSnapshotFieldDescriptor(
+                        "benchmark.heavy.events",
+                        RadarSourceProcessingSnapshotFieldType.Int64,
+                        slotIndex: 0),
+                    new RadarSourceProcessingSnapshotFieldDescriptor(
+                        "benchmark.heavy.payload_values",
+                        RadarSourceProcessingSnapshotFieldType.Int64,
+                        slotIndex: 1),
+                    new RadarSourceProcessingSnapshotFieldDescriptor(
+                        "benchmark.heavy.work_checksum",
+                        RadarSourceProcessingSnapshotFieldType.Int64,
+                        slotIndex: 2)
+                });
+
+        public RadarSourceProcessingHandlerExecutionClassification ExecutionClassification =>
+            RadarSourceProcessingHandlerExecutionClassification.Mergeable;
+
+        public string HandlerName => "benchmark.heavy_sampled_checksum";
+
+        public string HandlerContractVersion => "v1";
+
+        public void Process(
+            in RadarSourceProcessingHandlerContext context,
+            RadarSourceProcessingState state)
+        {
+            state.AddInt64(slotIndex: 0, value: 1);
+            state.AddInt64(slotIndex: 1, context.PayloadMetrics.PayloadValueCount);
+            state.AddInt64(slotIndex: 2, ComputeBoundedWorkChecksum(context));
+        }
+
+        public IReadOnlyList<RadarProcessingHandlerDeltaValue> Merge(
+            IReadOnlyList<RadarProcessingHandlerDeltaValue> currentValues,
+            RadarProcessingHandlerDelta delta) =>
+            MergeInt64Values(currentValues, delta);
+
+        public IRadarProcessingHandlerDeltaAccumulator CreateAccumulator() =>
+            new Int64SumHandlerDeltaAccumulator();
+
+        private static long ComputeBoundedWorkChecksum(
+            in RadarSourceProcessingHandlerContext context)
+        {
+            var payload = context.Payload;
+            var checksum = HeavyChecksumInitial;
+            checksum = AppendInt64(checksum, context.StreamEvent.MessageTimestampUtcTicks);
+            checksum = AppendInt64(checksum, context.StreamEvent.VolumeTimestampUtcTicks);
+            checksum = AppendInt32(checksum, context.StreamEvent.RadialSequence);
+            checksum = AppendInt64(checksum, context.PayloadMetrics.PayloadValueCount);
+            checksum = AppendInt64(checksum, context.PayloadMetrics.RawValueChecksum);
+
+            if (!payload.IsEmpty)
+            {
+                var step = Math.Max(1, payload.Length / HeavySampleCount);
+                for (var sample = 0; sample < HeavySampleCount; sample++)
+                {
+                    var index = Math.Min(payload.Length - 1, sample * step);
+                    checksum = AppendByte(checksum, payload[index]);
+                    checksum = AppendByte(checksum, payload[payload.Length - 1 - index]);
+                }
+            }
+
+            return (long)(checksum & 0x0000_0000_000f_ffffUL);
+        }
+
+        private static ulong AppendByte(ulong checksum, byte value) =>
+            unchecked((checksum ^ value) * HeavyChecksumPrime);
+
+        private static ulong AppendInt32(ulong checksum, int value) =>
+            AppendUInt32(checksum, unchecked((uint)value));
+
+        private static ulong AppendUInt32(ulong checksum, uint value)
+        {
+            checksum = AppendByte(checksum, (byte)value);
+            checksum = AppendByte(checksum, (byte)(value >> 8));
+            checksum = AppendByte(checksum, (byte)(value >> 16));
+            return AppendByte(checksum, (byte)(value >> 24));
+        }
+
+        private static ulong AppendInt64(ulong checksum, long value) =>
+            AppendUInt64(checksum, unchecked((ulong)value));
+
+        private static ulong AppendUInt64(ulong checksum, ulong value)
+        {
+            checksum = AppendByte(checksum, (byte)value);
+            checksum = AppendByte(checksum, (byte)(value >> 8));
+            checksum = AppendByte(checksum, (byte)(value >> 16));
+            checksum = AppendByte(checksum, (byte)(value >> 24));
+            checksum = AppendByte(checksum, (byte)(value >> 32));
+            checksum = AppendByte(checksum, (byte)(value >> 40));
+            checksum = AppendByte(checksum, (byte)(value >> 48));
+            return AppendByte(checksum, (byte)(value >> 56));
+        }
+    }
+}
