@@ -632,6 +632,74 @@ git diff --check
   result: passed
 ```
 
+### Change 12: Performance Evidence Capture
+
+Status: complete.
+
+Intent:
+
+```text
+record full-cache end-to-end performance and a separate processing-only
+benchmark suitable for a restrained world-class technology claim
+```
+
+Scope:
+
+```text
+docs/milestones/036-clean-architecture-hardening-performance-evidence.md
+docs/milestones/036-clean-architecture-hardening.md
+docs/milestones/036-clean-architecture-hardening-plan.md
+docs/project-progress.md
+docs/handoff.md
+```
+
+Outcome:
+
+```text
+full-cache matrix records rebalance-archive borrowed/default rows and
+ordered-archive-processing handler rows over data/nexrad
+processing-only synthetic matrix isolates RadarProcessingCore handler
+throughput from archive replay, decompression, Archive II scanning, identity
+normalization, and batch construction
+performance evidence records throughput, allocation, correctness, source
+coverage, raw artifact directories, and claim boundaries
+```
+
+Key evidence:
+
+```text
+full-cache ordered custom-handler path:
+  46_080 logical sources
+  27_254_760 RadarStreamEvent records
+  32_306_203_200 payload values
+  counter-checksum-heavy active=4:
+    447_152.29 RadarStreamEvent/s end-to-end
+    530_028_245.90 payload values/s end-to-end
+    12_212_257_456 allocated bytes
+    448.08 bytes/RadarStreamEvent
+
+processing-only heavy handler path:
+  46_080 logical sources
+  1_048_576 RadarStreamEvent records per measured iteration
+  sequential heavy:
+    2_101_506.66 RadarStreamEvent/s
+  partitioned heavy:
+    2_060_612.64 RadarStreamEvent/s
+  async heavy:
+    1_140_818.38 RadarStreamEvent/s
+```
+
+Verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore /p:UseSharedCompilation=false
+  result: passed, 0 warnings, 0 errors
+full-cache raw logs:
+  data/perf/m036-full-cache-20260528-142529
+processing-only raw logs:
+  data/perf/m036-world-class-20260528-151123
+```
+
 ## Final 10/10 Pre-Decision Validation
 
 Status: ready for discussion before decision trace.
@@ -639,7 +707,7 @@ Status: ready for discussion before decision trace.
 Summary:
 
 ```text
-implementation slices 1-8 are committed
+implementation and evidence slices 1-9 are complete
 Product API boundary points Presentation at Application contracts
 Application product API contract depends on focused ports
 architecture guardrails cover project direction, namespace direction, Product
@@ -650,6 +718,8 @@ Product service, Product CLI workflow, and CLI entrypoint SRP hotspots are
 reduced or guarded without changing accepted behavior
 processing benchmark allocation gates no longer depend on full-suite process
 order for the accepted Release test run
+performance evidence is captured separately for full-cache end-to-end runtime
+and processing-only handler-engine throughput
 decision trace and closeout are intentionally not written yet
 ```
 
@@ -664,6 +734,8 @@ dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
   result: passed, 126 passed, 0 failed, 0 skipped
 dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj -c Release --no-build
   result: passed, 1011 passed, 0 failed, 3 skipped
+docs/milestones/036-clean-architecture-hardening-performance-evidence.md
+  result: captured full-cache and processing-only performance evidence
 git diff --check
   result: passed
 ```

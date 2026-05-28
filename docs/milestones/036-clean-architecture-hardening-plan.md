@@ -25,6 +25,8 @@ then split the remaining broad CLI command-family responsibilities out of
   the top-level entrypoint
 then stabilize the processing benchmark allocation gates so the full test
   suite is not sensitive to process order
+then capture separate full-cache and processing-only performance evidence for
+  architecture closeout discussion
 ```
 
 Each slice should leave the solution buildable and independently reviewable.
@@ -291,12 +293,61 @@ git diff --check
 
 ## Final Pre-Decision State
 
+## Slice 9: Performance Evidence Capture
+
+Goal:
+
+```text
+record full-cache end-to-end performance evidence and a separate
+processing-only benchmark suitable for a restrained world-class technology
+claim
+```
+
+Planned changes:
+
+```text
+capture the full-cache rebalance and ordered custom-handler matrix over
+  data/nexrad
+run a synthetic processing-only benchmark that excludes archive replay,
+  decompression, Archive II scanning, identity normalization, and batch
+  construction
+keep the claim boundary explicit: local Release evidence, not external
+  comparative certification
+document throughput, allocation, correctness, source coverage, and remaining
+  allocation debt
+```
+
+Verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore
+  /p:UseSharedCompilation=false
+dotnet src/Presentation/RadarPulse.Cli/bin/Release/net10.0/RadarPulse.Cli.dll
+  processing benchmark rebalance-archive --cache data/nexrad --max-files
+  1000000 --mode all --execution async --workers 4 --iterations 1
+  --warmup-iterations 0 --parallelism 24 --partitions 24 --shards 4
+  --validation-profile benchmark
+dotnet src/Presentation/RadarPulse.Cli/bin/Release/net10.0/RadarPulse.Cli.dll
+  processing benchmark ordered-archive-processing --cache data/nexrad
+  --max-files 1000000 --iterations 1 --warmup-iterations 0 --parallelism 24
+  --partitions 24 --shards 4 --active-batches <1|4>
+  --handlers <none|counter-checksum|counter-checksum-heavy>
+dotnet src/Presentation/RadarPulse.Cli/bin/Release/net10.0/RadarPulse.Cli.dll
+  processing benchmark synthetic --sources 46080 --batches 256
+  --events-per-batch 4096 --payload-values 64 --partitions 24 --shards 4
+  --iterations 5 --warmup-iterations 2 --mode
+  <sequential|partitioned|async> --handlers
+  <none|counter-checksum|counter-checksum-heavy>
+git diff --check
+```
+
 Before decision trace discussion, update:
 
 ```text
 docs/milestones/036-clean-architecture-hardening.md
 docs/handoff.md
 docs/project-progress.md
+docs/milestones/036-clean-architecture-hardening-performance-evidence.md
 ```
 
 Expected final gate before discussion:

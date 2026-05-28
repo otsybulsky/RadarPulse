@@ -37,7 +37,7 @@ Stop point:
 
 ```text
 milestone 036 10/10 implementation slices and full-suite stabilization
-complete; stop before decision trace
+complete; performance evidence captured; stop before decision trace
 ```
 
 Most recently closed milestone:
@@ -63,6 +63,7 @@ Milestone 036 documents:
 ```text
 docs/milestones/036-clean-architecture-hardening.md
 docs/milestones/036-clean-architecture-hardening-plan.md
+docs/milestones/036-clean-architecture-hardening-performance-evidence.md
 ```
 
 Milestone 036 objective:
@@ -81,6 +82,8 @@ remove Domain InternalsVisibleTo access for Infrastructure
 make Program.cs a thin command-family router
 stabilize processing benchmark allocation gates so full-suite verification is
   not sensitive to test process order
+capture full-cache and processing-only performance evidence before decision
+  trace discussion
 ```
 
 Milestone 036 planned slices:
@@ -112,6 +115,9 @@ Milestone 036 planned slices:
 8. Full suite benchmark stabilization:
    remove processing benchmark allocation process-order sensitivity so the
    full Release test suite passes in one combined run. [complete]
+9. Performance evidence capture:
+   record the full-cache matrix and a separate processing-only benchmark for
+   a restrained world-class technology claim. [complete]
 ```
 
 Milestone 036 completed changes:
@@ -156,12 +162,28 @@ Milestone 036 completed changes:
     appropriate snapshots, the startup-prewarm runtime default test asserts
     deterministic run-local retention telemetry, and the full Release test
     suite passes in one combined run.
+12. Performance evidence capture:
+    full-cache end-to-end performance and processing-only handler-engine
+    performance are documented with throughput, allocation, correctness,
+    source coverage, raw artifact paths, and claim boundaries.
 ```
 
 Latest verification:
 
 ```text
-milestone 036 slice 8 full suite benchmark stabilization:
+milestone 036 slice 9 performance evidence capture:
+  full-cache raw logs:
+    data/perf/m036-full-cache-20260528-142529
+  processing-only raw logs:
+    data/perf/m036-world-class-20260528-151123
+  full-cache counter-checksum-heavy active=4:
+    447_152.29 RadarStreamEvent/s end-to-end
+    530_028_245.90 payload values/s end-to-end
+    12_212_257_456 allocated bytes
+  processing-only counter-checksum-heavy:
+    sequential: 2_101_506.66 RadarStreamEvent/s
+    partitioned: 2_060_612.64 RadarStreamEvent/s
+    async: 1_140_818.38 RadarStreamEvent/s
   dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
     "FullyQualifiedName=RadarPulse.Tests.Processing.RadarProcessingArchiveQueuedOverlapRunnerTests.OmittedOptionsApplyRuntimeDefaultStartupPrewarm|FullyQualifiedName=RadarPulse.Tests.Processing.RadarProcessingSyntheticRebalanceBenchmarkTests.AcceptedMovePressureAggregationDoesNotCopyPreviousIterations"
     -c Release --no-restore /p:UseSharedCompilation=false

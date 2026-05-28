@@ -4,7 +4,8 @@ Status: current during milestone 036. Clean architecture hardening has been
 expanded from the earlier 9/10 target to a 10/10 target inside the same
 milestone, and the 10/10 implementation slices are complete. The project is
 stopped before decision trace discussion after full-suite benchmark
-stabilization removed the remaining process-order allocation test sensitivity.
+stabilization removed the remaining process-order allocation test sensitivity
+and milestone 036 performance evidence was captured.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -55,6 +56,7 @@ active milestone implementation status:
   10/10 implementation slices complete
   full Release test suite passes in one combined run after benchmark
     stabilization
+  full-cache and processing-only performance evidence captured
   stopped before decision trace
 active milestone goal:
   raise reviewed Clean Architecture, GRASP, SOLID, and GoF posture from
@@ -84,6 +86,8 @@ active milestone completed implementation:
   Program.cs is now a thin top-level entrypoint guarded by architecture tests
   processing benchmark allocation checks are stabilized against test process
     order by using deterministic run-local evidence where appropriate
+  performance evidence records full-cache end-to-end custom-handler throughput
+    and a separate processing-only handler-engine benchmark for claim review
 latest completed milestone changes:
   product/API, HTTP, CLI, product history, and product pipeline contract
     documentation
@@ -108,6 +112,10 @@ current accepted benchmark/default posture:
   retained payload prewarm is enabled for the direct benchmark
   default-equivalent contour and is explicitly attributed outside measured row
   allocation
+  milestone 036 performance evidence records 447_152.29
+    RadarStreamEvent/s and 530_028_245.90 payload values/s for the full-cache
+    counter-checksum-heavy active=4 path, plus 2_101_506.66
+    RadarStreamEvent/s for the processing-only heavy sequential path
 
 current runtime/live posture:
   prewarmed queued-owned default baseline accepted with warnings
