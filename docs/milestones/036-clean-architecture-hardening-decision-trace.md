@@ -389,5 +389,6 @@ Closeout status:
 
 ```text
 decision trace written
-closeout not written yet
+closeout written:
+  docs/milestones/036-clean-architecture-hardening-closeout.md
 ```

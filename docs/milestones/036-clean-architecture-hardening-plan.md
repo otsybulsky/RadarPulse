@@ -1,6 +1,6 @@
 # Milestone 036: Implementation Plan
 
-Status: active; decision trace written, closeout pending.
+Status: complete.
 
 This plan implements the milestone 036 architecture-hardening boundary in
 small behavior-preserving slices. The target is a defensible 10/10 score for
@@ -611,7 +611,7 @@ Stop condition:
 ```text
 decision trace is written after the final architecture posture, remaining
 warnings, and 10/10 assessment were discussed
-do not write closeout until the decision trace is reviewed
+closeout is written after decision trace review
 ```
 
 ## Decision Trace State
@@ -622,5 +622,5 @@ Status: written.
 decision trace:
   docs/milestones/036-clean-architecture-hardening-decision-trace.md
 closeout:
-  not written yet
+  docs/milestones/036-clean-architecture-hardening-closeout.md
 ```

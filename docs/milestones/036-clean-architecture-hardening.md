@@ -1,6 +1,6 @@
 # Milestone 036: Clean Architecture Hardening Toward 10/10
 
-Status: active; decision trace written, closeout pending.
+Status: complete.
 
 Milestone 036 starts after the closed milestone 035 code contract
 documentation pass. RadarPulse leaves freeze mode for one targeted
@@ -368,7 +368,7 @@ implementation slices 1-4 are committed
 product API boundary now points Presentation at Application contracts
 architecture guardrails are executable tests
 product service and product CLI SRP hotspots are reduced with bounded notes
-decision trace is written; closeout is intentionally not written yet
+decision trace and closeout are written
 10/10 expansion adds follow-up slices for port segregation, Domain friend
   assembly removal, and remaining CLI command-family extraction
 ```
@@ -1025,7 +1025,7 @@ dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj -c Release --no-build
 
 ## Final 10/10 Pre-Decision Validation
 
-Status: decision trace written, closeout pending.
+Status: complete.
 
 Summary:
 
@@ -1045,7 +1045,7 @@ processing benchmark allocation gates no longer depend on full-suite process
 order for the accepted Release test run
 performance evidence is captured separately for full-cache end-to-end runtime
 and processing-only handler-engine throughput
-decision trace is written; closeout is intentionally not written yet
+decision trace and closeout are written
 ```
 
 Large-class SRP extension summary:
@@ -1060,7 +1060,7 @@ folders
 src/tests physical C# file-size guardrail is clean: 0 files above 250 code-ish
 lines
 full Release build and test suite pass after all SRP extension slices
-decision trace is written; closeout is intentionally not written yet
+decision trace and closeout are written
 ```
 
 Final architecture assessment:
@@ -1096,8 +1096,7 @@ RadarPulseCliApplication still owns command-family routing, but Program.cs is
 Full-cache active=4 heavy-handler allocation pressure remains a performance
   optimization signal, not a Clean Architecture, GRASP, SOLID, or GoF
   violation.
-Decision trace is written after final posture discussion; closeout remains
-  intentionally unwritten.
+Decision trace and closeout are written after final posture discussion.
 ```
 
 Post-SRP physical file validation:
@@ -1125,6 +1124,8 @@ dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj -c Release --no-build
 docs/milestones/036-clean-architecture-hardening-performance-evidence.md
   result: captured full-cache and processing-only performance evidence
 docs/milestones/036-clean-architecture-hardening-decision-trace.md
+  result: written
+docs/milestones/036-clean-architecture-hardening-closeout.md
   result: written
 git diff --check
   result: passed

@@ -1,10 +1,11 @@
-# Handoff: Milestone 036 Active
+# Handoff: Milestone 036 Closed
 
 ## Current State
 
-Milestone 036 is active after milestone 035 closeout. The current goal is a
-targeted behavior-preserving architecture hardening pass that raises the
-reviewed Clean Architecture, GRASP, SOLID, and GoF posture to 10/10.
+Milestone 036 is closed after milestone 035 closeout. RadarPulse returns to
+freeze mode after a targeted behavior-preserving architecture hardening pass
+that raised the reviewed Clean Architecture, GRASP, SOLID, and GoF posture to
+a defensible 10/10 for the accepted local product demo/runtime boundary.
 
 Milestone 035 is closed after milestone 034 closeout as a freeze-mode
 maintenance pass for code contract documentation. It added XML descriptions
@@ -26,20 +27,17 @@ accepted package verification flow through Windows PowerShell, WSL/Bash, and
 Windows PowerShell again after WSL restore metadata refresh. The closeout is
 written.
 
-RadarPulse has left freeze mode only for milestone 036. The milestone is
-explicitly scoped to architecture hardening around product/application,
-infrastructure adapters, presentation dependencies, architecture tests,
-Application port segregation, Domain friend assembly removal, and CLI
-command-family extraction. It must preserve accepted product API, CLI, HTTP,
-persistence, runtime defaults, and demo/readiness behavior.
+Milestone 036 preserved accepted product API, CLI, HTTP, persistence, runtime
+defaults, and demo/readiness behavior. No active feature/runtime milestone is
+open by default after closeout.
 
-Current stop point:
+Current state:
 
 ```text
 milestone 036 10/10 boundary implementation slices, full-suite
 stabilization, performance evidence, and SRP large-class treatment are
 complete; no src/tests C# file remains above 250 code-ish lines; decision
-trace is written; closeout is pending
+trace and closeout are written; project mode is freeze mode
 ```
 
 Architecture assessment verdict:
@@ -53,7 +51,7 @@ Clean Architecture, GRASP, SOLID, pragmatic GoF use, automated guardrails, and
 evidence posture are each assessed at 10/10 for the current milestone scope.
 Residual notes remain limited to compatibility aggregate presence, possible
 future CLI refinement, and full-cache heavy-handler allocation optimization.
-After review, the CLI refinement note was pulled into the active milestone as
+After review, the CLI refinement note was pulled into milestone 036 as
 part of a broader oversized-class SRP treatment extension; the 10/10 boundary
 posture remains accepted while maintainability is improved. The extension is
 now complete: all physical C# files in src and tests are bounded at or below
@@ -63,19 +61,19 @@ now complete: all physical C# files in src and tests are bounded at or below
 Most recently closed milestone:
 
 ```text
-035 Code Contract Documentation Pass
+036 Clean Architecture Hardening Toward 10/10
 ```
 
 Current project mode:
 
 ```text
-targeted architecture-hardening milestone
+freeze mode
 ```
 
 Active milestone:
 
 ```text
-036 Clean Architecture Hardening Toward 10/10
+none
 ```
 
 Milestone 036 documents:
@@ -85,6 +83,7 @@ docs/milestones/036-clean-architecture-hardening.md
 docs/milestones/036-clean-architecture-hardening-plan.md
 docs/milestones/036-clean-architecture-hardening-performance-evidence.md
 docs/milestones/036-clean-architecture-hardening-decision-trace.md
+docs/milestones/036-clean-architecture-hardening-closeout.md
 ```
 
 Milestone 036 objective:
@@ -109,6 +108,7 @@ complete SRP treatment for oversized CLI, benchmark, session, and test fixture
   files before decision trace was written
 write the decision trace in the standard format after final architecture
   posture discussion
+write closeout and return the project to freeze mode
 ```
 
 Milestone 036 planned slices:
@@ -163,6 +163,9 @@ Milestone 036 planned slices:
 15. Decision trace:
     record the accepted 10/10 clean architecture posture, scoped residual
     risks, evidence, and claim boundary in the standard format. [complete]
+16. Closeout:
+    record final outcome, scope boundaries, verification summary, scoped
+    warnings, and post-closeout freeze mode. [complete]
 ```
 
 Milestone 036 completed changes:
@@ -246,6 +249,9 @@ Milestone 036 completed changes:
     standard-format decision trace is written for the accepted 10/10
     architecture posture, residual warnings, performance evidence, and
     closeout boundary.
+20. Closeout:
+    milestone 036 closeout is written; RadarPulse returns to freeze mode with
+    no active feature/runtime milestone by default.
 ```
 
 Latest verification:
@@ -333,7 +339,9 @@ milestone 036 slice 9 performance evidence capture:
 milestone 036 decision trace:
   docs/milestones/036-clean-architecture-hardening-decision-trace.md
   status: written
-  closeout: pending
+milestone 036 closeout:
+  docs/milestones/036-clean-architecture-hardening-closeout.md
+  status: written
 ```
 
 Milestone 035 documents:

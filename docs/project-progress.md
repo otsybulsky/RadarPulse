@@ -1,16 +1,15 @@
 # RadarPulse Project Progress
 
-Status: current during milestone 036. Clean architecture hardening has been
+Status: current after milestone 036 closeout. Clean architecture hardening
 expanded from the earlier 9/10 target to a 10/10 target inside the same
-milestone, and the 10/10 implementation slices are complete. Full-suite
-benchmark stabilization removed the remaining process-order allocation test
-sensitivity, milestone 036 performance evidence was captured, and the
-standard-format decision trace is now written. The final architecture
-assessment records a defensible 10/10 posture for the accepted local product
+milestone, and the milestone is now complete. Full-suite benchmark
+stabilization removed the remaining process-order allocation test
+sensitivity, performance evidence was captured, the standard-format decision
+trace is written, and closeout is written. The final architecture assessment
+records a defensible 10/10 posture for the accepted local product
 demo/runtime boundary across Clean Architecture, GRASP, SOLID, pragmatic GoF
-use, automated guardrails, and evidence posture. After review, the milestone
-stayed active for additional SRP treatment of oversized CLI, benchmark,
-session, and test fixture files; that SRP sweep is now complete, with no
+use, automated guardrails, and evidence posture. The SRP sweep for oversized
+CLI, benchmark, session, and test fixture files is complete, with no
 src/tests C# file above 250 code-ish lines.
 
 This file is the project-level progress ledger. Milestone documents remain the
@@ -35,30 +34,31 @@ milestone, the product HTTP host and persistent run history milestone, the
 product operator Angular SPA milestone, the operator UI hardening and
 integrated local delivery milestone, the product demo/readiness packaging
 milestone, the product demo polish and portfolio readiness milestone, the
-targeted project restructuring and maintenance milestone, and the code
-contract documentation pass. Milestone 035 is complete through closeout.
-Milestone 036 is now active as a targeted architecture-hardening milestone
-over the accepted product/application/infrastructure/presentation boundary.
-The 10/10 implementation slices are complete for port segregation, Domain
-friend assembly removal, and CLI command-family extraction. Decision trace is
-written and closeout is pending.
+targeted project restructuring and maintenance milestone, the code contract
+documentation pass, and the clean architecture hardening toward 10/10
+milestone. Milestone 036 is complete through closeout. RadarPulse is back in
+freeze mode with no active feature/runtime milestone by default.
 
 Current state:
 
 ```text
-completed milestones: 001-035
+completed milestones: 001-036
 latest completed milestone:
-  035 code contract documentation pass
+  036 clean architecture hardening toward 10/10
 latest completed milestone status:
-  accepted public and domain-facing C# contracts documented
-  product/API, archive, streaming, processing domain, processing
-    infrastructure, presentation entrypoint, and product history contract
-    surfaces covered
-  final top-level public C# surface audit captured
+  accepted with scoped warnings for clean architecture hardening toward a
+    defensible 10/10 posture over the accepted local product demo/runtime
+    boundary
+  Application-owned product API boundary and focused product ports accepted
+  architecture guardrails accepted
+  Domain friend assembly removal accepted
+  SRP treatment accepted across product, CLI, benchmark, session, and test
+    fixture surfaces
+  performance evidence and restrained technology-claim boundary accepted
   closeout written
 active milestone:
-  036 clean architecture hardening toward 10/10
-active milestone implementation status:
+  none
+milestone 036 closeout status:
   10/10 boundary implementation slices complete
   final architecture assessment recorded as defensible 10/10
   full Release test suite passes in one combined run after benchmark
@@ -74,8 +74,8 @@ active milestone implementation status:
   src/tests C# file inventory: 0 files above 250 code-ish lines; current
     maximum is 249
   decision trace written
-  closeout pending
-active milestone goal:
+  closeout written
+milestone 036 completed goal:
   raise reviewed Clean Architecture, GRASP, SOLID, and GoF posture from
     roughly 7/10 to 10/10
   move product-facing API/use-case contracts into Application
@@ -88,7 +88,7 @@ active milestone goal:
   remove Domain friend access to Infrastructure
   split remaining archive/processing CLI command-family workflows out of
     Program.cs
-active milestone completed implementation:
+milestone 036 completed implementation:
   Application now owns the product pipeline service/API ports and API
     contract
   Infrastructure product service implements the Application service port
@@ -117,21 +117,25 @@ active milestone completed implementation:
   post-SRP production max physical class declaration is 1_089 code-ish lines
     versus the pre-SRP 2_411 code-ish line maximum
 latest completed milestone changes:
-  product/API, HTTP, CLI, product history, and product pipeline contract
-    documentation
-  processing queueing, durable, handler, topology, rebalance, pressure,
-    retention, core, async, worker, benchmark, and infrastructure contract
-    documentation
-  streaming identity, source, stream, batch, validation, and deterministic
-    metric contract documentation
-  archive application, domain, infrastructure, validation, decompression,
-    replay, publishing, and benchmark contract documentation
-  final real-gap sweep over top-level public C# surface and selected public
-    members that carry accepted contracts
-  project-wide XML documentation enforcement intentionally remains disabled
+  Application now owns product-facing API/use-case contracts and response
+    mapping
+  Presentation product HTTP endpoints depend on Application abstractions
+  focused Application run/query/history/control ports are accepted
+  Architecture guardrails protect dependency direction, Product API ownership,
+    port segregation, Domain friend access, endpoint dependencies, and thin
+    CLI entrypoint shape
+  Domain no longer grants friend access to Infrastructure
+  Product orchestration, CLI, benchmark, queue/session, and test fixture SRP
+    pressure was reduced or physically bounded
+  Process-order-sensitive benchmark allocation tests were stabilized
+  Full-cache and processing-only performance evidence was captured with a
+    restrained claim boundary
+  Final src/tests C# inventory has 0 files above 250 code-ish lines
+  Decision trace and closeout are written
 latest milestone closeout:
-  accepted with scoped warnings for code contract documentation over the
-    accepted local product demo boundary
+  accepted with scoped warnings for clean architecture hardening toward a
+    defensible 10/10 posture over the accepted local product demo/runtime
+    boundary
 
 current accepted benchmark/default posture:
   queued-owned direct/default contour for broader cache-level archive
