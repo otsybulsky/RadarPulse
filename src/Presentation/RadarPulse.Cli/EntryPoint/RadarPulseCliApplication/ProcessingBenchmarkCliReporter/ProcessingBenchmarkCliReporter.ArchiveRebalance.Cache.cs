@@ -11,19 +11,29 @@ using static CliFormat;
 
 internal static partial class ProcessingBenchmarkCliReporter
 {
-    public static void PrintProcessingArchiveRebalanceBenchmarkResult(
-        RadarProcessingArchiveRebalanceBenchmarkResult result,
+    public static void PrintProcessingArchiveRebalanceCacheBenchmarkResult(
+        RadarProcessingArchiveRebalanceCacheBenchmarkResult result,
         ProcessingBenchmarkArchiveRebalanceOptions options)
     {
         var queueTelemetryOutput = options.QueueTelemetryOutput;
         var overlapTelemetryOutput = options.OverlapTelemetryOutput;
-        Console.WriteLine("Processing benchmark: rebalance-archive");
-        Console.WriteLine("Measured contour: Archive replay to RadarEventBatch plus processing rebalance callback");
+        Console.WriteLine("Processing benchmark: rebalance-archive cache");
+        Console.WriteLine("Measured contour: Archive cache replay to RadarEventBatch plus processing rebalance callback");
         Console.WriteLine("Processing-only timing: RadarEventBatch callback inside archive publisher");
         Console.WriteLine(result.ProviderMode == RadarProcessingArchiveProviderMode.QueuedOwned
             ? "Batch lifetime: leased batches are converted to owned snapshots before provider queue enqueue"
             : "Batch lifetime: leased batches are processed during the callback and are not retained");
-        Console.WriteLine($"File: {result.FilePath}");
+        Console.WriteLine($"Cache: {result.CachePath}");
+        if (result.Date is { } date)
+        {
+            Console.WriteLine($"Date: {date:yyyy-MM-dd}");
+        }
+
+        if (result.RadarId is not null)
+        {
+            Console.WriteLine($"Radar: {result.RadarId}");
+        }
+
         Console.WriteLine($"Decompressor: {result.Decompressor}");
         Console.WriteLine($"Archive parallelism: {FormatNumber(result.DegreeOfParallelism)}");
         Console.WriteLine($"Provider mode: {FormatProcessingArchiveProviderMode(result.ProviderMode)}");
@@ -34,9 +44,9 @@ internal static partial class ProcessingBenchmarkCliReporter
         Console.WriteLine($"Provider queue retained byte capacity: {FormatOptionalNumber(result.QueueRetainedPayloadBytes)}");
         PrintProcessingRetainedPayloadPrewarm(result.RetainedPayloadPrewarm);
         var providerOverlapEvidenceContour =
-            FormatProviderOverlapEvidenceContourForFileBenchmark(result, queueTelemetryOutput, overlapTelemetryOutput);
+            FormatProviderOverlapEvidenceContourForCacheBenchmark(result, queueTelemetryOutput, overlapTelemetryOutput);
         var isDefaultCandidateContour =
-            IsDefaultCandidateFileBenchmarkContour(result, queueTelemetryOutput, overlapTelemetryOutput);
+            IsDefaultCandidateCacheBenchmarkContour(result, queueTelemetryOutput, overlapTelemetryOutput);
         PrintProcessingArchiveRebalanceProviderSelection(
             result.ProviderMode,
             result.ProviderOverlapMode,
@@ -66,6 +76,9 @@ internal static partial class ProcessingBenchmarkCliReporter
         Console.WriteLine($"Shards: {FormatNumber(result.ShardCount)}");
         Console.WriteLine($"Iterations: {FormatNumber(result.Iterations)}");
         Console.WriteLine($"Warmup iterations: {FormatNumber(result.WarmupIterations)}");
+        Console.WriteLine($"Examined files per iteration: {FormatNumber(result.ExaminedFilesPerIteration)}");
+        Console.WriteLine($"Skipped files per iteration: {FormatNumber(result.SkippedFilesPerIteration)}");
+        Console.WriteLine($"Published files per iteration: {FormatNumber(result.PublishedFilesPerIteration)}");
         Console.WriteLine($"File size bytes per iteration: {FormatNumber(result.FileSizeBytesPerIteration)}");
         Console.WriteLine($"Compressed records per iteration: {FormatNumber(result.CompressedRecordsPerIteration)}");
         Console.WriteLine($"Compressed bytes per iteration: {FormatNumber(result.CompressedBytesPerIteration)}");
@@ -92,11 +105,12 @@ internal static partial class ProcessingBenchmarkCliReporter
         Console.WriteLine($"End-to-end elapsed ms: {FormatDecimal(result.Elapsed.TotalMilliseconds)}");
         Console.WriteLine($"Processing callback elapsed ms: {FormatDecimal(result.ProcessingElapsed.TotalMilliseconds)}");
         Console.WriteLine($"Replay and batch construction elapsed ms: {FormatDecimal(result.ReplayAndBatchConstructionElapsed.TotalMilliseconds)}");
-        PrintProcessingProviderQueueTelemetryForArchiveFile(result, queueTelemetryOutput);
-        PrintProcessingProviderRetentionTelemetryForArchiveFile(result);
-        PrintProcessingProviderOverlapTelemetryForArchiveFile(result, overlapTelemetryOutput);
+        PrintProcessingProviderQueueTelemetryForArchiveCache(result, queueTelemetryOutput);
+        PrintProcessingProviderRetentionTelemetryForArchiveCache(result);
+        PrintProcessingProviderOverlapTelemetryForArchiveCache(result, overlapTelemetryOutput);
         Console.WriteLine($"Compressed MB/s: {FormatDecimal(result.CompressedMegabytesPerSecond)}");
         Console.WriteLine($"Decompressed MB/s: {FormatDecimal(result.DecompressedMegabytesPerSecond)}");
+        Console.WriteLine($"Files/s: {FormatDecimal(result.FilesPerSecond)}");
         Console.WriteLine($"End-to-end stream events/s: {FormatDecimal(result.EventsPerSecond)}");
         Console.WriteLine($"End-to-end payload values/s: {FormatDecimal(result.PayloadValuesPerSecond)}");
         Console.WriteLine($"Processing stream events/s: {FormatDecimal(result.ProcessingEventsPerSecond)}");
