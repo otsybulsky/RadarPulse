@@ -21,18 +21,14 @@ import {
   mapProductApiResponse,
   mapProductHttpError,
 } from './product/product-api-state';
-
-type DetailTab = 'summary' | 'batches' | 'sources' | 'handlers' | 'diagnostics' | 'capacity';
-type EnumKind = 'state' | 'handlerMode' | 'fallback';
-
-const detailTabs = new Set<DetailTab>([
-  'summary',
-  'batches',
-  'sources',
-  'handlers',
-  'diagnostics',
-  'capacity',
-]);
+import { formatProductEnumLabel, EnumKind } from './operator-ui/operator-ui-format';
+import { DetailTab, parseDetailTab } from './operator-ui/operator-ui-tabs';
+import { readCurrentUrl } from './operator-ui/operator-ui-url-state';
+import {
+  isPositiveInteger,
+  validateHandlerLookup,
+  validateProductApiBaseUrl,
+} from './operator-ui/operator-ui-validation';
 
 @Component({
   selector: 'app-root',
@@ -297,43 +293,7 @@ export class App implements OnInit {
   }
 
   protected enumLabel(value: ProductEnumValue, kind: EnumKind): string {
-    if (typeof value === 'string') {
-      return value;
-    }
-
-    const labels = {
-      state: new Map<number, string>([
-        [1, 'Not started'],
-        [2, 'Running'],
-        [3, 'Draining'],
-        [4, 'Completed'],
-        [5, 'Stopped'],
-        [6, 'Blocked'],
-        [7, 'Failed'],
-        [8, 'Canceled'],
-      ]),
-      handlerMode: new Map<number, string>([
-        [1, 'Auto'],
-        [2, 'Handler free'],
-        [3, 'Mergeable delta'],
-        [4, 'Snapshot sequential'],
-      ]),
-      fallback: new Map<number, string>([
-        [1, 'None'],
-        [2, 'Fix configuration'],
-        [3, 'Inspect durable adapter'],
-        [4, 'Recover claimed envelope'],
-        [5, 'Retry or poison envelope'],
-        [6, 'Quarantine poison envelope'],
-        [7, 'Cleanup canceled envelope'],
-        [8, 'Release retained resources'],
-        [9, 'Complete or recover work'],
-        [10, 'Resolve handler posture'],
-        [11, 'Reject unsafe fallback'],
-      ]),
-    } satisfies Record<EnumKind, Map<number, string>>;
-
-    return labels[kind].get(value) || String(value);
+    return formatProductEnumLabel(value, kind);
   }
 
   protected combinedWarnings(detail: ProductRunDetail): readonly string[] {
@@ -505,60 +465,4 @@ export class App implements OnInit {
 
     return '';
   }
-}
-
-function parseDetailTab(value: string | null): DetailTab {
-  return detailTabs.has(value as DetailTab) ? value as DetailTab : 'summary';
-}
-
-function readCurrentUrl(): URL | null {
-  try {
-    return new URL(globalThis.location.href);
-  } catch {
-    return null;
-  }
-}
-
-function validateProductApiBaseUrl(value: string): string {
-  const trimmed = value.trim();
-
-  if (!trimmed) {
-    return 'Product host URL is required.';
-  }
-
-  try {
-    const url = new URL(trimmed);
-
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-      return 'Use an absolute http:// or https:// URL.';
-    }
-
-    return '';
-  } catch {
-    return 'Use an absolute http:// or https:// URL.';
-  }
-}
-
-function validateHandlerLookup(
-  runId: string,
-  sourceId: number,
-  fieldName: string,
-): string {
-  if (!runId.trim()) {
-    return 'Select a run before loading handler output.';
-  }
-
-  if (!Number.isInteger(sourceId) || sourceId < 0) {
-    return 'Handler source id must be zero or a positive whole number.';
-  }
-
-  if (!fieldName.trim()) {
-    return 'Handler field name is required.';
-  }
-
-  return '';
-}
-
-function isPositiveInteger(value: number): boolean {
-  return Number.isInteger(Number(value)) && Number(value) > 0;
 }
