@@ -1,0 +1,161 @@
+﻿using RadarPulse.Domain.Processing;
+using RadarPulse.Domain.Streaming;
+
+namespace RadarPulse.Infrastructure.Processing;
+
+public sealed partial class RadarProcessingRetainedPayloadFactory
+{
+    private RadarProcessingRetainedPayloadRetentionResult RetainPooledCopy(
+        RadarEventBatch batch,
+        CancellationToken cancellationToken)
+    {
+        if (batch.Lifetime == RadarEventBatchLifetime.Owned)
+        {
+            return RadarProcessingRetainedPayloadRetentionResult.Succeeded(
+                RadarProcessingRetainedPayloadStrategy.PooledCopy,
+                batch,
+                RadarProcessingRetainedBatchResource.NotRequired(RadarProcessingRetainedPayloadStrategy.PooledCopy));
+        }
+
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return RadarProcessingRetainedPayloadRetentionResult.Canceled(
+                RadarProcessingRetainedPayloadStrategy.PooledCopy,
+                "Retained payload retention was canceled before pooled copy.");
+        }
+
+        RadarStreamEvent[]? eventArray = null;
+        byte[]? payloadArray = null;
+        long poolRentCount = 0;
+        long poolMissCount = 0;
+        long eventPoolRentCount = 0;
+        long payloadPoolRentCount = 0;
+        long eventPoolMissCount = 0;
+        long payloadPoolMissCount = 0;
+        try
+        {
+            var before = RadarProcessingBenchmarkAllocationSnapshot.CaptureCurrentThread();
+            var started = TimeProvider.System.GetTimestamp();
+
+            ReadOnlyMemory<RadarStreamEvent> events = ReadOnlyMemory<RadarStreamEvent>.Empty;
+            if (batch.EventCount > 0)
+            {
+                if (eventPool is RadarProcessingRetainedEventArrayPool telemetryEventPool)
+                {
+                    eventArray = telemetryEventPool.RentWithMissTelemetry(
+                        batch.EventCount,
+                        out var eventPoolMissed);
+                    if (eventPoolMissed)
+                    {
+                        poolMissCount++;
+                        eventPoolMissCount++;
+                    }
+                }
+                else
+                {
+                    eventArray = eventPool.Rent(batch.EventCount);
+                }
+
+                poolRentCount++;
+                eventPoolRentCount++;
+                batch.Events.Span.CopyTo(eventArray.AsSpan(0, batch.EventCount));
+                events = eventArray.AsMemory(0, batch.EventCount);
+            }
+
+            ReadOnlyMemory<byte> payload = ReadOnlyMemory<byte>.Empty;
+            if (batch.PayloadLength > 0)
+            {
+                if (payloadPool is RadarProcessingRetainedPayloadByteArrayPool telemetryPayloadPool)
+                {
+                    payloadArray = telemetryPayloadPool.RentWithMissTelemetry(
+                        batch.PayloadLength,
+                        out var payloadPoolMissed);
+                    if (payloadPoolMissed)
+                    {
+                        poolMissCount++;
+                        payloadPoolMissCount++;
+                    }
+                }
+                else
+                {
+                    payloadArray = payloadPool.Rent(batch.PayloadLength);
+                }
+
+                poolRentCount++;
+                payloadPoolRentCount++;
+                batch.Payload.Span.CopyTo(payloadArray.AsSpan(0, batch.PayloadLength));
+                payload = payloadArray.AsMemory(0, batch.PayloadLength);
+            }
+
+            RadarEventBatch retained;
+            if (batch.TryGetPayloadMetrics(out var payloadValueCount, out var rawValueChecksum))
+            {
+                retained = new RadarEventBatch(
+                    batch.StreamSchemaVersion,
+                    batch.DictionaryVersion,
+                    batch.SourceUniverseVersion,
+                    events,
+                    payload,
+                    payloadValueCount,
+                    rawValueChecksum);
+            }
+            else
+            {
+                retained = new RadarEventBatch(
+                    batch.StreamSchemaVersion,
+                    batch.DictionaryVersion,
+                    batch.SourceUniverseVersion,
+                    events,
+                    payload);
+            }
+
+            var capturedEventArray = eventArray;
+            var capturedPayloadArray = payloadArray;
+            var resource = capturedEventArray is null && capturedPayloadArray is null
+                ? RadarProcessingRetainedBatchResource.NotRequired(RadarProcessingRetainedPayloadStrategy.PooledCopy)
+                : new RadarProcessingRetainedBatchResource(
+                    RadarProcessingRetainedPayloadStrategy.PooledCopy,
+                    batch.PayloadLength,
+                    new PooledRetainedPayloadReleaseOwner(
+                        eventPool,
+                        payloadPool,
+                        capturedEventArray,
+                        capturedPayloadArray,
+                        batch.PayloadLength).Release);
+
+            var elapsed = TimeProvider.System.GetElapsedTime(started);
+            var allocatedBytes = RadarProcessingBenchmarkAllocationSnapshot.CaptureCurrentThread().DeltaSince(before);
+            eventArray = null;
+            payloadArray = null;
+
+            return RadarProcessingRetainedPayloadRetentionResult.Succeeded(
+                RadarProcessingRetainedPayloadStrategy.PooledCopy,
+                retained,
+                resource,
+                elapsed,
+                allocatedBytes,
+                poolRentCount,
+                poolMissCount,
+                eventPoolRentCount,
+                payloadPoolRentCount,
+                eventPoolMissCount,
+                payloadPoolMissCount);
+        }
+        catch (Exception exception)
+        {
+            if (eventArray is not null)
+            {
+                eventPool.Return(eventArray);
+            }
+
+            if (payloadArray is not null)
+            {
+                payloadPool.Return(payloadArray);
+            }
+
+            return RadarProcessingRetainedPayloadRetentionResult.FailedCopy(
+                RadarProcessingRetainedPayloadStrategy.PooledCopy,
+                exception.Message);
+        }
+    }
+}
