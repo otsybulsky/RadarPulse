@@ -1,6 +1,5 @@
 using RadarPulse.Application.Archive;
 using RadarPulse.Application.Product;
-using RadarPulse.Domain.Processing;
 using RadarPulse.Domain.Streaming;
 using RadarPulse.Infrastructure.Archive;
 using RadarPulse.Infrastructure.Processing;
@@ -88,7 +87,7 @@ public sealed class RadarPulseProductPipelineService : IRadarPulseProductPipelin
             rangeBandCount: 1);
         var partitionCount = ResolvePartitionCount(request.PartitionCount, request.SourceCount);
         var shardCount = ResolveShardCount(request.ShardCount, partitionCount);
-        var batches = CreateSyntheticBatches(
+        var batches = RadarPulseProductSyntheticBatchFactory.CreateBatches(
             universe,
             request.BatchCount,
             request.EventsPerBatch);
@@ -368,7 +367,7 @@ public sealed class RadarPulseProductPipelineService : IRadarPulseProductPipelin
             request.DurableStorePath,
             partitionCount,
             shardCount,
-            CreateHandlers(request.HandlerSet),
+            RadarPulseProductHandlerFactory.Create(request.HandlerSet),
             CreateProductionOptions(request.Options));
         var coordinator = new RadarProcessingProductionPipelineControlCoordinator();
         var result = request.Action switch
@@ -414,7 +413,7 @@ public sealed class RadarPulseProductPipelineService : IRadarPulseProductPipelin
             batches,
             partitionCount,
             shardCount,
-            CreateHandlers(handlerSet),
+            RadarPulseProductHandlerFactory.Create(handlerSet),
             CreateProductionOptions(options));
         var productionResult = await runner.RunAsync(productionRequest, cancellationToken)
             .ConfigureAwait(false);
@@ -441,77 +440,6 @@ public sealed class RadarPulseProductPipelineService : IRadarPulseProductPipelin
             orderedActiveBatchCapacity: options.OrderedActiveBatchCapacity,
             workloadBatchLimit: options.WorkloadBatchLimit,
             silentBorrowedProviderFallback: options.SilentBorrowedProviderFallback);
-    }
-
-    private static IReadOnlyCollection<IRadarSourceProcessingHandler> CreateHandlers(
-        RadarPulseProductHandlerSet handlerSet) =>
-        handlerSet switch
-        {
-            RadarPulseProductHandlerSet.None => Array.Empty<IRadarSourceProcessingHandler>(),
-            RadarPulseProductHandlerSet.CounterChecksum =>
-                RadarProcessingBenchmarkHandlers.Create(RadarProcessingBenchmarkHandlerSet.CounterChecksum),
-            RadarPulseProductHandlerSet.CounterChecksumHeavy =>
-                RadarProcessingBenchmarkHandlers.Create(RadarProcessingBenchmarkHandlerSet.CounterChecksumHeavy),
-            RadarPulseProductHandlerSet.SnapshotCounting =>
-                new IRadarSourceProcessingHandler[] { new SnapshotCountingHandler() },
-            RadarPulseProductHandlerSet.Unsupported =>
-                new IRadarSourceProcessingHandler[] { new UnsupportedProductHandler() },
-            _ => throw new ArgumentOutOfRangeException(nameof(handlerSet))
-        };
-
-    private static IReadOnlyList<RadarEventBatch> CreateSyntheticBatches(
-        RadarSourceUniverse universe,
-        int batchCount,
-        int eventsPerBatch)
-    {
-        var batches = new RadarEventBatch[batchCount];
-        for (var batchIndex = 0; batchIndex < batchCount; batchIndex++)
-        {
-            batches[batchIndex] = CreateSyntheticBatch(
-                universe,
-                eventsPerBatch,
-                messageTimestampBase: 100 + (batchIndex * 1000));
-        }
-
-        return Array.AsReadOnly(batches);
-    }
-
-    private static RadarEventBatch CreateSyntheticBatch(
-        RadarSourceUniverse universe,
-        int eventsPerBatch,
-        long messageTimestampBase)
-    {
-        var builder = new RadarEventBatchBuilder(
-            initialEventCapacity: eventsPerBatch,
-            initialPayloadCapacity: eventsPerBatch);
-        for (var i = 0; i < eventsPerBatch; i++)
-        {
-            var sourceId = i % universe.SourceCount;
-            builder.AddEvent(
-                new RadarStreamIdentity(
-                    sourceId,
-                    radarOrdinal: 0,
-                    momentId: 0,
-                    elevationSlot: 0,
-                    azimuthBucket: (ushort)sourceId,
-                    rangeBand: 0,
-                    dictionaryVersion: DictionaryVersion.Initial,
-                    sourceUniverseVersion: universe.Version),
-                volumeTimestampUtcTicks: 90,
-                messageTimestampUtcTicks: messageTimestampBase + i,
-                sourceRecord: 1,
-                sourceMessage: 1,
-                radialSequence: i,
-                gateStart: 0,
-                gateCount: 1,
-                wordSize: RadarStreamWordSize.EightBit,
-                scale: 1.0f,
-                offset: 0.0f,
-                statusModel: RadarStreamStatusModel.ArchiveTwoMoment,
-                payload: new byte[] { (byte)(i + 1) });
-        }
-
-        return builder.Build();
     }
 
     private static void ValidateRunId(
@@ -550,72 +478,5 @@ public sealed class RadarPulseProductPipelineService : IRadarPulseProductPipelin
         }
 
         return requested;
-    }
-
-    private sealed class CapturingArchiveRadarEventBatchPublisher : IArchiveRadarEventBatchPublisher
-    {
-        private readonly List<RadarEventBatch> batches = new();
-
-        public IReadOnlyList<RadarEventBatch> Batches => batches;
-
-        public void Publish(
-            RadarEventBatch batch,
-            CancellationToken cancellationToken)
-        {
-            ArgumentNullException.ThrowIfNull(batch);
-            cancellationToken.ThrowIfCancellationRequested();
-            batches.Add(batch.ToOwnedSnapshot());
-        }
-    }
-
-    private sealed class SnapshotCountingHandler : IRadarSourceProcessingHandler
-    {
-        public RadarSourceProcessingHandlerDescriptor Descriptor { get; } =
-            new(
-                "product-snapshot-count",
-                int64SlotCount: 1,
-                doubleSlotCount: 0,
-                new[]
-                {
-                    new RadarSourceProcessingSnapshotFieldDescriptor(
-                        "product.events",
-                        RadarSourceProcessingSnapshotFieldType.Int64,
-                        slotIndex: 0)
-                });
-
-        public void Process(
-            in RadarSourceProcessingHandlerContext context,
-            RadarSourceProcessingState state)
-        {
-            state.AddInt64(slotIndex: 0, value: 1);
-        }
-    }
-
-    private sealed class UnsupportedProductHandler :
-        IRadarSourceProcessingHandler,
-        IRadarSourceProcessingHandlerExecutionMetadata
-    {
-        public RadarSourceProcessingHandlerDescriptor Descriptor { get; } =
-            new(
-                "product-unsupported",
-                int64SlotCount: 1,
-                doubleSlotCount: 0,
-                new[]
-                {
-                    new RadarSourceProcessingSnapshotFieldDescriptor(
-                        "product.unsupported",
-                        RadarSourceProcessingSnapshotFieldType.Int64,
-                        slotIndex: 0)
-                });
-
-        public RadarSourceProcessingHandlerExecutionClassification ExecutionClassification =>
-            RadarSourceProcessingHandlerExecutionClassification.Unsupported;
-
-        public void Process(
-            in RadarSourceProcessingHandlerContext context,
-            RadarSourceProcessingState state)
-        {
-            state.AddInt64(slotIndex: 0, value: 1);
-        }
     }
 }

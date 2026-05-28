@@ -243,3 +243,48 @@ dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
 dotnet build RadarPulse.sln -c Release --no-restore
   result: passed, 0 warnings, 0 errors
 ```
+
+### Change 5: Product Pipeline SRP Cleanup
+
+Status: complete.
+
+Intent:
+
+```text
+reduce the product pipeline service SRP pressure by moving deterministic input
+creation, handler-set creation, and archive batch capture into focused
+Infrastructure product helpers
+```
+
+Scope:
+
+```text
+src/Infrastructure/Product/Pipeline/Services/RadarPulseProductPipelineService.cs
+src/Infrastructure/Product/Pipeline/Archive/CapturingArchiveRadarEventBatchPublisher.cs
+src/Infrastructure/Product/Pipeline/Batching/RadarPulseProductSyntheticBatchFactory.cs
+src/Infrastructure/Product/Pipeline/Handlers/RadarPulseProductHandlerFactory.cs
+docs/milestones/036-clean-architecture-hardening.md
+docs/handoff.md
+```
+
+Outcome:
+
+```text
+RadarPulseProductPipelineService now stays focused on run orchestration,
+history persistence, queries, and control delegation
+synthetic RadarEventBatch construction is isolated in
+RadarPulseProductSyntheticBatchFactory
+product handler-set selection and product-only test handlers are isolated in
+RadarPulseProductHandlerFactory
+archive publish capture is isolated in CapturingArchiveRadarEventBatchPublisher
+```
+
+Verification:
+
+```text
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+  "FullyQualifiedName~Product" -c Release --no-restore
+  result: passed, 88 passed, 0 failed, 0 skipped
+dotnet build RadarPulse.sln -c Release --no-restore
+  result: passed, 0 warnings, 0 errors
+```
