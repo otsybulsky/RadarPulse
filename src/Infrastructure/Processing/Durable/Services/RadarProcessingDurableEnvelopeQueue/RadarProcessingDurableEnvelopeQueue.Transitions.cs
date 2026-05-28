@@ -6,14 +6,68 @@ namespace RadarPulse.Infrastructure.Processing;
 
 public sealed partial class RadarProcessingDurableEnvelopeQueue
 {
-    private RadarProcessingDurableQueueOperationResult Transition(
+    public RadarProcessingDurableQueueOperationResult Complete(
         RadarProcessingDurableBatchId batchId,
-        RadarProcessingDurableQueueOperationStatus status,
-        RadarProcessingDurableEnvelopeState targetState,
-        string message,
-        Func<EnvelopeEntry, bool> canTransition,
-        Action<EnvelopeEntry> applyTimestamp)
+        string message = "")
     {
+        ArgumentNullException.ThrowIfNull(message);
+        return Transition(
+            batchId,
+            RadarProcessingDurableQueueOperationStatus.Completed,
+            RadarProcessingDurableEnvelopeState.Completed,
+            message,
+            static entry => entry.State == RadarProcessingDurableEnvelopeState.Claimed,
+            static entry => entry.CompletedTimestamp = Stopwatch.GetTimestamp());
+    }
+
+    /// <summary>
+    /// Marks a claimed or completed envelope as failed or poison.
+    /// </summary>
+    public RadarProcessingDurableQueueOperationResult Fail(
+        RadarProcessingDurableBatchId batchId,
+        string message,
+        bool poison = false)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        return Transition(
+            batchId,
+            poison
+                ? RadarProcessingDurableQueueOperationStatus.Poisoned
+                : RadarProcessingDurableQueueOperationStatus.Failed,
+            poison
+                ? RadarProcessingDurableEnvelopeState.Poison
+                : RadarProcessingDurableEnvelopeState.Failed,
+            message,
+            static entry => entry.State is RadarProcessingDurableEnvelopeState.Claimed or
+                RadarProcessingDurableEnvelopeState.Completed,
+            static entry => entry.CompletedTimestamp = Stopwatch.GetTimestamp());
+    }
+
+    /// <summary>
+    /// Abandons a claimed envelope so retry policy can decide later handling.
+    /// </summary>
+    public RadarProcessingDurableQueueOperationResult Abandon(
+        RadarProcessingDurableBatchId batchId,
+        string message = "")
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        return Transition(
+            batchId,
+            RadarProcessingDurableQueueOperationStatus.Abandoned,
+            RadarProcessingDurableEnvelopeState.Abandoned,
+            message,
+            static entry => entry.State == RadarProcessingDurableEnvelopeState.Claimed,
+            static entry => entry.CompletedTimestamp = Stopwatch.GetTimestamp());
+    }
+
+    /// <summary>
+    /// Moves a failed or abandoned envelope back to pending and increments attempt count.
+    /// </summary>
+    public RadarProcessingDurableQueueOperationResult Retry(
+        RadarProcessingDurableBatchId batchId,
+        string message = "")
+    {
+        ArgumentNullException.ThrowIfNull(message);
         EnsureValidBatchId(batchId);
 
         lock (sync)
@@ -24,132 +78,103 @@ public sealed partial class RadarProcessingDurableEnvelopeQueue
                     $"Durable envelope '{batchId}' was not found.");
             }
 
-            if (!canTransition(entry))
+            if (entry.State is not RadarProcessingDurableEnvelopeState.Failed and
+                not RadarProcessingDurableEnvelopeState.Abandoned)
             {
                 return RadarProcessingDurableQueueOperationResult.InvalidState(
                     entry.ToSnapshot(),
-                    $"Durable envelope '{batchId}' cannot transition from state {entry.State} to {targetState}.");
+                    $"Durable envelope '{batchId}' cannot retry from state {entry.State}.");
             }
 
-            entry.State = targetState;
+            entry.Attempt = checked(entry.Attempt + 1);
+            entry.State = RadarProcessingDurableEnvelopeState.Pending;
+            entry.WorkerId = string.Empty;
             entry.Message = message;
-            applyTimestamp(entry);
+            entry.ClaimedTimestamp = 0;
+            entry.CompletedTimestamp = 0;
+            entry.CommittedTimestamp = 0;
+            entry.ReleasedTimestamp = 0;
             PersistLocked();
-
-            var snapshot = entry.ToSnapshot();
-            return status switch
-            {
-                RadarProcessingDurableQueueOperationStatus.Completed => RadarProcessingDurableQueueOperationResult.Completed(snapshot),
-                RadarProcessingDurableQueueOperationStatus.Failed => RadarProcessingDurableQueueOperationResult.Failed(snapshot),
-                RadarProcessingDurableQueueOperationStatus.Abandoned => RadarProcessingDurableQueueOperationResult.Abandoned(snapshot),
-                RadarProcessingDurableQueueOperationStatus.Poisoned => RadarProcessingDurableQueueOperationResult.Poisoned(snapshot),
-                RadarProcessingDurableQueueOperationStatus.Committed => RadarProcessingDurableQueueOperationResult.Committed(snapshot),
-                RadarProcessingDurableQueueOperationStatus.Released => RadarProcessingDurableQueueOperationResult.Released(snapshot),
-                RadarProcessingDurableQueueOperationStatus.Canceled => RadarProcessingDurableQueueOperationResult.Canceled(snapshot),
-                _ => throw new ArgumentOutOfRangeException(nameof(status))
-            };
+            return RadarProcessingDurableQueueOperationResult.Retried(entry.ToSnapshot());
         }
     }
 
-    private static void EnsureValidBatchId(
-        RadarProcessingDurableBatchId batchId)
+    /// <summary>
+    /// Marks a failed or abandoned envelope as poison after retry exhaustion.
+    /// </summary>
+    public RadarProcessingDurableQueueOperationResult Poison(
+        RadarProcessingDurableBatchId batchId,
+        string message)
     {
-        if (string.IsNullOrWhiteSpace(batchId.Value))
-        {
-            throw new ArgumentException("Durable batch id must not be empty.", nameof(batchId));
-        }
+        ArgumentNullException.ThrowIfNull(message);
+        return Transition(
+            batchId,
+            RadarProcessingDurableQueueOperationStatus.Poisoned,
+            RadarProcessingDurableEnvelopeState.Poison,
+            message,
+            static entry => entry.State is RadarProcessingDurableEnvelopeState.Failed or
+                RadarProcessingDurableEnvelopeState.Abandoned,
+            static entry => entry.CompletedTimestamp = Stopwatch.GetTimestamp());
     }
 
-    private static string CreateBlockingReason(
-        EnvelopeEntry entry) =>
-        entry.State switch
-        {
-            RadarProcessingDurableEnvelopeState.Pending => "pending envelope has not been claimed",
-            RadarProcessingDurableEnvelopeState.Claimed => "claimed envelope has not completed",
-            RadarProcessingDurableEnvelopeState.Completed => "completed envelope has not committed",
-            RadarProcessingDurableEnvelopeState.Failed => string.IsNullOrWhiteSpace(entry.Message)
-                ? "failed envelope blocks ordered commit"
-                : entry.Message,
-            RadarProcessingDurableEnvelopeState.Poison => string.IsNullOrWhiteSpace(entry.Message)
-                ? "poison envelope blocks ordered commit"
-                : entry.Message,
-            RadarProcessingDurableEnvelopeState.Abandoned => string.IsNullOrWhiteSpace(entry.Message)
-                ? "abandoned envelope requires retry or failure policy"
-                : entry.Message,
-            RadarProcessingDurableEnvelopeState.Canceled => string.IsNullOrWhiteSpace(entry.Message)
-                ? "canceled envelope requires cleanup"
-                : entry.Message,
-            _ => string.Empty
-        };
-
-    private void Restore(
-        IReadOnlyList<RadarProcessingPersistentDurableEnvelopeRecord> records)
+    /// <summary>
+    /// Marks a completed envelope as committed by the ordered publish path.
+    /// </summary>
+    public RadarProcessingDurableQueueOperationResult MarkCommitted(
+        RadarProcessingDurableBatchId batchId,
+        string message = "")
     {
-        if (records.Count == 0)
-        {
-            return;
-        }
-
-        foreach (var record in records.OrderBy(static item => item.ProviderSequence))
-        {
-            if (!record.IsCurrentSchema)
-            {
-                throw new InvalidOperationException(
-                    $"Persistent durable envelope schema {record.SchemaVersion} is not supported.");
-            }
-
-            var batchId = new RadarProcessingDurableBatchId(record.BatchId);
-            if (byBatchId.ContainsKey(batchId))
-            {
-                throw new InvalidOperationException(
-                    $"Persistent durable envelope '{record.BatchId}' is duplicated.");
-            }
-
-            if (bySequence.ContainsKey(record.ProviderSequence))
-            {
-                throw new InvalidOperationException(
-                    $"Persistent durable provider sequence {record.ProviderSequence} is duplicated.");
-            }
-
-            var entry = new EnvelopeEntry(
-                batchId,
-                record.ToQueuedBatch(),
-                record.AcceptedTimestamp)
-            {
-                Attempt = record.Attempt,
-                State = record.State,
-                WorkerId = record.WorkerId,
-                Message = record.Message,
-                ClaimedTimestamp = record.ClaimedTimestamp,
-                CompletedTimestamp = record.CompletedTimestamp,
-                CommittedTimestamp = record.CommittedTimestamp,
-                ReleasedTimestamp = record.ReleasedTimestamp
-            };
-
-            byBatchId.Add(batchId, entry);
-            bySequence.Add(record.ProviderSequence, entry);
-            nextSequence = Math.Max(nextSequence, checked(record.ProviderSequence + 1));
-        }
+        ArgumentNullException.ThrowIfNull(message);
+        return Transition(
+            batchId,
+            RadarProcessingDurableQueueOperationStatus.Committed,
+            RadarProcessingDurableEnvelopeState.Committed,
+            message,
+            static entry => entry.State == RadarProcessingDurableEnvelopeState.Completed,
+            static entry => entry.CommittedTimestamp = Stopwatch.GetTimestamp());
     }
 
-    private void PersistLocked()
+    /// <summary>
+    /// Marks an envelope as released after retained resources are no longer needed.
+    /// </summary>
+    public RadarProcessingDurableQueueOperationResult MarkReleased(
+        RadarProcessingDurableBatchId batchId,
+        string message = "")
     {
-        if (persistentStore is null)
-        {
-            return;
-        }
-
-        var records = new RadarProcessingPersistentDurableEnvelopeRecord[bySequence.Count];
-        var index = 0;
-        foreach (var entry in bySequence.Values)
-        {
-            records[index++] = RadarProcessingPersistentDurableEnvelopeRecord.From(
-                entry.ToSnapshot(),
-                entry.QueuedBatch);
-        }
-
-        persistentStore.Save(Array.AsReadOnly(records));
-        adapterCompatibilityStatus = RadarProcessingDurableAdapterCompatibilityStatus.Compatible;
-        adapterStorageMessage = string.Empty;
+        ArgumentNullException.ThrowIfNull(message);
+        return Transition(
+            batchId,
+            RadarProcessingDurableQueueOperationStatus.Released,
+            RadarProcessingDurableEnvelopeState.Released,
+            message,
+            static entry => entry.State is RadarProcessingDurableEnvelopeState.Completed or
+                RadarProcessingDurableEnvelopeState.Committed or
+                RadarProcessingDurableEnvelopeState.Failed or
+                RadarProcessingDurableEnvelopeState.Poison or
+                RadarProcessingDurableEnvelopeState.Abandoned or
+                RadarProcessingDurableEnvelopeState.Canceled,
+            static entry => entry.ReleasedTimestamp = Stopwatch.GetTimestamp());
     }
+
+    /// <summary>
+    /// Marks an open envelope as canceled.
+    /// </summary>
+    public RadarProcessingDurableQueueOperationResult Cancel(
+        RadarProcessingDurableBatchId batchId,
+        string message = "")
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        return Transition(
+            batchId,
+            RadarProcessingDurableQueueOperationStatus.Canceled,
+            RadarProcessingDurableEnvelopeState.Canceled,
+            message,
+            static entry => entry.State is RadarProcessingDurableEnvelopeState.Pending or
+                RadarProcessingDurableEnvelopeState.Claimed or
+                RadarProcessingDurableEnvelopeState.Completed,
+            static entry => entry.CompletedTimestamp = Stopwatch.GetTimestamp());
+    }
+
+    /// <summary>
+    /// Summarizes durable lifecycle counts and the first blocking uncommitted envelope.
 }
