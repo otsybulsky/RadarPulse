@@ -62,7 +62,10 @@ public sealed class RadarProcessingHandlerDeltaMergeCoordinator
         RadarProcessingHandlerDelta delta) =>
         Complete(delta, captureMergedValuesInSummary: true);
 
-    internal RadarProcessingHandlerDeltaCommitMergeResult CompleteForCommit(
+    /// <summary>
+    /// Completes the merge and captures merged values for ordered commit.
+    /// </summary>
+    public RadarProcessingHandlerDeltaCommitMergeResult CompleteForCommit(
         RadarProcessingHandlerDelta delta) =>
         CompleteForCommitCore(delta);
 

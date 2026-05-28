@@ -195,7 +195,10 @@ public sealed class RadarProcessingHandlerDelta
                 inputChecksum),
             values);
 
-    internal static RadarProcessingHandlerDelta CreateWithOwnedValues(
+    /// <summary>
+    /// Creates a handler delta that takes ownership of precomputed value groups.
+    /// </summary>
+    public static RadarProcessingHandlerDelta CreateWithOwnedValues(
         string handlerName,
         string handlerContractVersion,
         RadarProcessingQueuedBatchSequence providerSequence,

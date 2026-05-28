@@ -71,7 +71,10 @@ public sealed record RadarProcessingCoreOptions
     /// </summary>
     public IReadOnlyList<IRadarSourceProcessingHandler> Handlers => HandlerSlotLayout.Handlers;
 
-    internal RadarSourceProcessingHandlerSlotLayout HandlerSlotLayout { get; }
+    /// <summary>
+    /// Gets the slot layout for configured source processing handlers.
+    /// </summary>
+    public RadarSourceProcessingHandlerSlotLayout HandlerSlotLayout { get; }
 
     internal static void EnsureKnownExecutionMode(RadarProcessingExecutionMode executionMode)
     {

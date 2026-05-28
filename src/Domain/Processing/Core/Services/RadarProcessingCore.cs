@@ -48,7 +48,10 @@ public sealed class RadarProcessingCore
 
     internal RadarSourceUniverse SourceUniverse => sourceUniverse;
 
-    internal int SourceCount => sourceUniverse.SourceCount;
+    /// <summary>
+    /// Gets the number of sources in the configured source universe.
+    /// </summary>
+    public int SourceCount => sourceUniverse.SourceCount;
 
     /// <summary>
     /// Processes a batch synchronously using the configured sequential or partitioned-barrier mode.
@@ -141,7 +144,10 @@ public sealed class RadarProcessingCore
         return RadarProcessingBatchDelta.Create(batch, route, sourceUniverse.SourceCount);
     }
 
-    internal RadarProcessingBatchDelta ComputeProcessingDeltaForHandlerDeltaMerge(
+    /// <summary>
+    /// Computes a processing delta for handler delta merge without mutating committed source state.
+    /// </summary>
+    public RadarProcessingBatchDelta ComputeProcessingDeltaForHandlerDeltaMerge(
         RadarEventBatch batch,
         CancellationToken cancellationToken = default)
     {
@@ -194,7 +200,10 @@ public sealed class RadarProcessingCore
         return Valid(telemetry, workerTelemetry);
     }
 
-    internal RadarProcessingResult? ValidateProcessingDeltaForCommit(
+    /// <summary>
+    /// Validates a previously computed processing delta before ordered commit.
+    /// </summary>
+    public RadarProcessingResult? ValidateProcessingDeltaForCommit(
         RadarProcessingBatchDelta delta,
         CancellationToken cancellationToken = default)
     {
@@ -240,7 +249,10 @@ public sealed class RadarProcessingCore
         return Valid(telemetry, workerTelemetry);
     }
 
-    internal RadarProcessingResult CommitValidatedProcessingDeltaWithMergedHandlerValueGroups(
+    /// <summary>
+    /// Commits a validated processing delta together with merged handler value groups.
+    /// </summary>
+    public RadarProcessingResult CommitValidatedProcessingDeltaWithMergedHandlerValueGroups(
         RadarProcessingBatchDelta delta,
         IReadOnlyList<IReadOnlyList<RadarProcessingHandlerDeltaValue>> mergedHandlerValueGroups,
         RadarProcessingWorkerTelemetrySummary? workerTelemetry = null,
@@ -266,7 +278,10 @@ public sealed class RadarProcessingCore
         return Valid(telemetry, workerTelemetry);
     }
 
-    internal RadarProcessingResult? ValidateBatchForProcessing(
+    /// <summary>
+    /// Validates a batch before processing and returns an invalid result when rejected.
+    /// </summary>
+    public RadarProcessingResult? ValidateBatchForProcessing(
         RadarEventBatch batch,
         CancellationToken cancellationToken)
     {
@@ -294,14 +309,20 @@ public sealed class RadarProcessingCore
         return ValidateSources(batch.Events.Span, cancellationToken);
     }
 
-    internal RadarProcessingResult CreateInvalidProcessingResult(
+    /// <summary>
+    /// Creates an invalid processing result in the core validation vocabulary.
+    /// </summary>
+    public RadarProcessingResult CreateInvalidProcessingResult(
         RadarProcessingValidationError error,
         int sourceId,
         int eventIndex,
         string message) =>
         Invalid(error, sourceId, eventIndex, message);
 
-    internal RadarProcessingAsyncWorkCompletion ProcessAsyncShardWorkItem(
+    /// <summary>
+    /// Processes one async shard work item against a routed batch.
+    /// </summary>
+    public RadarProcessingAsyncWorkCompletion ProcessAsyncShardWorkItem(
         RadarEventBatch batch,
         RadarProcessingBatchRoute route,
         RadarProcessingAsyncWorkItem workItem,
@@ -372,7 +393,10 @@ public sealed class RadarProcessingCore
         }
     }
 
-    internal RadarProcessingResult CompleteAsyncBatch(
+    /// <summary>
+    /// Completes an async batch after shard work has been aggregated.
+    /// </summary>
+    public RadarProcessingResult CompleteAsyncBatch(
         RadarProcessingTelemetry telemetry,
         RadarProcessingWorkerTelemetrySummary? workerTelemetry)
     {

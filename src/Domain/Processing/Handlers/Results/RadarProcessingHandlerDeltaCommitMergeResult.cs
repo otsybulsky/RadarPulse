@@ -1,6 +1,9 @@
 namespace RadarPulse.Domain.Processing;
 
-internal sealed class RadarProcessingHandlerDeltaCommitMergeResult
+/// <summary>
+/// Carries merged handler values prepared for ordered commit.
+/// </summary>
+public sealed class RadarProcessingHandlerDeltaCommitMergeResult
 {
     /// <summary>
     /// Creates a handler delta commit merge result with applied values and a diagnostic message.

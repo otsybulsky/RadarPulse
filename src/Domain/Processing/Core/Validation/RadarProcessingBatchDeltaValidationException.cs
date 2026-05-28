@@ -3,7 +3,7 @@ namespace RadarPulse.Domain.Processing;
 /// <summary>
 /// Carries validation details for invalid source-local order detected while constructing a batch delta.
 /// </summary>
-internal sealed class RadarProcessingBatchDeltaValidationException : InvalidOperationException
+public sealed class RadarProcessingBatchDeltaValidationException : InvalidOperationException
 {
     /// <summary>
     /// Creates a delta validation exception for a source and event index.

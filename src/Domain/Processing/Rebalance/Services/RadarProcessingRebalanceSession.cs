@@ -161,7 +161,10 @@ public sealed class RadarProcessingRebalanceSession
         return ProcessCompletedResult(processingResult, cancellationToken);
     }
 
-    internal RadarProcessingRebalanceSessionResult ProcessCompletedResult(
+    /// <summary>
+    /// Processes a completed processing result through rebalance policy and telemetry.
+    /// </summary>
+    public RadarProcessingRebalanceSessionResult ProcessCompletedResult(
         RadarProcessingResult processingResult,
         CancellationToken cancellationToken = default)
     {

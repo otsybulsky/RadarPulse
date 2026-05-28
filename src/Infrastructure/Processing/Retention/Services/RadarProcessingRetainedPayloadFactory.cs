@@ -249,7 +249,7 @@ public sealed class RadarProcessingRetainedPayloadFactory
                         payloadPool,
                         capturedEventArray,
                         capturedPayloadArray,
-                        batch.PayloadLength));
+                        batch.PayloadLength).Release);
 
             var elapsed = TimeProvider.System.GetElapsedTime(started);
             var allocatedBytes = RadarProcessingBenchmarkAllocationSnapshot.CaptureCurrentThread().DeltaSince(before);
@@ -348,7 +348,7 @@ public sealed class RadarProcessingRetainedPayloadFactory
         }
     }
 
-    private sealed class PooledRetainedPayloadReleaseOwner : IRadarProcessingRetainedPayloadReleaseOwner
+    private sealed class PooledRetainedPayloadReleaseOwner
     {
         private readonly ArrayPool<RadarStreamEvent> eventPool;
         private readonly ArrayPool<byte> payloadPool;

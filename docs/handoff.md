@@ -36,7 +36,7 @@ persistence, runtime defaults, and demo/readiness behavior.
 Stop point:
 
 ```text
-milestone 036 slice 5 complete; slice 6 Domain friend assembly removal is next
+milestone 036 slice 6 complete; slice 7 CLI command-family extraction is next
 ```
 
 Most recently closed milestone:
@@ -102,7 +102,7 @@ Milestone 036 planned slices:
 6. Remove Domain friend assembly:
    remove Domain InternalsVisibleTo("RadarPulse.Infrastructure") and replace
    Infrastructure use of internal Domain APIs with explicit public Domain
-   contracts or Domain-owned operations.
+   contracts or Domain-owned operations. [complete]
 7. CLI command-family extraction:
    split archive and processing command-family workflows out of Program.cs so
    the top-level entrypoint is a thin router.
@@ -137,22 +137,30 @@ Milestone 036 completed changes:
    Application now exposes focused product run, query, history, and control
    ports; RadarPulseProductPipelineApiContract depends on those focused ports
    rather than IRadarPulseProductPipelineService.
+9. Remove Domain friend assembly:
+   Domain no longer grants InternalsVisibleTo access to Infrastructure;
+   retained release owner indirection was removed; Infrastructure now uses
+   explicit public Domain contracts for the processing APIs it consumes.
 ```
 
 Latest verification:
 
 ```text
-milestone 036 slice 5 Product Application port segregation:
-  dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
-    "FullyQualifiedName~Architecture|FullyQualifiedName~Product" -c Release
-    --no-restore
-    passed, 91 passed, 0 failed, 0 skipped
-  dotnet build RadarPulse.sln -c Release --no-restore
-    failed once because parallel test/build held Domain output through
-    VBCSCompiler
+milestone 036 slice 6 Domain friend assembly removal:
   dotnet build RadarPulse.sln -c Release --no-restore
     /p:UseSharedCompilation=false
     passed, 0 warnings, 0 errors
+  dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+    "FullyQualifiedName~Architecture" -c Release --no-build
+    passed, 6 passed, 0 failed, 0 skipped
+  dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+    "FullyQualifiedName~Processing" -c Release --no-build
+    failed in combined processing process, 744 passed, 1 failed, 0 skipped
+  isolated rerun of
+    RadarProcessingSyntheticRebalanceBenchmarkTests.AcceptedMovePressureAggregationDoesNotCopyPreviousIterations:
+    passed, 1 passed, 0 failed, 0 skipped
+  git diff --check:
+    passed
 ```
 
 Milestone 035 documents:

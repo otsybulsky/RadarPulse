@@ -120,7 +120,10 @@ public sealed record RadarProcessingQueuedBatchEnqueueResult
         string message = "") =>
         Rejected(RadarProcessingQueuedBatchEnqueueStatus.Faulted, enqueueWaitTime, message);
 
-    internal static void EnsureKnownStatus(
+    /// <summary>
+    /// Throws when an enqueue result status is outside the known contract.
+    /// </summary>
+    public static void EnsureKnownStatus(
         RadarProcessingQueuedBatchEnqueueStatus status)
     {
         if (status is not RadarProcessingQueuedBatchEnqueueStatus.Accepted and

@@ -239,10 +239,8 @@ Bounded note:
 
 ```text
 full removal of Domain InternalsVisibleTo("RadarPulse.Infrastructure") was
-evaluated during this slice and intentionally left out of scope because the
-processing infrastructure currently relies on multiple internal domain APIs;
-that cleanup is a separate deep processing refactor rather than a product
-boundary guardrail
+evaluated during this slice and intentionally left for the later 10/10
+expansion; Change 9 removes that friend access explicitly
 ```
 
 Verification:
@@ -473,4 +471,65 @@ dotnet build RadarPulse.sln -c Release --no-restore
     src/Domain/obj/Release/net10.0/RadarPulse.Domain.dll through VBCSCompiler
 dotnet build RadarPulse.sln -c Release --no-restore /p:UseSharedCompilation=false
   result: passed, 0 warnings, 0 errors
+```
+
+### Change 9: Remove Domain Friend Assembly
+
+Status: complete.
+
+Intent:
+
+```text
+remove the Domain-to-Infrastructure friend assembly escape hatch and make the
+Domain APIs used by Infrastructure explicit public contracts
+```
+
+Scope:
+
+```text
+src/Domain/Properties/AssemblyInfo.cs
+src/Domain/Processing/Core
+src/Domain/Processing/Handlers
+src/Domain/Processing/Queueing
+src/Domain/Processing/Rebalance
+src/Domain/Processing/Retention
+src/Domain/Streaming/Batches/Models/RadarEventBatch.cs
+src/Infrastructure/Processing/Retention/Services/RadarProcessingRetainedPayloadFactory.cs
+tests/RadarPulse.Tests/Architecture/RadarPulseArchitectureTests.cs
+docs/milestones/036-clean-architecture-hardening.md
+docs/handoff.md
+```
+
+Outcome:
+
+```text
+Domain no longer grants InternalsVisibleTo("RadarPulse.Infrastructure")
+the internal retained payload release-owner contract was removed in favor of
+the existing public callback-based retained resource constructor
+Infrastructure processing dependencies now use explicit public Domain APIs for
+batch metrics, processing-delta lifecycle, async shard work, handler delta
+merge commit, queue status validation, rebalance completion, and retained
+payload strategy validation
+newly public Domain contracts have concise XML summaries
+architecture tests now fail if the Infrastructure friend grant is restored
+```
+
+Verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore /p:UseSharedCompilation=false
+  result: passed, 0 warnings, 0 errors
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+  "FullyQualifiedName~Architecture" -c Release --no-build
+  result: passed, 6 passed, 0 failed, 0 skipped
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+  "FullyQualifiedName~Processing" -c Release --no-build
+  result: failed in combined processing process, 744 passed, 1 failed,
+    0 skipped
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+  "FullyQualifiedName=RadarPulse.Tests.Processing.RadarProcessingSyntheticRebalanceBenchmarkTests.AcceptedMovePressureAggregationDoesNotCopyPreviousIterations"
+  -c Release --no-build
+  result: passed, 1 passed, 0 failed, 0 skipped
+git diff --check
+  result: passed
 ```

@@ -56,6 +56,19 @@ public sealed class RadarPulseArchitectureTests
     }
 
     [Fact]
+    public void DomainDoesNotGrantInfrastructureFriendAccess()
+    {
+        var violations = Directory
+            .EnumerateFiles(Path.Combine(RepositoryRoot, @"src\Domain"), "*.cs", SearchOption.AllDirectories)
+            .SelectMany(static file => FindForbiddenReferences(
+                file,
+                ["InternalsVisibleTo(\"RadarPulse.Infrastructure\")"]))
+            .ToArray();
+
+        Assert.Empty(violations);
+    }
+
+    [Fact]
     public void ProductApiBoundaryIsOwnedByApplication()
     {
         Assert.Equal("RadarPulse.Application", typeof(IRadarPulseProductPipelineApi).Assembly.GetName().Name);

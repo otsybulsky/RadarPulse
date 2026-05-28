@@ -61,9 +61,15 @@ public sealed class RadarProcessingBatchDelta : IDisposable
     /// </summary>
     public int TouchedSourceCount => touchedSourceCount;
 
-    internal int SourceCount => sourceCount;
+    /// <summary>
+    /// Gets the number of sources in the source universe used by the delta.
+    /// </summary>
+    public int SourceCount => sourceCount;
 
-    internal ReadOnlySpan<int> TouchedSourceIds => touchedSourceIds.AsSpan(0, TouchedSourceCount);
+    /// <summary>
+    /// Gets the source ids touched by the delta.
+    /// </summary>
+    public ReadOnlySpan<int> TouchedSourceIds => touchedSourceIds.AsSpan(0, TouchedSourceCount);
 
     internal long GetEventCount(int sourceId) => eventCounts[sourceId];
 
@@ -93,7 +99,10 @@ public sealed class RadarProcessingBatchDelta : IDisposable
         }
     }
 
-    internal static RadarProcessingBatchDelta CreateEmpty(
+    /// <summary>
+    /// Creates an empty delta for a routed batch so shard work can apply events incrementally.
+    /// </summary>
+    public static RadarProcessingBatchDelta CreateEmpty(
         RadarEventBatch batch,
         RadarProcessingBatchRoute route,
         int sourceCount)
@@ -122,7 +131,10 @@ public sealed class RadarProcessingBatchDelta : IDisposable
             touchedSourceCount: 0);
     }
 
-    internal RadarProcessingAsyncWorkCompletion ApplyShardWorkItem(
+    /// <summary>
+    /// Applies one async shard work item to this delta.
+    /// </summary>
+    public RadarProcessingAsyncWorkCompletion ApplyShardWorkItem(
         RadarProcessingAsyncWorkItem workItem,
         CancellationToken cancellationToken)
     {

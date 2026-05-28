@@ -45,7 +45,10 @@ public sealed record RadarProcessingRebalanceHardeningOptions
     /// </summary>
     public RadarProcessingValidationProfile ValidationProfile { get; }
 
-    internal static void EnsureKnownValidationProfile(
+    /// <summary>
+    /// Throws when a rebalance validation profile is outside the known contract.
+    /// </summary>
+    public static void EnsureKnownValidationProfile(
         RadarProcessingValidationProfile validationProfile)
     {
         if (validationProfile is not RadarProcessingValidationProfile.Off and

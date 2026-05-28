@@ -178,7 +178,10 @@ public sealed record RadarProcessingQueuedBatchProcessingResult
             null,
             message);
 
-    internal static void EnsureKnownStatus(
+    /// <summary>
+    /// Throws when a queued batch processing status is outside the known contract.
+    /// </summary>
+    public static void EnsureKnownStatus(
         RadarProcessingQueuedBatchProcessingStatus status)
     {
         if (status is not RadarProcessingQueuedBatchProcessingStatus.Succeeded and

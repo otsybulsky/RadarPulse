@@ -12,7 +12,10 @@ public ref struct RadarSourceProcessingState
     private readonly Span<long> int64Slots;
     private readonly Span<double> doubleSlots;
 
-    internal RadarSourceProcessingState(
+    /// <summary>
+    /// Creates mutable handler state over caller-owned slot spans.
+    /// </summary>
+    public RadarSourceProcessingState(
         Span<long> int64Slots,
         Span<double> doubleSlots)
     {

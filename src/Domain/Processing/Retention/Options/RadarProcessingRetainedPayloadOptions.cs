@@ -46,7 +46,10 @@ public sealed record RadarProcessingRetainedPayloadOptions
     /// </summary>
     public bool HasMaxRetainedPayloadBytes => MaxRetainedPayloadBytes.HasValue;
 
-    internal static void EnsureKnownStrategy(
+    /// <summary>
+    /// Throws when a retained payload strategy is outside the known contract.
+    /// </summary>
+    public static void EnsureKnownStrategy(
         RadarProcessingRetainedPayloadStrategy strategy)
     {
         if (strategy is not RadarProcessingRetainedPayloadStrategy.SnapshotCopy and

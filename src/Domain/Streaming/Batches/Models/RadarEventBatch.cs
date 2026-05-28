@@ -17,6 +17,9 @@ public sealed class RadarEventBatch
     /// <summary>
     /// Creates an owned batch from supplied event and payload memory without cached payload metrics.
     /// </summary>
+    /// <summary>
+    /// Creates an event batch with precomputed payload metrics.
+    /// </summary>
     public RadarEventBatch(
         StreamSchemaVersion streamSchemaVersion,
         DictionaryVersion dictionaryVersion,
@@ -36,7 +39,7 @@ public sealed class RadarEventBatch
     {
     }
 
-    internal RadarEventBatch(
+    public RadarEventBatch(
         StreamSchemaVersion streamSchemaVersion,
         DictionaryVersion dictionaryVersion,
         SourceUniverseVersion sourceUniverseVersion,
