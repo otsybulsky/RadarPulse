@@ -191,3 +191,55 @@ dotnet build RadarPulse.sln -c Release --no-restore
 git diff --check
   result: passed
 ```
+
+### Change 4: Architecture Guardrail Tests
+
+Status: complete.
+
+Intent:
+
+```text
+add executable architecture rules that protect the current clean architecture
+direction and the new Application-owned product API boundary
+```
+
+Scope:
+
+```text
+tests/RadarPulse.Tests/Architecture/RadarPulseArchitectureTests.cs
+docs/milestones/036-clean-architecture-hardening.md
+docs/handoff.md
+```
+
+Outcome:
+
+```text
+architecture tests now verify project-reference direction for Domain,
+Application, Infrastructure, HTTP, and CLI projects
+Domain and Application implementation source is checked for direct outer
+namespace references
+product API ownership is checked by reflection so the API/service ports and
+contract stay in Application
+HTTP endpoints are checked so public endpoint methods depend on the
+IRadarPulseProductPipelineApi port rather than a concrete product API contract
+```
+
+Bounded note:
+
+```text
+full removal of Domain InternalsVisibleTo("RadarPulse.Infrastructure") was
+evaluated during this slice and intentionally left out of scope because the
+processing infrastructure currently relies on multiple internal domain APIs;
+that cleanup is a separate deep processing refactor rather than a product
+boundary guardrail
+```
+
+Verification:
+
+```text
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+  "FullyQualifiedName~Architecture" -c Release --no-restore
+  result: passed, 4 passed, 0 failed, 0 skipped
+dotnet build RadarPulse.sln -c Release --no-restore
+  result: passed, 0 warnings, 0 errors
+```
