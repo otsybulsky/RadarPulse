@@ -67,7 +67,8 @@ active milestone implementation status:
   benchmark SRP split complete inside the large-class treatment extension
   queue and durable session SRP split complete inside the large-class
     treatment extension
-  final large-class guardrail/validation slice remains before decision trace
+  final large-class guardrail/validation slice complete
+  stopped before decision trace
 active milestone goal:
   raise reviewed Clean Architecture, GRASP, SOLID, and GoF posture from
     roughly 7/10 to 10/10
@@ -107,6 +108,8 @@ active milestone completed implementation:
   queued/durable session state-machine classes are split into
     responsibility-named partial folders while keeping ordering/retry/commit
     invariants local to their owning classes
+  post-SRP production max physical class declaration is 1_089 code-ish lines
+    versus the pre-SRP 2_411 code-ish line maximum
 latest completed milestone changes:
   product/API, HTTP, CLI, product history, and product pipeline contract
     documentation

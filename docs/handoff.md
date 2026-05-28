@@ -149,7 +149,7 @@ Milestone 036 planned slices:
     responsibilities from queued and durable session classes. [complete]
 13. Large-class guardrail and final validation:
     capture remaining class-size inventory, document residual large classes,
-    run focused/full gates, and stop before decision trace. [planned]
+    run focused/full gates, and stop before decision trace. [complete]
 ```
 
 Milestone 036 completed changes:
@@ -221,6 +221,11 @@ Milestone 036 completed changes:
     partial folders with responsibility-named public API, ordered work,
     transitions, state/telemetry, completion, and model zones while keeping
     state-machine invariants local.
+17. Large-class guardrail and final validation:
+    post-SRP inventory captured; production max physical class declaration is
+    now 1_089 code-ish lines versus the pre-SRP 2_411 maximum; full Release
+    build and full Release test suite pass; milestone is stopped before
+    decision trace.
 ```
 
 Latest verification:
@@ -250,6 +255,22 @@ milestone 036 slice 12 queue and durable session SRP split:
     "FullyQualifiedName~QueuedProcessingSession|FullyQualifiedName~QueuedRebalanceSession|FullyQualifiedName~DurableEnvelopeQueue|FullyQualifiedName~DurableProcessingSession|FullyQualifiedName~DurableRebalanceSession|FullyQualifiedName~Architecture"
     -c Release --no-build
     passed, 60 passed, 0 failed, 0 skipped
+milestone 036 slice 13 large-class guardrail and final validation:
+  post-SRP inventory:
+    production max physical class declaration:
+      1_089 code-ish lines
+    pre-SRP production max physical class declaration:
+      2_411 code-ish lines
+    production declarations over 250 code-ish lines:
+      55
+    test declarations over 250 code-ish lines:
+      50
+  dotnet build RadarPulse.sln -c Release --no-restore
+    /p:UseSharedCompilation=false
+    passed, 0 warnings, 0 errors
+  dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj -c Release
+    --no-build
+    passed, 1011 passed, 0 failed, 3 skipped
 milestone 036 slice 9 performance evidence capture:
   full-cache raw logs:
     data/perf/m036-full-cache-20260528-142529

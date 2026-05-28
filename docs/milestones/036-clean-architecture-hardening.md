@@ -932,9 +932,100 @@ dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
   result: passed, 60 passed, 0 failed, 0 skipped
 ```
 
+### Change 17: Large-Class Guardrail And Final Validation
+
+Status: complete.
+
+Intent:
+
+```text
+capture the post-SRP large-class inventory
+record the remaining large-class interpretation honestly before decision
+trace
+verify the full accepted Release test gate after the CLI, benchmark, and
+session splits
+```
+
+Inventory:
+
+```text
+metric: code-ish physical declaration span, excluding blank/comment/string
+noise; partial declarations are counted by declaration file, so the count is
+not directly comparable to pre-partial logical class count
+
+production class declarations over 250 code-ish lines:
+  55
+test class declarations over 250 code-ish lines:
+  50
+production max declaration after SRP split:
+  1_089 code-ish lines
+production max declaration before SRP split:
+  2_411 code-ish lines
+largest production declaration reduction:
+  2_411 -> 1_089 code-ish lines
+
+layer inventory after SRP split:
+  Application:
+    classes: 13
+    over 250 code-ish lines: 0
+    max code-ish lines: 180
+  Domain:
+    classes: 91
+    over 250 code-ish lines: 13
+    max code-ish lines: 543
+  Infrastructure:
+    classes: 169
+    over 250 code-ish lines: 39
+    max code-ish lines: 630
+  Presentation:
+    classes: 19
+    over 250 code-ish lines: 3
+    max code-ish lines: 1_089
+```
+
+Largest remaining production declarations:
+
+```text
+1_089 ProcessingBenchmarkCliReporter
+630 ArchiveTwoMessageSummaryBuilder
+622 RadarProcessingOwnedBatchQueue
+588 NexradArchiveReplayPublisher
+586 NexradArchiveReplayShapeBenchmark
+553 ReusableArchiveBZip2Decompressor
+552 RadarProcessingArchiveRebalanceBenchmark public API partial
+548 RadarProcessingSyntheticRebalanceWorkload
+543 RadarProcessingQueuedProviderValidator
+527 BZip2Workspace
+520 RadarProcessingArchiveRebalanceBenchmark models partial
+```
+
+Interpretation:
+
+```text
+the large-class work materially reduced maximum file/declaration pressure and
+made the most oversized surfaces navigable by responsibility zone
+the remaining largest production declarations are concentrated in reporting,
+archive parsing/decompression, queue ownership, publishers, validators, and
+benchmark model surfaces
+logical partial classes can still represent large conceptual surfaces; they
+are now explicit compatibility/state-machine shells rather than hidden
+single-file God classes
+no further SRP blocker remains before decision trace for the accepted
+milestone scope
+```
+
+Verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore /p:UseSharedCompilation=false
+  result: passed, 0 warnings, 0 errors
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj -c Release --no-build
+  result: passed, 1011 passed, 0 failed, 3 skipped
+```
+
 ## Final 10/10 Pre-Decision Validation
 
-Status: superseded by the large-class SRP extension.
+Status: ready for discussion before decision trace.
 
 Summary:
 
@@ -952,6 +1043,17 @@ processing benchmark allocation gates no longer depend on full-suite process
 order for the accepted Release test run
 performance evidence is captured separately for full-cache end-to-end runtime
 and processing-only handler-engine throughput
+decision trace and closeout are intentionally not written yet
+```
+
+Large-class SRP extension summary:
+
+```text
+CLI SRP split complete
+benchmark SRP split complete
+queue and durable session SRP split complete
+large-class inventory captured
+full Release build and test suite pass after all SRP extension slices
 decision trace and closeout are intentionally not written yet
 ```
 
