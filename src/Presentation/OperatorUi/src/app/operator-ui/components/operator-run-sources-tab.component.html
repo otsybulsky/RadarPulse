@@ -1,0 +1,32 @@
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Source</th>
+        <th>Radar</th>
+        <th>Elevation</th>
+        <th>Azimuth</th>
+        <th>Range</th>
+        <th>Events</th>
+        <th>Checksum</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (source of detail.sources; track source.identity.sourceId) {
+        <tr>
+          <td>{{ source.identity.sourceId }}</td>
+          <td>{{ source.identity.radarOrdinal }}</td>
+          <td>{{ source.identity.elevationSlot }}</td>
+          <td>{{ source.identity.azimuthBucket }}</td>
+          <td>{{ source.identity.rangeBand }}</td>
+          <td>{{ source.processedEventCount }}</td>
+          <td>{{ source.rawValueChecksum }}</td>
+        </tr>
+      } @empty {
+        <tr>
+          <td colspan="7">No source records are available for this run.</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>

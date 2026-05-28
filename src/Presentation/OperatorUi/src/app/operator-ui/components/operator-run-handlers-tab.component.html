@@ -1,0 +1,76 @@
+@if (detail.handlerContract; as contract) {
+  <dl class="metric-grid wide">
+    <div>
+      <dt>State</dt>
+      <dd>{{ contract.statePosture }}</dd>
+    </div>
+    <div>
+      <dt>Blocked</dt>
+      <dd>{{ contract.isBlocked ? 'yes' : 'no' }}</dd>
+    </div>
+    <div>
+      <dt>Handlers</dt>
+      <dd>{{ contract.handlers.length }}</dd>
+    </div>
+    <div>
+      <dt>Message</dt>
+      <dd>{{ contract.message || 'none' }}</dd>
+    </div>
+  </dl>
+
+  <div class="handler-query">
+    <label>
+      Source id
+      <input
+        name="handlerSource"
+        type="number"
+        min="0"
+        [ngModel]="handlerSourceId"
+        (ngModelChange)="handlerSourceIdChange.emit($event)" />
+    </label>
+    <label>
+      Field
+      <input
+        name="handlerField"
+        [ngModel]="handlerFieldName"
+        (ngModelChange)="handlerFieldNameChange.emit($event)"
+        autocomplete="off" />
+    </label>
+    <button type="button" (click)="loadHandlerOutput.emit()" [disabled]="handlerLookupDisabled">
+      Load handler output
+    </button>
+  </div>
+
+  @if (handlerLookupValidationMessage) {
+    <p class="callout blocked-text">{{ handlerLookupValidationMessage }}</p>
+  }
+
+  @if (handlerOutputLoading) {
+    <p class="muted">Loading handler output...</p>
+  } @else if (handlerOutput; as state) {
+    @if (state.body) {
+      <dl class="metric-grid wide">
+        <div>
+          <dt>Handler</dt>
+          <dd>{{ state.body.handlerName }}</dd>
+        </div>
+        <div>
+          <dt>Name</dt>
+          <dd>{{ state.body.name }}</dd>
+        </div>
+        <div>
+          <dt>Int64</dt>
+          <dd>{{ state.body.int64Value }}</dd>
+        </div>
+        <div>
+          <dt>Double</dt>
+          <dd>{{ state.body.doubleValue }}</dd>
+        </div>
+      </dl>
+    } @else {
+      <p class="callout blocked-text">{{ state.message || state.firstBlockingReason || 'Handler output is absent.' }}</p>
+    }
+  }
+} @else {
+  <p class="muted padded">This run did not publish a handler contract.</p>
+}

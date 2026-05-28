@@ -1,0 +1,26 @@
+<aside class="run-list" aria-label="Persisted product runs">
+  <div class="section-title">
+    <h2>Persisted runs</h2>
+    <span>{{ runCountLabel() }}</span>
+  </div>
+
+  @if (runsLoading) {
+    <p class="muted padded">Loading runs...</p>
+  } @else if (runs?.body?.length) {
+    <ul>
+      @for (run of runs?.body; track run.runId) {
+        <li>
+          <button
+            type="button"
+            [class.selected]="selectedRunId === run.runId"
+            (click)="selectRun.emit(run.runId)">
+            <span>{{ run.runId }}</span>
+            <small>{{ stateLabel(run.state) }} - {{ run.committedBatchCount }}/{{ run.acceptedBatchCount }}</small>
+          </button>
+        </li>
+      }
+    </ul>
+  } @else {
+    <p class="muted padded">{{ runs?.message || 'No persisted runs yet.' }}</p>
+  }
+</aside>

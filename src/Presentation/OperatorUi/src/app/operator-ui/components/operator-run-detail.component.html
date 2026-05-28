@@ -1,0 +1,77 @@
+<section class="detail-panel" aria-label="Selected product run">
+  @if (selectedRunLoading) {
+    <p class="muted padded">Loading selected run...</p>
+  } @else if (selectedRun?.body; as detail) {
+    <div class="detail-header">
+      <div>
+        <p class="eyebrow">Selected run</p>
+        <h2>{{ detail.runId }}</h2>
+      </div>
+      <span class="state-pill" [class.good]="detail.isReady" [class.blocked]="!detail.isReady">
+        {{ enumLabel(detail.summary.state, 'state') }}
+      </span>
+    </div>
+
+    <nav class="detail-tabs" aria-label="Run inspection views">
+      <button type="button" [class.active]="activeTab === 'summary'" (click)="activeTabChange.emit('summary')">
+        Summary
+      </button>
+      <button type="button" [class.active]="activeTab === 'batches'" (click)="activeTabChange.emit('batches')">
+        Batches
+      </button>
+      <button type="button" [class.active]="activeTab === 'sources'" (click)="activeTabChange.emit('sources')">
+        Sources
+      </button>
+      <button type="button" [class.active]="activeTab === 'handlers'" (click)="activeTabChange.emit('handlers')">
+        Handlers
+      </button>
+      <button type="button" [class.active]="activeTab === 'diagnostics'" (click)="activeTabChange.emit('diagnostics')">
+        Diagnostics
+      </button>
+      <button type="button" [class.active]="activeTab === 'capacity'" (click)="activeTabChange.emit('capacity')">
+        Capacity
+      </button>
+    </nav>
+
+    @switch (activeTab) {
+      @case ('summary') {
+        <app-operator-run-summary-tab [detail]="detail" />
+      }
+      @case ('batches') {
+        <app-operator-run-batches-tab [detail]="detail" />
+      }
+      @case ('sources') {
+        <app-operator-run-sources-tab [detail]="detail" />
+      }
+      @case ('handlers') {
+        <app-operator-run-handlers-tab
+          [detail]="detail"
+          [handlerOutput]="handlerOutput"
+          [handlerOutputLoading]="handlerOutputLoading"
+          [handlerLookupValidationMessage]="handlerLookupValidationMessage"
+          [handlerLookupDisabled]="handlerLookupDisabled"
+          [handlerSourceId]="handlerSourceId"
+          [handlerFieldName]="handlerFieldName"
+          (handlerSourceIdChange)="handlerSourceIdChange.emit($event)"
+          (handlerFieldNameChange)="handlerFieldNameChange.emit($event)"
+          (loadHandlerOutput)="loadHandlerOutput.emit()" />
+      }
+      @case ('diagnostics') {
+        <app-operator-run-diagnostics-tab [detail]="detail" />
+      }
+      @case ('capacity') {
+        <app-operator-run-capacity-tab [detail]="detail" />
+      }
+    }
+  } @else if (selectedRun; as state) {
+    <div class="empty-detail">
+      <h2>{{ selectedRunId || 'No run selected' }}</h2>
+      <p>{{ state.message || state.firstBlockingReason || 'Selected run is unavailable.' }}</p>
+    </div>
+  } @else {
+    <div class="empty-detail">
+      <h2>No run selected</h2>
+      <p>Run the deterministic demo or choose a persisted run from the list.</p>
+    </div>
+  }
+</section>

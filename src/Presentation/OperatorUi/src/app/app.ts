@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnInit, computed, signal } from '@angular/core';
+import { Component, OnInit, ViewEncapsulation, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import { RadarPulseProductApiClient } from './product/product-api.client';
@@ -29,12 +29,21 @@ import {
   validateHandlerLookup,
   validateProductApiBaseUrl,
 } from './operator-ui/operator-ui-validation';
+import { OperatorControlsComponent } from './operator-ui/components/operator-controls.component';
+import { OperatorRunDetailComponent } from './operator-ui/components/operator-run-detail.component';
+import { OperatorRunListComponent } from './operator-ui/components/operator-run-list.component';
 
 @Component({
   selector: 'app-root',
-  imports: [FormsModule],
+  imports: [
+    FormsModule,
+    OperatorControlsComponent,
+    OperatorRunDetailComponent,
+    OperatorRunListComponent,
+  ],
   templateUrl: './app.html',
-  styleUrl: './app.css'
+  styleUrl: './app.css',
+  encapsulation: ViewEncapsulation.None,
 })
 export class App implements OnInit {
   protected demoRunId = this.createRunId('demo');

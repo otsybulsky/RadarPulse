@@ -1,0 +1,37 @@
+<dl class="metric-grid wide">
+  <div>
+    <dt>Profile</dt>
+    <dd>{{ detail.capacityEvidence.profileName }}</dd>
+  </div>
+  <div>
+    <dt>Elapsed ms</dt>
+    <dd>{{ detail.capacityEvidence.elapsedMilliseconds }}</dd>
+  </div>
+  <div>
+    <dt>Allocated bytes</dt>
+    <dd>{{ detail.capacityEvidence.measuredAllocatedBytes }}</dd>
+  </div>
+  <div>
+    <dt>Durable adapter</dt>
+    <dd>{{ detail.capacityEvidence.durableAdapterKind }}</dd>
+  </div>
+  <div>
+    <dt>Accepted</dt>
+    <dd>{{ detail.capacityEvidence.acceptedBatchCount }}</dd>
+  </div>
+  <div>
+    <dt>Processed</dt>
+    <dd>{{ detail.capacityEvidence.processedBatchCount }}</dd>
+  </div>
+  <div>
+    <dt>Committed</dt>
+    <dd>{{ detail.capacityEvidence.committedBatchCount }}</dd>
+  </div>
+  <div>
+    <dt>Contour</dt>
+    <dd>{{ detail.capacityEvidence.configurationContour }}</dd>
+  </div>
+</dl>
+@if (detail.capacityEvidence.firstBlockingReason) {
+  <p class="callout blocked-text">{{ detail.capacityEvidence.firstBlockingReason }}</p>
+}

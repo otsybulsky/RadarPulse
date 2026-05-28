@@ -1,0 +1,41 @@
+@if (detail.diagnostics; as diagnostics) {
+  <dl class="metric-grid wide">
+    <div>
+      <dt>Ready</dt>
+      <dd>{{ diagnostics.isReady ? 'yes' : 'no' }}</dd>
+    </div>
+    <div>
+      <dt>Complete</dt>
+      <dd>{{ diagnostics.processingCompletenessPassed ? 'yes' : 'no' }}</dd>
+    </div>
+    <div>
+      <dt>Handler delta</dt>
+      <dd>{{ diagnostics.usesOrderedHandlerDeltaMerge ? 'yes' : 'no' }}</dd>
+    </div>
+    <div>
+      <dt>Sequential fallback</dt>
+      <dd>{{ diagnostics.usesSequentialHandlerFallback ? 'yes' : 'no' }}</dd>
+    </div>
+    <div>
+      <dt>Release failures</dt>
+      <dd>{{ diagnostics.releaseFailureCount }}</dd>
+    </div>
+    <div>
+      <dt>Retained payload</dt>
+      <dd>{{ diagnostics.currentRetainedPayloadBytes }}</dd>
+    </div>
+    <div>
+      <dt>Terminal retained</dt>
+      <dd>{{ diagnostics.terminalRetainedEnvelopeCount }}</dd>
+    </div>
+    <div>
+      <dt>Provenance</dt>
+      <dd>{{ diagnostics.handlerOutputProvenance }}</dd>
+    </div>
+  </dl>
+  @if (diagnostics.blockingReason) {
+    <p class="callout blocked-text">{{ diagnostics.blockingReason }}</p>
+  }
+} @else {
+  <p class="muted padded">No diagnostics are available for this run.</p>
+}

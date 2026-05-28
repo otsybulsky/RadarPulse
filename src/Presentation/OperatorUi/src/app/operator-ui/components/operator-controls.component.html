@@ -1,0 +1,91 @@
+<section class="controls-panel" aria-label="Operator controls">
+  <div class="detail-header">
+    <div>
+      <p class="eyebrow">Local operator controls</p>
+      <h2>Runtime posture</h2>
+    </div>
+    <span class="state-pill" [class.blocked]="controlOutcome?.kind === 'rejected' || controlOutcome?.kind === 'blocked'">
+      {{ controlOutcome?.kind || 'Idle' }}
+    </span>
+  </div>
+
+  <div class="controls-grid">
+    <label>
+      Target run
+      <input name="controlRunId" [ngModel]="controlTargetRunId" readonly />
+    </label>
+    <label>
+      Durable store path
+      <input
+        name="durableStorePath"
+        [ngModel]="durableStorePath"
+        (ngModelChange)="durableStorePathChange.emit($event)"
+        autocomplete="off" />
+    </label>
+    <div class="control-buttons">
+      <button type="button" class="secondary" (click)="stopAccepting.emit()" [disabled]="controlsDisabled">
+        Stop accepting
+      </button>
+      <button type="button" class="secondary" (click)="drainAccepted.emit()" [disabled]="controlsDisabled">
+        Drain accepted
+      </button>
+      <button type="button" class="secondary" (click)="cancelOpenAndRelease.emit()" [disabled]="controlsDisabled">
+        Cancel and release
+      </button>
+      <button type="button" (click)="rejectUnsafeFallback.emit()" [disabled]="controlsDisabled">
+        Reject unsafe fallback
+      </button>
+    </div>
+  </div>
+
+  @if (readiness?.kind === 'network-error') {
+    <p class="callout blocked-text">Controls are disabled until the product HTTP host is reachable.</p>
+  } @else if (readiness?.kind === 'blocked') {
+    <p class="callout blocked-text">Controls are disabled while product history readiness is blocked.</p>
+  } @else if (!readiness) {
+    <p class="callout blocked-text">Controls are disabled until host readiness has loaded.</p>
+  } @else if (readiness.kind !== 'success') {
+    <p class="callout blocked-text">Controls are disabled while host readiness is unavailable.</p>
+  } @else if (!controlTargetRunId) {
+    <p class="callout blocked-text">Controls require a selected or latest run.</p>
+  } @else if (!durableStorePath.trim()) {
+    <p class="callout">Controls require the durable store path used by the product run.</p>
+  }
+
+  @if (controlOutcome; as outcome) {
+    @if (outcome.body) {
+      <dl class="metric-grid wide">
+        <div>
+          <dt>Action</dt>
+          <dd>{{ outcome.body.action }}</dd>
+        </div>
+        <div>
+          <dt>Ready</dt>
+          <dd>{{ outcome.body.operatorSummary.isReady ? 'yes' : 'no' }}</dd>
+        </div>
+        <div>
+          <dt>Canceled</dt>
+          <dd>{{ outcome.body.canceledOpenCount }}</dd>
+        </div>
+        <div>
+          <dt>Released</dt>
+          <dd>{{ outcome.body.releasedCanceledCount }}</dd>
+        </div>
+      </dl>
+      @if (outcome.body.operatorSummary.firstBlockingReason || outcome.message) {
+        <p class="callout" [class.blocked-text]="outcome.kind !== 'success'">
+          {{ outcome.body.operatorSummary.firstBlockingReason || outcome.message }}
+        </p>
+      }
+      @if (outcome.body.operatorSummary.warnings.length) {
+        <ul class="warning-list">
+          @for (warning of outcome.body.operatorSummary.warnings; track warning) {
+            <li>{{ warning }}</li>
+          }
+        </ul>
+      }
+    } @else {
+      <p class="callout blocked-text">{{ outcome.message || outcome.firstBlockingReason }}</p>
+    }
+  }
+</section>

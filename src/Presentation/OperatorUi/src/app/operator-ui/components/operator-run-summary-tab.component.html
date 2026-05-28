@@ -1,0 +1,32 @@
+<dl class="metric-grid wide">
+  <div>
+    <dt>Input</dt>
+    <dd>{{ detail.summary.input.description }}</dd>
+  </div>
+  <div>
+    <dt>Handler mode</dt>
+    <dd>{{ enumLabel(detail.summary.handlerMode, 'handlerMode') }}</dd>
+  </div>
+  <div>
+    <dt>Processing</dt>
+    <dd>{{ detail.summary.processedBatchCount }}/{{ detail.summary.acceptedBatchCount }}</dd>
+  </div>
+  <div>
+    <dt>Fallback</dt>
+    <dd>{{ enumLabel(detail.summary.fallbackRecommendation, 'fallback') }}</dd>
+  </div>
+</dl>
+
+@if (detail.summary.firstBlockingReason || detail.operatorSummary.firstBlockingReason) {
+  <p class="callout blocked-text">
+    {{ detail.summary.firstBlockingReason || detail.operatorSummary.firstBlockingReason }}
+  </p>
+}
+
+@if (detail.operatorSummary.warnings.length || detail.configuration.warnings.length) {
+  <ul class="warning-list">
+    @for (warning of combinedWarnings(); track warning) {
+      <li>{{ warning }}</li>
+    }
+  </ul>
+}
