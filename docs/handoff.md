@@ -35,7 +35,8 @@ persistence, runtime defaults, and demo/readiness behavior.
 Stop point:
 
 ```text
-milestone 036 opened; detailed implementation plan is next
+milestone 036 implementation plan written; slice 1 application product API
+boundary is next
 ```
 
 Most recently closed milestone:
@@ -60,6 +61,7 @@ Milestone 036 documents:
 
 ```text
 docs/milestones/036-clean-architecture-hardening.md
+docs/milestones/036-clean-architecture-hardening-plan.md
 ```
 
 Milestone 036 objective:
@@ -73,6 +75,23 @@ make Presentation depend on Application contracts instead of concrete
 add architecture tests for layer and namespace dependency direction
 reduce or explicitly bound major SRP hotspots without changing accepted
   behavior
+```
+
+Milestone 036 planned slices:
+
+```text
+1. Application product API boundary:
+   add Application product service/API ports, move API response mapping inward,
+   make Infrastructure implement the service port, and make HTTP endpoints
+   depend on the Application API port.
+2. Architecture guardrail tests:
+   add executable project-reference, namespace, and endpoint dependency rules.
+3. Product pipeline SRP cleanup:
+   extract synthetic batch creation, handler-set creation, and archive batch
+   capture helpers from the product pipeline service.
+4. Product CLI entrypoint extraction:
+   route product pipeline CLI workflows through a focused helper and record
+   any remaining large-entrypoint risk as a bounded warning.
 ```
 
 Milestone 035 documents:

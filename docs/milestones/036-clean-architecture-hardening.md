@@ -116,3 +116,29 @@ Verification:
 documentation-only opening change; runtime gate deferred until the detailed
 implementation plan and code slices
 ```
+
+### Change 2: Detailed Implementation Plan
+
+Status: complete.
+
+Intent:
+
+```text
+define behavior-preserving slices that move product API/use-case contracts
+inward, add architecture guardrails, and reduce SRP hotspots toward the 9/10
+architecture goal
+```
+
+Scope:
+
+```text
+docs/milestones/036-clean-architecture-hardening-plan.md
+docs/milestones/036-clean-architecture-hardening.md
+docs/handoff.md
+```
+
+Verification:
+
+```text
+documentation-only planning change; runtime gate deferred until slice 1
+```
