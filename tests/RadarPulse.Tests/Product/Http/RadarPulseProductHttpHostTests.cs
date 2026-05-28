@@ -24,7 +24,7 @@ public sealed class RadarPulseProductHttpHostTests
     {
         var services = new ServiceCollection();
         services.AddSingleton<IRadarPulseProductPipelineApi>(
-            new RadarPulseProductPipelineApiContract(new RadarPulseProductPipelineService()));
+            RadarPulseProductPipelineApiContractTestFactory.Create(new RadarPulseProductPipelineService()));
         services.AddRouting();
         var provider = services.BuildServiceProvider();
         var endpoints = new RouteBuilderStub(provider);
@@ -135,7 +135,7 @@ public sealed class RadarPulseProductHttpHostTests
     public async Task DemoReadinessReportsReadyHistoryAndStaticUi()
     {
         using var staticRoot = OperatorUiStaticRoot.Create();
-        var api = new RadarPulseProductPipelineApiContract(new RadarPulseProductPipelineService());
+        var api = RadarPulseProductPipelineApiContractTestFactory.Create(new RadarPulseProductPipelineService());
         await api.RunDemoAsync(new RadarPulseProductPipelineSyntheticRunRequest("demo-readiness"));
 
         var response = await ExecuteAsync<RadarPulseProductDemoReadiness>(
@@ -162,7 +162,7 @@ public sealed class RadarPulseProductHttpHostTests
     [Fact]
     public async Task DemoReadinessBlocksMissingStaticUi()
     {
-        var api = new RadarPulseProductPipelineApiContract(new RadarPulseProductPipelineService());
+        var api = RadarPulseProductPipelineApiContractTestFactory.Create(new RadarPulseProductPipelineService());
         var missingPath = System.IO.Path.Combine(
             System.IO.Path.GetTempPath(),
             $"radarpulse-missing-ui-{Guid.NewGuid():N}");
@@ -188,7 +188,7 @@ public sealed class RadarPulseProductHttpHostTests
         using var staticRoot = OperatorUiStaticRoot.Create();
         using var blockedHistoryDirectory = TemporaryDirectory.Create();
         var service = RadarPulseProductPipelineService.CreateWithFileHistory(blockedHistoryDirectory.Path);
-        var api = new RadarPulseProductPipelineApiContract(service);
+        var api = RadarPulseProductPipelineApiContractTestFactory.Create(service);
 
         var response = await ExecuteAsync<RadarPulseProductDemoReadiness>(
             RadarPulseProductHttpEndpoints.GetDemoReadiness(
@@ -230,7 +230,7 @@ public sealed class RadarPulseProductHttpHostTests
     [Fact]
     public async Task DemoRouteMapsToProductServiceCreatedResponse()
     {
-        var api = new RadarPulseProductPipelineApiContract(new RadarPulseProductPipelineService());
+        var api = RadarPulseProductPipelineApiContractTestFactory.Create(new RadarPulseProductPipelineService());
 
         var result = await RadarPulseProductHttpEndpoints.RunDemoAsync(
             api,
@@ -249,7 +249,7 @@ public sealed class RadarPulseProductHttpHostTests
     [Fact]
     public async Task QueryRoutesMapSuccessAndNotFoundResponses()
     {
-        var api = new RadarPulseProductPipelineApiContract(new RadarPulseProductPipelineService());
+        var api = RadarPulseProductPipelineApiContractTestFactory.Create(new RadarPulseProductPipelineService());
         await api.RunDemoAsync(new RadarPulseProductPipelineSyntheticRunRequest("http-query"));
 
         var list = await ExecuteAsync<IReadOnlyList<RadarPulseProductRunSummary>>(
@@ -284,7 +284,7 @@ public sealed class RadarPulseProductHttpHostTests
     [Fact]
     public async Task DiagnosticCapacityHandlerAndReadinessRoutesPreserveProductResponses()
     {
-        var api = new RadarPulseProductPipelineApiContract(new RadarPulseProductPipelineService());
+        var api = RadarPulseProductPipelineApiContractTestFactory.Create(new RadarPulseProductPipelineService());
         await api.RunDemoAsync(
             new RadarPulseProductPipelineSyntheticRunRequest(
                 "http-readiness",

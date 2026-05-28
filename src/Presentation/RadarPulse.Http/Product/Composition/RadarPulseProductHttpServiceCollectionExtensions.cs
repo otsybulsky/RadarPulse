@@ -60,9 +60,20 @@ public static class RadarPulseProductHttpServiceCollectionExtensions
         services.AddSingleton<RadarPulseProductPipelineService>(
             provider => new RadarPulseProductPipelineService(
                 historyStore: provider.GetRequiredService<IRadarPulseProductRunHistoryStore>()));
-        services.AddSingleton<IRadarPulseProductPipelineService>(
+        services.AddSingleton<IRadarPulseProductPipelineRunService>(
             provider => provider.GetRequiredService<RadarPulseProductPipelineService>());
-        services.AddSingleton<RadarPulseProductPipelineApiContract>();
+        services.AddSingleton<IRadarPulseProductPipelineQueryService>(
+            provider => provider.GetRequiredService<RadarPulseProductPipelineService>());
+        services.AddSingleton<IRadarPulseProductPipelineHistoryService>(
+            provider => provider.GetRequiredService<RadarPulseProductPipelineService>());
+        services.AddSingleton<IRadarPulseProductPipelineControlService>(
+            provider => provider.GetRequiredService<RadarPulseProductPipelineService>());
+        services.AddSingleton<RadarPulseProductPipelineApiContract>(
+            provider => new RadarPulseProductPipelineApiContract(
+                provider.GetRequiredService<IRadarPulseProductPipelineRunService>(),
+                provider.GetRequiredService<IRadarPulseProductPipelineQueryService>(),
+                provider.GetRequiredService<IRadarPulseProductPipelineHistoryService>(),
+                provider.GetRequiredService<IRadarPulseProductPipelineControlService>()));
         services.AddSingleton<IRadarPulseProductPipelineApi>(
             provider => provider.GetRequiredService<RadarPulseProductPipelineApiContract>());
         return services;

@@ -80,8 +80,8 @@ public sealed class RadarPulseProductPersistentHistoryServiceTests
             healthyDirectory.File("history.json"));
         var blockedService = RadarPulseProductPipelineService.CreateWithFileHistory(
             blockedDirectory.Path);
-        var healthyApi = new RadarPulseProductPipelineApiContract(healthyService);
-        var blockedApi = new RadarPulseProductPipelineApiContract(blockedService);
+        var healthyApi = RadarPulseProductPipelineApiContractTestFactory.Create(healthyService);
+        var blockedApi = RadarPulseProductPipelineApiContractTestFactory.Create(blockedService);
 
         await healthyApi.RunDemoAsync(
             new RadarPulseProductPipelineSyntheticRunRequest("persistent-api"));

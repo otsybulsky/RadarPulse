@@ -48,7 +48,7 @@ public sealed class RadarPulseProductRunHistoryStoreTests
     public async Task ApiContractExposesProductHistoryReadiness()
     {
         var service = new RadarPulseProductPipelineService();
-        var api = new RadarPulseProductPipelineApiContract(service);
+        var api = RadarPulseProductPipelineApiContractTestFactory.Create(service);
 
         await api.RunDemoAsync(new RadarPulseProductPipelineSyntheticRunRequest("history-api"));
 

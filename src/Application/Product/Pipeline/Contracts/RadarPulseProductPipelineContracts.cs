@@ -1,25 +1,10 @@
 namespace RadarPulse.Application.Product;
 
 /// <summary>
-/// Application service port for product pipeline run, query, history, and control use cases.
+/// Application service port for product pipeline run use cases.
 /// </summary>
-/// <remarks>
-/// Infrastructure implements this port with the accepted production-shaped
-/// processing runtime and history adapters. Presentation code should depend on
-/// this Application contract instead of concrete Infrastructure services.
-/// </remarks>
-public interface IRadarPulseProductPipelineService
+public interface IRadarPulseProductPipelineRunService
 {
-    /// <summary>
-    /// Number of run details currently visible through the configured history store.
-    /// </summary>
-    int Count { get; }
-
-    /// <summary>
-    /// Current readiness and load posture for the configured history store.
-    /// </summary>
-    RadarPulseProductRunHistoryReadiness HistoryReadiness { get; }
-
     /// <summary>
     /// Runs the accepted production-shaped pipeline over deterministic synthetic input.
     /// </summary>
@@ -33,7 +18,29 @@ public interface IRadarPulseProductPipelineService
     ValueTask<RadarPulseProductRunDetail> RunArchiveFileAsync(
         RadarPulseProductPipelineArchiveFileRunRequest request,
         CancellationToken cancellationToken = default);
+}
 
+/// <summary>
+/// Application service port for product pipeline history-readiness use cases.
+/// </summary>
+public interface IRadarPulseProductPipelineHistoryService
+{
+    /// <summary>
+    /// Number of run details currently visible through the configured history store.
+    /// </summary>
+    int Count { get; }
+
+    /// <summary>
+    /// Current readiness and load posture for the configured history store.
+    /// </summary>
+    RadarPulseProductRunHistoryReadiness HistoryReadiness { get; }
+}
+
+/// <summary>
+/// Application service port for product pipeline query use cases.
+/// </summary>
+public interface IRadarPulseProductPipelineQueryService
+{
     /// <summary>
     /// Lists compact product run summaries from the configured history store.
     /// </summary>
@@ -90,13 +97,34 @@ public interface IRadarPulseProductPipelineService
     /// Returns capacity and completeness evidence for a product run.
     /// </summary>
     RadarPulseProductQueryResult<RadarPulseProductCapacityEvidence> TryGetCapacityEvidence(string runId);
+}
 
+/// <summary>
+/// Application service port for product pipeline control use cases.
+/// </summary>
+public interface IRadarPulseProductPipelineControlService
+{
     /// <summary>
     /// Applies a product control action against recoverable durable pipeline state.
     /// </summary>
     ValueTask<RadarPulseProductQueryResult<RadarPulseProductControlSummary>> ApplyControlAsync(
         RadarPulseProductPipelineControlRequest request,
         CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// Compatibility aggregate for product pipeline run, query, history, and control ports.
+/// </summary>
+/// <remarks>
+/// Infrastructure may implement this aggregate for direct service consumers,
+/// but Presentation-facing API contracts should depend on the focused ports.
+/// </remarks>
+public interface IRadarPulseProductPipelineService :
+    IRadarPulseProductPipelineRunService,
+    IRadarPulseProductPipelineHistoryService,
+    IRadarPulseProductPipelineQueryService,
+    IRadarPulseProductPipelineControlService
+{
 }
 
 /// <summary>
@@ -204,15 +232,24 @@ public interface IRadarPulseProductPipelineApi
 /// </remarks>
 public sealed class RadarPulseProductPipelineApiContract : IRadarPulseProductPipelineApi
 {
-    private readonly IRadarPulseProductPipelineService service;
+    private readonly IRadarPulseProductPipelineRunService runService;
+    private readonly IRadarPulseProductPipelineQueryService queryService;
+    private readonly IRadarPulseProductPipelineHistoryService historyService;
+    private readonly IRadarPulseProductPipelineControlService controlService;
 
     /// <summary>
-    /// Creates an API contract over the supplied Application product service port.
+    /// Creates an API contract over focused Application product use-case ports.
     /// </summary>
     public RadarPulseProductPipelineApiContract(
-        IRadarPulseProductPipelineService service)
+        IRadarPulseProductPipelineRunService runService,
+        IRadarPulseProductPipelineQueryService queryService,
+        IRadarPulseProductPipelineHistoryService historyService,
+        IRadarPulseProductPipelineControlService controlService)
     {
-        this.service = service ?? throw new ArgumentNullException(nameof(service));
+        this.runService = runService ?? throw new ArgumentNullException(nameof(runService));
+        this.queryService = queryService ?? throw new ArgumentNullException(nameof(queryService));
+        this.historyService = historyService ?? throw new ArgumentNullException(nameof(historyService));
+        this.controlService = controlService ?? throw new ArgumentNullException(nameof(controlService));
     }
 
     /// <inheritdoc />
@@ -222,7 +259,7 @@ public sealed class RadarPulseProductPipelineApiContract : IRadarPulseProductPip
     {
         try
         {
-            var detail = await service.RunSyntheticAsync(request, cancellationToken)
+            var detail = await runService.RunSyntheticAsync(request, cancellationToken)
                 .ConfigureAwait(false);
             return RadarPulseProductApiResponse<RadarPulseProductRunDetail>.Created(detail);
         }
@@ -239,7 +276,7 @@ public sealed class RadarPulseProductPipelineApiContract : IRadarPulseProductPip
     {
         try
         {
-            var detail = await service.RunArchiveFileAsync(request, cancellationToken)
+            var detail = await runService.RunArchiveFileAsync(request, cancellationToken)
                 .ConfigureAwait(false);
             return RadarPulseProductApiResponse<RadarPulseProductRunDetail>.Created(detail);
         }
@@ -251,60 +288,60 @@ public sealed class RadarPulseProductPipelineApiContract : IRadarPulseProductPip
 
     /// <inheritdoc />
     public RadarPulseProductApiResponse<IReadOnlyList<RadarPulseProductRunSummary>> ListRuns() =>
-        RadarPulseProductApiResponse<IReadOnlyList<RadarPulseProductRunSummary>>.Ok(service.ListRuns());
+        RadarPulseProductApiResponse<IReadOnlyList<RadarPulseProductRunSummary>>.Ok(queryService.ListRuns());
 
     /// <inheritdoc />
     public RadarPulseProductApiResponse<RadarPulseProductRunDetail> GetLatestRun() =>
-        FromQuery(service.TryGetLatestRun());
+        FromQuery(queryService.TryGetLatestRun());
 
     /// <inheritdoc />
     public RadarPulseProductApiResponse<RadarPulseProductRunDetail> GetRun(
         string runId) =>
-        FromQuery(service.TryGetRun(runId));
+        FromQuery(queryService.TryGetRun(runId));
 
     /// <inheritdoc />
     public RadarPulseProductApiResponse<IReadOnlyList<RadarPulseProductBatch>> ListBatches(
         string runId) =>
-        FromQuery(service.ListBatches(runId));
+        FromQuery(queryService.ListBatches(runId));
 
     /// <inheritdoc />
     public RadarPulseProductApiResponse<RadarPulseProductBatch> GetBatch(
         string runId,
         long providerSequence) =>
-        FromQuery(service.TryGetBatch(runId, providerSequence));
+        FromQuery(queryService.TryGetBatch(runId, providerSequence));
 
     /// <inheritdoc />
     public RadarPulseProductApiResponse<IReadOnlyList<RadarPulseProductSource>> ListSources(
         string runId) =>
-        FromQuery(service.ListSources(runId));
+        FromQuery(queryService.ListSources(runId));
 
     /// <inheritdoc />
     public RadarPulseProductApiResponse<RadarPulseProductSource> GetSource(
         string runId,
         int sourceId) =>
-        FromQuery(service.TryGetSource(runId, sourceId));
+        FromQuery(queryService.TryGetSource(runId, sourceId));
 
     /// <inheritdoc />
     public RadarPulseProductApiResponse<RadarPulseProductHandlerOutput> GetHandlerOutput(
         string runId,
         int sourceId,
         string fieldName) =>
-        FromQuery(service.TryGetHandlerOutput(runId, sourceId, fieldName));
+        FromQuery(queryService.TryGetHandlerOutput(runId, sourceId, fieldName));
 
     /// <inheritdoc />
     public RadarPulseProductApiResponse<RadarPulseProductDiagnostics> GetDiagnostics(
         string runId) =>
-        FromQuery(service.TryGetDiagnostics(runId));
+        FromQuery(queryService.TryGetDiagnostics(runId));
 
     /// <inheritdoc />
     public RadarPulseProductApiResponse<RadarPulseProductCapacityEvidence> GetCapacityEvidence(
         string runId) =>
-        FromQuery(service.TryGetCapacityEvidence(runId));
+        FromQuery(queryService.TryGetCapacityEvidence(runId));
 
     /// <inheritdoc />
     public RadarPulseProductApiResponse<RadarPulseProductRunHistoryReadiness> GetHistoryReadiness() =>
         RadarPulseProductApiResponse<RadarPulseProductRunHistoryReadiness>.Ok(
-            service.HistoryReadiness);
+            historyService.HistoryReadiness);
 
     /// <inheritdoc />
     public async ValueTask<RadarPulseProductApiResponse<RadarPulseProductControlSummary>> ApplyControlAsync(
@@ -314,7 +351,7 @@ public sealed class RadarPulseProductPipelineApiContract : IRadarPulseProductPip
         try
         {
             return FromQuery(
-                await service.ApplyControlAsync(request, cancellationToken)
+                await controlService.ApplyControlAsync(request, cancellationToken)
                     .ConfigureAwait(false));
         }
         catch (Exception exception) when (IsClientRequestException(exception))

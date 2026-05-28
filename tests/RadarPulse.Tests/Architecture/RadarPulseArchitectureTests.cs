@@ -59,11 +59,59 @@ public sealed class RadarPulseArchitectureTests
     public void ProductApiBoundaryIsOwnedByApplication()
     {
         Assert.Equal("RadarPulse.Application", typeof(IRadarPulseProductPipelineApi).Assembly.GetName().Name);
+        Assert.Equal("RadarPulse.Application", typeof(IRadarPulseProductPipelineRunService).Assembly.GetName().Name);
+        Assert.Equal("RadarPulse.Application", typeof(IRadarPulseProductPipelineQueryService).Assembly.GetName().Name);
+        Assert.Equal("RadarPulse.Application", typeof(IRadarPulseProductPipelineHistoryService).Assembly.GetName().Name);
+        Assert.Equal("RadarPulse.Application", typeof(IRadarPulseProductPipelineControlService).Assembly.GetName().Name);
         Assert.Equal("RadarPulse.Application", typeof(IRadarPulseProductPipelineService).Assembly.GetName().Name);
         Assert.Equal("RadarPulse.Application", typeof(RadarPulseProductPipelineApiContract).Assembly.GetName().Name);
+
+        var serviceInterfaces = typeof(RadarPulseProductPipelineService).GetInterfaces();
+        Assert.Contains(
+            typeof(IRadarPulseProductPipelineRunService),
+            serviceInterfaces);
+        Assert.Contains(
+            typeof(IRadarPulseProductPipelineQueryService),
+            serviceInterfaces);
+        Assert.Contains(
+            typeof(IRadarPulseProductPipelineHistoryService),
+            serviceInterfaces);
+        Assert.Contains(
+            typeof(IRadarPulseProductPipelineControlService),
+            serviceInterfaces);
         Assert.Contains(
             typeof(IRadarPulseProductPipelineService),
-            typeof(RadarPulseProductPipelineService).GetInterfaces());
+            serviceInterfaces);
+    }
+
+    [Fact]
+    public void ProductApiContractDependsOnFocusedApplicationPorts()
+    {
+        var constructor = Assert.Single(typeof(RadarPulseProductPipelineApiContract).GetConstructors());
+        var parameterTypes = constructor
+            .GetParameters()
+            .Select(static parameter => parameter.ParameterType)
+            .ToArray();
+
+        Assert.Equal(
+            [
+                typeof(IRadarPulseProductPipelineRunService),
+                typeof(IRadarPulseProductPipelineQueryService),
+                typeof(IRadarPulseProductPipelineHistoryService),
+                typeof(IRadarPulseProductPipelineControlService)
+            ],
+            parameterTypes);
+        Assert.DoesNotContain(typeof(IRadarPulseProductPipelineService), parameterTypes);
+
+        var fieldTypes = typeof(RadarPulseProductPipelineApiContract)
+            .GetFields(BindingFlags.NonPublic | BindingFlags.Instance)
+            .Select(static field => field.FieldType)
+            .ToArray();
+        Assert.DoesNotContain(typeof(IRadarPulseProductPipelineService), fieldTypes);
+        Assert.Contains(typeof(IRadarPulseProductPipelineRunService), fieldTypes);
+        Assert.Contains(typeof(IRadarPulseProductPipelineQueryService), fieldTypes);
+        Assert.Contains(typeof(IRadarPulseProductPipelineHistoryService), fieldTypes);
+        Assert.Contains(typeof(IRadarPulseProductPipelineControlService), fieldTypes);
     }
 
     [Fact]

@@ -24,7 +24,7 @@ public sealed class RadarPulseProductHttpControlTests
     {
         var services = new ServiceCollection();
         services.AddSingleton<IRadarPulseProductPipelineApi>(
-            new RadarPulseProductPipelineApiContract(new RadarPulseProductPipelineService()));
+            RadarPulseProductPipelineApiContractTestFactory.Create(new RadarPulseProductPipelineService()));
         services.AddRouting();
         var provider = services.BuildServiceProvider();
         var endpoints = new RouteBuilderStub(provider);
@@ -48,7 +48,7 @@ public sealed class RadarPulseProductHttpControlTests
         using var directory = TemporaryDirectory.Create();
         var path = directory.File("durable.json");
         SeedDurableStore(path);
-        var api = new RadarPulseProductPipelineApiContract(new RadarPulseProductPipelineService());
+        var api = RadarPulseProductPipelineApiContractTestFactory.Create(new RadarPulseProductPipelineService());
         var request = new RadarPulseProductPipelineControlRequest(
             "http-control",
             RadarPulseProductControlAction.RejectUnsafeFallback,
@@ -78,7 +78,7 @@ public sealed class RadarPulseProductHttpControlTests
         using var directory = TemporaryDirectory.Create();
         var path = directory.File("durable.json");
         SeedDurableStore(path);
-        var api = new RadarPulseProductPipelineApiContract(new RadarPulseProductPipelineService());
+        var api = RadarPulseProductPipelineApiContractTestFactory.Create(new RadarPulseProductPipelineService());
 
         var response = await ExecuteAsync<RadarPulseProductControlSummary>(
             await RadarPulseProductHttpEndpoints.RejectUnsafeFallbackAsync(
@@ -102,7 +102,7 @@ public sealed class RadarPulseProductHttpControlTests
     [Fact]
     public async Task BadRequestAndNotFoundRoutesReturnStableProductResponses()
     {
-        var api = new RadarPulseProductPipelineApiContract(new RadarPulseProductPipelineService());
+        var api = RadarPulseProductPipelineApiContractTestFactory.Create(new RadarPulseProductPipelineService());
 
         var badRequest = await ExecuteAsync<RadarPulseProductRunDetail>(
             await RadarPulseProductHttpEndpoints.RunDemoAsync(
@@ -135,7 +135,7 @@ public sealed class RadarPulseProductHttpControlTests
     {
         using var directory = TemporaryDirectory.Create();
         var service = RadarPulseProductPipelineService.CreateWithFileHistory(directory.Path);
-        var api = new RadarPulseProductPipelineApiContract(service);
+        var api = RadarPulseProductPipelineApiContractTestFactory.Create(service);
 
         var response = await ExecuteAsync<RadarPulseProductRunHistoryReadiness>(
             RadarPulseProductHttpEndpoints.GetHistoryReadiness(api));

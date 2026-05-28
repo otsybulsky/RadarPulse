@@ -11,7 +11,7 @@ public sealed class RadarPulseProductPipelineApiContractTests
     [Fact]
     public async Task ApiRunCommandMapsToProductServiceResult()
     {
-        var api = new RadarPulseProductPipelineApiContract(new RadarPulseProductPipelineService());
+        var api = RadarPulseProductPipelineApiContractTestFactory.Create(new RadarPulseProductPipelineService());
 
         var response = await api.RunDemoAsync(
             new RadarPulseProductPipelineSyntheticRunRequest(
@@ -28,7 +28,7 @@ public sealed class RadarPulseProductPipelineApiContractTests
     [Fact]
     public async Task ApiContractMapsListLatestAndDetailQueries()
     {
-        var api = new RadarPulseProductPipelineApiContract(new RadarPulseProductPipelineService());
+        var api = RadarPulseProductPipelineApiContractTestFactory.Create(new RadarPulseProductPipelineService());
         await api.RunDemoAsync(new RadarPulseProductPipelineSyntheticRunRequest("api-first"));
         await api.RunDemoAsync(new RadarPulseProductPipelineSyntheticRunRequest("api-second"));
 
@@ -53,7 +53,7 @@ public sealed class RadarPulseProductPipelineApiContractTests
     [Fact]
     public async Task ApiContractMapsNotFoundAndBadRequestResponses()
     {
-        var api = new RadarPulseProductPipelineApiContract(new RadarPulseProductPipelineService());
+        var api = RadarPulseProductPipelineApiContractTestFactory.Create(new RadarPulseProductPipelineService());
 
         var missing = api.GetRun("missing");
         var badRequest = await api.RunDemoAsync(
@@ -82,7 +82,7 @@ public sealed class RadarPulseProductPipelineApiContractTests
             queue.Accept(
                 new RadarProcessingDurableBatchId("batch-0"),
                 CreateBatch(universe.Version, [0], messageTimestampBase: 100));
-            var api = new RadarPulseProductPipelineApiContract(new RadarPulseProductPipelineService());
+            var api = RadarPulseProductPipelineApiContractTestFactory.Create(new RadarPulseProductPipelineService());
 
             var stop = await api.ApplyControlAsync(
                 new RadarPulseProductPipelineControlRequest(

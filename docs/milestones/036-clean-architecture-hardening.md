@@ -423,3 +423,54 @@ documentation-only scope expansion
 git diff --check
   result: passed
 ```
+
+### Change 8: Product Application Port Segregation
+
+Status: complete.
+
+Intent:
+
+```text
+remove the remaining product Application Interface Segregation warning by
+making the Application API contract depend on focused run, query, history,
+and control ports instead of one broad service port
+```
+
+Scope:
+
+```text
+src/Application/Product/Pipeline/Contracts/RadarPulseProductPipelineContracts.cs
+src/Presentation/RadarPulse.Http/Product/Composition/RadarPulseProductHttpServiceCollectionExtensions.cs
+tests/RadarPulse.Tests/Architecture/RadarPulseArchitectureTests.cs
+tests/RadarPulse.Tests/Product
+docs/milestones/036-clean-architecture-hardening.md
+docs/handoff.md
+```
+
+Outcome:
+
+```text
+Application now exposes focused product pipeline run, query, history, and
+control service ports
+IRadarPulseProductPipelineService remains only as a compatibility aggregate
+for direct service consumers
+RadarPulseProductPipelineApiContract has one constructor over the focused
+ports and stores only focused port dependencies
+HTTP DI registers the focused ports to the accepted Infrastructure service
+architecture tests now fail if the API contract regresses to depending on the
+broad aggregate service port
+```
+
+Verification:
+
+```text
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+  "FullyQualifiedName~Architecture|FullyQualifiedName~Product" -c Release
+  --no-restore
+  result: passed, 91 passed, 0 failed, 0 skipped
+dotnet build RadarPulse.sln -c Release --no-restore
+  result: failed once because a parallel test/build run held
+    src/Domain/obj/Release/net10.0/RadarPulse.Domain.dll through VBCSCompiler
+dotnet build RadarPulse.sln -c Release --no-restore /p:UseSharedCompilation=false
+  result: passed, 0 warnings, 0 errors
+```

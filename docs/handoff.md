@@ -36,7 +36,7 @@ persistence, runtime defaults, and demo/readiness behavior.
 Stop point:
 
 ```text
-milestone 036 10/10 scope expansion complete; slice 5 port segregation is next
+milestone 036 slice 5 complete; slice 6 Domain friend assembly removal is next
 ```
 
 Most recently closed milestone:
@@ -98,7 +98,7 @@ Milestone 036 planned slices:
    any remaining large-entrypoint risk as a bounded warning. [complete]
 5. Product Application port segregation:
    split the broad product service dependency into focused run, query,
-   history, and control ports. [next]
+   history, and control ports. [complete]
 6. Remove Domain friend assembly:
    remove Domain InternalsVisibleTo("RadarPulse.Infrastructure") and replace
    Infrastructure use of internal Domain APIs with explicit public Domain
@@ -133,14 +133,26 @@ Milestone 036 completed changes:
 7. Expand scope to 10/10 architecture target:
    new slices added for Product Application port segregation, Domain friend
    assembly removal, and remaining CLI command-family extraction.
+8. Product Application port segregation:
+   Application now exposes focused product run, query, history, and control
+   ports; RadarPulseProductPipelineApiContract depends on those focused ports
+   rather than IRadarPulseProductPipelineService.
 ```
 
 Latest verification:
 
 ```text
-milestone 036 10/10 scope expansion:
-  documentation-only plan update
-  git diff --check passed
+milestone 036 slice 5 Product Application port segregation:
+  dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+    "FullyQualifiedName~Architecture|FullyQualifiedName~Product" -c Release
+    --no-restore
+    passed, 91 passed, 0 failed, 0 skipped
+  dotnet build RadarPulse.sln -c Release --no-restore
+    failed once because parallel test/build held Domain output through
+    VBCSCompiler
+  dotnet build RadarPulse.sln -c Release --no-restore
+    /p:UseSharedCompilation=false
+    passed, 0 warnings, 0 errors
 ```
 
 Milestone 035 documents:
