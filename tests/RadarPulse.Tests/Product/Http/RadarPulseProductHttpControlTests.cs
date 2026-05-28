@@ -23,7 +23,8 @@ public sealed class RadarPulseProductHttpControlTests
     public void RouteMapperExposesProductControlEndpoints()
     {
         var services = new ServiceCollection();
-        services.AddSingleton<RadarPulseProductPipelineApiContract>();
+        services.AddSingleton<IRadarPulseProductPipelineApi>(
+            new RadarPulseProductPipelineApiContract(new RadarPulseProductPipelineService()));
         services.AddRouting();
         var provider = services.BuildServiceProvider();
         var endpoints = new RouteBuilderStub(provider);
@@ -47,7 +48,7 @@ public sealed class RadarPulseProductHttpControlTests
         using var directory = TemporaryDirectory.Create();
         var path = directory.File("durable.json");
         SeedDurableStore(path);
-        var api = new RadarPulseProductPipelineApiContract();
+        var api = new RadarPulseProductPipelineApiContract(new RadarPulseProductPipelineService());
         var request = new RadarPulseProductPipelineControlRequest(
             "http-control",
             RadarPulseProductControlAction.RejectUnsafeFallback,
@@ -77,7 +78,7 @@ public sealed class RadarPulseProductHttpControlTests
         using var directory = TemporaryDirectory.Create();
         var path = directory.File("durable.json");
         SeedDurableStore(path);
-        var api = new RadarPulseProductPipelineApiContract();
+        var api = new RadarPulseProductPipelineApiContract(new RadarPulseProductPipelineService());
 
         var response = await ExecuteAsync<RadarPulseProductControlSummary>(
             await RadarPulseProductHttpEndpoints.RejectUnsafeFallbackAsync(
@@ -101,7 +102,7 @@ public sealed class RadarPulseProductHttpControlTests
     [Fact]
     public async Task BadRequestAndNotFoundRoutesReturnStableProductResponses()
     {
-        var api = new RadarPulseProductPipelineApiContract();
+        var api = new RadarPulseProductPipelineApiContract(new RadarPulseProductPipelineService());
 
         var badRequest = await ExecuteAsync<RadarPulseProductRunDetail>(
             await RadarPulseProductHttpEndpoints.RunDemoAsync(

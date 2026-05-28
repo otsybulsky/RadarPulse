@@ -1,5 +1,4 @@
 using RadarPulse.Application.Product;
-using RadarPulse.Infrastructure.Product;
 using Microsoft.AspNetCore.Mvc;
 
 namespace RadarPulse.Http.Product;
@@ -9,7 +8,7 @@ namespace RadarPulse.Http.Product;
 /// </summary>
 /// <remarks>
 /// The endpoints are a thin same-origin adapter over
-/// <see cref="RadarPulseProductPipelineApiContract"/>. They preserve the product
+/// <see cref="IRadarPulseProductPipelineApi"/>. They preserve the product
 /// API envelope shape and do not add production auth, TLS, or public-hosting
 /// guarantees.
 /// </remarks>
@@ -51,7 +50,7 @@ public static class RadarPulseProductHttpEndpoints
     /// Starts a deterministic synthetic demo run.
     /// </summary>
     public static async ValueTask<IResult> RunDemoAsync(
-        [FromServices] RadarPulseProductPipelineApiContract api,
+        [FromServices] IRadarPulseProductPipelineApi api,
         [FromBody] RadarPulseProductPipelineSyntheticRunRequest request,
         CancellationToken cancellationToken) =>
         ToHttpResult(
@@ -62,7 +61,7 @@ public static class RadarPulseProductHttpEndpoints
     /// Starts a run from one local NEXRAD archive file.
     /// </summary>
     public static async ValueTask<IResult> RunArchiveAsync(
-        [FromServices] RadarPulseProductPipelineApiContract api,
+        [FromServices] IRadarPulseProductPipelineApi api,
         [FromBody] RadarPulseProductPipelineArchiveFileRunRequest request,
         CancellationToken cancellationToken) =>
         ToHttpResult(
@@ -73,21 +72,21 @@ public static class RadarPulseProductHttpEndpoints
     /// Returns compact summaries for all visible product runs.
     /// </summary>
     public static IResult ListRuns(
-        [FromServices] RadarPulseProductPipelineApiContract api) =>
+        [FromServices] IRadarPulseProductPipelineApi api) =>
         ToHttpResult(api.ListRuns());
 
     /// <summary>
     /// Returns the latest visible product run detail.
     /// </summary>
     public static IResult GetLatestRun(
-        [FromServices] RadarPulseProductPipelineApiContract api) =>
+        [FromServices] IRadarPulseProductPipelineApi api) =>
         ToHttpResult(api.GetLatestRun());
 
     /// <summary>
     /// Returns one product run detail by run id.
     /// </summary>
     public static IResult GetRun(
-        [FromServices] RadarPulseProductPipelineApiContract api,
+        [FromServices] IRadarPulseProductPipelineApi api,
         string runId) =>
         ToHttpResult(api.GetRun(runId));
 
@@ -95,7 +94,7 @@ public static class RadarPulseProductHttpEndpoints
     /// Returns all batches captured for a product run.
     /// </summary>
     public static IResult ListBatches(
-        [FromServices] RadarPulseProductPipelineApiContract api,
+        [FromServices] IRadarPulseProductPipelineApi api,
         string runId) =>
         ToHttpResult(api.ListBatches(runId));
 
@@ -103,7 +102,7 @@ public static class RadarPulseProductHttpEndpoints
     /// Returns one batch by provider sequence.
     /// </summary>
     public static IResult GetBatch(
-        [FromServices] RadarPulseProductPipelineApiContract api,
+        [FromServices] IRadarPulseProductPipelineApi api,
         string runId,
         long providerSequence) =>
         ToHttpResult(api.GetBatch(runId, providerSequence));
@@ -112,7 +111,7 @@ public static class RadarPulseProductHttpEndpoints
     /// Returns all processed source read models for a product run.
     /// </summary>
     public static IResult ListSources(
-        [FromServices] RadarPulseProductPipelineApiContract api,
+        [FromServices] IRadarPulseProductPipelineApi api,
         string runId) =>
         ToHttpResult(api.ListSources(runId));
 
@@ -120,7 +119,7 @@ public static class RadarPulseProductHttpEndpoints
     /// Returns one processed source by source id.
     /// </summary>
     public static IResult GetSource(
-        [FromServices] RadarPulseProductPipelineApiContract api,
+        [FromServices] IRadarPulseProductPipelineApi api,
         string runId,
         int sourceId) =>
         ToHttpResult(api.GetSource(runId, sourceId));
@@ -129,7 +128,7 @@ public static class RadarPulseProductHttpEndpoints
     /// Returns one handler output field for a source in a run.
     /// </summary>
     public static IResult GetHandlerOutput(
-        [FromServices] RadarPulseProductPipelineApiContract api,
+        [FromServices] IRadarPulseProductPipelineApi api,
         string runId,
         int sourceId,
         string fieldName) =>
@@ -139,7 +138,7 @@ public static class RadarPulseProductHttpEndpoints
     /// Returns diagnostic evidence for a product run.
     /// </summary>
     public static IResult GetDiagnostics(
-        [FromServices] RadarPulseProductPipelineApiContract api,
+        [FromServices] IRadarPulseProductPipelineApi api,
         string runId) =>
         ToHttpResult(api.GetDiagnostics(runId));
 
@@ -147,7 +146,7 @@ public static class RadarPulseProductHttpEndpoints
     /// Returns local capacity and completeness evidence for a product run.
     /// </summary>
     public static IResult GetCapacityEvidence(
-        [FromServices] RadarPulseProductPipelineApiContract api,
+        [FromServices] IRadarPulseProductPipelineApi api,
         string runId) =>
         ToHttpResult(api.GetCapacityEvidence(runId));
 
@@ -155,14 +154,14 @@ public static class RadarPulseProductHttpEndpoints
     /// Returns product history readiness for the configured host.
     /// </summary>
     public static IResult GetHistoryReadiness(
-        [FromServices] RadarPulseProductPipelineApiContract api) =>
+        [FromServices] IRadarPulseProductPipelineApi api) =>
         ToHttpResult(api.GetHistoryReadiness());
 
     /// <summary>
     /// Returns composed readiness for the local demo package.
     /// </summary>
     public static IResult GetDemoReadiness(
-        [FromServices] RadarPulseProductPipelineApiContract api,
+        [FromServices] IRadarPulseProductPipelineApi api,
         [FromServices] RadarPulseProductHttpOptions options)
     {
         var historyResponse = api.GetHistoryReadiness();
@@ -176,7 +175,7 @@ public static class RadarPulseProductHttpEndpoints
     /// Applies the stop-accepting product control action.
     /// </summary>
     public static ValueTask<IResult> StopAcceptingAsync(
-        [FromServices] RadarPulseProductPipelineApiContract api,
+        [FromServices] IRadarPulseProductPipelineApi api,
         [FromBody] RadarPulseProductPipelineControlRequest request,
         CancellationToken cancellationToken) =>
         ApplyControlAsync(
@@ -189,7 +188,7 @@ public static class RadarPulseProductHttpEndpoints
     /// Applies the drain-accepted product control action.
     /// </summary>
     public static ValueTask<IResult> DrainAcceptedAsync(
-        [FromServices] RadarPulseProductPipelineApiContract api,
+        [FromServices] IRadarPulseProductPipelineApi api,
         [FromBody] RadarPulseProductPipelineControlRequest request,
         CancellationToken cancellationToken) =>
         ApplyControlAsync(
@@ -202,7 +201,7 @@ public static class RadarPulseProductHttpEndpoints
     /// Applies the cancel-open-and-release product control action.
     /// </summary>
     public static ValueTask<IResult> CancelOpenAndReleaseAsync(
-        [FromServices] RadarPulseProductPipelineApiContract api,
+        [FromServices] IRadarPulseProductPipelineApi api,
         [FromBody] RadarPulseProductPipelineControlRequest request,
         CancellationToken cancellationToken) =>
         ApplyControlAsync(
@@ -215,7 +214,7 @@ public static class RadarPulseProductHttpEndpoints
     /// Applies the reject-unsafe-fallback product control action.
     /// </summary>
     public static ValueTask<IResult> RejectUnsafeFallbackAsync(
-        [FromServices] RadarPulseProductPipelineApiContract api,
+        [FromServices] IRadarPulseProductPipelineApi api,
         [FromBody] RadarPulseProductPipelineControlRequest request,
         CancellationToken cancellationToken) =>
         ApplyControlAsync(
@@ -234,7 +233,7 @@ public static class RadarPulseProductHttpEndpoints
             statusCode: response.StatusCode);
 
     private static async ValueTask<IResult> ApplyControlAsync(
-        RadarPulseProductPipelineApiContract api,
+        IRadarPulseProductPipelineApi api,
         RadarPulseProductPipelineControlRequest request,
         RadarPulseProductControlAction action,
         CancellationToken cancellationToken) =>

@@ -60,7 +60,11 @@ public static class RadarPulseProductHttpServiceCollectionExtensions
         services.AddSingleton<RadarPulseProductPipelineService>(
             provider => new RadarPulseProductPipelineService(
                 historyStore: provider.GetRequiredService<IRadarPulseProductRunHistoryStore>()));
+        services.AddSingleton<IRadarPulseProductPipelineService>(
+            provider => provider.GetRequiredService<RadarPulseProductPipelineService>());
         services.AddSingleton<RadarPulseProductPipelineApiContract>();
+        services.AddSingleton<IRadarPulseProductPipelineApi>(
+            provider => provider.GetRequiredService<RadarPulseProductPipelineApiContract>());
         return services;
     }
 }

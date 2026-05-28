@@ -35,8 +35,7 @@ persistence, runtime defaults, and demo/readiness behavior.
 Stop point:
 
 ```text
-milestone 036 implementation plan written; slice 1 application product API
-boundary is next
+milestone 036 slice 1 complete; slice 2 architecture guardrail tests are next
 ```
 
 Most recently closed milestone:
@@ -83,7 +82,7 @@ Milestone 036 planned slices:
 1. Application product API boundary:
    add Application product service/API ports, move API response mapping inward,
    make Infrastructure implement the service port, and make HTTP endpoints
-   depend on the Application API port.
+   depend on the Application API port. [complete]
 2. Architecture guardrail tests:
    add executable project-reference, namespace, and endpoint dependency rules.
 3. Product pipeline SRP cleanup:
@@ -92,6 +91,31 @@ Milestone 036 planned slices:
 4. Product CLI entrypoint extraction:
    route product pipeline CLI workflows through a focused helper and record
    any remaining large-entrypoint risk as a bounded warning.
+```
+
+Milestone 036 completed changes:
+
+```text
+1. Open clean architecture hardening milestone
+2. Detailed implementation plan
+3. Application product API boundary:
+   Application now owns IRadarPulseProductPipelineService,
+   IRadarPulseProductPipelineApi, and RadarPulseProductPipelineApiContract;
+   Infrastructure product service implements the Application service port;
+   HTTP endpoints depend on IRadarPulseProductPipelineApi.
+```
+
+Latest verification:
+
+```text
+milestone 036 slice 1 application product API boundary:
+  dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+    "FullyQualifiedName~Product" -c Release --no-restore
+    passed, 86 passed, 0 failed, 0 skipped
+  dotnet build RadarPulse.sln -c Release --no-restore
+    passed, 0 warnings, 0 errors
+  git diff --check
+    passed
 ```
 
 Milestone 035 documents:

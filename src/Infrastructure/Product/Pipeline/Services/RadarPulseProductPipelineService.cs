@@ -16,7 +16,7 @@ namespace RadarPulse.Infrastructure.Product;
 /// resulting run detail, and exposes query/control helpers without changing the
 /// accepted backend runtime semantics.
 /// </remarks>
-public sealed class RadarPulseProductPipelineService
+public sealed class RadarPulseProductPipelineService : IRadarPulseProductPipelineService
 {
     private readonly IRadarPulseProductRunHistoryStore historyStore;
     private readonly RadarProcessingProductionPipelineRunner runner;

@@ -142,3 +142,52 @@ Verification:
 ```text
 documentation-only planning change; runtime gate deferred until slice 1
 ```
+
+### Change 3: Application Product API Boundary
+
+Status: complete.
+
+Intent:
+
+```text
+move the product-facing API contract inward to Application and make
+Presentation consume an Application API interface instead of the concrete
+Infrastructure product API class
+```
+
+Scope:
+
+```text
+src/Application/Product/Pipeline/Contracts/RadarPulseProductPipelineContracts.cs
+src/Infrastructure/Product/Pipeline/Services/RadarPulseProductPipelineService.cs
+src/Infrastructure/Product/Pipeline/Contracts/RadarPulseProductPipelineApiContract.cs
+src/Presentation/RadarPulse.Http/Product/Composition/RadarPulseProductHttpServiceCollectionExtensions.cs
+src/Presentation/RadarPulse.Http/Product/Endpoints/RadarPulseProductHttpEndpoints.cs
+tests/RadarPulse.Tests/Product
+docs/milestones/036-clean-architecture-hardening.md
+docs/handoff.md
+```
+
+Outcome:
+
+```text
+Application now owns IRadarPulseProductPipelineService,
+IRadarPulseProductPipelineApi, and RadarPulseProductPipelineApiContract
+Infrastructure RadarPulseProductPipelineService implements the Application
+  service port
+HTTP endpoint methods depend on IRadarPulseProductPipelineApi
+HTTP DI binds the Application service/API ports to the accepted Infrastructure
+  service and Application API contract implementation
+```
+
+Verification:
+
+```text
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
+  "FullyQualifiedName~Product" -c Release --no-restore
+  result: passed, 86 passed, 0 failed, 0 skipped
+dotnet build RadarPulse.sln -c Release --no-restore
+  result: passed, 0 warnings, 0 errors
+git diff --check
+  result: passed
+```
