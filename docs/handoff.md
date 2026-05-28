@@ -36,9 +36,10 @@ persistence, runtime defaults, and demo/readiness behavior.
 Stop point:
 
 ```text
-milestone 036 10/10 boundary implementation slices and full-suite
-stabilization complete; performance evidence captured; milestone extended
-with SRP large-class treatment slices before decision trace
+milestone 036 10/10 boundary implementation slices, full-suite
+stabilization, performance evidence, and SRP large-class treatment are
+complete; no src/tests C# file remains above 250 code-ish lines; stopped
+before decision trace
 ```
 
 Architecture assessment verdict:
@@ -54,7 +55,9 @@ Residual notes remain limited to compatibility aggregate presence, possible
 future CLI refinement, and full-cache heavy-handler allocation optimization.
 After review, the CLI refinement note was pulled into the active milestone as
 part of a broader oversized-class SRP treatment extension; the 10/10 boundary
-posture remains accepted while maintainability is improved.
+posture remains accepted while maintainability is improved. The extension is
+now complete: all physical C# files in src and tests are bounded at or below
+250 code-ish lines, with the current maximum at 249.
 ```
 
 Most recently closed milestone:
@@ -101,8 +104,8 @@ stabilize processing benchmark allocation gates so full-suite verification is
   not sensitive to test process order
 capture full-cache and processing-only performance evidence before decision
   trace discussion
-continue with SRP treatment for oversized CLI, benchmark, and session classes
-  before decision trace
+complete SRP treatment for oversized CLI, benchmark, session, and test fixture
+  files before decision trace
 ```
 
 Milestone 036 planned slices:

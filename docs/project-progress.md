@@ -9,8 +9,9 @@ and milestone 036 performance evidence was captured. The final pre-decision
 architecture assessment records a defensible 10/10 posture for the accepted
 local product demo/runtime boundary across Clean Architecture, GRASP, SOLID,
 pragmatic GoF use, automated guardrails, and evidence posture. After review,
-the milestone remains active for additional SRP treatment of oversized CLI,
-benchmark, and session classes before decision trace.
+the milestone stayed active for additional SRP treatment of oversized CLI,
+benchmark, session, and test fixture files; that SRP sweep is now complete,
+with no src/tests C# file above 250 code-ish lines.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -62,12 +63,16 @@ active milestone implementation status:
   final pre-decision architecture assessment recorded as defensible 10/10
   full Release test suite passes in one combined run after benchmark
     stabilization
+  latest full Release test suite: 1016 passed, 0 failed, 3 skipped
   full-cache and processing-only performance evidence captured
   CLI SRP split complete inside the large-class treatment extension
   benchmark SRP split complete inside the large-class treatment extension
   queue and durable session SRP split complete inside the large-class
     treatment extension
   final large-class guardrail/validation slice complete
+  final oversized test fixture SRP sweep complete
+  src/tests C# file inventory: 0 files above 250 code-ish lines; current
+    maximum is 249
   stopped before decision trace
 active milestone goal:
   raise reviewed Clean Architecture, GRASP, SOLID, and GoF posture from

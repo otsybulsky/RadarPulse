@@ -501,6 +501,45 @@ dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj -c Release
 git diff --check
 ```
 
+## Slice 14: Oversized Test Fixture SRP Sweep
+
+Status: complete.
+
+Goal:
+
+```text
+finish the milestone SRP treatment by reducing oversized test fixtures and
+post-refactor residual physical files to a bounded, responsibility-named
+structure without changing runtime behavior or test intent
+```
+
+Implementation result:
+
+```text
+large test fixtures were converted to dedicated per-class folders with
+responsibility-named partial files
+behavioral assertions, fixtures, helper factories, and test doubles were
+separated by scenario family instead of mixed in single files
+the final src/tests C# inventory reports 0 files above 250 code-ish lines
+the current largest physical C# file is 249 code-ish lines
+the final architecture assessment remains 10/10 across Clean Architecture,
+GRASP, SOLID, and pragmatic GoF for the accepted milestone scope
+```
+
+Verification:
+
+```text
+dotnet build RadarPulse.sln -c Release --no-restore
+  /p:UseSharedCompilation=false
+  result: passed, 0 warnings, 0 errors
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj -c Release
+  --no-build
+  result: passed, 1016 passed, 0 failed, 3 skipped
+src/tests C# file inventory
+  result: 0 files above 250 code-ish lines
+git diff --check
+```
+
 ## Slice 9: Performance Evidence Capture
 
 Goal:

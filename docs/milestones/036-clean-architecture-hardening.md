@@ -1039,6 +1039,8 @@ dependency, and thin CLI Program.cs entrypoint shape
 Domain no longer grants friend access to Infrastructure
 Product service, Product CLI workflow, and CLI entrypoint SRP hotspots are
 reduced or guarded without changing accepted behavior
+the post-assessment oversized-file SRP sweep is complete across src and tests:
+no C# file remains above 250 code-ish lines, and the current maximum is 249
 processing benchmark allocation gates no longer depend on full-suite process
 order for the accepted Release test run
 performance evidence is captured separately for full-cache end-to-end runtime
@@ -1053,6 +1055,10 @@ CLI SRP split complete
 benchmark SRP split complete
 queue and durable session SRP split complete
 large-class inventory captured
+oversized test fixture SRP sweep complete through responsibility-named partial
+folders
+src/tests physical C# file-size guardrail is clean: 0 files above 250 code-ish
+lines
 full Release build and test suite pass after all SRP extension slices
 decision trace and closeout are intentionally not written yet
 ```
@@ -1063,7 +1069,7 @@ Final architecture assessment:
 | --- | ---: | --- |
 | Clean Architecture | 10/10 | The accepted dependency direction is now implemented and guarded: Domain stays dependency-free, Application owns product contracts and ports, Infrastructure implements adapters, and Presentation depends on Application product API abstractions. |
 | GRASP | 10/10 | Responsibilities are assigned to focused experts/controllers: product orchestration helpers, product CLI workflow, and the top-level CLI entrypoint are separated or guarded, while indirection and protected variation are expressed through Application ports. |
-| SOLID | 10/10 | SRP pressure was reduced in the product service and CLI entrypoint, ISP is addressed through focused run/query/history/control ports, DIP is enforced through Application contracts, and no substitutability break was found in the accepted service-port implementations. |
+| SOLID | 10/10 | SRP pressure was reduced in production orchestration, CLI entrypoints, benchmark/session surfaces, and oversized test fixtures; ISP is addressed through focused run/query/history/control ports, DIP is enforced through Application contracts, and no substitutability break was found in the accepted service-port implementations. |
 | GoF | 10/10 | The design uses patterns pragmatically where they solve current problems: facade/adapter behavior at the Product API contract boundary, strategy-like handler/policy variation, and composition/factory wiring without pattern-chasing. |
 | Automated guardrails | 10/10 | Architecture tests now guard project direction, namespace direction, Product API ownership, Product API port segregation, Domain friend access, HTTP endpoint dependencies, and the thin CLI Program.cs entrypoint shape. |
 | Evidence posture | 10/10 | Release build, focused architecture/product/CLI tests, the full Release test suite, benchmark stabilization, and performance evidence are all captured before decision trace discussion. |
@@ -1094,6 +1100,17 @@ Decision trace and closeout remain intentionally unwritten until the final
   posture, warnings, and assessment are discussed.
 ```
 
+Post-SRP physical file validation:
+
+```text
+src/tests C# file inventory:
+  result: 0 files above 250 code-ish lines
+  current maximum: 249 code-ish lines
+  note: logical partial classes may still represent large compatibility or
+    state-machine concepts, but every physical file now has a bounded,
+    responsibility-named focus
+```
+
 Final gate evidence:
 
 ```text
@@ -1104,7 +1121,7 @@ dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter
   -c Release --no-build
   result: passed, 126 passed, 0 failed, 0 skipped
 dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj -c Release --no-build
-  result: passed, 1011 passed, 0 failed, 3 skipped
+  result: passed, 1016 passed, 0 failed, 3 skipped
 docs/milestones/036-clean-architecture-hardening-performance-evidence.md
   result: captured full-cache and processing-only performance evidence
 git diff --check
