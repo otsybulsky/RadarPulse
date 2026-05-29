@@ -40,11 +40,9 @@ accepted behavior decisions.
 Current state:
 
 ```text
-milestone 037 is open for managed system handbook documentation; milestone
-036 10/10 boundary implementation slices, full-suite stabilization,
-performance evidence, and SRP large-class treatment remain closed and
-accepted; no runtime/code behavior change is in scope for the handbook
-opening
+milestone 037 handbook content and integration slices are complete; README
+links to the handbook; handbook link/path/whitespace checks passed; decision
+trace and closeout have not started; stop point is before decision trace
 ```
 
 Architecture assessment verdict:
@@ -114,7 +112,7 @@ Milestone 037 planned slices:
 4. Core workflows [complete]
 5. Architecture and runtime deepening [complete]
 6. Product surface and verification evidence [complete]
-7. Handbook integration and quality pass [queued]
+7. Handbook integration and quality pass [complete]
 8. Decision trace and closeout [queued]
 ```
 
@@ -128,6 +126,30 @@ Milestone 037 completed changes:
 5. Core workflows
 6. Architecture and runtime deepening
 7. Product surface and verification evidence
+8. Handbook integration and quality pass
+```
+
+Milestone 037 implemented handbook pages:
+
+```text
+docs/handbook/README.md
+docs/handbook/system-overview.md
+docs/handbook/source-map.md
+docs/handbook/workflows.md
+docs/handbook/architecture.md
+docs/handbook/processing-runtime.md
+docs/handbook/product-surface.md
+docs/handbook/verification-and-evidence.md
+docs/handbook/glossary.md
+```
+
+Milestone 037 latest verification:
+
+```text
+handbook markdown links resolve
+handbook current path audit passes
+handbook direct .cs path audit passes
+git diff --check passed
 ```
 
 Milestone 036 documents:

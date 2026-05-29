@@ -238,5 +238,5 @@ demo/runtime boundary.
 
 Verification gate:
 A command or test set used to prove a behavior after a change. Examples
-include focused xUnit filters, Release build, Angular tests/build, browser
-smoke tests, and package `verify`.
+include focused xUnit filters, Release build, Angular unit/build gates,
+browser smoke tests, and package `verify`.

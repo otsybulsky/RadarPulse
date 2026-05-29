@@ -1,10 +1,10 @@
 # RadarPulse Project Progress
 
-Status: current after opening milestone 037. Milestone 037 is a
-documentation-only managed system handbook milestone. It starts from the
-closed milestone 036 clean architecture hardening posture and does not reopen
-accepted runtime, product API, HTTP, CLI, UI, persistence, or demo/readiness
-behavior.
+Status: current after milestone 037 handbook content and integration slices.
+Milestone 037 is a documentation-only managed system handbook milestone. It
+starts from the closed milestone 036 clean architecture hardening posture and
+does not reopen accepted runtime, product API, HTTP, CLI, UI, persistence, or
+demo/readiness behavior.
 
 Milestone 036 remains complete. Clean architecture hardening expanded from
 the earlier 9/10 target to a 10/10 target inside the same milestone.
@@ -66,7 +66,11 @@ active milestone:
 active milestone status:
   documentation-only opening complete
   implementation plan created
-  handbook content slices queued
+  handbook entrypoint, source map, overview, glossary, workflows,
+    architecture, runtime, product surface, verification/evidence pages, and
+    README integration complete
+  handbook quality pass complete
+  decision trace and closeout not started; stop point is before decision trace
   runtime/product behavior changes out of scope
 milestone 036 closeout status:
   10/10 boundary implementation slices complete

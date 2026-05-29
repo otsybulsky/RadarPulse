@@ -209,7 +209,7 @@ git diff --check
 
 ## Slice 7: Handbook Integration And Quality Pass
 
-Status: queued.
+Status: complete.
 
 Goal:
 

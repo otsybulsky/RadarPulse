@@ -383,3 +383,35 @@ Verification:
 referenced scripts, docs, source folders, and tests exist
 git diff --check passed
 ```
+
+### Change 8: Handbook Integration And Quality Pass
+
+Status: complete.
+
+Intent:
+
+```text
+make the handbook discoverable from the repository README, update current
+handoff/progress state, and verify the implemented handbook pages for
+link/path/whitespace quality before stopping ahead of decision trace
+```
+
+Scope:
+
+```text
+README.md
+docs/project-progress.md
+docs/handoff.md
+docs/handbook
+docs/milestones/037-managed-system-handbook-documentation.md
+docs/milestones/037-managed-system-handbook-documentation-plan.md
+```
+
+Verification:
+
+```text
+handbook markdown links resolve
+handbook current path audit passes
+handbook direct .cs path audit passes
+git diff --check passed
+```

@@ -117,12 +117,11 @@ docs/handbook/verification-and-evidence.md
 Planned pages for milestone 037:
 
 ```text
-all planned content pages are now implemented; slice 7 will integrate links
-and run the handbook quality pass
+no handbook content pages remain planned before decision trace
 ```
 
-Until a planned page exists, the milestone 037 plan is the source for its
-intended scope.
+The remaining milestone 037 work is decision trace and closeout, which belong
+under `docs/milestones`, not inside the handbook.
 
 ## What Belongs Here
 

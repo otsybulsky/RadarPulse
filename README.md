@@ -36,6 +36,18 @@ workflow:
 The detailed local operator workflow is documented in
 [docs/product-demo-readiness.md](docs/product-demo-readiness.md).
 
+## System Handbook
+
+The current-system handbook is in
+[docs/handbook/README.md](docs/handbook/README.md). Start there when you
+want a guided explanation of RadarPulse from purpose and mental model through
+source navigation, workflows, architecture, processing runtime, product
+surface, verification, and glossary terms.
+
+Milestone documents remain the historical decision and evidence record. The
+handbook explains the accepted current system directly and links back to
+milestone closeouts, decision traces, and gates where the evidence matters.
+
 ## Repository Layout
 
 Current C# source folders are organized responsibility-first inside the
