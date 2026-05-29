@@ -84,17 +84,20 @@ docs/handbook/README.md
 Implemented pages:
 
 ```text
+docs/handbook/system-overview.md
+  purpose, current accepted scope, main concepts, and mental model
+
 docs/handbook/source-map.md
   solution, source, and test navigation for the current responsibility-first
   layout
+
+docs/handbook/glossary.md
+  short definitions for RadarPulse-specific terms
 ```
 
 Planned pages for milestone 037:
 
 ```text
-docs/handbook/system-overview.md
-  purpose, current accepted scope, main concepts, and mental model
-
 docs/handbook/workflows.md
   end-to-end product/demo/runtime flows in plain language
 
@@ -113,9 +116,6 @@ docs/handbook/product-surface.md
 docs/handbook/verification-and-evidence.md
   focused gates, package verification, milestone evidence, and known scope
   limits
-
-docs/handbook/glossary.md
-  short definitions for RadarPulse-specific terms
 ```
 
 Until a planned page exists, the milestone 037 plan is the source for its

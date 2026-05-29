@@ -262,3 +262,33 @@ referenced source folders exist
 referenced current documentation files exist
 git diff --check passed
 ```
+
+### Change 4: System Overview And Glossary
+
+Status: complete.
+
+Intent:
+
+```text
+give readers the first complete mental model and shared vocabulary before
+they enter workflow, architecture, runtime, or source-detail pages
+```
+
+Scope:
+
+```text
+docs/handbook/system-overview.md
+docs/handbook/glossary.md
+docs/handbook/README.md
+docs/milestones/037-managed-system-handbook-documentation.md
+docs/milestones/037-managed-system-handbook-documentation-plan.md
+docs/handoff.md
+```
+
+Verification:
+
+```text
+overview links to implemented handbook pages and current documentation
+glossary defines the milestone 037 shared vocabulary
+git diff --check passed
+```

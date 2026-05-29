@@ -88,7 +88,7 @@ git diff --check
 
 ## Slice 3: System Overview And Glossary
 
-Status: queued.
+Status: complete.
 
 Goal:
 
