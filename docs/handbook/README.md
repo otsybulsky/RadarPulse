@@ -81,15 +81,19 @@ docs/handbook/README.md
   handbook entrypoint, reading paths, and management rules
 ```
 
+Implemented pages:
+
+```text
+docs/handbook/source-map.md
+  solution, source, and test navigation for the current responsibility-first
+  layout
+```
+
 Planned pages for milestone 037:
 
 ```text
 docs/handbook/system-overview.md
   purpose, current accepted scope, main concepts, and mental model
-
-docs/handbook/source-map.md
-  solution, source, and test navigation for the current responsibility-first
-  layout
 
 docs/handbook/workflows.md
   end-to-end product/demo/runtime flows in plain language

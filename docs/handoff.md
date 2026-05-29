@@ -109,7 +109,7 @@ Milestone 037 planned slices:
 
 ```text
 1. Handbook entrypoint and management rules [complete]
-2. Current system map [queued]
+2. Current system map [complete]
 3. System overview and glossary [queued]
 4. Core workflows [queued]
 5. Architecture and runtime deepening [queued]
@@ -123,6 +123,7 @@ Milestone 037 completed changes:
 ```text
 1. Open managed system handbook documentation milestone
 2. Handbook entrypoint and management rules
+3. Current system map
 ```
 
 Milestone 036 documents:

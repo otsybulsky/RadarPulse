@@ -233,3 +233,32 @@ Verification:
 handbook README created with only implemented or explicitly planned pages
 git diff --check passed
 ```
+
+### Change 3: Current System Map
+
+Status: complete.
+
+Intent:
+
+```text
+make the accepted repository layout understandable after the milestone 034
+responsibility-first structure and milestone 036 clean architecture hardening
+```
+
+Scope:
+
+```text
+docs/handbook/source-map.md
+docs/handbook/README.md
+docs/milestones/037-managed-system-handbook-documentation.md
+docs/milestones/037-managed-system-handbook-documentation-plan.md
+docs/handoff.md
+```
+
+Verification:
+
+```text
+referenced source folders exist
+referenced current documentation files exist
+git diff --check passed
+```

@@ -59,7 +59,7 @@ git diff --check
 
 ## Slice 2: Current System Map
 
-Status: queued.
+Status: complete.
 
 Goal:
 
