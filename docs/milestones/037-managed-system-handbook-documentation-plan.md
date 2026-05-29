@@ -179,7 +179,7 @@ git diff --check
 
 ## Slice 6: Product Surface And Verification Evidence
 
-Status: queued.
+Status: complete.
 
 Goal:
 

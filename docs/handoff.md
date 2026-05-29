@@ -113,7 +113,7 @@ Milestone 037 planned slices:
 3. System overview and glossary [complete]
 4. Core workflows [complete]
 5. Architecture and runtime deepening [complete]
-6. Product surface and verification evidence [queued]
+6. Product surface and verification evidence [complete]
 7. Handbook integration and quality pass [queued]
 8. Decision trace and closeout [queued]
 ```
@@ -127,6 +127,7 @@ Milestone 037 completed changes:
 4. System overview and glossary
 5. Core workflows
 6. Architecture and runtime deepening
+7. Product surface and verification evidence
 ```
 
 Milestone 036 documents:

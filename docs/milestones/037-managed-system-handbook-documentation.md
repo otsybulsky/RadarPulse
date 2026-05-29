@@ -353,3 +353,33 @@ referenced milestone files exist
 referenced source folders and guardrail tests exist
 git diff --check passed
 ```
+
+### Change 7: Product Surface And Verification Evidence
+
+Status: complete.
+
+Intent:
+
+```text
+document the CLI, HTTP, product API/read models, run history, Operator UI,
+same-origin local delivery, package scripts, and verification/evidence paths
+used to inspect and maintain the accepted product surface
+```
+
+Scope:
+
+```text
+docs/handbook/product-surface.md
+docs/handbook/verification-and-evidence.md
+docs/handbook/README.md
+docs/milestones/037-managed-system-handbook-documentation.md
+docs/milestones/037-managed-system-handbook-documentation-plan.md
+docs/handoff.md
+```
+
+Verification:
+
+```text
+referenced scripts, docs, source folders, and tests exist
+git diff --check passed
+```

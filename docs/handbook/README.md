@@ -104,11 +104,7 @@ docs/handbook/architecture.md
 docs/handbook/processing-runtime.md
   streaming batches, processing core, queueing, durable/recovery, ordering,
   handlers, rebalance, retention, pressure, diagnostics, and fallback posture
-```
 
-Planned pages for milestone 037:
-
-```text
 docs/handbook/product-surface.md
   CLI, HTTP, product API/read models, run history, Operator UI, local demo,
   and same-origin delivery
@@ -116,6 +112,13 @@ docs/handbook/product-surface.md
 docs/handbook/verification-and-evidence.md
   focused gates, package verification, milestone evidence, and known scope
   limits
+```
+
+Planned pages for milestone 037:
+
+```text
+all planned content pages are now implemented; slice 7 will integrate links
+and run the handbook quality pass
 ```
 
 Until a planned page exists, the milestone 037 plan is the source for its
