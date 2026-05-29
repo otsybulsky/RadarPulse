@@ -292,3 +292,33 @@ overview links to implemented handbook pages and current documentation
 glossary defines the milestone 037 shared vocabulary
 git diff --check passed
 ```
+
+### Change 5: Core Workflows
+
+Status: complete.
+
+Intent:
+
+```text
+document the main end-to-end flows before deep module/runtime pages:
+local demo, synthetic run, archive file run, archive-to-batch, queued
+processing and ordered commit, handler output/read models, diagnostics, and
+local controls/recovery
+```
+
+Scope:
+
+```text
+docs/handbook/workflows.md
+docs/handbook/README.md
+docs/milestones/037-managed-system-handbook-documentation.md
+docs/milestones/037-managed-system-handbook-documentation-plan.md
+docs/handoff.md
+```
+
+Verification:
+
+```text
+workflow source/test/document links exist
+git diff --check passed
+```

@@ -118,7 +118,7 @@ git diff --check
 
 ## Slice 4: Core Workflows
 
-Status: queued.
+Status: complete.
 
 Goal:
 

@@ -111,7 +111,7 @@ Milestone 037 planned slices:
 1. Handbook entrypoint and management rules [complete]
 2. Current system map [complete]
 3. System overview and glossary [complete]
-4. Core workflows [queued]
+4. Core workflows [complete]
 5. Architecture and runtime deepening [queued]
 6. Product surface and verification evidence [queued]
 7. Handbook integration and quality pass [queued]
@@ -125,6 +125,7 @@ Milestone 037 completed changes:
 2. Handbook entrypoint and management rules
 3. Current system map
 4. System overview and glossary
+5. Core workflows
 ```
 
 Milestone 036 documents:

@@ -93,14 +93,14 @@ docs/handbook/source-map.md
 
 docs/handbook/glossary.md
   short definitions for RadarPulse-specific terms
+
+docs/handbook/workflows.md
+  end-to-end product/demo/runtime flows in plain language
 ```
 
 Planned pages for milestone 037:
 
 ```text
-docs/handbook/workflows.md
-  end-to-end product/demo/runtime flows in plain language
-
 docs/handbook/architecture.md
   layer boundaries, ports/adapters, dependency rules, and architecture
   guardrails
