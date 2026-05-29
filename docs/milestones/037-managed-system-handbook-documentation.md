@@ -206,3 +206,30 @@ Verification:
 documentation-only opening change; runtime gate deferred unless later slices
 touch code, scripts, UI, product behavior, or executable contracts
 ```
+
+### Change 2: Handbook Entrypoint And Management Rules
+
+Status: complete.
+
+Intent:
+
+```text
+create the managed handbook entrypoint, reader paths, page map, update rules,
+linking rules, and documentation verification habit
+```
+
+Scope:
+
+```text
+docs/handbook/README.md
+docs/milestones/037-managed-system-handbook-documentation.md
+docs/milestones/037-managed-system-handbook-documentation-plan.md
+docs/handoff.md
+```
+
+Verification:
+
+```text
+handbook README created with only implemented or explicitly planned pages
+git diff --check passed
+```

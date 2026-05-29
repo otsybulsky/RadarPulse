@@ -27,7 +27,7 @@ give future updates a clear place to land.
 
 ## Slice 1: Handbook Entrypoint And Management Rules
 
-Status: queued.
+Status: complete.
 
 Goal:
 

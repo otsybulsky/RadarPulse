@@ -108,7 +108,7 @@ avoid runtime, product API, HTTP, CLI, UI, persistence, and demo behavior
 Milestone 037 planned slices:
 
 ```text
-1. Handbook entrypoint and management rules [queued]
+1. Handbook entrypoint and management rules [complete]
 2. Current system map [queued]
 3. System overview and glossary [queued]
 4. Core workflows [queued]
@@ -116,6 +116,13 @@ Milestone 037 planned slices:
 6. Product surface and verification evidence [queued]
 7. Handbook integration and quality pass [queued]
 8. Decision trace and closeout [queued]
+```
+
+Milestone 037 completed changes:
+
+```text
+1. Open managed system handbook documentation milestone
+2. Handbook entrypoint and management rules
 ```
 
 Milestone 036 documents:
