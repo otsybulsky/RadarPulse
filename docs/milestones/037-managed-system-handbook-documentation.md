@@ -322,3 +322,34 @@ Verification:
 workflow source/test/document links exist
 git diff --check passed
 ```
+
+### Change 6: Architecture And Runtime Deepening
+
+Status: complete.
+
+Intent:
+
+```text
+explain accepted architecture boundaries, ports/adapters, guardrails, and the
+processing runtime posture at maintainer depth without duplicating every
+source file
+```
+
+Scope:
+
+```text
+docs/handbook/architecture.md
+docs/handbook/processing-runtime.md
+docs/handbook/README.md
+docs/milestones/037-managed-system-handbook-documentation.md
+docs/milestones/037-managed-system-handbook-documentation-plan.md
+docs/handoff.md
+```
+
+Verification:
+
+```text
+referenced milestone files exist
+referenced source folders and guardrail tests exist
+git diff --check passed
+```

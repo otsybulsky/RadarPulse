@@ -112,7 +112,7 @@ Milestone 037 planned slices:
 2. Current system map [complete]
 3. System overview and glossary [complete]
 4. Core workflows [complete]
-5. Architecture and runtime deepening [queued]
+5. Architecture and runtime deepening [complete]
 6. Product surface and verification evidence [queued]
 7. Handbook integration and quality pass [queued]
 8. Decision trace and closeout [queued]
@@ -126,6 +126,7 @@ Milestone 037 completed changes:
 3. Current system map
 4. System overview and glossary
 5. Core workflows
+6. Architecture and runtime deepening
 ```
 
 Milestone 036 documents:

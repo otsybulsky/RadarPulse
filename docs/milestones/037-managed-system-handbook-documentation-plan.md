@@ -147,7 +147,7 @@ git diff --check
 
 ## Slice 5: Architecture And Runtime Deepening
 
-Status: queued.
+Status: complete.
 
 Goal:
 

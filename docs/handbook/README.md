@@ -96,11 +96,7 @@ docs/handbook/glossary.md
 
 docs/handbook/workflows.md
   end-to-end product/demo/runtime flows in plain language
-```
 
-Planned pages for milestone 037:
-
-```text
 docs/handbook/architecture.md
   layer boundaries, ports/adapters, dependency rules, and architecture
   guardrails
@@ -108,7 +104,11 @@ docs/handbook/architecture.md
 docs/handbook/processing-runtime.md
   streaming batches, processing core, queueing, durable/recovery, ordering,
   handlers, rebalance, retention, pressure, diagnostics, and fallback posture
+```
 
+Planned pages for milestone 037:
+
+```text
 docs/handbook/product-surface.md
   CLI, HTTP, product API/read models, run history, Operator UI, local demo,
   and same-origin delivery
