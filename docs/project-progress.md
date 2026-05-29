@@ -1,16 +1,21 @@
 # RadarPulse Project Progress
 
-Status: current after milestone 036 closeout. Clean architecture hardening
-expanded from the earlier 9/10 target to a 10/10 target inside the same
-milestone, and the milestone is now complete. Full-suite benchmark
-stabilization removed the remaining process-order allocation test
-sensitivity, performance evidence was captured, the standard-format decision
-trace is written, and closeout is written. The final architecture assessment
-records a defensible 10/10 posture for the accepted local product
-demo/runtime boundary across Clean Architecture, GRASP, SOLID, pragmatic GoF
-use, automated guardrails, and evidence posture. The SRP sweep for oversized
-CLI, benchmark, session, and test fixture files is complete, with no
-src/tests C# file above 250 code-ish lines.
+Status: current after opening milestone 037. Milestone 037 is a
+documentation-only managed system handbook milestone. It starts from the
+closed milestone 036 clean architecture hardening posture and does not reopen
+accepted runtime, product API, HTTP, CLI, UI, persistence, or demo/readiness
+behavior.
+
+Milestone 036 remains complete. Clean architecture hardening expanded from
+the earlier 9/10 target to a 10/10 target inside the same milestone.
+Full-suite benchmark stabilization removed the remaining process-order
+allocation test sensitivity, performance evidence was captured, the
+standard-format decision trace is written, and closeout is written. The final
+architecture assessment records a defensible 10/10 posture for the accepted
+local product demo/runtime boundary across Clean Architecture, GRASP, SOLID,
+pragmatic GoF use, automated guardrails, and evidence posture. The SRP sweep
+for oversized CLI, benchmark, session, and test fixture files is complete,
+with no src/tests C# file above 250 code-ish lines.
 
 This file is the project-level progress ledger. Milestone documents remain the
 source of detailed architecture, implementation plans, gates, decisions, and
@@ -36,8 +41,8 @@ integrated local delivery milestone, the product demo/readiness packaging
 milestone, the product demo polish and portfolio readiness milestone, the
 targeted project restructuring and maintenance milestone, the code contract
 documentation pass, and the clean architecture hardening toward 10/10
-milestone. Milestone 036 is complete through closeout. RadarPulse is back in
-freeze mode with no active feature/runtime milestone by default.
+milestone. Milestone 036 is complete through closeout. Milestone 037 is now
+open for managed system handbook documentation.
 
 Current state:
 
@@ -57,7 +62,12 @@ latest completed milestone status:
   performance evidence and restrained technology-claim boundary accepted
   closeout written
 active milestone:
-  none
+  037 managed system handbook documentation
+active milestone status:
+  documentation-only opening complete
+  implementation plan created
+  handbook content slices queued
+  runtime/product behavior changes out of scope
 milestone 036 closeout status:
   10/10 boundary implementation slices complete
   final architecture assessment recorded as defensible 10/10

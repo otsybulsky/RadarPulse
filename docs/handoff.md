@@ -1,6 +1,12 @@
-# Handoff: Milestone 036 Closed
+# Handoff: Milestone 037 Open
 
 ## Current State
+
+Milestone 037 is open after milestone 036 closeout as a documentation-only
+managed system handbook milestone. The milestone will create a guided
+handbook that explains RadarPulse from purpose and mental model through
+architecture, workflows, runtime/product surfaces, implementation navigation,
+diagnostics, verification, and historical evidence links.
 
 Milestone 036 is closed after milestone 035 closeout. RadarPulse returns to
 freeze mode after a targeted behavior-preserving architecture hardening pass
@@ -28,16 +34,17 @@ Windows PowerShell again after WSL restore metadata refresh. The closeout is
 written.
 
 Milestone 036 preserved accepted product API, CLI, HTTP, persistence, runtime
-defaults, and demo/readiness behavior. No active feature/runtime milestone is
-open by default after closeout.
+defaults, and demo/readiness behavior. Milestone 037 does not reopen those
+accepted behavior decisions.
 
 Current state:
 
 ```text
-milestone 036 10/10 boundary implementation slices, full-suite
-stabilization, performance evidence, and SRP large-class treatment are
-complete; no src/tests C# file remains above 250 code-ish lines; decision
-trace and closeout are written; project mode is freeze mode
+milestone 037 is open for managed system handbook documentation; milestone
+036 10/10 boundary implementation slices, full-suite stabilization,
+performance evidence, and SRP large-class treatment remain closed and
+accepted; no runtime/code behavior change is in scope for the handbook
+opening
 ```
 
 Architecture assessment verdict:
@@ -67,13 +74,48 @@ Most recently closed milestone:
 Current project mode:
 
 ```text
-freeze mode
+active documentation milestone
 ```
 
 Active milestone:
 
 ```text
-none
+037 Managed System Handbook Documentation
+```
+
+Milestone 037 documents:
+
+```text
+docs/milestones/037-managed-system-handbook-documentation.md
+docs/milestones/037-managed-system-handbook-documentation-plan.md
+```
+
+Milestone 037 objective:
+
+```text
+create a managed current-system handbook under docs/handbook
+explain RadarPulse from purpose through implementation details in plain
+  language
+provide reader paths for product/demo readers, architecture reviewers,
+  maintainers, and implementation contributors
+document current system map, workflows, architecture, runtime/product
+  surfaces, diagnostics, verification, and evidence links
+preserve milestone closeouts and decision traces as the historical record
+avoid runtime, product API, HTTP, CLI, UI, persistence, and demo behavior
+  changes
+```
+
+Milestone 037 planned slices:
+
+```text
+1. Handbook entrypoint and management rules [queued]
+2. Current system map [queued]
+3. System overview and glossary [queued]
+4. Core workflows [queued]
+5. Architecture and runtime deepening [queued]
+6. Product surface and verification evidence [queued]
+7. Handbook integration and quality pass [queued]
+8. Decision trace and closeout [queued]
 ```
 
 Milestone 036 documents:
