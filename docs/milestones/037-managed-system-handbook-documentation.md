@@ -415,3 +415,31 @@ handbook current path audit passes
 handbook direct .cs path audit passes
 git diff --check passed
 ```
+
+### Change 9: Technical Book Outline Integration
+
+Status: complete.
+
+Intent:
+
+```text
+integrate the approved 25-chapter technical book outline for 'Документація як
+інженерний детектив' directly into the system handbook
+```
+
+Scope:
+
+```text
+docs/handbook/book-outline.md
+docs/handbook/README.md
+docs/milestones/037-managed-system-handbook-documentation.md
+docs/milestones/037-managed-system-handbook-documentation-plan.md
+```
+
+Verification:
+
+```text
+book outline file exists
+handbook README updated and links resolve
+git diff --check passed
+```

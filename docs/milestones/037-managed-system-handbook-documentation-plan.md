@@ -236,7 +236,32 @@ current handbook direct-file path audit passes
 git diff --check
 ```
 
-## Slice 8: Decision Trace And Closeout
+## Slice 8: Technical Book Outline Integration
+
+Status: complete.
+
+Goal:
+
+```text
+save the approved 25-chapter technical book outline in docs/handbook/book-outline.md
+and integrate it into the handbook README
+```
+
+Planned changes:
+
+```text
+create docs/handbook/book-outline.md
+update docs/handbook/README.md to register book-outline.md
+```
+
+Verification:
+
+```text
+book outline exists and README link resolves
+git diff --check
+```
+
+## Slice 9: Decision Trace And Closeout
 
 Status: queued.
 

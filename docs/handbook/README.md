@@ -112,6 +112,11 @@ docs/handbook/product-surface.md
 docs/handbook/verification-and-evidence.md
   focused gates, package verification, milestone evidence, and known scope
   limits
+
+docs/handbook/book-outline.md
+  structural outline and chapter roadmap for the engineering book
+  'Документація як інженерний детектив'
+
 ```
 
 Planned pages for milestone 037:
