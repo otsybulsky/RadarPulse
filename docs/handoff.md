@@ -40,8 +40,9 @@ accepted behavior decisions.
 Current state:
 
 ```text
-milestone 037 handbook content, technical book outline, and 25-chapter drafts
-integration slices are complete; README links to the handbook; handbook
+milestone 037 handbook content, technical book outline, 25-chapter drafts, and
+metaphorically styled technical blocks (Verdict, Invariants, Failure Modes, Code/Tests,
+CLI Commands) integration slices are complete; README links to the handbook; handbook
 link/path/whitespace checks passed; decision trace and closeout have not
 started; stop point is before decision trace
 ```
@@ -116,7 +117,8 @@ Milestone 037 planned slices:
 7. Handbook integration and quality pass [complete]
 8. Technical book outline integration [complete]
 9. Technical book drafts generation and integration [complete]
-10. Decision trace and closeout [queued]
+10. Metaphorically styled technical blocks (Investigation Case Files) integration [complete]
+11. Decision trace and closeout [queued]
 ```
 
 Milestone 037 completed changes:
@@ -132,6 +134,7 @@ Milestone 037 completed changes:
 8. Handbook integration and quality pass
 9. Technical book outline integration
 10. Technical book drafts generation and integration
+11. Metaphorically styled technical blocks (Investigation Case Files) integration
 ```
 
 Milestone 037 implemented handbook pages:

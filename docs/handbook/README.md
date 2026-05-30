@@ -115,7 +115,7 @@ docs/handbook/verification-and-evidence.md
 
 docs/handbook/book-outline.md
   structural outline and chapter roadmap for the engineering book
-  'Ð”Ð¾ÐºÑƒÐ¼ÐµÐ½Ñ‚Ð°Ñ†Ñ–Ñ ÑÐº Ñ–Ð½Ð¶ÐµÐ½ÐµÑ€Ð½Ð¸Ð¹ Ð´ÐµÑ‚ÐµÐºÑ‚Ð¸Ð²'
+  'Документація як інженерний детектив'
 
 ```
 

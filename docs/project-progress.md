@@ -69,7 +69,7 @@ active milestone status:
   handbook entrypoint, source map, overview, glossary, workflows,
     architecture, runtime, product surface, verification/evidence pages, and
     README integration complete
-  technical book outline and 25-chapter draft generation/integration complete
+  technical book outline, 25-chapter drafts generation, and metaphorically styled technical blocks (Verdict, Invariants, Failure Modes, Code/Tests, CLI Commands) integration complete
   handbook quality pass complete
   decision trace and closeout not started; stop point is before decision trace
   runtime/product behavior changes out of scope
