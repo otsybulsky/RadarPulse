@@ -443,3 +443,29 @@ book outline file exists
 handbook README updated and links resolve
 git diff --check passed
 ```
+
+### Change 10: Technical Book Drafts Generation and Integration
+
+Status: complete.
+
+Intent:
+
+```text
+write all 25 chapters of the technical book 'Документація як інженерний детектив'
+fully and save them as individual files inside the handbook
+```
+
+Scope:
+
+```text
+docs/handbook/book/
+docs/milestones/037-managed-system-handbook-documentation.md
+docs/milestones/037-managed-system-handbook-documentation-plan.md
+```
+
+Verification:
+
+```text
+25 chapter files exist inside docs/handbook/book/ and are staged in Git
+git diff --check passed
+```

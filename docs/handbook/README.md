@@ -1,4 +1,4 @@
-# RadarPulse System Handbook
+﻿# RadarPulse System Handbook
 
 Status: active under milestone 037.
 
@@ -115,7 +115,7 @@ docs/handbook/verification-and-evidence.md
 
 docs/handbook/book-outline.md
   structural outline and chapter roadmap for the engineering book
-  'Документація як інженерний детектив'
+  'Ð”Ð¾ÐºÑƒÐ¼ÐµÐ½Ñ‚Ð°Ñ†Ñ–Ñ ÑÐº Ñ–Ð½Ð¶ÐµÐ½ÐµÑ€Ð½Ð¸Ð¹ Ð´ÐµÑ‚ÐµÐºÑ‚Ð¸Ð²'
 
 ```
 

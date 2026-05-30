@@ -40,9 +40,10 @@ accepted behavior decisions.
 Current state:
 
 ```text
-milestone 037 handbook content and integration slices are complete; README
-links to the handbook; handbook link/path/whitespace checks passed; decision
-trace and closeout have not started; stop point is before decision trace
+milestone 037 handbook content, technical book outline, and 25-chapter drafts
+integration slices are complete; README links to the handbook; handbook
+link/path/whitespace checks passed; decision trace and closeout have not
+started; stop point is before decision trace
 ```
 
 Architecture assessment verdict:
@@ -113,7 +114,9 @@ Milestone 037 planned slices:
 5. Architecture and runtime deepening [complete]
 6. Product surface and verification evidence [complete]
 7. Handbook integration and quality pass [complete]
-8. Decision trace and closeout [queued]
+8. Technical book outline integration [complete]
+9. Technical book drafts generation and integration [complete]
+10. Decision trace and closeout [queued]
 ```
 
 Milestone 037 completed changes:
@@ -127,6 +130,8 @@ Milestone 037 completed changes:
 6. Architecture and runtime deepening
 7. Product surface and verification evidence
 8. Handbook integration and quality pass
+9. Technical book outline integration
+10. Technical book drafts generation and integration
 ```
 
 Milestone 037 implemented handbook pages:
@@ -141,6 +146,8 @@ docs/handbook/processing-runtime.md
 docs/handbook/product-surface.md
 docs/handbook/verification-and-evidence.md
 docs/handbook/glossary.md
+docs/handbook/book-outline.md
+docs/handbook/book/chapter_01_lab_table.md through chapter_25_demo_scripts.md (25 chapters)
 ```
 
 Milestone 037 latest verification:

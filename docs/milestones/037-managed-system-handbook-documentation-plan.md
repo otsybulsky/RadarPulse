@@ -261,7 +261,33 @@ book outline exists and README link resolves
 git diff --check
 ```
 
-## Slice 9: Decision Trace And Closeout
+## Slice 9: Technical Book Drafts Generation and Integration
+
+Status: complete.
+
+Goal:
+
+```text
+write all 25 chapters of the technical book 'Документація як інженерний детектив'
+and integrate them under the handbook directory
+```
+
+Planned changes:
+
+```text
+generate 25 detailed chapters (800-1200 words each, in Ukrainian) covering Milestones 001-037
+relocate the drafts to docs/handbook/book/
+stage all chapter files in the Git index
+```
+
+Verification:
+
+```text
+book chapters exist on disk and are tracked in Git under docs/handbook/book/
+git diff --check passes
+```
+
+## Slice 10: Decision Trace And Closeout
 
 Status: queued.
 
