@@ -7,3 +7,4 @@ riderModule.iml
 *.sln.DotSettings.user
 TestResults/
 data/
+.obsidian
