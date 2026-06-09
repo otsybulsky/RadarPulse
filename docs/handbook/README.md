@@ -117,6 +117,11 @@ docs/handbook/book-outline.md
   structural outline and chapter roadmap for the engineering book
   'Документація як інженерний детектив'
 
+docs/handbook/book/
+  executive verdict, 25-chapter engineering casebook, profiling appendix,
+  claim/evidence matrix, production-hardening plan, reviewer attack pack, and
+  simulated hostile reviewer transcript for portfolio-style technical review
+
 ```
 
 Planned pages for milestone 037:

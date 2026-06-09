@@ -116,11 +116,34 @@ public sealed class RadarEventBatch
 }
 ```
 
-Який результат дала ця реформа?
+## 3.4. Парсинг та пам'ять: Концептуальний Cast проти реального Builder
 
-Він приголомшливий. На наших бенчмарках під час Віхи `009-010` швидкість обробки радарних даних досягла **понад 500 мільйонів значень корисного навантаження на секунду** (500M+ payload values/sec). А накладні витрати на виділення пам'яті в купі (Allocations) впали до мізерних **менше 0.20 байта** на одне оброблене значення!
+Коли ви стикаєтеся з необхідністю обробки 500 мільйонів payload-значень за секунду, першим імпульсом є максимальне спрощення десеріалізації. В ідеальному світі ми могли б скористатися концептуальним трюком **Zero-Copy Deserialization** (десеріалізація без копіювання), інтерпретуючи сирі розпаковані байти безпосередньо як масив некерованих 64-байтних структур `RadarStreamEvent`:
 
-Ми практично позбулися Garbage Collector як фактора ризику. Пам'ять системи RadarPulse залишається чистою та стабільною, як стіл педантичного слідчого перед початком робочого дня.
+```csharp
+// Концептуальний ідеал (не використовується в реальній реалізації):
+ReadOnlySpan<RadarStreamEvent> events = MemoryMarshal.Cast<byte, RadarStreamEvent>(rawDecompressedBytes);
+```
+
+Цей приклад виглядає неймовірно ефектно на папері: процесор отримує прямий доступ до пам'яті за одну інструкцію без жодного копіювання. Проте в суворому середовищі NEXRAD Level II цей концептуальний метод виявляється повністю непридатним.
+
+Замість цього в реальному коді нашого проекту використовується **`RadarEventBatchBuilder`** з багаторазовими внутрішніми буферами, а **`ArrayPool`** підключається на сусідніх гарячих ділянках: декомпресія, retained payload, pooled-copy та дельти обробки. Давайте порівняємо ці підходи та розберемося, чому реальна архітектура виявилася значно надійнішою:
+
+| Критерій порівняння | Концептуальний `MemoryMarshal.Cast` | Реальна реалізація: `RadarEventBatchBuilder` + retained ownership |
+| :--- | :--- | :--- |
+| **Порядок байтів (Endianness)** | **Провал.** NEXRAD Level II зберігає числа у форматі Big-Endian. Процесори x86-64/ARM64 працюють з Little-Endian. Прямий Cast прочитає перевернуті байти (сміття). | **Успіх.** Будівельник зчитує поля за допомогою `BinaryPrimitives.ReadInt32BigEndian` та виконує правильну конвертацію ендіанності на льоту. |
+| **Змінна довжина та зміщення** | **Провал.** Прямий Cast вимагає однорідного масиву фіксованого розміру. У NEXRAD початкові зміщення (`PayloadOffset`) та довжина гейтів (`GateCount`) кожної поодинокої події відрізняються. | **Успіх.** Будівельник динамічно обчислює зміщення корисного навантаження (`payloadOffset`) для кожної події та копіює його у суміжний буфер. |
+| **Алокації пам'яті (Heap Allocations)** | Нульові (просте приведення покажчиків), але тільки для ідеального однорідного формату. | На стабільному leased hot path builder повторно використовує власні `eventBuffer` та `payloadBuffer`, збільшуючи їх лише через `Array.Resize`, коли capacity замала. Довше володіння батчем переноситься в retained/pooled-copy шар, де масиви вже орендуються з `ArrayPool`. |
+| **Валідація та цілісність** | Відсутня на етапі приведення типу. | Будівельник перевіряє межі масивів (`EnsurePayloadCapacity`), валідує версії топології та підраховує контрольну суму корисного навантаження за один прохід. |
+| **Архітектурна чистота** | Жорстке зв'язування з бінарним форматом файлу. | Повна ізоляція: будівельник конвертує складний зовнішній двійковий формат у чисті доменні структури. |
+
+Реальний процес наповнення батча відбувається поетапно: парсер NEXRAD покроково зчитує бінарні записи, конвертує числа, конструює структуру `RadarStreamEvent` та записує її у внутрішній масив `eventBuffer`. Потім корисне навантаження (`payload`) копіюється у виділене місце в `payloadBuffer`. Якщо батч споживається одразу, `BuildLeased()` віддає посилання на ці самі буфери, а `ResetRetainingCapacity()` очищає лічильники без повторного виділення масивів. Якщо батч треба утримувати довше за callback, retained шар робить pooled-copy і вже там відповідає за оренду та повернення масивів.
+
+Друга складова нашого успіху — **кеш-локальність (Cache Friendliness)**. Процесор AMD Ryzen 9 9900X (Zen 5) оперує кеш-лініями розміром 64 байти. Оскільки розмір нашої структури становить рівно 64 байти, а масив є безперервним у пам'яті, кожна подія займає рівно одну кеш-лінію процесора.
+
+Коли воркер починає читати метадані події `Events[i]`, апаратний завантажувач процесора (Hardware Prefetcher) автоматично підтягує наступні події `Events[i+1]` та `Events[i+2]` з оперативної пам'яті в надшвидкий кеш L1 та L2 заздалегідь. Процесор працює на максимальній частоті, не зупиняючи ядра для очікування повільної RAM.
+
+Завдяки leased delivery, повторному використанню буферів, pooled-copy для довгоживучих батчів та кеш-локальності Garbage Collector перестав бути головним учасником гарячого шляху, а checksum/contract parity залишився предметом тестів і benchmark-гейтів.
 
 Тепер, коли ми розібралися з фізичною оптимізацією даних у пам'яті, давайте подивимося на архітектурну мапу нашої системи. Як захистити доменні правила від бруду зовнішнього світу? Про це — у наступному розділі.
 ---
@@ -128,22 +151,45 @@ public sealed class RadarEventBatch
 ## 🔍 Матеріали справи (Investigation Case Files)
 
 ### 1. Вердикт детективів (Decision Trace & Rationale)
-Впровадження некерованих (unmanaged) 64-байтних структур `RadarStreamEvent` та об'єднання їх у `RadarEventBatch` (Віхи `003`-`004`). Це виключило виділення пам'яті в кучі (heap allocations) на кожну подію, дозволивши обробляти понад 500 мільйонів радарних значень на секунду без навантаження на Garbage Collector.
+Впровадження некерованих (unmanaged) 64-байтних структур `RadarStreamEvent` та об'єднання їх у `RadarEventBatch` (Віхи `003`-`004`). Це прибрало per-event heap allocations із доменного контракту і дало benchmark-рівень понад 500 мільйонів payload-значень за секунду з близько `0.20` allocated bytes/payload value на cache-wide replay.
+
+#### Чому сирі байти не стали контрактом домену
+Ми могли залишити кожне радарне значення окремим об'єктом, але тоді головним учасником справи став би Garbage Collector. Могли зробити прямий `MemoryMarshal.Cast` по розпакованих байтах, але NEXRAD має big-endian поля, змінні payload-діапазони й зовнішню бінарну форму, яку не можна пускати просто в домен. Обраний шлях — компактний `RadarStreamEvent` плюс `RadarEventBatchBuilder` — не найкоротший у коді, зате він переводить чужий формат у наш контрольований контракт. Ціна вибору — ручна нормалізація полів і власний builder; виграш — cache-line stride, deterministic payload references і доказовий throughput.
 
 ### 2. Закони фізики рантайму (System Invariants)
 * **Алокаційний ліміт**: Довжина структури `RadarStreamEvent` має дорівнювати рівно 64 байтам для оптимального вирівнювання в пам'яті процесора.
 * **Валідація батча**: Кожен батч має містити суворі контрольні суми для перевірки цілісності радарного зліпку.
 
 ### 3. Патологоанатомічний звіт (Failure Modes & Recovery)
-* **Порушення контрольної суми**: При невідповідності хэшу батча вхідний конвеєр відкидає його та надсилає сигнал `RadarEventBatchValidationException` до системи моніторингу.
+* **Порушення контрольної суми**: При невідповідності хешу батча вхідний конвеєр відкидає його та повертає помилку через `RadarEventBatchValidationResult` до системи моніторингу.
 
-### 4. Слід доказової бази (Implementation & Tests)
+### 4. Докази продуктивності (Performance Evidence)
+
+| Твердження (Claim) | Доказ (Evidence) | Команда верифікації (Verification Command) |
+| :--- | :--- | :--- |
+| `RadarStreamEvent` займає рівно одну 64-байтну cache line | Контрактний тест `RadarStreamContractTests.RadarStreamEventUsesOneCacheLineStride` | `dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~RadarStreamContractTests"` |
+| Обробка 500M+ payload-значень/сек | Milestone 004 зафіксував `553_123_110.90` payload values/s на single-file benchmark і `509_716_417.97` payload values/s на cache-wide KTLX corpus | `dotnet run --no-build -c Release --project src/Presentation/RadarPulse.Cli/RadarPulse.Cli.csproj -- archive benchmark stream --cache data/nexrad --max-files 1000000 --iterations 1 --warmup-iterations 0 --parallelism 24 --decompressor radarpulse` |
+| Алокації близько `0.20` байта/payload-значення на cache-wide replay | Milestone 004 closeout: `allocated bytes / payload value: 0.20` після leased hot-path delivery та reusable projector buffers | Та сама `archive benchmark stream` команда; unit-тести лише фіксують інваріанти, не є доказом throughput |
+| Консистенція збірки батчів | Тести builder/validator перевіряють межі payload, lifetime, leased snapshot та checksum-контракти | `dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~RadarEventBatch"` |
+
+### 5. Слід доказової бази (Implementation & Tests)
 * Структура події: [RadarStreamEvent.cs](../../../src/Domain/Streaming/Streams/Models/RadarStreamEvent.cs)
 * Модель батча подій: [RadarEventBatch.cs](../../../src/Domain/Streaming/Batches/Models/RadarEventBatch.cs)
+* Реальний builder: [RadarEventBatchBuilder.cs](../../../src/Domain/Streaming/Batches/Services/RadarEventBatchBuilder/RadarEventBatchBuilder.cs), [RadarEventBatchBuilder.CapacityReset.cs](../../../src/Domain/Streaming/Batches/Services/RadarEventBatchBuilder/RadarEventBatchBuilder.CapacityReset.cs), [RadarEventBatchBuilder.Build.cs](../../../src/Domain/Streaming/Batches/Services/RadarEventBatchBuilder/RadarEventBatchBuilder.Build.cs)
+* Retained pooled-copy шар: [RadarProcessingRetainedPayloadFactory.PooledCopy.cs](../../../src/Infrastructure/Processing/Retention/Services/RadarProcessingRetainedPayloadFactory/RadarProcessingRetainedPayloadFactory.PooledCopy.cs)
+* Контракт cache-line: [RadarStreamContractTests.cs](../../../tests/RadarPulse.Tests/Streaming/Streams/RadarStreamContractTests.cs)
 * Тести збирання та валідації: [RadarEventBatchValidatorTests.cs](../../../tests/RadarPulse.Tests/Streaming/Batches/RadarEventBatchValidatorTests.cs)
+* Benchmark-докази Milestone 004: [closeout](../../milestones/004-processing-core-input-contract-closeout.md), [decision trace](../../milestones/004-processing-core-input-contract-decision-trace.md), [plan evidence](../../milestones/004-processing-core-input-contract-plan.md)
+* Практичний протокол профілювання: [Додаток А](appendix_a_profiling.md)
 
-### 5. Протокол допиту процесу (Verification Commands)
-Перевірка алокацій та збірки радарних батчів:
+### 6. Протокол допиту процесу (Verification Commands)
+Перевірка контрактів радарного батча:
 ```bash
 dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~RadarEventBatch"
+```
+
+Відтворення benchmark-доказу для throughput та allocation-per-value:
+```bash
+dotnet build -c Release src/Presentation/RadarPulse.Cli/RadarPulse.Cli.csproj --no-restore
+dotnet run --no-build -c Release --project src/Presentation/RadarPulse.Cli/RadarPulse.Cli.csproj -- archive benchmark stream --cache data/nexrad --max-files 1000000 --iterations 1 --warmup-iterations 0 --parallelism 24 --decompressor radarpulse
 ```

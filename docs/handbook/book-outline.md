@@ -4,6 +4,13 @@
 
 ---
 
+## Передмова. Executive Engineering Verdict
+*   **Мета:** Дати зайнятому CTO/Principal Engineer короткий маршрут оцінки книги як hiring artifact.
+*   **Технічне підґрунтя:** [preface_executive_verdict.md](book/preface_executive_verdict.md), [appendix_b_claim_evidence_matrix.md](book/appendix_b_claim_evidence_matrix.md), [appendix_c_production_hardening.md](book/appendix_c_production_hardening.md), [appendix_d_reviewer_attack_pack.md](book/appendix_d_reviewer_attack_pack.md), [appendix_e_simulated_hostile_reviewer_transcript.md](book/appendix_e_simulated_hostile_reviewer_transcript.md).
+*   **Сюжет:** Книга не просить довіри, а дає карту доказів: що доведено, де межі claims, які production gaps лишаються і як рецензент може атакувати найсильніші твердження в режимі hostile review.
+
+---
+
 ## Частина І. Запуск турбіни (Орбіта та вихідні дані)
 *   **Мета:** Окреслити масштаб системи, дослідити структуру бінарних даних NEXRAD та принципи їх зчитування.
 *   **Бенчмарк-фокус:** Визначення базової продуктивності зчитування та парсингу файлів архіву.
@@ -16,7 +23,7 @@
         *   *Сюжет:* Особливості бінарного метеорологічного формату. Чому радарний файл — це послідовність стиснутих блоків із 24-байтним заголовком, і чому стандартна декомпресія «в лоб» вбиває продуктивність.
     *   **Розділ 3: Контракт радарного батча**
         *   *Технічне підґрунтя:* Віхи `003` (Historical Replay Publisher) та `004` (Processing Core Input Contract).
-        *   *Сюжет:* Еволюція від сирого потоку подій до структурованого `RadarEventBatch`. Як заміна об'єктів з текстовими метаданими на 64-байтні некеровані (unmanaged) структури `RadarStreamEvent` дозволила досягти швидкості у 500M+ значень/сек із нульовими алокаціями.
+        *   *Сюжет:* Еволюція від сирого потоку подій до структурованого `RadarEventBatch`. Як заміна об'єктів з текстовими метаданими на 64-байтні некеровані (unmanaged) структури `RadarStreamEvent` дала Milestone 004 benchmark-рівень 500M+ payload-значень/сек і близько 0.20 allocated bytes/payload value на cache-wide replay.
 
 ## Частина ІІ. Обитель Чистоти (Clean Architecture та Доменні Контракти)
 *   **Мета:** Розкрити принципи ізоляції бізнес-правил та автоматичного контролю кордонів проекту.
@@ -65,7 +72,7 @@
 
 ## Частина V. Магія Паралельного Рантайму (Concurrency & Ordered Commit)
 *   **Мета:** Розібрати логіку паралельних обчислень із детермінованим виведенням результатів.
-*   **Бенчмарк-фокус:** Метрики прискорень на багатопотоковому конвеєрі (ефективне прискорення та вплив на алокацію пам'яті).
+*   **Бенчмарк-фокус:** Метрики безпечної паралельності: active-batch runtime, ordered commit tax, stale recompute cost та вплив на алокацію пам'яті.
 *   **Розділи:**
     *   **Розділ 14: Хаос на іподромі (Паралельність воркерів)**
         *   *Технічне підґрунтя:* [processing-runtime.md](processing-runtime.md).
@@ -103,7 +110,7 @@
         *   *Сюжет:* Як підключити додаткові аналітичні модулі до рантайму обробки подій, не захаращуючи ядро системи.
     *   **Розділ 22: Контракт злиття дельт (`IMergeableHandler`)**
         *   *Технічне підґрунтя:* Віха `025` (Handler Delta Merge Contract).
-        *   *Сюжет:* Як дозволити аналітикам обчислювати свої дельти паралельно й зливати their за чергою провайдера, замість використання повільного sequential fallback.
+        *   *Сюжет:* Як дозволити аналітикам обчислювати свої дельти паралельно й зливати їх за чергою провайдера, замість використання повільного sequential fallback.
 
 ## Частина VIII. Очі Диспетчера (Інтерфейс, BFF та Демо-пакет)
 *   **Мета:** Описати проектування користувацького інтерфейсу та фінальну збірку проекту.
@@ -118,3 +125,20 @@
     *   **Розділ 25: Демо-пакет під ключ**
         *   *Технічне підґрунтя:* Віхи `032` (Product Demo Readiness Packaging) та `033` (Product Demo Polish).
         *   *Сюжет:* Фінальна стадія. Створення єдиного пакетного скрипта керування та тестування системи в freeze mode.
+
+## Додатки. Лабораторні докази
+*   **Додаток А: Апаратне профілювання системи у лабораторії**
+    *   *Технічне підґрунтя:* [appendix_a_profiling.md](book/appendix_a_profiling.md), [Milestone 004 closeout](../milestones/004-processing-core-input-contract-closeout.md), [RadarPulse.Cli.csproj](../../src/Presentation/RadarPulse.Cli/RadarPulse.Cli.csproj).
+    *   *Сюжет:* Як підтверджувати throughput, allocation rate і форму живої купи за допомогою `dotnet-trace`, `dotnet-counters`, `dotnet-gcdump` та benchmark-команд, не підміняючи performance-докази звичайними unit-тестами.
+*   **Додаток Б: Матриця тверджень і доказів**
+    *   *Технічне підґрунтя:* [appendix_b_claim_evidence_matrix.md](book/appendix_b_claim_evidence_matrix.md), milestone performance gates, source files і verification commands.
+    *   *Сюжет:* Стисла таблиця `Claim -> Code -> Test -> Measurement -> Scope`, яка дозволяє рецензенту швидко відрізнити доведені твердження від навмисних non-claims.
+*   **Додаток В: Production Hardening Plan**
+    *   *Технічне підґрунтя:* [appendix_c_production_hardening.md](book/appendix_c_production_hardening.md), [system-overview.md](system-overview.md), [product-surface.md](product-surface.md), [processing-runtime.md](processing-runtime.md).
+    *   *Сюжет:* Як переносити lab-table інваріанти в production: broker/database adapters, observability, public API security, live ingestion і multi-node processing без розширення поточних claims.
+*   **Додаток Г: Reviewer Attack Pack**
+    *   *Технічне підґрунтя:* [appendix_d_reviewer_attack_pack.md](book/appendix_d_reviewer_attack_pack.md), [appendix_b_claim_evidence_matrix.md](book/appendix_b_claim_evidence_matrix.md), source/test/milestone links.
+    *   *Сюжет:* Набір найсильніших питань, якими principal-level reviewer може атакувати книгу, і маршрути до відповідей у коді, тестах та milestone evidence.
+*   **Додаток Д: Simulated Hostile Reviewer Transcript**
+    *   *Технічне підґрунтя:* [appendix_e_simulated_hostile_reviewer_transcript.md](book/appendix_e_simulated_hostile_reviewer_transcript.md), [appendix_d_reviewer_attack_pack.md](book/appendix_d_reviewer_attack_pack.md), [appendix_b_claim_evidence_matrix.md](book/appendix_b_claim_evidence_matrix.md).
+    *   *Сюжет:* Детальна simulated-стенограма principal-level hostile review: атака, відповідь автора, follow-up, verdict і наступний proof для production claim.
