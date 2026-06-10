@@ -103,7 +103,7 @@ Workload тесту виглядав так:
 | :--- | :--- | :--- |
 | Active-batch overlap дав виграш навіть під topology churn | Processing-bottleneck matrix: `active=4 elapsed ratio 0.891x` проти same-path `active=1`, accepted moves `2_000 vs 2_000`, failed migrations `0` | [022-ordered-rebalance-topology-commit-processing-bottleneck-performance-matrix.md](../../milestones/022-ordered-rebalance-topology-commit-processing-bottleneck-performance-matrix.md) |
 | Recompute був реальною роботою, а не декоративним прапорцем | Matrix і closeout фіксують `39_292` worker dispatches для `32_000` logical batches та allocation ratio `1.137x` | [022-ordered-rebalance-topology-commit-closeout.md](../../milestones/022-ordered-rebalance-topology-commit-closeout.md) |
-| Unit-тести охороняють replay/recovery contract | `TopologyReplay` suite перевіряє відновлення та порядок застосування topology state | `dotnet test tests/RadarPulse.Tests --filter "FullyQualifiedName~TopologyReplay"` |
+| Unit-тести охороняють replay/recovery contract | `RadarProcessingDurableRebalanceSessionTests` suite перевіряє відновлення та порядок застосування topology state | `dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~RadarProcessingDurableRebalanceSessionTests"` |
 
 ### 5. Слід доказової бази (Implementation & Tests)
 * Перерахунок топології: [RadarProcessingDurableRebalanceSession.Recovery.cs](../../../src/Infrastructure/Processing/Durable/Services/RadarProcessingDurableRebalanceSession/RadarProcessingDurableRebalanceSession.Recovery.cs)
@@ -113,5 +113,5 @@ Workload тесту виглядав так:
 ### 6. Протокол допиту процесу (Verification Commands)
 Запуск тестування відновлення та перерахунку топологій:
 ```bash
-dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~TopologyReplay"
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~RadarProcessingDurableRebalanceSessionTests"
 ```

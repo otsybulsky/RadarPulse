@@ -94,7 +94,7 @@ flowchart LR
 | Release-дисципліна не залишилася на словах | Gate фіксує complete lifecycle cleanup: 198 retained batches, 198 released batches, 0 failed releases | [010-owned-provider-overlap-cost-reduction-performance-gate.md](../../milestones/010-owned-provider-overlap-cost-reduction-performance-gate.md) |
 
 ### 5. Слід доказової бази (Implementation & Tests)
-* Адаптер пулу: [RadarProcessingPooledCopyRetentionStrategy.cs](../../../src/Infrastructure/Processing/Retention/Services/RadarProcessingRetainedPayloadFactory/RadarProcessingRetainedPayloadFactory.PooledCopy.cs)
+* Адаптер пулу: [RadarProcessingRetainedPayloadFactory.PooledCopy.cs](../../../src/Infrastructure/Processing/Retention/Services/RadarProcessingRetainedPayloadFactory/RadarProcessingRetainedPayloadFactory.PooledCopy.cs)
 * Управління пулами масивів: [RadarProcessingRetainedPayloadByteArrayPool.cs](../../../src/Infrastructure/Processing/Retention/Services/RadarProcessingRetainedPayloadByteArrayPool.cs)
 * Performance gate і closeout: [010-owned-provider-overlap-cost-reduction-performance-gate.md](../../milestones/010-owned-provider-overlap-cost-reduction-performance-gate.md), [010-owned-provider-overlap-cost-reduction-closeout.md](../../milestones/010-owned-provider-overlap-cost-reduction-closeout.md)
 

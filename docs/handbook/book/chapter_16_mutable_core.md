@@ -127,5 +127,5 @@ flowchart LR
 ### 6. Протокол допиту процесу (Verification Commands)
 Перевірка безпеки паралельних обчислень ядра:
 ```bash
-dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~MutableCore"
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~RadarProcessingBatchDeltaTests"
 ```

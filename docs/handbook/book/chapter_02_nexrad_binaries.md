@@ -75,11 +75,11 @@
 * **Пошкоджені архіви**: При спробі відкрити битий архів система викидає `CorruptedNexradArchiveException`, блокує пошкоджений файл та переміщує його до карантину, не зупиняючи обробку сусідніх радарних файлів.
 
 ### 4. Слід доказової бази (Implementation & Tests)
-* Ключовий завантажувач архівів: [HistoricalArchiveLoader.cs](../../../src/Infrastructure/Archive/Nexrad/Inspectors/NexradArchiveFileInspector.cs)
-* Тести декомпресії та читання заголовків: [HistoricalArchiveLoaderTests.cs](../../../tests/RadarPulse.Tests/Archive/Nexrad/Inspectors/NexradArchiveFileInspectorTests.cs)
+* Ключовий завантажувач архівів: [NexradArchiveFileInspector.cs](../../../src/Infrastructure/Archive/Nexrad/Inspectors/NexradArchiveFileInspector.cs)
+* Тести декомпресії та читання заголовків: [NexradArchiveFileInspectorTests.cs](../../../tests/RadarPulse.Tests/Archive/Nexrad/Inspectors/NexradArchiveFileInspectorTests.cs)
 
 ### 5. Протокол допиту процесу (Verification Commands)
 Запуск юніт-тестів перевірки валідації бінарних NEXRAD-архівів:
 ```bash
-dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~HistoricalArchiveLoader"
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~NexradArchiveFileInspector"
 ```

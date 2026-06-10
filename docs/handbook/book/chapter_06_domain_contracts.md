@@ -1,4 +1,4 @@
-﻿# Розділ 6: Залізні контракти домену
+# Розділ 6: Залізні контракти домену
 
 Уявіть себе головою митної служби на кордоні суверенної держави. Щодня до вас на пропускний пункт прибувають тисячі вантажівок. Деякі везуть задекларовані товари, а деякі — контрабанду, пошкоджені продукти або небезпечні речовини. Якщо ваші прикордонники будуть ліниво махати рукою кожній машині, не заглядаючи в кузов і не перевіряючи паспорти водіїв, дуже швидко в країні почнеться хаос, спалахнуть епідемії, а ринки заповнить фальсифікат.
 
@@ -92,7 +92,7 @@ ArgumentOutOfRangeException.ThrowIfZero(gateCount);
 ## 🔍 Матеріали справи (Investigation Case Files)
 
 ### 1. Вердикт детективів (Decision Trace & Rationale)
-Формалізація залізних контрактів домену (Milestone `035`). Обробка та валідація вхідних даних здійснюються через чіткі інтерфейси, такі як `IRadarProcessingCore`. Це усунуло розмитість логіки й перенесло відхилення некоректних запитів на сам кордон домену, не забруднюючи внутрішню пам'ять ядра.
+Формалізація залізних контрактів домену (Milestone `035`). Обробка та валідація вхідних даних здійснюються через чіткі класи та сервіси, такі як `RadarProcessingCore`. Це усунуло розмитість логіки й перенесло відхилення некоректних запитів на сам кордон домену, не забруднюючи внутрішню пам'ять ядра.
 
 #### Чому кордон домену став митницею
 У нас був спокусливий варіант: довіряти викликачам і ловити пошкоджені батчі вже після часткової обробки. Це дешевше на вході, але дорого в розслідуванні, бо невідомо, де саме зіпсувався стан. Інший шлях — перевіряти все в інфраструктурі, залишивши домен «чистим», але тоді правила розповзаються по адаптерах. Ми обрали доменні контракти як митницю на кордоні ядра: те, що зайшло всередину, вже має паспорт. Ціна вибору — більше явних перевірок і типів помилок; виграш — fail-fast, чисті інваріанти та простіші докази коректності.
@@ -105,12 +105,12 @@ ArgumentOutOfRangeException.ThrowIfZero(gateCount);
 * **Контрактний збій**: При передачі некоректних даних (наприклад, від'ємного часу або невідомого коду радара) система миттєво викидає `DomainValidationException` та перериває обробку батча.
 
 ### 4. Слід доказової бази (Implementation & Tests)
-* Контракт ядра: [IRadarProcessingCore.cs](../../../src/Domain/Processing/Core/Services/RadarProcessingCore/RadarProcessingCore.cs)
+* Контракт ядра: [RadarProcessingCore.cs](../../../src/Domain/Processing/Core/Services/RadarProcessingCore/RadarProcessingCore.cs)
 * Доменні моделі та валідатори: [src/Domain/Processing/Core/Models/](../../../src/Domain/Processing/Core/Models)
-* Тести контрактів: [RadarProcessingCoreTests.cs](../../../tests/RadarPulse.Tests/Processing/Core/RadarProcessingCoreSequentialTests/RadarProcessingCoreSequentialTests.Contracts.cs)
+* Тести контрактів: [RadarProcessingCoreSequentialTests.Contracts.cs](../../../tests/RadarPulse.Tests/Processing/Core/RadarProcessingCoreSequentialTests/RadarProcessingCoreSequentialTests.Contracts.cs)
 
 ### 5. Протокол допиту процесу (Verification Commands)
 Запуск тестів доменних валідацій та контрактів:
 ```bash
-dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~RadarProcessingCoreTests"
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~RadarProcessingCoreSequentialTests"
 ```

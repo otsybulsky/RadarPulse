@@ -77,7 +77,7 @@
 * **Паніка балансування**: При різких коливаннях шуму система тимчасово заморожує будь-які перенесення для збереження стабільного процесингу, віддаючи перевагу накопиченню локальних черг.
 
 ### 4. Слід доказової бази (Implementation & Tests)
-* Політика ребалансу: [RadarProcessingRebalancePolicy.cs](../../../src/Domain/Processing/Rebalance/Policies/RadarProcessingRebalancePolicyState.cs)
+* Політика ребалансу: [RadarProcessingRebalancePolicyState.cs](../../../src/Domain/Processing/Rebalance/Policies/RadarProcessingRebalancePolicyState.cs)
 * Конфігурація балансу: [RadarProcessingArchiveRebalanceRolloutDefaults.cs](../../../src/Infrastructure/Processing/ArchiveRuntime/Options/RadarProcessingArchiveRebalanceRolloutDefaults.cs)
 
 ### 5. Протокол допиту процесу (Verification Commands)

@@ -79,5 +79,5 @@
 ### 5. Протокол допиту процесу (Verification Commands)
 Запуск тестування відтворення топологій та міграцій:
 ```bash
-dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~TopologyReplay"
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~RadarProcessingDurableRebalanceSessionTests"
 ```

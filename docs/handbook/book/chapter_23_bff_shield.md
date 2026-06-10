@@ -195,5 +195,5 @@ SPA могла напряму читати runtime-моделі, але тоді
 ### 5. Протокол допиту процесу (Verification Commands)
 Запуск тестів цілісності BFF моделей представлення:
 ```bash
-dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~ReadModels"
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~ReadModel"
 ```

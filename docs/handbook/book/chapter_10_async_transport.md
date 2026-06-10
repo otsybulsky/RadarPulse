@@ -81,11 +81,11 @@
 * **Переповнення воркера**: Якщо воркер не встигає розгрібати поштову скриньку, канал блокує запис нових повідомлень, автоматично сповільнюючи швидкість надходження даних (Backpressure).
 
 ### 4. Слід доказової бази (Implementation & Tests)
-* Код воркера: [RadarProcessingAsyncShardWorker.cs](../../../src/Infrastructure/Processing/Workers/Models/RadarProcessingWorkerMailbox.cs)
+* Код воркера: [RadarProcessingWorkerMailbox.cs](../../../src/Infrastructure/Processing/Workers/Models/RadarProcessingWorkerMailbox.cs)
 * Опції рантайму: [RadarProcessingArchiveQueuedOverlapOptions.cs](../../../src/Infrastructure/Processing/ArchiveRuntime/Options/RadarProcessingArchiveQueuedOverlapOptions.cs)
 
 ### 5. Протокол допиту процесу (Verification Commands)
 Запуск тестування асинхронного транспорту та черг воркерів:
 ```bash
-dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~AsyncShardWorker"
+dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~RadarProcessingWorkerMailboxTests"
 ```
