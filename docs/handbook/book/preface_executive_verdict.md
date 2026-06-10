@@ -2,14 +2,14 @@
 
 Ця книга написана не для того, щоб просити довіри. Вона зібрана як інженерна справа: є початковий масштаб, є помилки, є альтернативи, є ціна вибору, є performance gates, є команди відтворення і є чітко названі межі відповідальності. Важлива обіцянка тексту проста: якщо твердження звучить сильно, поруч має бути або код, або milestone, або межа, за яку ми не заходимо.
 
-Якщо читач має лише пів години, йому не потрібно проходити всі 25 розділів як роман. Достатньо подивитися на цей вердикт, потім відкрити матрицю доказів у [Додатку Б](appendix_b_claim_evidence_matrix.md), production-hardening маршрут у [Додатку В](appendix_c_production_hardening.md), reviewer attack pack у [Додатку Г](appendix_d_reviewer_attack_pack.md) і simulated hostile transcript у [Додатку Д](appendix_e_simulated_hostile_reviewer_transcript.md). Після цього можна занурюватися в глави, які викликають найбільше запитань.
+Якщо читач має лише пів години, йому не потрібно проходити всі 26 розділів як роман. Достатньо подивитися на цей вердикт, потім відкрити матрицю доказів у [Додатку Б](appendix_b_claim_evidence_matrix.md), production-hardening маршрут у [Додатку В](appendix_c_production_hardening.md), reviewer attack pack у [Додатку Г](appendix_d_reviewer_attack_pack.md) і simulated hostile transcript у [Додатку Д](appendix_e_simulated_hostile_reviewer_transcript.md). Після цього можна занурюватися в глави, які викликають найбільше запитань.
 
 ## Маршрут читача
 
 | Якщо у вас є | Читайте так | Рішення, яке можна прийняти |
 | :--- | :--- | :--- |
 | 15 хвилин | Цей verdict, системну мапу нижче і [Додаток Б](appendix_b_claim_evidence_matrix.md) | Чи є в claims реальні докази |
-| 45 хвилин | Розділи [3](chapter_03_radar_batch.md), [11](chapter_11_allocation_anomaly.md), [12](chapter_12_pooled_copy.md), [16](chapter_16_mutable_core.md), [17](chapter_17_stale_recompute.md), [Додаток Г](appendix_d_reviewer_attack_pack.md), [Додаток Д](appendix_e_simulated_hostile_reviewer_transcript.md) | Чи автор витримує principal-level technical review |
+| 45 хвилин | Розділи [3](chapter_03_radar_batch.md), [11](chapter_11_allocation_anomaly.md), [12](chapter_12_pooled_copy.md), [16](chapter_16_mutable_core.md), [17](chapter_17_stale_recompute.md), [26](chapter_26_observability_logging.md), [Додаток Г](appendix_d_reviewer_attack_pack.md), [Додаток Д](appendix_e_simulated_hostile_reviewer_transcript.md) | Чи автор витримує principal-level technical review |
 | 2 години | Усі глави плюс [Додаток А](appendix_a_profiling.md), [Додаток Б](appendix_b_claim_evidence_matrix.md) і [Додаток В](appendix_c_production_hardening.md) | Які production gaps лишаються і де автор має найвищий leverage |
 
 ## Система на одній сторінці
@@ -41,6 +41,7 @@ flowchart LR
 | Concurrency correctness | Автор не просто додає воркери, а зупиняється на Slice 3 blocker, розділяє compute/commit і приймає виміряний safety tax | [Розділ 16](chapter_16_mutable_core.md), [Розділ 17](chapter_17_stale_recompute.md) |
 | Failure handling | Durable envelope, file store і fail-closed behavior описані як автомати станів та recovery protocol, а не як “надійність за замовчуванням” | [Розділ 18](chapter_18_durable_envelope.md), [Розділ 19](chapter_19_file_store.md), [Розділ 20](chapter_20_fail_closed.md) |
 | Product boundary | BFF, operator UI і demo package не маскують локальну природу стенда; non-claims винесені в явний контракт із рецензентом | [Розділ 23](chapter_23_bff_shield.md), [Розділ 25](chapter_25_demo_scripts.md) |
+| Observability discipline | Книга не вигадує production logging stack, але показує typed diagnostics/readiness contract: first blocker, retained pressure, durable state, warnings і capacity evidence | [Розділ 26](chapter_26_observability_logging.md), [Додаток В](appendix_c_production_hardening.md) |
 
 ## Рішення, яке має прийняти експерт
 
@@ -57,7 +58,8 @@ flowchart LR
 1. Де саме локальний `FileDurableEnvelopeStore` перестає бути достатнім і який broker/database adapter ви ввели б першим?
 2. Який traffic benchmark потрібен для BFF, щоб перетворити downsampling/compression intent на performance claim?
 3. Як би ви довели handler delta/merge contract для сторонніх обробників, які мають складний власний стан?
-4. Який мінімальний production hardening пакет потрібен для multi-node deployment, не руйнуючи lab-table повторюваність?
-5. Які з поточних benchmark gates мають стати CI-blocking, а які мають лишитися ручними release gates через шум заліза?
+4. Який мінімальний structured logging/metrics/tracing contract потрібен, щоб production incident не перетворився на ручну археологію?
+5. Який мінімальний production hardening пакет потрібен для multi-node deployment, не руйнуючи lab-table повторюваність?
+6. Які з поточних benchmark gates мають стати CI-blocking, а які мають лишитися ручними release gates через шум заліза?
 
 Якщо розмова починається з цих питань, книга виконала свою роботу.

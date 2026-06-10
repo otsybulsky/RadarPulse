@@ -118,7 +118,7 @@ docs/handbook/book-outline.md
   'Документація як інженерний детектив'
 
 docs/handbook/book/
-  executive verdict, 25-chapter engineering casebook, profiling appendix,
+  executive verdict, 26-chapter engineering casebook, profiling appendix,
   claim/evidence matrix, production-hardening plan, reviewer attack pack, and
   simulated hostile reviewer transcript for portfolio-style technical review
 

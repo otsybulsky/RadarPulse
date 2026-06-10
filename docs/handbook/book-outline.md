@@ -1,6 +1,6 @@
 ﻿# Структурний план книги «Документація як інженерний детектив»
 
-Цей документ фіксує узгоджену структуру частин та розділів книги, які детально відображають життєвий шлях, архітектуру, кризи продуктивності, бенчмарки та технологічні рішення системи **RadarPulse** (від Milestone 001 до 037).
+Цей документ фіксує узгоджену структуру частин та розділів книги, які детально відображають життєвий шлях, архітектуру, кризи продуктивності, бенчмарки, observability-рішення та технологічні рішення системи **RadarPulse** (від Milestone 001 до 037).
 
 ---
 
@@ -125,6 +125,14 @@
     *   **Розділ 25: Демо-пакет під ключ**
         *   *Технічне підґрунтя:* Віхи `032` (Product Demo Readiness Packaging) та `033` (Product Demo Polish).
         *   *Сюжет:* Фінальна стадія. Створення єдиного пакетного скрипта керування та тестування системи в freeze mode.
+
+## Частина IX. Чорний ящик (Diagnostics, Logging та Observability)
+*   **Мета:** Пояснити, як система говорить про себе під час нормальної роботи, деградації та блокування.
+*   **Бенчмарк-фокус:** Не throughput, а доказовість: first blocking reason, readiness, queue telemetry, retained pressure і capacity evidence без production-logging overclaim.
+*   **Розділи:**
+    *   **Розділ 26: Чорний ящик RadarPulse**
+        *   *Технічне підґрунтя:* [chapter_26_observability_logging.md](book/chapter_26_observability_logging.md), [RadarProcessingRunDiagnosticsReadModel.cs](../../src/Application/Processing/ReadModels/RadarProcessingRunDiagnosticsReadModel.cs), [RadarProcessingProviderQueueTelemetrySummary.cs](../../src/Domain/Processing/Queueing/Telemetry/RadarProcessingProviderQueueTelemetrySummary.cs), [RadarProcessingProductionPipelineOperatorSummary.Blocking.cs](../../src/Infrastructure/Processing/ProductPipeline/Models/RadarProcessingProductionPipelineOperatorSummary/RadarProcessingProductionPipelineOperatorSummary.Blocking.cs).
+        *   *Сюжет:* Чому `Console.WriteLine` і “логи всюди” не є observability. Як RadarPulse уже має typed diagnostic/readiness contract, але чесно не заявляє готовий `ILogger`/OpenTelemetry production stack.
 
 ## Додатки. Лабораторні докази
 *   **Додаток А: Апаратне профілювання системи у лабораторії**

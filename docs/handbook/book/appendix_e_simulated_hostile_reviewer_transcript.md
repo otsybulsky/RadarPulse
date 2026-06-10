@@ -12,7 +12,7 @@
 
 **Author rule:** відповідати коротко, посилатися на доказ, називати межу claim-а, не захищати те, що не доведено.
 
-**Reviewed material:** [Executive Verdict](preface_executive_verdict.md), [Додаток Б](appendix_b_claim_evidence_matrix.md), [Додаток В](appendix_c_production_hardening.md), [Додаток Г](appendix_d_reviewer_attack_pack.md), розділи [3](chapter_03_radar_batch.md), [12](chapter_12_pooled_copy.md), [16](chapter_16_mutable_core.md), [17](chapter_17_stale_recompute.md), [18](chapter_18_durable_envelope.md), [19](chapter_19_file_store.md), [22](chapter_22_delta_merge.md), [24](chapter_24_operator_ui.md), [25](chapter_25_demo_scripts.md).
+**Reviewed material:** [Executive Verdict](preface_executive_verdict.md), [Додаток Б](appendix_b_claim_evidence_matrix.md), [Додаток В](appendix_c_production_hardening.md), [Додаток Г](appendix_d_reviewer_attack_pack.md), розділи [3](chapter_03_radar_batch.md), [12](chapter_12_pooled_copy.md), [16](chapter_16_mutable_core.md), [17](chapter_17_stale_recompute.md), [18](chapter_18_durable_envelope.md), [19](chapter_19_file_store.md), [22](chapter_22_delta_merge.md), [24](chapter_24_operator_ui.md), [25](chapter_25_demo_scripts.md), [26](chapter_26_observability_logging.md).
 
 ## Exchange 1: “500M+ values/s sounds like a résumé number”
 
@@ -326,7 +326,29 @@ Decide which gates become CI-blocking versus release/manual because of hardware 
 
 Accepted. Good portfolio readiness, not deployment automation.
 
-## Exchange 15: “Architecture tests can create false confidence”
+## Exchange 15: “Where are the production logs?”
+
+**Reviewer:**
+
+У книзі багато diagnostics/readiness, але я не бачу `ILogger`, OpenTelemetry, trace ids, centralized logs. Як я маю дебажити це о третій ночі?
+
+**Author:**
+
+Поточна книга не claim-ить production logging stack. [Розділ 26](chapter_26_observability_logging.md) прямо каже: немає готового `ILogger`/OpenTelemetry шару. Claim інший: RadarPulse уже має typed diagnostic/readiness contract, з якого такий шар має вирости. Code: [RadarProcessingRunDiagnosticsReadModel.cs](../../../src/Application/Processing/ReadModels/RadarProcessingRunDiagnosticsReadModel.cs), [RadarProcessingProviderQueueTelemetrySummary.cs](../../../src/Domain/Processing/Queueing/Telemetry/RadarProcessingProviderQueueTelemetrySummary.cs), [RadarProcessingProductionPipelineOperatorSummary.Blocking.cs](../../../src/Infrastructure/Processing/ProductPipeline/Models/RadarProcessingProductionPipelineOperatorSummary/RadarProcessingProductionPipelineOperatorSummary.Blocking.cs). Tests: [RadarProcessingRunReadModelTests.cs](../../../tests/RadarPulse.Tests/Processing/ReadModels/RadarProcessingRunReadModelTests.cs), [RadarProcessingProductionPipelineSummaryTests.cs](../../../tests/RadarPulse.Tests/Processing/ProductPipeline/RadarProcessingProductionPipelineSummaryTests.cs).
+
+**Reviewer follow-up:**
+
+Чому не додати logs first?
+
+**Author:**
+
+Logs-first легко перетворити на string soup. Спочатку потрібні stable facts: `runId`, provider sequence, topology version, envelope state, retained pressure, first blocking reason. Поточний код уже формує ці факти як typed summaries/read models. Production hardening step має експортувати їх у structured logs/metrics/traces, не тягнучи sink-и в Domain hot path.
+
+**Reviewer verdict:**
+
+Accepted with explicit gap. Good answer because it names the missing production layer instead of pretending diagnostics are centralized logging.
+
+## Exchange 16: “Architecture tests can create false confidence”
 
 **Reviewer:**
 
@@ -348,7 +370,7 @@ Architectural decision records tied to runtime gates, dependency graph snapshots
 
 Accepted. Good guardrail, if not oversold.
 
-## Exchange 16: “Production hardening plan may be hand-wavy”
+## Exchange 17: “Production hardening plan may be hand-wavy”
 
 **Reviewer:**
 
@@ -388,6 +410,7 @@ The author shows:
 * failure-mode thinking that favors visible correctness over silent progress;
 * extension design that blocks unsafe custom behavior instead of trusting discipline;
 * product/demo packaging that names non-claims instead of hiding them;
+* observability discipline that starts with typed diagnostics before claiming production logs;
 * production thinking that preserves invariants before adding infrastructure.
 
 **Remaining reservations:**
