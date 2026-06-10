@@ -226,6 +226,39 @@ Use these when archive file parsing, NEXRAD cache/download behavior,
 decompression, batch publishing, source identity, or batch validation
 changes.
 
+## Performance Evidence Bundle
+
+Use this when refreshing or independently collecting performance evidence,
+not for routine documentation edits. Choose the platform-specific runbook:
+
+```text
+Windows:
+  docs/handbook/book/appendix_f_lab_stand_bootstrap.md
+
+Linux/macOS/WSL2:
+  docs/handbook/book/appendix_g_lab_stand_linux.md
+```
+
+The minimum evidence bundle records:
+
+```text
+environment snapshot
+Release build log
+cache contour and replay-shape validation
+full-cache end-to-end benchmark logs
+processing-only synthetic benchmark logs
+```
+
+Historical accepted performance evidence lives in:
+
+```text
+docs/milestones/036-clean-architecture-hardening-performance-evidence.md
+```
+
+Interpret the result as local raw evidence tied to commit, cache, hardware,
+runtime, and benchmark contour. Do not present it as production throughput or
+cross-machine certification.
+
 ## Build And Full Suite
 
 Release build:

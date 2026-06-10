@@ -12,7 +12,7 @@
 
 **Author rule:** відповідати коротко, посилатися на доказ, називати межу claim-а, не захищати те, що не доведено.
 
-**Reviewed material:** [Executive Verdict](preface_executive_verdict.md), [Додаток Б](appendix_b_claim_evidence_matrix.md), [Додаток В](appendix_c_production_hardening.md), [Додаток Г](appendix_d_reviewer_attack_pack.md), розділи [3](chapter_03_radar_batch.md), [12](chapter_12_pooled_copy.md), [16](chapter_16_mutable_core.md), [17](chapter_17_stale_recompute.md), [18](chapter_18_durable_envelope.md), [19](chapter_19_file_store.md), [22](chapter_22_delta_merge.md), [24](chapter_24_operator_ui.md), [25](chapter_25_demo_scripts.md), [26](chapter_26_observability_logging.md).
+**Reviewed material:** [Executive Verdict](preface_executive_verdict.md), [Додаток Б](appendix_b_claim_evidence_matrix.md), [Додаток В](appendix_c_production_hardening.md), [Додаток Г](appendix_d_reviewer_attack_pack.md), [Додаток Е](appendix_f_lab_stand_bootstrap.md), [Додаток Є](appendix_g_lab_stand_linux.md), розділи [3](chapter_03_radar_batch.md), [12](chapter_12_pooled_copy.md), [16](chapter_16_mutable_core.md), [17](chapter_17_stale_recompute.md), [18](chapter_18_durable_envelope.md), [19](chapter_19_file_store.md), [22](chapter_22_delta_merge.md), [24](chapter_24_operator_ui.md), [25](chapter_25_demo_scripts.md), [26](chapter_26_observability_logging.md).
 
 ## Exchange 1: “500M+ values/s sounds like a résumé number”
 
@@ -392,6 +392,28 @@ Observability contract first. Without run id, sequence id, topology version, ret
 
 Accepted. This is a production thinking plan, not a production claim.
 
+## Exchange 18: “Can I recreate your lab cache without you?”
+
+**Reviewer:**
+
+Ви постійно посилаєтесь на `data/nexrad`, KTLX/KINX, full-cache matrices. Це ваша приватна папка? Якщо я не маю вашого SSD, я не можу перевірити claims.
+
+**Author:**
+
+Це більше не має бути приватним знанням. [Додаток Е](appendix_f_lab_stand_bootstrap.md) описує Windows/PowerShell bootstrap, а [Додаток Є](appendix_g_lab_stand_linux.md) описує Linux/macOS/WSL2 Bash bootstrap: prerequisites, `archive list`, manifest JSON, `archive download`, deterministic cache layout `data/nexrad/level2/{yyyy}/{MM}/{dd}/{radarId}/{fileName}`, smoke-cache і author-equivalent corpus. Обидва маршрути показують, як зібрати `data/perf/reviewer-*` evidence bundle: environment snapshot, Release build log, cache contour, full-cache benchmark logs і processing-only synthetic logs. Code path: [ArchiveCliApplication.Historical.cs](../../../src/Presentation/RadarPulse.Cli/EntryPoint/RadarPulseCliApplication/ArchiveCliApplication/ArchiveCliApplication.Historical.cs), CLI usage: [RadarPulseCliUsage.cs](../../../src/Presentation/RadarPulse.Cli/EntryPoint/RadarPulseCliApplication/RadarPulseCliUsage.cs), milestone source: [001 historical loader](../../milestones/001-historical-loader.md).
+
+**Reviewer follow-up:**
+
+Якщо я завантажу ті самі дати, я отримаю ті самі performance цифри?
+
+**Author:**
+
+Не гарантовано. Функціональна відтворюваність ідентифікується через manifest/cache/validation route. Performance цифри лишаються hardware/corpus-bound: CPU, SSD, OS, filesystem, scheduler, thermal state, parallelism і точний cache contour впливають на результат. Додатки Е/Є дають платформені шляхи перевірки й smoke/performance commands; вони не перетворюють локальний benchmark на cross-machine certification.
+
+**Reviewer verdict:**
+
+Accepted. The important improvement is that the cache is now reproducible from public data, while benchmark scope remains honest.
+
 ## Final Simulated Reviewer Verdict
 
 **Accepted as a senior/principal-level hiring artifact with explicit scope.**
@@ -411,6 +433,7 @@ The author shows:
 * extension design that blocks unsafe custom behavior instead of trusting discipline;
 * product/demo packaging that names non-claims instead of hiding them;
 * observability discipline that starts with typed diagnostics before claiming production logs;
+* platform-specific lab-stand bootstrap that avoids private setup folklore;
 * production thinking that preserves invariants before adding infrastructure.
 
 **Remaining reservations:**

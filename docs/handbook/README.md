@@ -120,7 +120,8 @@ docs/handbook/book-outline.md
 docs/handbook/book/
   executive verdict, 26-chapter engineering casebook, profiling appendix,
   claim/evidence matrix, production-hardening plan, reviewer attack pack, and
-  simulated hostile reviewer transcript for portfolio-style technical review
+  simulated hostile reviewer transcript, plus Windows/Linux lab-stand bootstrap
+  and performance evidence instructions for portfolio-style technical review
 
 ```
 

@@ -2,7 +2,7 @@
 
 Ця книга написана не для того, щоб просити довіри. Вона зібрана як інженерна справа: є початковий масштаб, є помилки, є альтернативи, є ціна вибору, є performance gates, є команди відтворення і є чітко названі межі відповідальності. Важлива обіцянка тексту проста: якщо твердження звучить сильно, поруч має бути або код, або milestone, або межа, за яку ми не заходимо.
 
-Якщо читач має лише пів години, йому не потрібно проходити всі 26 розділів як роман. Достатньо подивитися на цей вердикт, потім відкрити матрицю доказів у [Додатку Б](appendix_b_claim_evidence_matrix.md), production-hardening маршрут у [Додатку В](appendix_c_production_hardening.md), reviewer attack pack у [Додатку Г](appendix_d_reviewer_attack_pack.md) і simulated hostile transcript у [Додатку Д](appendix_e_simulated_hostile_reviewer_transcript.md). Після цього можна занурюватися в глави, які викликають найбільше запитань.
+Якщо читач має лише пів години, йому не потрібно проходити всі 26 розділів як роман. Достатньо подивитися на цей вердикт, потім відкрити матрицю доказів у [Додатку Б](appendix_b_claim_evidence_matrix.md), production-hardening маршрут у [Додатку В](appendix_c_production_hardening.md), reviewer attack pack у [Додатку Г](appendix_d_reviewer_attack_pack.md), simulated hostile transcript у [Додатку Д](appendix_e_simulated_hostile_reviewer_transcript.md), Windows bootstrap у [Додатку Е](appendix_f_lab_stand_bootstrap.md) або Linux/macOS/WSL2 bootstrap у [Додатку Є](appendix_g_lab_stand_linux.md). Після цього можна занурюватися в глави, які викликають найбільше запитань.
 
 ## Маршрут читача
 
@@ -10,7 +10,7 @@
 | :--- | :--- | :--- |
 | 15 хвилин | Цей verdict, системну мапу нижче і [Додаток Б](appendix_b_claim_evidence_matrix.md) | Чи є в claims реальні докази |
 | 45 хвилин | Розділи [3](chapter_03_radar_batch.md), [11](chapter_11_allocation_anomaly.md), [12](chapter_12_pooled_copy.md), [16](chapter_16_mutable_core.md), [17](chapter_17_stale_recompute.md), [26](chapter_26_observability_logging.md), [Додаток Г](appendix_d_reviewer_attack_pack.md), [Додаток Д](appendix_e_simulated_hostile_reviewer_transcript.md) | Чи автор витримує principal-level technical review |
-| 2 години | Усі глави плюс [Додаток А](appendix_a_profiling.md), [Додаток Б](appendix_b_claim_evidence_matrix.md) і [Додаток В](appendix_c_production_hardening.md) | Які production gaps лишаються і де автор має найвищий leverage |
+| 2 години | Усі глави плюс [Додаток А](appendix_a_profiling.md), [Додаток Б](appendix_b_claim_evidence_matrix.md), [Додаток В](appendix_c_production_hardening.md), [Додаток Е](appendix_f_lab_stand_bootstrap.md) або [Додаток Є](appendix_g_lab_stand_linux.md) | Які production gaps лишаються і чи стенд можна повторити без автора на обраній платформі |
 
 ## Система на одній сторінці
 
@@ -58,8 +58,9 @@ flowchart LR
 1. Де саме локальний `FileDurableEnvelopeStore` перестає бути достатнім і який broker/database adapter ви ввели б першим?
 2. Який traffic benchmark потрібен для BFF, щоб перетворити downsampling/compression intent на performance claim?
 3. Як би ви довели handler delta/merge contract для сторонніх обробників, які мають складний власний стан?
-4. Який мінімальний structured logging/metrics/tracing contract потрібен, щоб production incident не перетворився на ручну археологію?
-5. Який мінімальний production hardening пакет потрібен для multi-node deployment, не руйнуючи lab-table повторюваність?
-6. Які з поточних benchmark gates мають стати CI-blocking, а які мають лишитися ручними release gates через шум заліза?
+4. Чи може сторонній reviewer відтворити `data/nexrad` cache і пройти archive/product verification без приватних інструкцій автора?
+5. Який мінімальний structured logging/metrics/tracing contract потрібен, щоб production incident не перетворився на ручну археологію?
+6. Який мінімальний production hardening пакет потрібен для multi-node deployment, не руйнуючи lab-table повторюваність?
+7. Які з поточних benchmark gates мають стати CI-blocking, а які мають лишитися ручними release gates через шум заліза?
 
 Якщо розмова починається з цих питань, книга виконала свою роботу.

@@ -6,7 +6,7 @@
 
 ## Передмова. Executive Engineering Verdict
 *   **Мета:** Дати зайнятому CTO/Principal Engineer короткий маршрут оцінки книги як hiring artifact.
-*   **Технічне підґрунтя:** [preface_executive_verdict.md](book/preface_executive_verdict.md), [appendix_b_claim_evidence_matrix.md](book/appendix_b_claim_evidence_matrix.md), [appendix_c_production_hardening.md](book/appendix_c_production_hardening.md), [appendix_d_reviewer_attack_pack.md](book/appendix_d_reviewer_attack_pack.md), [appendix_e_simulated_hostile_reviewer_transcript.md](book/appendix_e_simulated_hostile_reviewer_transcript.md).
+*   **Технічне підґрунтя:** [preface_executive_verdict.md](book/preface_executive_verdict.md), [appendix_b_claim_evidence_matrix.md](book/appendix_b_claim_evidence_matrix.md), [appendix_c_production_hardening.md](book/appendix_c_production_hardening.md), [appendix_d_reviewer_attack_pack.md](book/appendix_d_reviewer_attack_pack.md), [appendix_e_simulated_hostile_reviewer_transcript.md](book/appendix_e_simulated_hostile_reviewer_transcript.md), [appendix_f_lab_stand_bootstrap.md](book/appendix_f_lab_stand_bootstrap.md), [appendix_g_lab_stand_linux.md](book/appendix_g_lab_stand_linux.md).
 *   **Сюжет:** Книга не просить довіри, а дає карту доказів: що доведено, де межі claims, які production gaps лишаються і як рецензент може атакувати найсильніші твердження в режимі hostile review.
 
 ---
@@ -150,3 +150,9 @@
 *   **Додаток Д: Simulated Hostile Reviewer Transcript**
     *   *Технічне підґрунтя:* [appendix_e_simulated_hostile_reviewer_transcript.md](book/appendix_e_simulated_hostile_reviewer_transcript.md), [appendix_d_reviewer_attack_pack.md](book/appendix_d_reviewer_attack_pack.md), [appendix_b_claim_evidence_matrix.md](book/appendix_b_claim_evidence_matrix.md).
     *   *Сюжет:* Детальна simulated-стенограма principal-level hostile review: атака, відповідь автора, follow-up, verdict і наступний proof для production claim.
+*   **Додаток Е: Як відтворити лабораторний стенд на Windows**
+    *   *Технічне підґрунтя:* [appendix_f_lab_stand_bootstrap.md](book/appendix_f_lab_stand_bootstrap.md), [Milestone 001 historical loader](../milestones/001-historical-loader.md), [product-demo-readiness.md](../product-demo-readiness.md), [chapter_25_demo_scripts.md](book/chapter_25_demo_scripts.md).
+    *   *Сюжет:* PowerShell-маршрут від чистого checkout до локального `data/nexrad`: prerequisites, smoke-cache, author-equivalent cache, archive validation, product demo verify, bounded performance smoke і raw performance evidence bundle.
+*   **Додаток Є: Як відтворити лабораторний стенд на Linux/macOS/WSL2**
+    *   *Технічне підґрунтя:* [appendix_g_lab_stand_linux.md](book/appendix_g_lab_stand_linux.md), [Milestone 001 historical loader](../milestones/001-historical-loader.md), [product-demo-readiness.md](../product-demo-readiness.md), [036 performance evidence](../milestones/036-clean-architecture-hardening-performance-evidence.md).
+    *   *Сюжет:* Bash-маршрут з тією самою доказовою структурою: manifest/download, archive validation, product demo verify, `tee`-based raw performance logs і чесна hardware/corpus boundary.
