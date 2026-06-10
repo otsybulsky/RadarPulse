@@ -1,4 +1,4 @@
-﻿# Додаток Г: Reviewer Attack Pack
+﻿# Додаток Г: набір атак рецензента (Reviewer Attack Pack)
 
 Цей додаток написаний для сильного рецензента. Його мета — не захищати книгу від критики, а зробити критику швидкою, точною і корисною.
 
@@ -6,7 +6,7 @@
 
 Повна simulated-сесія з follow-up, verdict і production-proof нотатками винесена в [Додаток Д](appendix_e_simulated_hostile_reviewer_transcript.md). Цей attack pack лишається короткою картою питань; Додаток Д показує, як має звучати захист.
 
-## 30-minute reviewer route
+## 30-хвилинний маршрут рецензента (30-minute reviewer route)
 
 Цей маршрут потрібен перед довгими додатками. Він не замінює лабораторний запуск і не просить вірити цифрам на слово. Його задача простіша: за пів години зрозуміти, чи книга варта глибокого review, і які саме claims треба атакувати першими.
 
@@ -35,7 +35,7 @@ flowchart LR
 
 ## Найсильніші питання рецензента
 
-| Attack | Що саме перевіряє | Куди йти в книзі | Куди йти в коді/доказах | Очікувана відповідь автора |
+| Атака (Attack) | Що саме перевіряє | Куди йти в книзі | Куди йти в коді/доказах | Очікувана відповідь автора |
 | :--- | :--- | :--- | :--- | :--- |
 | “500M+ values/s звучить як маркетинг. Де raw evidence?” | Чи throughput має milestone, corpus і hardware boundary | [Розділ 3](chapter_03_radar_batch.md), [Додаток Б](appendix_b_claim_evidence_matrix.md) | [004 closeout](../../milestones/004-processing-core-input-contract-closeout.md), [RadarStreamContractTests.cs](../../../tests/RadarPulse.Tests/Streaming/Streams/RadarStreamContractTests.cs) | Це локальний benchmark на конкретному corpus/hardware, не універсальна сертифікація |
 | “Я хочу сам зібрати performance logs, а не читати ваш milestone” | Чи performance story повторюється без автора на обраній платформі | [Додаток Е](appendix_f_lab_stand_bootstrap.md), [Додаток Є](appendix_g_lab_stand_linux.md), [Додаток Б](appendix_b_claim_evidence_matrix.md) | [Archive benchmark stream CLI](../../../src/Presentation/RadarPulse.Cli/EntryPoint/RadarPulseCliApplication/ArchiveBenchmarkCliApplication/ArchiveBenchmarkCliApplication.StreamCommand.cs), [ProcessingBenchmarkCliApplication.cs](../../../src/Presentation/RadarPulse.Cli/EntryPoint/RadarPulseCliApplication/ProcessingBenchmarkCliApplication.cs), [036 performance evidence](../../milestones/036-clean-architecture-hardening-performance-evidence.md) | Reviewer створює `data/perf/reviewer-*`, фіксує environment/build/cache contour і збирає raw logs через `Tee-Object` на Windows або `tee` на Linux/macOS/WSL2; цифри лишаються local evidence |

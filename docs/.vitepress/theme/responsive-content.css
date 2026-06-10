@@ -1,0 +1,111 @@
+/*
+ * Book content must not require horizontal scrolling.
+ * Wide artifacts wrap or scale inside the readable column instead.
+ */
+.VPDoc,
+.VPDoc .container,
+.VPDoc .content,
+.VPDoc .content-container,
+.vp-doc {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.vp-doc {
+  overflow-wrap: anywhere;
+}
+
+.vp-doc p,
+.vp-doc li,
+.vp-doc blockquote,
+.vp-doc dd,
+.vp-doc th,
+.vp-doc td,
+.vp-doc a,
+.vp-doc code {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.vp-doc img,
+.vp-doc svg,
+.vp-doc video,
+.vp-doc canvas,
+.vp-doc iframe {
+  max-width: 100%;
+  height: auto;
+}
+
+.vp-doc table {
+  display: table !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  table-layout: fixed;
+  overflow-x: visible !important;
+}
+
+.vp-doc thead,
+.vp-doc tbody,
+.vp-doc tr {
+  width: 100%;
+}
+
+.vp-doc th,
+.vp-doc td {
+  min-width: 0 !important;
+  white-space: normal;
+  hyphens: auto;
+}
+
+.vp-doc th code,
+.vp-doc td code {
+  white-space: normal;
+}
+
+.vp-doc pre,
+.vp-doc div[class*='language-'] {
+  max-width: 100%;
+  overflow-x: visible !important;
+}
+
+.vp-doc pre,
+.vp-doc pre code,
+.vp-doc div[class*='language-'] pre,
+.vp-doc div[class*='language-'] code,
+.vp-doc div[class*='language-'] .line {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.vp-doc .line-numbers-wrapper {
+  display: none;
+}
+
+.vp-doc .line-numbers-mode {
+  padding-left: 0;
+}
+
+.vp-doc .mermaid,
+.vp-doc .language-mermaid {
+  max-width: 100%;
+  overflow-x: visible !important;
+}
+
+.vp-doc .mermaid svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+@media (max-width: 640px) {
+  .vp-doc table {
+    font-size: 0.86rem;
+  }
+
+  .vp-doc th,
+  .vp-doc td {
+    padding: 8px 10px;
+  }
+}

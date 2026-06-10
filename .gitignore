@@ -1,6 +1,9 @@
 bin/
 obj/
 /packages/
+node_modules/
+docs/.vitepress/cache/
+docs/.vitepress/dist/
 riderModule.iml
 /_ReSharper.Caches/
 .idea

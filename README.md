@@ -48,6 +48,25 @@ Milestone documents remain the historical decision and evidence record. The
 handbook explains the accepted current system directly and links back to
 milestone closeouts, decision traces, and gates where the evidence matters.
 
+## Book Website
+
+The book can be published as a VitePress site. The current published source is
+`docs/handbook/book-outline.md` plus `docs/handbook/book`. Local commands:
+
+```sh
+npm install
+npm run docs:dev
+npm run docs:build
+```
+
+The GitHub Actions workflow in `.github/workflows/deploy-vitepress.yml` builds
+the Ukrainian book site and publishes `docs/.vitepress/dist` to GitHub Pages for
+the `master` branch. The project Pages URL is:
+
+```text
+https://otsybulsky.github.io/RadarPulse/
+```
+
 ## Repository Layout
 
 Current C# source folders are organized responsibility-first inside the
