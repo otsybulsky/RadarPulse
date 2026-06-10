@@ -2,13 +2,14 @@
 
 Ця книга написана не для того, щоб просити довіри. Вона зібрана як інженерна справа: є початковий масштаб, є помилки, є альтернативи, є ціна вибору, є performance gates, є команди відтворення і є чітко названі межі відповідальності. Важлива обіцянка тексту проста: якщо твердження звучить сильно, поруч має бути або код, або milestone, або межа, за яку ми не заходимо.
 
-Якщо читач має лише пів години, йому не потрібно проходити всі 26 розділів як роман. Достатньо подивитися на цей вердикт, потім відкрити матрицю доказів у [Додатку Б](appendix_b_claim_evidence_matrix.md), production-hardening маршрут у [Додатку В](appendix_c_production_hardening.md), reviewer attack pack у [Додатку Г](appendix_d_reviewer_attack_pack.md), simulated hostile transcript у [Додатку Д](appendix_e_simulated_hostile_reviewer_transcript.md), Windows bootstrap у [Додатку Е](appendix_f_lab_stand_bootstrap.md) або Linux/macOS/WSL2 bootstrap у [Додатку Є](appendix_g_lab_stand_linux.md). Після цього можна занурюватися в глави, які викликають найбільше запитань.
+Якщо читач має лише пів години, йому не потрібно проходити всі 26 розділів як роман. Для цього є короткий reviewer route у [Додатку Г](appendix_d_reviewer_attack_pack.md): він веде від сильних claims до коду, тестів, milestone evidence і меж відповідальності без занурення в довгі runbook-и. Після цього можна відкривати platform bootstrap у [Додатку Е](appendix_f_lab_stand_bootstrap.md) або [Додатку Є](appendix_g_lab_stand_linux.md) лише тоді, коли reviewer справді готовий відтворювати стенд.
 
 ## Маршрут читача
 
 | Якщо у вас є | Читайте так | Рішення, яке можна прийняти |
 | :--- | :--- | :--- |
 | 15 хвилин | Цей verdict, системну мапу нижче і [Додаток Б](appendix_b_claim_evidence_matrix.md) | Чи є в claims реальні докази |
+| 30 хвилин | Цей verdict, [Додаток Б](appendix_b_claim_evidence_matrix.md) і 30-minute route у [Додатку Г](appendix_d_reviewer_attack_pack.md) | Чи варто переводити автора з формальної співбесіди в розмову про production trade-offs |
 | 45 хвилин | Розділи [3](chapter_03_radar_batch.md), [11](chapter_11_allocation_anomaly.md), [12](chapter_12_pooled_copy.md), [16](chapter_16_mutable_core.md), [17](chapter_17_stale_recompute.md), [26](chapter_26_observability_logging.md), [Додаток Г](appendix_d_reviewer_attack_pack.md), [Додаток Д](appendix_e_simulated_hostile_reviewer_transcript.md) | Чи автор витримує principal-level technical review |
 | 2 години | Усі глави плюс [Додаток А](appendix_a_profiling.md), [Додаток Б](appendix_b_claim_evidence_matrix.md), [Додаток В](appendix_c_production_hardening.md), [Додаток Е](appendix_f_lab_stand_bootstrap.md) або [Додаток Є](appendix_g_lab_stand_linux.md) | Які production gaps лишаються і чи стенд можна повторити без автора на обраній платформі |
 

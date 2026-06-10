@@ -146,7 +146,7 @@
     *   *Сюжет:* Як переносити lab-table інваріанти в production: broker/database adapters, observability, public API security, live ingestion і multi-node processing без розширення поточних claims.
 *   **Додаток Г: Reviewer Attack Pack**
     *   *Технічне підґрунтя:* [appendix_d_reviewer_attack_pack.md](book/appendix_d_reviewer_attack_pack.md), [appendix_b_claim_evidence_matrix.md](book/appendix_b_claim_evidence_matrix.md), source/test/milestone links.
-    *   *Сюжет:* Набір найсильніших питань, якими principal-level reviewer може атакувати книгу, і маршрути до відповідей у коді, тестах та milestone evidence.
+    *   *Сюжет:* 30-minute reviewer route перед довгими додатками та набір найсильніших питань, якими principal-level reviewer може атакувати книгу, з маршрутами до відповідей у коді, тестах та milestone evidence.
 *   **Додаток Д: Simulated Hostile Reviewer Transcript**
     *   *Технічне підґрунтя:* [appendix_e_simulated_hostile_reviewer_transcript.md](book/appendix_e_simulated_hostile_reviewer_transcript.md), [appendix_d_reviewer_attack_pack.md](book/appendix_d_reviewer_attack_pack.md), [appendix_b_claim_evidence_matrix.md](book/appendix_b_claim_evidence_matrix.md).
     *   *Сюжет:* Детальна simulated-стенограма principal-level hostile review: атака, відповідь автора, follow-up, verdict і наступний proof для production claim.

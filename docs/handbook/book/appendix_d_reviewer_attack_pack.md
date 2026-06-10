@@ -6,6 +6,20 @@
 
 Повна simulated-сесія з follow-up, verdict і production-proof нотатками винесена в [Додаток Д](appendix_e_simulated_hostile_reviewer_transcript.md). Цей attack pack лишається короткою картою питань; Додаток Д показує, як має звучати захист.
 
+## 30-minute reviewer route
+
+Цей маршрут потрібен перед довгими додатками. Він не замінює лабораторний запуск і не просить вірити цифрам на слово. Його задача простіша: за пів години зрозуміти, чи книга варта глибокого review, і які саме claims треба атакувати першими.
+
+| Час | Що відкрити | Що перевірити |
+| :--- | :--- | :--- |
+| 0-4 хв | [Executive Verdict](preface_executive_verdict.md) | Чи заявлено scope: локальний lab table, не production cloud platform |
+| 4-9 хв | [Додаток Б](appendix_b_claim_evidence_matrix.md) | Чи кожен сильний claim має code/test/measurement/scope, а non-claims названі явно |
+| 9-16 хв | [Розділ 3](chapter_03_radar_batch.md) і [Розділ 12](chapter_12_pooled_copy.md) | Чи performance story спирається на memory layout, retained ownership і milestone evidence, а не на лозунг “швидко” |
+| 16-23 хв | [Розділ 16](chapter_16_mutable_core.md), [Розділ 17](chapter_17_stale_recompute.md), [Розділ 26](chapter_26_observability_logging.md) | Чи concurrency, topology і diagnostics мають failure-mode thinking, а не тільки happy path |
+| 23-30 хв | Цей attack pack нижче; за потреби — тільки секції `E.9`/`Є.9` у platform runbook-ах | Які два-три питання варто поставити автору наживо і чи є маршрут до відтворення без приватних інструкцій |
+
+Якщо після цього reviewer бачить тільки красиві слова, книгу треба зупиняти. Якщо бачить повторюваний ланцюг `claim -> code -> test -> measurement -> scope`, довгі додатки мають сенс: вони вже не “документація заради документації”, а протокол незалежної перевірки.
+
 ## Швидкий маршрут атаки
 
 ```mermaid
