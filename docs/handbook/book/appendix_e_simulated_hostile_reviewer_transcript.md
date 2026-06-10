@@ -18,7 +18,7 @@
 
 **Reviewer:**
 
-Ви пишете про 500M+ payload values/s. Це типова цифра, яку кандидати ставлять у портфоліо без контексту. Де доказ, що це не synthetic toy benchmark, підігнаний під красивий headline?
+Ви пишете про 500M+ payload values/s. Це типова цифра, яку часто виносять на титульний слайд без контексту. Де доказ, що це не synthetic toy benchmark, підігнаний під красивий headline?
 
 **Author:**
 
@@ -264,7 +264,7 @@ Accepted. Extension model консервативний, а не permissive.
 
 **Reviewer:**
 
-У Milestone 025 heavy handler active=4 має allocation ratio `2.612x`. Чому це не блокує hiring signal?
+У Milestone 025 heavy handler active=4 має allocation ratio `2.612x`. Чому це не блокує інженерний висновок роботи?
 
 **Author:**
 
@@ -312,7 +312,7 @@ Accepted. UI boundary is honest.
 
 **Author:**
 
-Тому що claim не “enterprise CI complete”, а “reviewer can reproduce local product/demo readiness route without author folklore”. Scripts: [radarpulse-product-demo.ps1](../../../scripts/radarpulse-product-demo.ps1), [radarpulse-product-demo.sh](../../../scripts/radarpulse-product-demo.sh). Evidence: [033 gate](../../milestones/033-product-demo-polish-and-portfolio-readiness-gate.md), [Розділ 25](chapter_25_demo_scripts.md). It runs build/test/smoke/readiness route for the local demo.
+Тому що claim не “enterprise CI complete”, а “reviewer can reproduce local product/demo readiness route without author folklore”. Scripts: [radarpulse-product-demo.ps1](../../../scripts/radarpulse-product-demo.ps1), [radarpulse-product-demo.sh](../../../scripts/radarpulse-product-demo.sh). Evidence: [Розділ 25](chapter_25_demo_scripts.md), [product-demo-readiness.md](../../product-demo-readiness.md). It runs build/test/smoke/readiness route for the local demo.
 
 **Reviewer follow-up:**
 
@@ -324,7 +324,7 @@ Decide which gates become CI-blocking versus release/manual because of hardware 
 
 **Reviewer verdict:**
 
-Accepted. Good portfolio readiness, not deployment automation.
+Accepted. Good defense readiness, not deployment automation.
 
 ## Exchange 15: “Where are the production logs?”
 
@@ -416,7 +416,7 @@ Accepted. The important improvement is that the cache is now reproducible from p
 
 ## Final Simulated Reviewer Verdict
 
-**Accepted as a senior/principal-level hiring artifact with explicit scope.**
+**Accepted as a senior/principal-level engineering defense artifact with explicit scope.**
 
 The strongest signal is not any single number. The strongest signal is the repeated pattern:
 
@@ -444,6 +444,6 @@ The author shows:
 * Handler delta/merge still has visible heavy-handler allocation debt.
 * Benchmarks remain hardware/corpus-bound and should not be generalized.
 
-**Hiring interpretation:**
+**Defense interpretation:**
 
-For a role requiring ownership of backend runtime, performance-sensitive data pipelines, clean architecture boundaries and technical evidence culture, this artifact is stronger than a standard interview loop. A formal interview should skip trivia and focus on production trade-offs, risk budgets, external adapter design and how the author would run the next hardening milestone.
+For an expert review that evaluates ownership of backend runtime, performance-sensitive data pipelines, clean architecture boundaries and technical evidence culture, this artifact is stronger than a broad oral quiz. A formal defense should move past foundational questions and focus on production trade-offs, risk budgets, external adapter design and how the author would run the next hardening milestone.

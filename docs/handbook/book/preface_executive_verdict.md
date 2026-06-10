@@ -9,7 +9,7 @@
 | Якщо у вас є | Читайте так | Рішення, яке можна прийняти |
 | :--- | :--- | :--- |
 | 15 хвилин | Цей verdict, системну мапу нижче і [Додаток Б](appendix_b_claim_evidence_matrix.md) | Чи є в claims реальні докази |
-| 30 хвилин | Цей verdict, [Додаток Б](appendix_b_claim_evidence_matrix.md) і 30-minute route у [Додатку Г](appendix_d_reviewer_attack_pack.md) | Чи варто переводити автора з формальної співбесіди в розмову про production trade-offs |
+| 30 хвилин | Цей verdict, [Додаток Б](appendix_b_claim_evidence_matrix.md) і 30-minute route у [Додатку Г](appendix_d_reviewer_attack_pack.md) | Чи варто переводити захист роботи з базової перевірки claims у розмову про production trade-offs |
 | 45 хвилин | Розділи [3](chapter_03_radar_batch.md), [11](chapter_11_allocation_anomaly.md), [12](chapter_12_pooled_copy.md), [16](chapter_16_mutable_core.md), [17](chapter_17_stale_recompute.md), [26](chapter_26_observability_logging.md), [Додаток Г](appendix_d_reviewer_attack_pack.md), [Додаток Д](appendix_e_simulated_hostile_reviewer_transcript.md) | Чи автор витримує principal-level technical review |
 | 2 години | Усі глави плюс [Додаток А](appendix_a_profiling.md), [Додаток Б](appendix_b_claim_evidence_matrix.md), [Додаток В](appendix_c_production_hardening.md), [Додаток Е](appendix_f_lab_stand_bootstrap.md) або [Додаток Є](appendix_g_lab_stand_linux.md) | Які production gaps лишаються і чи стенд можна повторити без автора на обраній платформі |
 
@@ -46,11 +46,11 @@ flowchart LR
 
 ## Рішення, яке має прийняти експерт
 
-Після цієї книги формальна співбесіда “чи розуміє кандидат GC, concurrency, clean architecture, benchmarking і failure modes” стає слабким інструментом. Ці питання вже мають артефакти. Значно продуктивніше говорити про production trade-offs: який SLA потрібен, де закінчується single-node lab table, коли треба вводити зовнішній брокер, яку частину BFF варто винести за reverse proxy, які risk budgets приймає команда. Для цього в книзі є окремий [Production Hardening Plan](appendix_c_production_hardening.md), який не розширює поточні claims, а показує порядок дорослого перенесення інваріантів у production.
+Після цієї книги базове питання “чи розуміє автор GC, concurrency, clean architecture, benchmarking і failure modes” стає слабкою формою захисту. Ці теми вже мають артефакти. Значно продуктивніше говорити про production trade-offs: який SLA потрібен, де закінчується single-node lab table, коли треба вводити зовнішній брокер, яку частину BFF варто винести за reverse proxy, які risk budgets приймає команда. Для цього в книзі є окремий [Production Hardening Plan](appendix_c_production_hardening.md), який не розширює поточні claims, а показує порядок дорослого перенесення інваріантів у production.
 
 Інакше кажучи, ця книга не доводить, що RadarPulse вже є хмарною production-платформою. Вона доводить інше: автор уміє знаходити приховану ціну архітектурних рішень, вимірювати її, не ховати неприємні результати й перетворювати кризу на керований контракт.
 
-Для senior/principal-level hiring artifact це сильніший сигнал, ніж набір відповідей на типові питання співбесіди. Сильний читач після цієї книги має бачити не “кандидат знає правильні слова”, а “кандидат здатен тримати систему в голові, сперечатися з власними рішеннями, знаходити ризики до того, як їх знайде production, і залишати після себе відтворювані докази”.
+Як прикладна інженерна робота для senior/principal-level захисту це сильніший формат, ніж набір правильних відповідей на базові технічні питання. Сильний читач після цієї книги має бачити не “автор знає правильні слова”, а “автор здатен тримати систему в голові, сперечатися з власними рішеннями, знаходити ризики до того, як їх знайде production, і залишати після себе відтворювані докази”.
 
 ## Де варто тиснути на автора
 

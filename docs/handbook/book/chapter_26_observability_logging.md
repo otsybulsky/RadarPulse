@@ -247,7 +247,7 @@ durable state, retained pressure, capacity evidence and non-claims.
 adapter, який експортує ці typed facts без зміни Domain hot path.
 ```
 
-Це саме той тип відповіді, який відрізняє senior engineer-а від кандидата, що просто знає назви інструментів. Інструмент можна підключити за день. Правильну модель подій, межі шуму, correlation vocabulary і first-blocker discipline треба спроектувати.
+Це саме той тип відповіді, який відрізняє зрілу інженерну роботу від тексту, що просто перелічує назви інструментів. Інструмент можна підключити за день. Правильну модель подій, межі шуму, correlation vocabulary і first-blocker discipline треба спроектувати.
 
 У RadarPulse ця модель уже почала існувати. Її ще треба винести в справжній production observability stack, але книга тепер не залишає це питання за кадром.
 

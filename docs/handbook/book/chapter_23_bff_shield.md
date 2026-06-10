@@ -137,7 +137,7 @@ public sealed record RadarPulseProductDemoReadiness(
 * **HTTP compression path:** ASP.NET Core `ResponseCompression` з Brotli/GZip може стати транспортним запобіжником для великих JSON DTO, але тільки після окремого traffic benchmark.
 * **Traffic proof:** вимірювати треба не настрій, а розмір DTO, час серіалізації, latency доставки і поведінку браузера на реальному operator workflow.
 
-Поточний BFF не вдає з себе production telemetry CDN. Він робить важчу для співбесіди річ: тримає межу правди між runtime і UI.
+Поточний BFF не вдає з себе production telemetry CDN. Він робить важчу для захисту роботи річ: тримає межу правди між runtime і UI.
 
 ---
 

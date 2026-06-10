@@ -360,7 +360,7 @@ full-cache end-to-end benchmark logs
 processing-only synthetic benchmark logs
 ```
 
-Починати варто з окремої директорії. Вона не є частиною Git-репозиторію; це локальний evidence bundle, який можна прикріпити до review, milestone або hiring packet.
+Починати варто з окремої директорії. Вона не є частиною Git-репозиторію; це локальний evidence bundle, який можна прикріпити до review, milestone або матеріалів захисту роботи.
 
 ```powershell
 $Stamp = Get-Date -Format "yyyyMMdd-HHmmss"
@@ -518,7 +518,7 @@ dotnet $Cli processing benchmark rebalance-archive `
 Тут важливі не тільки `End-to-end payload values/s`. Evidence має містити:
 
 ```text
-Default-candidate contour
+Default selected contour
 Provider overlap evidence contour
 Validation: succeeded
 Processing completeness: succeeded

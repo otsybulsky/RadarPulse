@@ -23,7 +23,7 @@ then:
   workflows
   verification and evidence
 goal:
-  understand what the local portfolio demo does, how to run it, and what its
+  understand what the local engineering demo does, how to run it, and what its
   readiness output means
 ```
 
@@ -121,7 +121,7 @@ docs/handbook/book/
   executive verdict, 26-chapter engineering casebook, profiling appendix,
   claim/evidence matrix, production-hardening plan, reviewer attack pack, and
   simulated hostile reviewer transcript, plus Windows/Linux lab-stand bootstrap
-  and performance evidence instructions for portfolio-style technical review
+  and performance evidence instructions for thesis-style technical review
 
 ```
 

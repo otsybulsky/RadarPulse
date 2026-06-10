@@ -5,7 +5,7 @@
 ---
 
 ## Передмова. Executive Engineering Verdict
-*   **Мета:** Дати зайнятому CTO/Principal Engineer короткий маршрут оцінки книги як hiring artifact.
+*   **Мета:** Дати зайнятому CTO/Principal Engineer короткий маршрут оцінки книги як прикладної інженерної роботи, яку можна винести на експертний захист.
 *   **Технічне підґрунтя:** [preface_executive_verdict.md](book/preface_executive_verdict.md), [appendix_b_claim_evidence_matrix.md](book/appendix_b_claim_evidence_matrix.md), [appendix_c_production_hardening.md](book/appendix_c_production_hardening.md), [appendix_d_reviewer_attack_pack.md](book/appendix_d_reviewer_attack_pack.md), [appendix_e_simulated_hostile_reviewer_transcript.md](book/appendix_e_simulated_hostile_reviewer_transcript.md), [appendix_f_lab_stand_bootstrap.md](book/appendix_f_lab_stand_bootstrap.md), [appendix_g_lab_stand_linux.md](book/appendix_g_lab_stand_linux.md).
 *   **Сюжет:** Книга не просить довіри, а дає карту доказів: що доведено, де межі claims, які production gaps лишаються і як рецензент може атакувати найсильніші твердження в режимі hostile review.
 
