@@ -4,6 +4,9 @@ import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitepress'
 
 const siteBase = '/RadarPulse/'
+const githubRepositoryUrl = 'https://github.com/otsybulsky/RadarPulse'
+const githubRepositoryBranch = 'master'
+const useGitHubRepoLinks = process.env.VITEPRESS_REPO_LINK_TARGET === 'github'
 const configDir = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(configDir, '../..')
 const docsRoot = path.join(repoRoot, 'docs')
@@ -80,6 +83,24 @@ function localRepoUrlForPath(targetPath: string, suffix: string): string | null 
   return `${localRepoRoute}${encodeRepoPath(relativePath)}${directorySuffix}${suffix}`
 }
 
+function githubRepoUrlForPath(targetPath: string, suffix: string): string | null {
+  if (!isAllowedLocalRepoPath(targetPath)) {
+    return null
+  }
+
+  const relativePath = normalizePath(path.relative(repoRoot, targetPath))
+
+  if (!relativePath) {
+    return `${githubRepositoryUrl}${suffix}`
+  }
+
+  const isDirectory = fs.existsSync(targetPath) && fs.statSync(targetPath).isDirectory()
+  const view = isDirectory ? 'tree' : 'blob'
+  const directorySuffix = isDirectory ? '/' : ''
+
+  return `${githubRepositoryUrl}/${view}/${githubRepositoryBranch}/${encodeRepoPath(relativePath)}${directorySuffix}${suffix}`
+}
+
 function rewriteHrefForVitePress(href: string | null, currentFile: string | undefined): string | null {
   if (!href || !currentFile) {
     return href
@@ -106,7 +127,9 @@ function rewriteHrefForVitePress(href: string | null, currentFile: string | unde
     return href
   }
 
-  return localRepoUrlForPath(targetPath, suffix) ?? href
+  return useGitHubRepoLinks
+    ? githubRepoUrlForPath(targetPath, suffix) ?? href
+    : localRepoUrlForPath(targetPath, suffix) ?? href
 }
 
 function resolveRepoRoutePath(routePath: string): string | null {
@@ -387,6 +410,9 @@ export default defineConfig({
 
           if (rewrittenHref.startsWith(localRepoRoute)) {
             token.attrSet('target', '_self')
+          } else if (rewrittenHref.startsWith(githubRepositoryUrl)) {
+            token.attrSet('target', '_blank')
+            token.attrSet('rel', 'noreferrer')
           }
         }
 
@@ -432,7 +458,9 @@ export default defineConfig({
           })
         },
         closeBundle() {
-          publishReferencedLocalRepoTargets(path.join(configDir, 'dist'))
+          if (!useGitHubRepoLinks) {
+            publishReferencedLocalRepoTargets(path.join(configDir, 'dist'))
+          }
         }
       }
     ]

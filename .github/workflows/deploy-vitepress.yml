@@ -35,6 +35,8 @@ jobs:
         run: npm ci
 
       - name: Build VitePress
+        env:
+          VITEPRESS_REPO_LINK_TARGET: github
         run: npm run docs:build
 
       - name: Upload artifact
