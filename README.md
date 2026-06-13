@@ -1,5 +1,7 @@
 # RadarPulse
 
+[![Tests](https://github.com/otsybulsky/RadarPulse/actions/workflows/dotnet.yml/badge.svg?branch=master)](https://github.com/otsybulsky/RadarPulse/actions/workflows/dotnet.yml)
+
 RadarPulse is a local product demo for a radar-processing pipeline. It shows
 how deterministic archive-shaped workloads move through the accepted product
 API, local HTTP host, file-backed product history, and Angular operator UI.
