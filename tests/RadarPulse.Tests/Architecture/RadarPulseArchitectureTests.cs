@@ -14,25 +14,25 @@ public sealed class RadarPulseArchitectureTests
     public void ProjectReferencesFollowCleanArchitectureDirection()
     {
         AssertProjectReferences(
-            @"src\Domain\RadarPulse.Domain.csproj",
+            Path.Combine("src", "Domain", "RadarPulse.Domain.csproj"),
             []);
         AssertProjectReferences(
-            @"src\Application\RadarPulse.Application.csproj",
-            [@"..\Domain\RadarPulse.Domain.csproj"]);
+            Path.Combine("src", "Application", "RadarPulse.Application.csproj"),
+            [Path.Combine("..", "Domain", "RadarPulse.Domain.csproj")]);
         AssertProjectReferences(
-            @"src\Infrastructure\RadarPulse.Infrastructure.csproj",
-            [@"..\Application\RadarPulse.Application.csproj"]);
+            Path.Combine("src", "Infrastructure", "RadarPulse.Infrastructure.csproj"),
+            [Path.Combine("..", "Application", "RadarPulse.Application.csproj")]);
         AssertProjectReferences(
-            @"src\Presentation\RadarPulse.Http\RadarPulse.Http.csproj",
+            Path.Combine("src", "Presentation", "RadarPulse.Http", "RadarPulse.Http.csproj"),
             [
-                @"..\..\Application\RadarPulse.Application.csproj",
-                @"..\..\Infrastructure\RadarPulse.Infrastructure.csproj"
+                Path.Combine("..", "..", "Application", "RadarPulse.Application.csproj"),
+                Path.Combine("..", "..", "Infrastructure", "RadarPulse.Infrastructure.csproj")
             ]);
         AssertProjectReferences(
-            @"src\Presentation\RadarPulse.Cli\RadarPulse.Cli.csproj",
+            Path.Combine("src", "Presentation", "RadarPulse.Cli", "RadarPulse.Cli.csproj"),
             [
-                @"..\..\Application\RadarPulse.Application.csproj",
-                @"..\..\Infrastructure\RadarPulse.Infrastructure.csproj"
+                Path.Combine("..", "..", "Application", "RadarPulse.Application.csproj"),
+                Path.Combine("..", "..", "Infrastructure", "RadarPulse.Infrastructure.csproj")
             ]);
     }
 
@@ -40,7 +40,7 @@ public sealed class RadarPulseArchitectureTests
     public void DomainAndApplicationSourceDoNotReferenceOuterNamespaces()
     {
         AssertNoSourceReferences(
-            @"src\Domain",
+            Path.Combine("src", "Domain"),
             "RadarPulse.Application",
             "RadarPulse.Infrastructure",
             "RadarPulse.Http",
@@ -48,7 +48,7 @@ public sealed class RadarPulseArchitectureTests
             "Microsoft.AspNetCore");
 
         AssertNoSourceReferences(
-            @"src\Application",
+            Path.Combine("src", "Application"),
             "RadarPulse.Infrastructure",
             "RadarPulse.Http",
             "RadarPulse.Cli",
@@ -59,7 +59,7 @@ public sealed class RadarPulseArchitectureTests
     public void DomainDoesNotGrantInfrastructureFriendAccess()
     {
         var violations = Directory
-            .EnumerateFiles(Path.Combine(RepositoryRoot, @"src\Domain"), "*.cs", SearchOption.AllDirectories)
+            .EnumerateFiles(Path.Combine(RepositoryRoot, "src", "Domain"), "*.cs", SearchOption.AllDirectories)
             .SelectMany(static file => FindForbiddenReferences(
                 file,
                 ["InternalsVisibleTo(\"RadarPulse.Infrastructure\")"]))
@@ -149,7 +149,11 @@ public sealed class RadarPulseArchitectureTests
     {
         var programPath = Path.Combine(
             RepositoryRoot,
-            @"src\Presentation\RadarPulse.Cli\EntryPoint\Program.cs");
+            "src",
+            "Presentation",
+            "RadarPulse.Cli",
+            "EntryPoint",
+            "Program.cs");
         var lines = File.ReadAllLines(programPath);
 
         Assert.True(lines.Length <= 5);
@@ -168,12 +172,16 @@ public sealed class RadarPulseArchitectureTests
             .Select(static element => element.Attribute("Include")?.Value)
             .Where(static include => !string.IsNullOrWhiteSpace(include))
             .Select(static include => include!)
+            .Select(NormalizeProjectReferencePath)
             .Order(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        Assert.Equal(
-            expectedReferences.Order(StringComparer.OrdinalIgnoreCase).ToArray(),
-            actualReferences);
+        var normalizedExpectedReferences = expectedReferences
+            .Select(NormalizeProjectReferencePath)
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        Assert.Equal(normalizedExpectedReferences, actualReferences);
     }
 
     private static void AssertNoSourceReferences(
@@ -208,6 +216,9 @@ public sealed class RadarPulseArchitectureTests
             }
         }
     }
+
+    private static string NormalizeProjectReferencePath(string path) =>
+        path.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
 
     private static string FindRepositoryRoot()
     {
