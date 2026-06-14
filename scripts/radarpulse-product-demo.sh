@@ -417,6 +417,7 @@ verify_package() {
   local test_project="${repo_root}/tests/RadarPulse.Tests/RadarPulse.Tests.csproj"
   local solution="${repo_root}/RadarPulse.sln"
   local focused_filter="FullyQualifiedName~RadarPulseProductHttpHostTests|FullyQualifiedName~RadarPulseProductHttpControlTests|FullyQualifiedName~RadarPulseProductPipelineApiContractTests"
+  local architecture_filter="FullyQualifiedName~RadarPulseArchitectureTests"
 
   require_command npm
   require_command dotnet
@@ -435,6 +436,9 @@ verify_package() {
 
   printf '\n== .NET dependency restore ==\n'
   run_checked "$repo_root" dotnet restore "$solution" --force
+
+  printf '\n== .NET architecture boundary gate ==\n'
+  run_checked "$repo_root" dotnet test "$test_project" -c Release --no-restore --filter "$architecture_filter"
 
   printf '\n== Focused .NET product HTTP/API/readiness Release gate ==\n'
   run_checked "$repo_root" dotnet test "$test_project" -c Release --no-restore --filter "$focused_filter"

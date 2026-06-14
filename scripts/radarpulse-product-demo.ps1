@@ -389,6 +389,7 @@ function Invoke-PackagedVerify {
     $testProject = Join-DemoPath -Root $Paths.RepositoryRoot -Segments @("tests", "RadarPulse.Tests", "RadarPulse.Tests.csproj")
     $solution = Join-Path $Paths.RepositoryRoot "RadarPulse.sln"
     $focusedFilter = "FullyQualifiedName~RadarPulseProductHttpHostTests|FullyQualifiedName~RadarPulseProductHttpControlTests|FullyQualifiedName~RadarPulseProductPipelineApiContractTests"
+    $architectureFilter = "FullyQualifiedName~RadarPulseArchitectureTests"
 
     Write-VerifyStep "Angular unit tests"
     Invoke-CheckedProcess -Executable "npm" -CommandArguments @("test", "--", "--watch=false") -WorkingDirectory $Paths.OperatorUiProject
@@ -407,6 +408,16 @@ function Invoke-PackagedVerify {
         "restore",
         $solution,
         "--force") -WorkingDirectory $Paths.RepositoryRoot
+
+    Write-VerifyStep ".NET architecture boundary gate"
+    Invoke-CheckedProcess -Executable "dotnet" -CommandArguments @(
+        "test",
+        $testProject,
+        "-c",
+        "Release",
+        "--no-restore",
+        "--filter",
+        $architectureFilter) -WorkingDirectory $Paths.RepositoryRoot
 
     Write-VerifyStep "Focused .NET product HTTP/API/readiness Release gate"
     Invoke-CheckedProcess -Executable "dotnet" -CommandArguments @(
