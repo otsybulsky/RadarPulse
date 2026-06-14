@@ -31,7 +31,7 @@ archive corpus -> streaming contract -> retained payload -> delta compute
 | :--- | :--- | :--- |
 | `RadarStreamEvent`/`RadarEventBatch` лишаються контрольованим hot-path контрактом | Інакше зовнішній формат знову пролізе в домен | [Розділ 3](chapter_03_radar_batch.md), [Додаток Б](appendix_b_claim_evidence_matrix.md) |
 | `Provider Sequence` визначає commit order | Інакше паралельність почне міняти історію | [Розділ 14](chapter_14_concurrency_chaos.md), [Розділ 15](chapter_15_ordered_coordinator.md) |
-| Compute і commit лишаються розділеними | Інакше повертається shared mutable core blocker | [Розділ 16](chapter_16_mutable_core.md) |
+| Compute і commit лишаються розділеними | Інакше повертається криза спільного стану | [Розділ 16](chapter_16_mutable_core.md) |
 | Topology version перевіряється перед commit | Інакше stale route потрапить у core | [Розділ 17](chapter_17_stale_recompute.md) |
 | Durable envelope описує state machine, а adapter лише зберігає її | Інакше broker/database почнуть диктувати доменну семантику | [Розділ 18](chapter_18_durable_envelope.md), [Розділ 19](chapter_19_file_store.md) |
 | Failure має бути visible і fail-closed | Інакше система виглядатиме живою після втрати правди | [Розділ 20](chapter_20_fail_closed.md) |

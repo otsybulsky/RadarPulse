@@ -1,6 +1,6 @@
-﻿# виконавчий інженерний вердикт (Executive Engineering Verdict): чому RadarPulse вартий уваги
+﻿# Виконавчий інженерний вердикт (Executive Engineering Verdict): чому RadarPulse вартий уваги
 
-Ця книга написана не для того, щоб просити довіри. Вона зібрана як інженерна справа: є початковий масштаб, є помилки, є альтернативи, є ціна вибору, є гейти продуктивності (performance gates), є команди відтворення і є чітко названі межі відповідальності. Важлива обіцянка тексту проста: якщо твердження звучить сильно, поруч має бути або код, або віха (milestone), або межа, за яку ми не заходимо.
+Ця книга написана не для того, щоб просити довіри. Вона зібрана як інженерна справа: є початковий масштаб, є помилки, є альтернативи, є ціна вибору, є контрольні пороги продуктивності (performance gates), є команди відтворення і є чітко названі межі відповідальності. Важлива обіцянка тексту проста: якщо твердження звучить сильно, поруч має бути або код, або віха (milestone), або межа, за яку ми не заходимо.
 
 Якщо читач має лише пів години, йому не потрібно проходити всі 26 розділів як роман. Для цього є короткий маршрут рецензента (reviewer route) у [Додатку Г](appendix_d_reviewer_attack_pack.md): він веде від сильних тверджень (claims) до коду, тестів, доказів із віх (milestone evidence) і меж відповідальності без занурення в довгі runbook-и. Після цього можна відкривати підняття платформи (platform bootstrap) у [Додатку Е](appendix_f_lab_stand_bootstrap.md) або [Додатку Є](appendix_g_lab_stand_linux.md) лише тоді, коли рецензент справді готовий відтворювати стенд.
 
@@ -15,19 +15,51 @@
 
 ## Система на одній сторінці
 
-```mermaid
-flowchart LR
-    A[NEXRAD Level II archive] --> B[Manifest-first scan and decompression]
-    B --> C[RadarStreamEvent and RadarEventBatch]
-    C --> D[Queued-owned retained payload]
-    D --> E[Parallel delta compute]
-    E --> F[Ordered commit gate]
-    F --> G[Processing core and topology state]
-    G --> H[Durable envelope and local file store]
-    G --> I[BFF read models]
-    I --> J[Angular Operator UI]
-    H --> K[Demo readiness protocol]
-    K --> L[Milestone gates and evidence matrix]
+```text
+NEXRAD Level II archive
+(архів радарних файлів)
+        |
+        v
+Manifest-first scan and decompression
+(сканування за маніфестом і декомпресія)
+        |
+        v
+RadarStreamEvent + RadarEventBatch
+(події потоку та батчі радарних даних)
+        |
+        v
+Queued-owned retained payload
+(черга з контрольованим володінням payload-даними)
+        |
+        v
+Parallel delta compute
+(паралельний розрахунок змін)
+        |
+        v
+Ordered commit
+(впорядкована фіксація результатів)
+        |
+        v
+Processing core + topology state
+(ядро обробки та стан топології)
+        |
+        +--> Durable envelope + local file store
+        |    (стійка оболонка повідомлень і локальне файлове сховище)
+        |         |
+        |         v
+        |   Demo readiness protocol
+        |   (протокол готовності демо)
+        |         |
+        |         v
+        |   Milestone evidence matrix
+        |   (матриця доказів за віхами)
+        |
+        +--> BFF read models
+             (моделі читання для Backend-for-Frontend)
+                  |
+                  v
+            Angular Operator UI
+            (інтерфейс оператора)
 ```
 
 Це головний контур книги. Архів дає реальні бінарні дані, streaming contract робить їх придатними для hot path, retained payload контролює lifetime, parallel compute шукає швидкість, ordered commit повертає порядок, durable layer фіксує recovery story, а BFF/UI/demo package показують результат без прихованих production-claims.
@@ -38,8 +70,8 @@ flowchart LR
 | :--- | :--- | :--- |
 | Орієнтований на дані дизайн (Data-oriented design) | Автор не віддає домену сирий NEXRAD binary stream, а проектує компактний `RadarStreamEvent` і `RadarEventBatch` із контрольованим payload lifetime | [Розділ 3](chapter_03_radar_batch.md), [Додаток А](appendix_a_profiling.md) |
 | Дисципліна пам'яті рантайму (Runtime memory discipline) | Allocation crisis не приховано і не списано на GC: `snapshot-copy` отримує діагноз, після чого `pooled-copy` знижує retained allocation з `9_947_507_832` до `102_811_264` bytes | [Розділ 11](chapter_11_allocation_anomaly.md), [Розділ 12](chapter_12_pooled_copy.md) |
-| Цілісність вимірювань (Measurement integrity) | Unit-тести відділені від benchmark-доказів; цифри продуктивності ведуть до milestone gate/closeout, а не до красивої фрази в тексті | [Додаток Б](appendix_b_claim_evidence_matrix.md) |
-| Коректність конкурентності (Concurrency correctness) | Автор не просто додає воркери, а зупиняється на блокері Slice 3 (Slice 3 blocker), розділяє compute/commit і приймає виміряну ціну безпеки (safety tax) | [Розділ 16](chapter_16_mutable_core.md), [Розділ 17](chapter_17_stale_recompute.md) |
+| Цілісність вимірювань (Measurement integrity) | Unit-тести відділені від benchmark-доказів; цифри продуктивності ведуть до контрольної перевірки віхи або її closeout-документа, а не до красивої фрази в тексті | [Додаток Б](appendix_b_claim_evidence_matrix.md) |
+| Коректність конкурентності (Concurrency correctness) | Автор не просто додає воркери, а зупиняється на кризі спільного стану: паралельні воркери впираються у спільний змінний стан. Після цього runtime розділено на compute/commit, а ціна безпеки (safety tax) виміряна окремо | [Розділ 16](chapter_16_mutable_core.md), [Розділ 17](chapter_17_stale_recompute.md) |
 | Обробка відмов (Failure handling) | Durable envelope, file store і поведінка fail-closed (зупинка без прихованої неправди) описані як автомати станів та протокол відновлення (recovery protocol), а не як “надійність за замовчуванням” | [Розділ 18](chapter_18_durable_envelope.md), [Розділ 19](chapter_19_file_store.md), [Розділ 20](chapter_20_fail_closed.md) |
 | Межа продукту (Product boundary) | BFF, operator UI і demo package не маскують локальну природу стенда; non-claims винесені в явний контракт із рецензентом | [Розділ 23](chapter_23_bff_shield.md), [Розділ 25](chapter_25_demo_scripts.md) |
 | Дисципліна спостережуваності (Observability discipline) | Книга не вигадує продукційний стек логування (production logging stack), але показує типізований контракт діагностики й готовності (typed diagnostics/readiness contract): перший блокер (first blocker), retained pressure, durable state, warnings і capacity evidence | [Розділ 26](chapter_26_observability_logging.md), [Додаток В](appendix_c_production_hardening.md) |
@@ -62,6 +94,6 @@ flowchart LR
 4. Чи може сторонній reviewer відтворити `data/nexrad` cache і пройти archive/product verification без приватних інструкцій автора?
 5. Який мінімальний structured logging/metrics/tracing contract потрібен, щоб production incident не перетворився на ручну археологію?
 6. Який мінімальний пакет production hardening (підготовки до продукційної експлуатації) потрібен для багатовузлового розгортання (multi-node deployment), не руйнуючи lab-table повторюваність?
-7. Які з поточних benchmark-гейтів (гейтів бенчмарків) мають стати блокувальними для CI (CI-blocking), а які мають лишитися ручними релізними гейтами (release gates) через шум заліза?
+7. Які з поточних контрольних benchmark-перевірок мають стати блокувальними для CI (CI-blocking), а які мають лишитися ручними релізними перевірками (release gates) через шум заліза?
 
 Якщо розмова починається з цих питань, книга виконала свою роботу.

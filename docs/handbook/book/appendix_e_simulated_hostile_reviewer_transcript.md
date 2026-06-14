@@ -128,15 +128,15 @@ Accepted. Не cheating, якщо startup cost залишається видим
 
 Accepted. Книга виграє від того, що не продає linear speedup.
 
-## Обмін 6 (Exchange 6): “Shared mutable core blocker could be a post-hoc story”
+## Обмін 6 (Exchange 6): “The shared-state crisis could be a post-hoc story”
 
 **Рецензент (Reviewer):**
 
-Slice 3 blocker звучить драматично. Як я знаю, що це не narrative після refactor-а?
+Криза спільного стану звучить як сильна назва. Як я знаю, що це не narrative після refactor-а?
 
 **Автор (Author):**
 
-Milestone trail фіксує blocker як decision point: [021 Slice 3 blocker](../../milestones/021-ordered-concurrent-runtime-archive-processing-slice-3-blocker.md). Проблема була не в “поганому lock”, а в тому, що `RadarProcessingCore` мав shared mutable state і cumulative reads. Рішенням став [RadarProcessingBatchDelta.cs](../../../src/Domain/Processing/Core/Models/RadarProcessingBatchDelta.cs): воркер рахує delta, ordered commit застосовує її до core.
+Milestone trail фіксує кризу спільного стану як decision point: [Milestone 021: криза спільного стану](../../milestones/021-ordered-concurrent-runtime-archive-processing-slice-3-blocker.md). Проблема була не в “поганому lock”, а в тому, що `RadarProcessingCore` мав спільний змінний стан і cumulative reads. Рішенням став [RadarProcessingBatchDelta.cs](../../../src/Domain/Processing/Core/Models/RadarProcessingBatchDelta.cs): воркер рахує delta, ordered commit застосовує її до core.
 
 **Уточнення рецензента (Reviewer follow-up):**
 
