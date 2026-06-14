@@ -21,7 +21,7 @@
     *   **[Розділ 2: Бінарні лабіринти погодного архіву](book/chapter_02_nexrad_binaries.md)**
         *   *Технічне підґрунтя:* Віхи `001` (Historical Loader) та `002` (Nexrad Archive Inspection).
         *   *Сюжет:* Особливості бінарного метеорологічного формату. Чому Archive Two файл починається з 24-байтного volume header-а, далі складається з compressed records із control words, і чому декомпресія «в лоб» вбиває продуктивність.
-    *   **[Розділ 3: Контракт радарного батча](book/chapter_03_radar_batch.md)**
+    *   **[Розділ 3: Контракт радарного пакета даних](book/chapter_03_radar_batch.md)**
         *   *Технічне підґрунтя:* Віхи `003` (Historical Replay Publisher) та `004` (Processing Core Input Contract).
         *   *Сюжет:* Еволюція від сирого потоку подій до структурованого `RadarEventBatch`. Як заміна об'єктів з текстовими метаданими на 64-байтні некеровані (unmanaged) структури `RadarStreamEvent` дала Milestone 004 benchmark-рівень 500M+ payload-значень/сек і близько 0.20 allocated bytes/payload value на cache-wide replay.
 
