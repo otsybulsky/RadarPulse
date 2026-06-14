@@ -29,11 +29,11 @@ public class RadarPoint
 
 У результаті, навіть крихітний об'єкт із парою полів займає в пам'яті мінімум 24–32 байти. А тепер помножте ці накладні витрати на 10 мільйонів подій за хвилину. Ми отримаємо гігабайти «сміття», яке просто лежить у купі й чекає на збирача сміття (Garbage Collector, GC). Коли GC вирішить навести лад, він буде змушений зупинити роботу всієї програми (Stop-the-World pause), щоб перевірити зв'язки між мільйонами дрібних об'єктів. Процесор замре, обробка радарів зупиниться, і реальний шторм на карті оновиться з катастрофічним запізненням.
 
-## 3.2. Рішення: Сержант `RadarStreamEvent` як Unmanaged Struct
+## 3.2. Рішення: Сержант [`RadarStreamEvent`](../../../src/Domain/Streaming/Streams/Models/RadarStreamEvent.cs) як Unmanaged Struct
 
 Щоб виграти цю битву, під час Віхи `004` (Processing Core Input Contract) ми повністю змінили правила гри. Ми відмовилися від класів і перейшли на некеровані (unmanaged) структури фіксованого розміру.
 
-Знайомтеся з нашим «сержантом» — `RadarStreamEvent`. Його розмір становить **рівно 64 байти**. Він не живе в купі як окремий об'єкт. Він лежить у щільних, безперервних масивах пам'яті, де одна подія слідує за іншою без жодних заголовків та метаінформації .NET.
+Знайомтеся з нашим «сержантом» — [`RadarStreamEvent`](../../../src/Domain/Streaming/Streams/Models/RadarStreamEvent.cs). Його розмір становить **рівно 64 байти**. Він не живе в купі як окремий об'єкт. Він лежить у щільних, безперервних масивах пам'яті, де одна подія слідує за іншою без жодних заголовків та метаінформації .NET.
 
 Ось спрощена версія нашого C#-контракту:
 
@@ -77,16 +77,16 @@ public readonly struct RadarStreamEvent
 }
 ```
 
-Зверніть увагу на головний архітектурний трюк. У структурі `RadarStreamEvent` немає поля `byte[] Payload`. Якби воно там було, це поле містило б посилання на інший об'єкт у купі, що знову повернуло б нас до проблеми алокацій.
+Зверніть увагу на головний архітектурний трюк. У структурі [`RadarStreamEvent`](../../../src/Domain/Streaming/Streams/Models/RadarStreamEvent.cs) немає поля `byte[] Payload`. Якби воно там було, це поле містило б посилання на інший об'єкт у купі, що знову повернуло б нас до проблеми алокацій.
 
 Замість цього подія зберігає два простих цілих числа: `PayloadOffset` (зміщення) та `PayloadLength` (довжина). Вони вказують на конкретний сегмент в одному великому, спільному масиві байтів, який належить усьому батчу. Це схоже на те, як детектив записує у блокнот: «Докази лежать у великій скрині на полиці №3, починаючи з 15-го сантиметра і довжиною 40 сантиметрів». Самі докази лежать в одному місці, а ми оперуємо лише легкими числовими координатами.
 
-## 3.3. Шар Streaming: `RadarEventBatch`
+## 3.3. Шар Streaming: [`RadarEventBatch`](../../../src/Domain/Streaming/Batches/Models/RadarEventBatch.cs)
 
-Ці 64-байтні структури групуються в єдину сутність — `RadarEventBatch`. Це немутабельний (immutable) пакет, який містить:
+Ці 64-байтні структури групуються в єдину сутність — [`RadarEventBatch`](../../../src/Domain/Streaming/Batches/Models/RadarEventBatch.cs). Це немутабельний (immutable) пакет, який містить:
 1. Масив метаданих подій: `ReadOnlyMemory<RadarStreamEvent> Events`.
 2. Великий суцільний масив байтів: `ReadOnlyMemory<byte> Payload`.
-3. Версії схем та каталогів (`StreamSchemaVersion`, `DictionaryVersion`, `SourceUniverseVersion`) для підтвердження того, що батч інтерпретується за тими самими правилами, за якими був створений.
+3. Версії схем та каталогів ([`StreamSchemaVersion`](../../../src/Domain/Streaming/Streams/Models/StreamSchemaVersion.cs), [`DictionaryVersion`](../../../src/Domain/Streaming/Streams/Models/DictionaryVersion.cs), [`SourceUniverseVersion`](../../../src/Domain/Streaming/Sources/Models/SourceUniverseVersion.cs)) для підтвердження того, що батч інтерпретується за тими самими правилами, за якими був створений.
 
 Ось як це виглядає концептуально:
 
@@ -118,7 +118,7 @@ public sealed class RadarEventBatch
 
 ## 3.4. Парсинг та пам'ять: Концептуальний Cast проти реального Builder
 
-Коли ви стикаєтеся з необхідністю обробки 500 мільйонів payload-значень за секунду, першим імпульсом є максимальне спрощення десеріалізації. В ідеальному світі ми могли б скористатися концептуальним трюком **Zero-Copy Deserialization** (десеріалізація без копіювання), інтерпретуючи сирі розпаковані байти безпосередньо як масив некерованих 64-байтних структур `RadarStreamEvent`:
+Коли ви стикаєтеся з необхідністю обробки 500 мільйонів payload-значень за секунду, першим імпульсом є максимальне спрощення десеріалізації. В ідеальному світі ми могли б скористатися концептуальним трюком **Zero-Copy Deserialization** (десеріалізація без копіювання), інтерпретуючи сирі розпаковані байти безпосередньо як масив некерованих 64-байтних структур [`RadarStreamEvent`](../../../src/Domain/Streaming/Streams/Models/RadarStreamEvent.cs):
 
 ```csharp
 // Концептуальний ідеал (не використовується в реальній реалізації):
@@ -127,17 +127,17 @@ ReadOnlySpan<RadarStreamEvent> events = MemoryMarshal.Cast<byte, RadarStreamEven
 
 Цей приклад виглядає неймовірно ефектно на папері: процесор отримує прямий доступ до пам'яті за одну інструкцію без жодного копіювання. Проте в суворому середовищі NEXRAD Level II цей концептуальний метод виявляється повністю непридатним.
 
-Замість цього в реальному коді нашого проекту використовується **`RadarEventBatchBuilder`** з багаторазовими внутрішніми буферами, а **`ArrayPool`** підключається на сусідніх гарячих ділянках: декомпресія, retained payload, pooled-copy та дельти обробки. Давайте порівняємо ці підходи та розберемося, чому реальна архітектура виявилася значно надійнішою:
+Замість цього в реальному коді нашого проекту використовується **[`RadarEventBatchBuilder`](../../../src/Domain/Streaming/Batches/Services/RadarEventBatchBuilder/RadarEventBatchBuilder.cs)** з багаторазовими внутрішніми буферами, а **`ArrayPool`** підключається на сусідніх гарячих ділянках: декомпресія, retained payload, pooled-copy та дельти обробки. Давайте порівняємо ці підходи та розберемося, чому реальна архітектура виявилася значно надійнішою:
 
-| Критерій порівняння | Концептуальний `MemoryMarshal.Cast` | Реальна реалізація: `RadarEventBatchBuilder` + retained ownership |
+| Критерій порівняння | Концептуальний `MemoryMarshal.Cast` | Реальна реалізація: [`RadarEventBatchBuilder`](../../../src/Domain/Streaming/Batches/Services/RadarEventBatchBuilder/RadarEventBatchBuilder.cs) + retained ownership |
 | :--- | :--- | :--- |
 | **Порядок байтів (Endianness)** | **Провал.** NEXRAD Level II зберігає числа у форматі Big-Endian. Процесори x86-64/ARM64 працюють з Little-Endian. Прямий Cast прочитає перевернуті байти (сміття). | **Успіх.** Будівельник зчитує поля за допомогою `BinaryPrimitives.ReadInt32BigEndian` та виконує правильну конвертацію ендіанності на льоту. |
 | **Змінна довжина та зміщення** | **Провал.** Прямий Cast вимагає однорідного масиву фіксованого розміру. У NEXRAD початкові зміщення (`PayloadOffset`) та довжина гейтів (`GateCount`) кожної поодинокої події відрізняються. | **Успіх.** Будівельник динамічно обчислює зміщення корисного навантаження (`payloadOffset`) для кожної події та копіює його у суміжний буфер. |
 | **Алокації пам'яті (Heap Allocations)** | Нульові (просте приведення покажчиків), але тільки для ідеального однорідного формату. | На стабільному leased hot path builder повторно використовує власні `eventBuffer` та `payloadBuffer`, збільшуючи їх лише через `Array.Resize`, коли capacity замала. Довше володіння батчем переноситься в retained/pooled-copy шар, де масиви вже орендуються з `ArrayPool`. |
-| **Валідація та цілісність** | Відсутня на етапі приведення типу. | Будівельник перевіряє межі масивів (`EnsurePayloadCapacity`), валідує версії топології та підраховує контрольну суму корисного навантаження за один прохід. |
+| **Валідація та цілісність** | Відсутня на етапі приведення типу. | Будівельник перевіряє межі масивів ([`EnsurePayloadCapacity`](../../../src/Domain/Streaming/Batches/Services/RadarEventBatchBuilder/RadarEventBatchBuilder.CapacityReset.cs)), валідує версії топології та підраховує контрольну суму корисного навантаження за один прохід. |
 | **Архітектурна чистота** | Жорстке зв'язування з бінарним форматом файлу. | Повна ізоляція: будівельник конвертує складний зовнішній двійковий формат у чисті доменні структури. |
 
-Реальний процес наповнення батча відбувається поетапно: парсер NEXRAD покроково зчитує бінарні записи, конвертує числа, конструює структуру `RadarStreamEvent` та записує її у внутрішній масив `eventBuffer`. Потім корисне навантаження (`payload`) копіюється у виділене місце в `payloadBuffer`. Якщо батч споживається одразу, `BuildLeased()` віддає посилання на ці самі буфери, а `ResetRetainingCapacity()` очищає лічильники без повторного виділення масивів. Якщо батч треба утримувати довше за callback, retained шар робить pooled-copy і вже там відповідає за оренду та повернення масивів.
+Реальний процес наповнення батча відбувається поетапно: парсер NEXRAD покроково зчитує бінарні записи, конвертує числа, конструює структуру [`RadarStreamEvent`](../../../src/Domain/Streaming/Streams/Models/RadarStreamEvent.cs) та записує її у внутрішній масив `eventBuffer`. Потім корисне навантаження (`payload`) копіюється у виділене місце в `payloadBuffer`. Якщо батч споживається одразу, `BuildLeased()` віддає посилання на ці самі буфери, а `ResetRetainingCapacity()` очищає лічильники без повторного виділення масивів. Якщо батч треба утримувати довше за callback, retained шар робить pooled-copy і вже там відповідає за оренду та повернення масивів.
 
 Друга складова нашого успіху — **кеш-локальність (Cache Friendliness)**. Процесор AMD Ryzen 9 9900X (Zen 5) оперує кеш-лініями розміром 64 байти. Оскільки розмір нашої структури становить рівно 64 байти, а масив є безперервним у пам'яті, кожна подія займає рівно одну кеш-лінію процесора.
 
@@ -151,23 +151,23 @@ ReadOnlySpan<RadarStreamEvent> events = MemoryMarshal.Cast<byte, RadarStreamEven
 ## 🔍 Матеріали справи (Investigation Case Files)
 
 ### 1. Вердикт детективів (Decision Trace & Rationale)
-Впровадження некерованих (unmanaged) 64-байтних структур `RadarStreamEvent` та об'єднання їх у `RadarEventBatch` (Віхи `003`-`004`). Це прибрало per-event heap allocations із доменного контракту і дало benchmark-рівень понад 500 мільйонів payload-значень за секунду з близько `0.20` allocated bytes/payload value на cache-wide replay.
+Впровадження некерованих (unmanaged) 64-байтних структур [`RadarStreamEvent`](../../../src/Domain/Streaming/Streams/Models/RadarStreamEvent.cs) та об'єднання їх у [`RadarEventBatch`](../../../src/Domain/Streaming/Batches/Models/RadarEventBatch.cs) (Віхи `003`-`004`). Це прибрало per-event heap allocations із доменного контракту і дало benchmark-рівень понад 500 мільйонів payload-значень за секунду з близько `0.20` allocated bytes/payload value на cache-wide replay.
 
 #### Чому сирі байти не стали контрактом домену
-Ми могли залишити кожне радарне значення окремим об'єктом, але тоді головним учасником справи став би збирач сміття (Garbage Collector). Могли зробити прямий `MemoryMarshal.Cast` по розпакованих байтах, але NEXRAD має big-endian поля, змінні payload-діапазони й зовнішню бінарну форму, яку не можна пускати просто в домен. Обраний шлях — компактний `RadarStreamEvent` плюс `RadarEventBatchBuilder` — не найкоротший у коді, зате він переводить чужий формат у наш контрольований контракт. Ціна вибору — ручна нормалізація полів і власний builder; виграш — cache-line stride, deterministic payload references і доказовий throughput.
+Ми могли залишити кожне радарне значення окремим об'єктом, але тоді головним учасником справи став би збирач сміття (Garbage Collector). Могли зробити прямий `MemoryMarshal.Cast` по розпакованих байтах, але NEXRAD має big-endian поля, змінні payload-діапазони й зовнішню бінарну форму, яку не можна пускати просто в домен. Обраний шлях — компактний [`RadarStreamEvent`](../../../src/Domain/Streaming/Streams/Models/RadarStreamEvent.cs) плюс [`RadarEventBatchBuilder`](../../../src/Domain/Streaming/Batches/Services/RadarEventBatchBuilder/RadarEventBatchBuilder.cs) — не найкоротший у коді, зате він переводить чужий формат у наш контрольований контракт. Ціна вибору — ручна нормалізація полів і власний builder; виграш — cache-line stride, deterministic payload references і доказовий throughput.
 
 ### 2. Закони фізики рантайму (System Invariants)
-* **Алокаційний ліміт**: Довжина структури `RadarStreamEvent` має дорівнювати рівно 64 байтам для оптимального вирівнювання в пам'яті процесора.
+* **Алокаційний ліміт**: Довжина структури [`RadarStreamEvent`](../../../src/Domain/Streaming/Streams/Models/RadarStreamEvent.cs) має дорівнювати рівно 64 байтам для оптимального вирівнювання в пам'яті процесора.
 * **Валідація батча**: Кожен батч має містити суворі контрольні суми для перевірки цілісності радарного зліпку.
 
 ### 3. Патологоанатомічний звіт (Failure Modes & Recovery)
-* **Порушення контрольної суми**: При невідповідності хешу батча вхідний конвеєр відкидає його та повертає помилку через `RadarEventBatchValidationResult` до системи моніторингу.
+* **Порушення контрольної суми**: При невідповідності хешу батча вхідний конвеєр відкидає його та повертає помилку через [`RadarEventBatchValidationResult`](../../../src/Domain/Streaming/Batches/Models/RadarEventBatchValidationResult.cs) до системи моніторингу.
 
 ### 4. Докази продуктивності (Performance Evidence)
 
 | Твердження (Claim) | Доказ (Evidence) | Команда верифікації (Verification Command) |
 | :--- | :--- | :--- |
-| `RadarStreamEvent` займає рівно одну 64-байтну cache line | Контрактний тест `RadarStreamContractTests.RadarStreamEventUsesOneCacheLineStride` | `dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~RadarStreamContractTests"` |
+| [`RadarStreamEvent`](../../../src/Domain/Streaming/Streams/Models/RadarStreamEvent.cs) займає рівно одну 64-байтну cache line | Контрактний тест [`RadarStreamContractTests.RadarStreamEventUsesOneCacheLineStride`](../../../tests/RadarPulse.Tests/Streaming/Streams/RadarStreamContractTests.cs) | `dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~RadarStreamContractTests"` |
 | Обробка 500M+ payload-значень/сек | Milestone 004 зафіксував `553_123_110.90` payload values/s на single-file benchmark і `509_716_417.97` payload values/s на cache-wide KTLX corpus | `dotnet run --no-build -c Release --project src/Presentation/RadarPulse.Cli/RadarPulse.Cli.csproj -- archive benchmark stream --cache data/nexrad --max-files 1000000 --iterations 1 --warmup-iterations 0 --parallelism 24 --decompressor radarpulse` |
 | Алокації близько `0.20` байта/payload-значення на cache-wide replay | Milestone 004 closeout: `allocated bytes / payload value: 0.20` після leased hot-path delivery та reusable projector buffers | Та сама `archive benchmark stream` команда; unit-тести лише фіксують інваріанти, не є доказом throughput |
 | Консистенція збірки батчів | Тести builder/validator перевіряють межі payload, lifetime, leased snapshot та checksum-контракти | `dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~RadarEventBatch"` |

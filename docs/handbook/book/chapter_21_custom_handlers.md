@@ -1,8 +1,8 @@
-﻿# Розділ 21: Спеціальні аналітики (користувацькі обробники, Custom Handlers)
+# Розділ 21: Спеціальні аналітики (користувацькі обробники, Custom Handlers)
 
 Extension point у продуктивному ядрі завжди небезпечний. Він починається невинно: ще одна формула, ще один notifier, ще один запис у базу прямо всередині parser-а або processor-а. Через кілька ітерацій ядро вже не обробляє радарні події, а тягне чужі побічні ефекти.
 
-У RadarPulse `RadarProcessingCore` має залишатися чистим, швидким і сфокусованим на базовій роботі: демаршалізації NEXRAD-архівів та просуванні часової послідовності `Provider Sequence`. Але споживачам результатів — кліматичним аналітикам, операторам, дослідникам — потрібні власні розрахунки поверх цих даних. Архітектурне питання звучить так: як впустити експертів у лабораторію, не віддавши їм ключі від ядра?
+У RadarPulse [`RadarProcessingCore`](../../../src/Domain/Processing/Core/Services/RadarProcessingCore/RadarProcessingCore.cs) має залишатися чистим, швидким і сфокусованим на базовій роботі: демаршалізації NEXRAD-архівів та просуванні часової послідовності [`Provider Sequence`](../../../src/Domain/Processing/Queueing/Models/RadarProcessingQueuedBatchSequence.cs). Але споживачам результатів — кліматичним аналітикам, операторам, дослідникам — потрібні власні розрахунки поверх цих даних. Архітектурне питання звучить так: як впустити експертів у лабораторію, не віддавши їм ключі від ядра?
 
 Для розв'язання цього конфлікту ми розробили концепцію **користувацькі обробники (Custom Handlers)** (Віха `024`). Це незалежні аналітичні експерти, які підключаються до рантайму через чітко визначені порти (Ports) і працюють виключно з копіями доказів, не маючи права мутувати внутрішній стан самого ядра.
 
@@ -12,7 +12,7 @@ Extension point у продуктивному ядрі завжди небезп
 
 У класичних монолітних системах розробники часто припускаються помилки «все-в-одному». Вони беруть обробник радарної точки та безпосередньо в його тіло вбудовують підрахунок середньої температури, виявлення торнадо, надсилання повідомлень у Telegram та запис у базу даних. Як наслідок, будь-яка зміна у формулі розрахунку грозового фронту ламає базовий парсер бінарних даних.
 
-Ми пішли шляхом чистої архітектури Ports and Adapters. Наше ядро обробки радарних даних декларує інтерфейс-порт `IRadarSourceProcessingHandler`. Будь-який аналітичний модуль — це зовнішній експерт, який погоджується грати за правилами ядра:
+Ми пішли шляхом чистої архітектури Ports and Adapters. Наше ядро обробки радарних даних декларує інтерфейс-порт [`IRadarSourceProcessingHandler`](../../../src/Domain/Processing/Handlers/Contracts/IRadarSourceProcessingHandler.cs). Будь-який аналітичний модуль — це зовнішній експерт, який погоджується грати за правилами ядра:
 
 ```csharp
 namespace RadarPulse.Domain.Processing;
@@ -36,17 +36,17 @@ public interface IRadarSourceProcessingHandler
 }
 ```
 
-Зверніть увагу на параметри методу `Process`. Контекст події (`RadarSourceProcessingHandlerContext`) передається за модифікатором `in` (як read-only посилання), а стан обробника (`RadarSourceProcessingState`) передається як структура. Вони спроектовані як `ref struct`, тобто компілятор не дозволяє винести ці контексти в heap, захопити їх у lambda або зберегти після виклику. Це наш перший архітектурний запобіжник: аналітик отримує докази для аналізу, заповнює відведені slots і не може забрати вказівник на внутрішню пам'ять із собою.
+Зверніть увагу на параметри методу `Process`. Контекст події ([`RadarSourceProcessingHandlerContext`](../../../src/Domain/Processing/Handlers/Models/RadarSourceProcessingHandlerContext.cs)) передається за модифікатором `in` (як read-only посилання), а стан обробника ([`RadarSourceProcessingState`](../../../src/Domain/Processing/Handlers/Models/RadarSourceProcessingState.cs)) передається як структура. Вони спроектовані як `ref struct`, тобто компілятор не дозволяє винести ці контексти в heap, захопити їх у lambda або зберегти після виклику. Це наш перший архітектурний запобіжник: аналітик отримує докази для аналізу, заповнює відведені slots і не може забрати вказівник на внутрішню пам'ять із собою.
 
 ---
 
-## 21.2. Анатомія доменного сейфу: `RadarSourceProcessingState`
+## 21.2. Анатомія доменного сейфу: [`RadarSourceProcessingState`](../../../src/Domain/Processing/Handlers/Models/RadarSourceProcessingState.cs)
 
 Для того щоб експерти не заважали один одному і не створювали конкуренції за пам'ять (Race Conditions), ядро виділяє кожному зареєстрованому обробнику його власний ізольований робочий простір. Замість того, щоб дозволити аналітикам виділяти довільні об'єкти в купі (Heap) та створювати навантаження на збирач сміття (Garbage Collector, GC), ми розробили модель **State Slots**.
 
-Кожен обробник описує свої потреби в пам'яті через `RadarSourceProcessingHandlerDescriptor`. Він заздалегідь декларує, скільки цілочисельних комірок (`Int64`) та комірок з плаваючою крапкою (`Double`) йому потрібно для збереження стану по кожному джерелу радарних даних (`Source`).
+Кожен обробник описує свої потреби в пам'яті через [`RadarSourceProcessingHandlerDescriptor`](../../../src/Domain/Processing/Handlers/Models/RadarSourceProcessingHandlerDescriptor.cs). Він заздалегідь декларує, скільки цілочисельних комірок (`Int64`) та комірок з плаваючою крапкою (`Double`) йому потрібно для збереження стану по кожному джерелу радарних даних (`Source`).
 
-Ядро системи виділяє один безперервний масив пам'яті для всіх обробників разом, а в момент виклику конкретного аналітика надає йому індивідуальну проекцію у вигляді `RadarSourceProcessingState`:
+Ядро системи виділяє один безперервний масив пам'яті для всіх обробників разом, а в момент виклику конкретного аналітика надає йому індивідуальну проекцію у вигляді [`RadarSourceProcessingState`](../../../src/Domain/Processing/Handlers/Models/RadarSourceProcessingState.cs):
 
 ```csharp
 public ref struct RadarSourceProcessingState
@@ -82,9 +82,9 @@ public ref struct RadarSourceProcessingState
 
 ---
 
-## 21.3. Практичний випадок: Аналітик-криміналіст `CounterChecksum`
+## 21.3. Практичний випадок: Аналітик-криміналіст [`CounterChecksum`](../../../src/Infrastructure/Processing/Benchmarks/Models/RadarProcessingBenchmarkHandlers/RadarProcessingBenchmarkHandlers.CounterChecksum.cs)
 
-Давайте подивимося на реального аналітика, що використовується в наших тестах продуктивності та інтеграційних сценаріях — `CounterChecksumBenchmarkHandler`. Його завдання — фіксувати кількість оброблених подій, обсяг метаданих та контрольну суму корисного навантаження (Payload) для перевірки цілісності передачі.
+Давайте подивимося на реального аналітика, що використовується в наших тестах продуктивності та інтеграційних сценаріях — [`CounterChecksumBenchmarkHandler`](../../../src/Infrastructure/Processing/Benchmarks/Models/RadarProcessingBenchmarkHandlers/RadarProcessingBenchmarkHandlers.CounterChecksum.cs). Його завдання — фіксувати кількість оброблених подій, обсяг метаданих та контрольну суму корисного навантаження (Payload) для перевірки цілісності передачі.
 
 ```csharp
 private sealed class CounterChecksumBenchmarkHandler :
@@ -138,7 +138,7 @@ private sealed class CounterChecksumBenchmarkHandler :
 }
 ```
 
-Цей обробник чітко розділяє свою роботу на дві складові. З одного боку, він є стандартним `IRadarSourceProcessingHandler`, що обробляє події через інтерфейс `Process`. З іншого боку, він декларує свою готовність до паралельної обробки через `IRadarSourceProcessingHandlerExecutionMetadata` з класифікацією `Mergeable`. Це сигналізує нашому рантайму, що аналітик вміє розраховувати проміжні результати незалежно для кожного батча, а отже, система може запускати обробку його даних паралельно на кількох ядрах процесора, не створюючи затримок для головної черги.
+Цей обробник чітко розділяє свою роботу на дві складові. З одного боку, він є стандартним [`IRadarSourceProcessingHandler`](../../../src/Domain/Processing/Handlers/Contracts/IRadarSourceProcessingHandler.cs), що обробляє події через інтерфейс `Process`. З іншого боку, він декларує свою готовність до паралельної обробки через [`IRadarSourceProcessingHandlerExecutionMetadata`](../../../src/Domain/Processing/Handlers/Contracts/IRadarSourceProcessingHandlerExecutionMetadata.cs) з класифікацією `Mergeable`. Це сигналізує нашому рантайму, що аналітик вміє розраховувати проміжні результати незалежно для кожного батча, а отже, система може запускати обробку його даних паралельно на кількох ядрах процесора, не створюючи затримок для головної черги.
 
 ---
 
@@ -161,7 +161,7 @@ foreach (var assignment in handlerSlotLayout.Assignments)
 Якщо JIT бачить мономорфний або добре передбачуваний call site, він може перетворити частину інтерфейсних викликів на прямі виклики до конкретного типу. Після цього відкривається шанс на **інлайнінг** (inlining), коли код `Process` вбудовується в цикл обробки подій і hot path платить менше за абстракцію. Ключове слово тут — “може”: цю властивість не варто продавати як гарантію, її треба перевіряти профілем на конкретному runtime і handler-наборі.
 
 ### 2. Захищена девіртуалізація (Guarded Devirtualization - GDV)
-Якщо в системі зареєстровано кілька різних обробників (наприклад, `CounterChecksumBenchmarkHandler` та `HeavySampledChecksumHandler`), пряма девіртуалізація неможлива. Тоді JIT використовує механізм GDV. Він створює швидку перевірку типу перед викликом:
+Якщо в системі зареєстровано кілька різних обробників (наприклад, [`CounterChecksumBenchmarkHandler`](../../../src/Infrastructure/Processing/Benchmarks/Models/RadarProcessingBenchmarkHandlers/RadarProcessingBenchmarkHandlers.CounterChecksum.cs) та [`HeavySampledChecksumHandler`](../../../src/Infrastructure/Processing/Benchmarks/Models/RadarProcessingBenchmarkHandlers/RadarProcessingBenchmarkHandlers.HeavySampledChecksum.cs)), пряма девіртуалізація неможлива. Тоді JIT використовує механізм GDV. Він створює швидку перевірку типу перед викликом:
 
 ```csharp
 if (assignment.Handler is CounterChecksumBenchmarkHandler counterHandler)
@@ -203,14 +203,14 @@ JIT збирає статистику викликів (tiered compilation), а 
 ## 🔍 Матеріали справи (Investigation Case Files)
 
 ### 1. Вердикт детективів (Decision Trace & Rationale)
-Створення інтерфейсу розширень `користувацькі обробники (Custom Handlers)` (Віха `024`). Будь-яка аналітична логіка (підрахунок середньої температури, грозові попередження) виноситься за межі ядра системи та підключається через контракти. Це зберегло чистоту ядра `RadarProcessingCore` та ізолювало його від побічних ефектів.
+Створення інтерфейсу розширень `користувацькі обробники (Custom Handlers)` (Віха `024`). Будь-яка аналітична логіка (підрахунок середньої температури, грозові попередження) виноситься за межі ядра системи та підключається через контракти. Це зберегло чистоту ядра [`RadarProcessingCore`](../../../src/Domain/Processing/Core/Services/RadarProcessingCore/RadarProcessingCore.cs) та ізолювало його від побічних ефектів.
 
 #### Чому аналітики працюють поруч із ядром, але не всередині нього
 Можна було дозволити аналітикам писати прямо в ядро: швидко, без додаткових контрактів, але кожна нова метрика ставала б ризиком для core state. Можна було винести аналітику в окремий процес через чергу, але тоді серіалізація й IPC з'їдали б hot path. Ми обрали custom handlers на контрольованих state slots: розширення поряд із ядром, але не всередині його приватної пам'яті. Ціна вибору — суворий контракт handler lifecycle; виграш — extensibility без втрати cache locality і без розмиття доменного ядра.
 
 ### 2. Закони фізики рантайму (System Invariants)
 * **Ізоляція пам'яті обробника**: Обробники отримують лише немутабельні представлення подій та не мають права змінювати вхідний батч.
-* **Реєстрація в каталозі**: Кожен кастомний обробник має бути зареєстрований у каталозі `HandlerCatalog`.
+* **Реєстрація в каталозі**: Кожен кастомний обробник має проходити через явний factory/catalog контракт, наприклад [`RadarProcessingBenchmarkHandlers`](../../../src/Infrastructure/Processing/Benchmarks/Models/RadarProcessingBenchmarkHandlers/RadarProcessingBenchmarkHandlers.cs) або product-facing [`RadarPulseProductHandlerFactory`](../../../src/Infrastructure/Product/Pipeline/Handlers/RadarPulseProductHandlerFactory.cs).
 
 ### 3. Патологоанатомічний звіт (Failure Modes & Recovery)
 * **Зависання обробника**: Повільний обробник створює штучний утриманий тиск пам'яті (Retained Pressure), що автоматично сповільнює впорядковану фіксацію (Ordered Commit) для наступних батчів конвеєра.

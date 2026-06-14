@@ -10,7 +10,7 @@
 
 Перший запобіжник, який ми встановили на нашому «лабораторному столі» — це **гістерезис навантаження (load hysteresis)** та математичне згладжування метрик.
 
-Якщо шард починає відчувати підвищений тиск, це ще не привід негайно бити в дзвони та переносити розділи. Можливо, це просто короткочасний сплеск даних — наприклад, радар зловив відбиття від зграї птахів, і це триватиме лише секунду (`OscillatingSpike`).
+Якщо шард починає відчувати підвищений тиск, це ще не привід негайно бити в дзвони та переносити розділи. Можливо, це просто короткочасний сплеск даних — наприклад, радар зловив відбиття від зграї птахів, і це триватиме лише секунду ([`OscillatingSpike`](../../../src/Infrastructure/Processing/Benchmarks/Options/RadarProcessingSyntheticRebalanceWorkloadKind.cs)).
 
 Планувальник ребалансу використовує дві математичні лінії оборони:
 1. **Згладжування за допомогою EMA (Exponential Moving Average):** замість миттєвого значення черги ми вираховуємо середньозважений показник навантаження:
@@ -70,8 +70,8 @@
 Без hysteresis система стала б надто нервовим диспетчером: кожен короткий сплеск виглядав би як наказ на міграцію. Можна було, навпаки, зробити rebalance рідкісним ручним рішенням, але тоді автоматизація програвала б реальній бурі. Ми обрали набір запобіжників: hysteresis, cooldown, migration budget і bounded telemetry. Ціна вибору — деякі корисні міграції свідомо відкладаються; виграш — topology не смикається від шуму, а рішення мають інерцію й доказову історію.
 
 ### 2. Закони фізики рантайму (System Invariants)
-* **Бюджет міграції**: Кількість дозволених одночасних перенесень джерел обмежена параметром `MigrationBudget`.
-* **Заборона серфінгу**: Радіоджерело не може бути повторно мігроване, якщо не минув час `CooldownTime`.
+* **Бюджет міграції**: Кількість дозволених одночасних перенесень джерел обмежена бюджетами [`GlobalMoveBudget`](../../../src/Domain/Processing/Rebalance/Policies/RadarProcessingRebalancePolicyState.cs), [`GetSourceShardMoveBudget`](../../../src/Domain/Processing/Rebalance/Policies/RadarProcessingRebalancePolicyState.cs) і [`GetTargetShardReceiveBudget`](../../../src/Domain/Processing/Rebalance/Policies/RadarProcessingRebalancePolicyState.cs).
+* **Заборона серфінгу**: Радіоджерело не може бути повторно мігроване, якщо не минули cooldown-параметри [`PartitionMoveCooldownEvaluations`](../../../src/Domain/Processing/Rebalance/Options/RadarProcessingRebalanceOptions.cs), [`SourceShardMoveCooldownEvaluations`](../../../src/Domain/Processing/Rebalance/Options/RadarProcessingRebalanceOptions.cs) або [`TargetShardReceiveCooldownEvaluations`](../../../src/Domain/Processing/Rebalance/Options/RadarProcessingRebalanceOptions.cs).
 
 ### 3. Патологоанатомічний звіт (Failure Modes & Recovery)
 * **Паніка балансування**: При різких коливаннях шуму система тимчасово заморожує будь-які перенесення для збереження стабільного процесингу, віддаючи перевагу накопиченню локальних черг.

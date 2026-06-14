@@ -1,4 +1,4 @@
-﻿# Розділ 5: Архітектурні вартові
+# Розділ 5: Архітектурні вартові
 
 Уявіть, що ви встановили в банку суперсучасні броньовані двері та поставили найкращих детективів охороняти сховище. Але один із касирів, поспішаючи на обід, просто підпер важкі двері цеглиною, щоб не витрачати час на введення пароля при поверненні. Або інший співробітник таємно прорубав маленьке віконце в задній стіні банку, щоб передавати документи напряму своєму приятелю з відділу доставки, минаючи пункт огляду.
 
@@ -55,7 +55,7 @@ private static void AssertProjectReferences(
 }
 ```
 
-Якщо хтось спробує додати `<ProjectReference Include="..\Infrastructure\RadarPulse.Infrastructure.csproj" />` всередину файлу `RadarPulse.Domain.csproj` — цей тест миттєво провалиться.
+Якщо хтось спробує додати `<ProjectReference Include="..\Infrastructure\RadarPulse.Infrastructure.csproj" />` всередину файлу [`RadarPulse.Domain.csproj`](../../../src/Domain/RadarPulse.Domain.csproj) — цей тест миттєво провалиться.
 
 ### Перевірка 2: Контрабанда імпортів у вихідному коді (Source Code Check)
 
@@ -135,9 +135,9 @@ public void DomainDoesNotGrantInfrastructureFriendAccess()
 
 Вартові нашого монастиря не обмежуються простою перевіркою XML-файлів проектів та пошуком ключових слів у тексті. Для найбільш тонких перевірок ми задіємо **рефлексію .NET (Reflection)**. Це дозволяє тестам аналізувати скомпіловані типи, конструктори та приватні поля прямо під час виконання.
 
-Ця перевірка виконується у тесті `ProductApiBoundaryIsOwnedByApplication` та `ProductApiContractDependsOnFocusedApplicationPorts`:
-1. **Перевірка власності збірки:** Ми за допомогою рефлексії перевіряємо, що всі ключові інтерфейси (такі як `IRadarPulseProductPipelineApi` або `IRadarPulseProductPipelineHistoryService`) належать виключно збірці `RadarPulse.Application`. Це блокує можливість випадкового винесення бізнес-портів в інфраструктуру.
-2. **Аналіз конструкторів та приватних полів:** Тест аналізує параметри конструктора класу `RadarPulseProductPipelineApiContract`. Ми переконуємося, що він приймає лише сфокусовані доменні інтерфейси-порти, але не має прямих посилань на загальні сервіси-реалізації. Більше того, рефлексія обходить приватні поля (`BindingFlags.NonPublic | BindingFlags.Instance`), перевіряючи, що всередині класу не приховано жодної несанкціонованої залежності.
+Ця перевірка виконується у тесті [`ProductApiBoundaryIsOwnedByApplication`](../../../tests/RadarPulse.Tests/Architecture/RadarPulseArchitectureTests.cs) та [`ProductApiContractDependsOnFocusedApplicationPorts`](../../../tests/RadarPulse.Tests/Architecture/RadarPulseArchitectureTests.cs):
+1. **Перевірка власності збірки:** Ми за допомогою рефлексії перевіряємо, що всі ключові інтерфейси (такі як [`IRadarPulseProductPipelineApi`](../../../src/Application/Product/Pipeline/Contracts/RadarPulseProductPipelineContracts.cs) або [`IRadarPulseProductPipelineHistoryService`](../../../src/Application/Product/Pipeline/Contracts/RadarPulseProductPipelineContracts.cs)) належать виключно збірці [`RadarPulse.Application`](../../../src/Application/RadarPulse.Application.csproj). Це блокує можливість випадкового винесення бізнес-портів в інфраструктуру.
+2. **Аналіз конструкторів та приватних полів:** Тест аналізує параметри конструктора класу [`RadarPulseProductPipelineApiContract`](../../../src/Application/Product/Pipeline/Contracts/RadarPulseProductPipelineContracts.cs). Ми переконуємося, що він приймає лише сфокусовані доменні інтерфейси-порти, але не має прямих посилань на загальні сервіси-реалізації. Більше того, рефлексія обходить приватні поля (`BindingFlags.NonPublic | BindingFlags.Instance`), перевіряючи, що всередині класу не приховано жодної несанкціонованої залежності.
 
 Такий динамічний аналіз скомпілованих збірок дає нам перевірювану впевненість у тому, що інтерфейсні контракти залишаються чистими та сфокусованими, а інфраструктурні деталі не просочуються через лазівки обходу типізації C#.
 

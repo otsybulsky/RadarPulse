@@ -29,8 +29,8 @@ archive corpus -> streaming contract -> retained payload -> delta compute
 
 | Інваріант | Чому він важливий | Де вже доведений |
 | :--- | :--- | :--- |
-| `RadarStreamEvent`/`RadarEventBatch` лишаються контрольованим hot-path контрактом | Інакше зовнішній формат знову пролізе в домен | [Розділ 3](chapter_03_radar_batch.md), [Додаток Б](appendix_b_claim_evidence_matrix.md) |
-| `Provider Sequence` визначає commit order | Інакше паралельність почне міняти історію | [Розділ 14](chapter_14_concurrency_chaos.md), [Розділ 15](chapter_15_ordered_coordinator.md) |
+| [`RadarStreamEvent`](../../../src/Domain/Streaming/Streams/Models/RadarStreamEvent.cs)/[`RadarEventBatch`](../../../src/Domain/Streaming/Batches/Models/RadarEventBatch.cs) лишаються контрольованим hot-path контрактом | Інакше зовнішній формат знову пролізе в домен | [Розділ 3](chapter_03_radar_batch.md), [Додаток Б](appendix_b_claim_evidence_matrix.md) |
+| [`Provider Sequence`](../../../src/Domain/Processing/Queueing/Models/RadarProcessingQueuedBatchSequence.cs) визначає commit order | Інакше паралельність почне міняти історію | [Розділ 14](chapter_14_concurrency_chaos.md), [Розділ 15](chapter_15_ordered_coordinator.md) |
 | Compute і commit лишаються розділеними | Інакше повертається криза спільного стану | [Розділ 16](chapter_16_mutable_core.md) |
 | Topology version перевіряється перед commit | Інакше stale route потрапить у core | [Розділ 17](chapter_17_stale_recompute.md) |
 | Durable envelope описує state machine, а adapter лише зберігає її | Інакше broker/database почнуть диктувати доменну семантику | [Розділ 18](chapter_18_durable_envelope.md), [Розділ 19](chapter_19_file_store.md) |
@@ -45,7 +45,7 @@ archive corpus -> streaming contract -> retained payload -> delta compute
 | :--- | :--- | :--- | :--- |
 | 1 | Observability contract: structured logs, metrics, traces, run id, sequence id, topology version, retained pressure; починати з [Розділу 26](chapter_26_observability_logging.md) | Без цього production-збій не буде відтворюваним | Fault-injection run показує first blocking reason, retained pressure, retry/poison path і correlation id |
 | 2 | Database adapter для run history/readiness або durable state | Коли локальний JSON перестає бути достатнім для audit, retention або multi-user access | Adapter contract tests: schema version, transaction boundary, duplicate replay, corrupted record handling |
-| 3 | Broker adapter для `DurableEnvelope` | Коли producer/worker lifecycle виходить за межі одного процесу | At-least-once replay tests, duplicate delivery, poison quarantine, ordered commit after restart |
+| 3 | Broker adapter для [`DurableEnvelope`](../../../src/Infrastructure/Processing/Durable/Services/RadarProcessingDurableEnvelopeQueue/RadarProcessingDurableEnvelopeQueue.cs) | Коли producer/worker lifecycle виходить за межі одного процесу | At-least-once replay tests, duplicate delivery, poison quarantine, ordered commit after restart |
 | 4 | Public API boundary: reverse proxy, TLS termination, authN/authZ, rate limits, CORS policy | Коли Operator UI перестає бути локальним cockpit | API security smoke, permission matrix, rejected unsafe control commands |
 | 5 | Live ingestion adapter | Коли система має працювати з реальним зовнішнім потоком, а не replay corpus | Backpressure, malformed record, reconnect, corpus drift і latency budget gates |
 | 6 | Multi-node processing | Тільки після broker/database/observability, бо інакше немає fencing і recovery story | Partition ownership fencing, topology lease, stale recompute parity, node-kill scenario |
@@ -57,7 +57,7 @@ archive corpus -> streaming contract -> retained payload -> delta compute
 | Якщо болить | Перший production-напрям | Чому не одразу інший шлях |
 | :--- | :--- | :--- |
 | Потрібен audit trail запусків для кількох операторів | SQL database adapter для product history/readiness | Broker не вирішує query/history; NoSQL може бути доречним пізніше, але спершу потрібна transactional audit shape |
-| Потрібна доставка між процесами | Broker adapter над `DurableEnvelope` | Не можна просто “підключити Kafka” і забути FSM: retry, poison і commit boundary мають лишитися нашими |
+| Потрібна доставка між процесами | Broker adapter над [`DurableEnvelope`](../../../src/Infrastructure/Processing/Durable/Services/RadarProcessingDurableEnvelopeQueue/RadarProcessingDurableEnvelopeQueue.cs) | Не можна просто “підключити Kafka” і забути FSM: retry, poison і commit boundary мають лишитися нашими |
 | Потрібен публічний доступ до UI | Reverse proxy + auth + TLS + explicit API policy | Angular polish без security boundary створює красиву, але відкриту панель керування |
 | Потрібен live radar stream | Ingestion adapter з backpressure і validation quarantine | Live input без failure quarantine швидко перетворить parser errors на runtime noise |
 | Потрібне горизонтальне масштабування | Partition ownership/fencing service | Multi-node без fencing робить topology migration небезпечнішою, ніж single-node bottleneck |

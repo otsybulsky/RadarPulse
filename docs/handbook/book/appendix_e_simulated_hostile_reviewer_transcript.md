@@ -48,7 +48,7 @@ Accepted with scope. Цифра сильна, якщо завжди повтор
 
 **Автор (Author):**
 
-Це було б швидко тільки для ідеального однорідного формату. У [Розділі 3](chapter_03_radar_batch.md) пояснено, чому NEXRAD не можна пустити прямо в домен: endian conversion, variable payload, зовнішня binary schema, payload references. Builder переводить зовнішній формат у наш `RadarEventBatch`, де offset/length і payload checksum проходять validation. Кодова точка — [RadarEventBatchBuilder.cs](../../../src/Domain/Streaming/Batches/Services/RadarEventBatchBuilder/RadarEventBatchBuilder.cs), тестова — [RadarEventBatchBuilderTests](../../../tests/RadarPulse.Tests/Streaming/Batches/RadarEventBatchBuilderTests).
+Це було б швидко тільки для ідеального однорідного формату. У [Розділі 3](chapter_03_radar_batch.md) пояснено, чому NEXRAD не можна пустити прямо в домен: endian conversion, variable payload, зовнішня binary schema, payload references. Builder переводить зовнішній формат у наш [`RadarEventBatch`](../../../src/Domain/Streaming/Batches/Models/RadarEventBatch.cs), де offset/length і payload checksum проходять validation. Кодова точка — [RadarEventBatchBuilder.cs](../../../src/Domain/Streaming/Batches/Services/RadarEventBatchBuilder/RadarEventBatchBuilder.cs), тестова — [RadarEventBatchBuilderTests](../../../tests/RadarPulse.Tests/Streaming/Batches/RadarEventBatchBuilderTests).
 
 **Уточнення рецензента (Reviewer follow-up):**
 
@@ -136,7 +136,7 @@ Accepted. Книга виграє від того, що не продає linear
 
 **Автор (Author):**
 
-Milestone trail фіксує кризу спільного стану як decision point: [Milestone 021: криза спільного стану](../../milestones/021-ordered-concurrent-runtime-archive-processing-slice-3-blocker.md). Проблема була не в “поганому lock”, а в тому, що `RadarProcessingCore` мав спільний змінний стан і cumulative reads. Рішенням став [RadarProcessingBatchDelta.cs](../../../src/Domain/Processing/Core/Models/RadarProcessingBatchDelta.cs): воркер рахує delta, ordered commit застосовує її до core.
+Milestone trail фіксує кризу спільного стану як decision point: [Milestone 021: криза спільного стану](../../milestones/021-ordered-concurrent-runtime-archive-processing-slice-3-blocker.md). Проблема була не в “поганому lock”, а в тому, що [`RadarProcessingCore`](../../../src/Domain/Processing/Core/Services/RadarProcessingCore/RadarProcessingCore.cs) мав спільний змінний стан і cumulative reads. Рішенням став [RadarProcessingBatchDelta.cs](../../../src/Domain/Processing/Core/Models/RadarProcessingBatchDelta.cs): воркер рахує delta, ordered commit застосовує її до core.
 
 **Уточнення рецензента (Reviewer follow-up):**
 
@@ -176,7 +176,7 @@ Accepted with future hardening note. Correctness story сильна, але prod
 
 **Рецензент (Reviewer):**
 
-Ви створили власний `DurableEnvelope`. Чому це не “not invented here” замість Kafka/RabbitMQ?
+Ви створили власний [`DurableEnvelope`](../../../src/Infrastructure/Processing/Durable/Services/RadarProcessingDurableEnvelopeQueue/RadarProcessingDurableEnvelopeQueue.cs). Чому це не “not invented here” замість Kafka/RabbitMQ?
 
 **Автор (Author):**
 
@@ -246,7 +246,7 @@ Extension points часто стають діркою в архітектурі.
 
 **Автор (Author):**
 
-Handler отримує `RadarSourceProcessingHandlerContext` і `RadarSourceProcessingState`, обмежений slots і posture. Contract — [IRadarSourceProcessingHandler.cs](../../../src/Domain/Processing/Handlers/Contracts/IRadarSourceProcessingHandler.cs). Runtime plan — [RadarProcessingMvpRuntimePlan.cs](../../../src/Infrastructure/Processing/Runtime/Models/RadarProcessingMvpRuntimePlan.cs): snapshot-only handler веде до sequential fallback, unsupported blocks MVP processing, mergeable отримує ordered handler delta/merge path.
+Handler отримує [`RadarSourceProcessingHandlerContext`](../../../src/Domain/Processing/Handlers/Models/RadarSourceProcessingHandlerContext.cs) і [`RadarSourceProcessingState`](../../../src/Domain/Processing/Handlers/Models/RadarSourceProcessingState.cs), обмежений slots і posture. Contract — [IRadarSourceProcessingHandler.cs](../../../src/Domain/Processing/Handlers/Contracts/IRadarSourceProcessingHandler.cs). Runtime plan — [RadarProcessingMvpRuntimePlan.cs](../../../src/Infrastructure/Processing/Runtime/Models/RadarProcessingMvpRuntimePlan.cs): snapshot-only handler веде до sequential fallback, unsupported blocks MVP processing, mergeable отримує ordered handler delta/merge path.
 
 **Уточнення рецензента (Reviewer follow-up):**
 
@@ -276,7 +276,7 @@ Accepted. Extension model консервативний, а не permissive.
 
 **Автор (Author):**
 
-Почав би з allocation profile of `RadarProcessingHandlerDeltaValue` arrays, accumulator snapshots, dictionary churn, and heavy handler field cardinality. Наступний gate мав би порівнювати active=4 allocation after optimization against current `2.612x`, without weakening correctness.
+Почав би з allocation profile of [`RadarProcessingHandlerDeltaValue`](../../../src/Domain/Processing/Handlers/Models/RadarProcessingHandlerDeltaValue.cs) arrays, accumulator snapshots, dictionary churn, and heavy handler field cardinality. Наступний gate мав би порівнювати active=4 allocation after optimization against current `2.612x`, without weakening correctness.
 
 **Вердикт рецензента (Reviewer verdict):**
 

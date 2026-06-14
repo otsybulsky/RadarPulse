@@ -8,7 +8,7 @@
 
 ## 13.1. Аномалія холодного старту: ArrayPool Misses
 
-Коли ми успішно впровадили пулінг масивів `pooled-copy` (описаний у Розділі 12), довгі full-cache тести показали різке падіння retained allocation у steady-state. Але коли ми почали запускати точкові тести окремих файлів за допомогою методу `MeasureFile()`, звіт про виділення пам'яті знову показав дивні цифри:
+Коли ми успішно впровадили пулінг масивів `pooled-copy` (описаний у Розділі 12), довгі full-cache тести показали різке падіння retained allocation у steady-state. Але коли ми почали запускати точкові тести окремих файлів за допомогою методу [`MeasureFile()`](../../../src/Infrastructure/Processing/ArchiveRuntime/Services/RadarProcessingArchiveRebalanceBenchmark/RadarProcessingArchiveRebalanceBenchmark.MeasureFile.cs), звіт про виділення пам'яті знову показав дивні цифри:
 
 > [!WARNING]
 > Перший запуск тесту над репрезентативним файлом KTLX виділив цілих **138 мегабайт** (138,151,728 байт) пам'яті, хоча всі наступні повторення цього ж тесту вкладалися в скромні ліміти.
@@ -17,7 +17,7 @@
 
 Детектив почав детальне вивчення поведінки внутрішніх механізмів пам'яті. Звинувачення було пред'явлено так званим **промахам пулу (pool misses)**.
 
-Коли програма запускається, її внутрішні пули `ArrayPool` абсолютно порожні. Вони не мають жодного готового масиву «на полицях». Коли наш метод `ToOwnedSnapshot()` приходить орендувати перший великий масив під події чи корисні дані, пул каже: «Вибач, у мене зараз нічого немає. Зачекай, я звернуся до операційної системи й створю для тебе новий масив».
+Коли програма запускається, її внутрішні пули `ArrayPool` абсолютно порожні. Вони не мають жодного готового масиву «на полицях». Коли наш метод [`ToOwnedSnapshot()`](../../../src/Domain/Streaming/Batches/Models/RadarEventBatch.cs) приходить орендувати перший великий масив під події чи корисні дані, пул каже: «Вибач, у мене зараз нічого немає. Зачекай, я звернуся до операційної системи й створю для тебе новий масив».
 
 Пул виділяє пам'ять у купі (allocation), віддає масив системі, а після завершення обробки приймає його назад і кладе на полицю. Наступні запити обслуговуються вже миттєво і без виділень — пул бере масив зі своєї полиці.
 
@@ -30,11 +30,11 @@
 1. **JIT-компіляція (Just-In-Time Compilation):** Віртуальна машина .NET (CLR) компілює проміжний IL-код методів у нативні інструкції процесора безпосередньо під час першого виклику. На гарячих шляхах обробки з мільйонами викликів перша компіляція створює мілісекундні затримки (JIT spikes). Ми додали примусовий розігрів JIT — прогін фейкових легких батчів через весь ланцюжок воркерів перед стартом бенчмарку, щоб змусити JIT скомпілювати всі гарячі методи заздалегідь.
 2. **Прогрів пулів ArrayPool:**
 Ми ввели явні контракти прогріву для наших ключових сховищ пам'яті:
-* `RadarProcessingRetainedEventArrayPool.Prewarm()`
-* `RadarProcessingRetainedPayloadByteArrayPool.Prewarm()`
-* `RadarProcessingRetainedPayloadFactory.Prewarm()`
+* [`RadarProcessingRetainedEventArrayPool.Prewarm()`](../../../src/Infrastructure/Processing/Retention/Services/RadarProcessingRetainedEventArrayPool/RadarProcessingRetainedEventArrayPool.Return.cs)
+* [`RadarProcessingRetainedPayloadByteArrayPool.Prewarm()`](../../../src/Infrastructure/Processing/Retention/Services/RadarProcessingRetainedPayloadByteArrayPool.cs)
+* [`RadarProcessingRetainedPayloadFactory.Prewarm()`](../../../src/Infrastructure/Processing/Retention/Services/RadarProcessingRetainedPayloadFactory/RadarProcessingRetainedPayloadFactory.Prewarm.cs)
 
-Перед тим як запустити секундомір бенчмарку та почати вимірювання операції `MeasureFile()`, система виконує фазу прогріву. Вона заздалегідь орендує великі масиви з пулу та негайно повертає їх назад, тим самим змушуючи пул ініціалізувати свої внутрішні полиці та заповнити їх структурами потрібного розміру.
+Перед тим як запустити секундомір бенчмарку та почати вимірювання операції [`MeasureFile()`](../../../src/Infrastructure/Processing/ArchiveRuntime/Services/RadarProcessingArchiveRebalanceBenchmark/RadarProcessingArchiveRebalanceBenchmark.MeasureFile.cs), система виконує фазу прогріву. Вона заздалегідь орендує великі масиви з пулу та негайно повертає їх назад, тим самим змушуючи пул ініціалізувати свої внутрішні полиці та заповнити їх структурами потрібного розміру.
 
 Ми стандартизували розмір прогріву під репрезентативний радарний пакет даних:
 * **Кількість подій (Event Count):** 65,536 об'єктів подій.
@@ -92,7 +92,7 @@ Chapters 7-13 стали хронікою нашої тривалої борот
 | :--- | :--- | :--- |
 | Холодний старт був реальною ціною, а не шумом тесту | Representative KTLX row: natural allocation `138_151_728`, prewarmed allocation `68_420_960`, prewarmed pool misses `0` | [017-file-level-default-readiness-and-cold-retained-ownership-cost-measurefile-gate.md](../../milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-measurefile-gate.md) |
 | Prewarm повернув MeasureFile() до borrowed-рівня замість приховати перший запуск | Representative KTLX row: borrowed allocation `70_635_296`, prewarmed ratio `0.969x` | [017-file-level-default-readiness-and-cold-retained-ownership-cost-measurefile-gate.md](../../milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-measurefile-gate.md) |
-| Unit-тести охороняють startup lifecycle | `StartupPrewarm` suite перевіряє, що прогрів запускається явно і не ламає release discipline | `dotnet test tests/RadarPulse.Tests --filter "FullyQualifiedName~StartupPrewarm"` |
+| Unit-тести охороняють startup lifecycle | [`StartupPrewarm`](../../../tests/RadarPulse.Tests/Processing/Queueing/RadarProcessingArchiveQueuedOverlapRunnerTests/RadarProcessingArchiveQueuedOverlapRunnerTests.StartupPrewarm.cs) suite перевіряє, що прогрів запускається явно і не ламає release discipline | `dotnet test tests/RadarPulse.Tests --filter "FullyQualifiedName~StartupPrewarm"` |
 
 ### 5. Слід доказової бази (Implementation & Tests)
 * Метод прогріву: [RadarProcessingRetainedPayloadFactory.Prewarm.cs](../../../src/Infrastructure/Processing/Retention/Services/RadarProcessingRetainedPayloadFactory/RadarProcessingRetainedPayloadFactory.Prewarm.cs)

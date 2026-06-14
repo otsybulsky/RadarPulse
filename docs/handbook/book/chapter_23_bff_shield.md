@@ -1,14 +1,14 @@
-﻿# Розділ 23: Щит для фронтенду (бекенд для фронтенду, Backend-for-Frontend)
+# Розділ 23: Щит для фронтенду (бекенд для фронтенду, Backend-for-Frontend)
 
-Внутрішній runtime RadarPulse не є форматом для браузера. Там живуть `DurableEnvelope`, retained pressure, topology versions, worker states, pooled buffers і координатори комміту. Якщо віддати це напряму Angular SPA, фронтенд швидко стане заручником внутрішньої кухні ядра.
+Внутрішній runtime RadarPulse не є форматом для браузера. Там живуть [`DurableEnvelope`](../../../src/Infrastructure/Processing/Durable/Services/RadarProcessingDurableEnvelopeQueue/RadarProcessingDurableEnvelopeQueue.cs), retained pressure, topology versions, worker states, pooled buffers і координатори комміту. Якщо віддати це напряму Angular SPA, фронтенд швидко стане заручником внутрішньої кухні ядра.
 
-Тому під час віхи `028` з'явився **бекенд для фронтенду (Backend-for-Frontend, BFF)**: тонкий product-facing шар, який перекладає стан системи на мову оператора. Він не приховує правду і не малює production-ілюзію; він віддає стабільні DTO/read models, readiness, diagnostics, warnings і `NonClaims`, не відкриваючи клієнту приватні моделі рантайму.
+Тому під час віхи `028` з'явився **бекенд для фронтенду (Backend-for-Frontend, BFF)**: тонкий product-facing шар, який перекладає стан системи на мову оператора. Він не приховує правду і не малює production-ілюзію; він віддає стабільні DTO/read models, readiness, diagnostics, warnings і [`NonClaims`](../../../src/Presentation/RadarPulse.Http/Product/Readiness/RadarPulseProductDemoReadiness.cs), не відкриваючи клієнту приватні моделі рантайму.
 
 ---
 
-## 23.1. Конструкція щита: Мінімальний API (`RadarPulseProductHttpEndpoints`)
+## 23.1. Конструкція щита: Мінімальний API ([`RadarPulseProductHttpEndpoints`](../../../src/Presentation/RadarPulse.Http/Product/Endpoints/RadarPulseProductHttpEndpoints.cs))
 
-Технічним фундаментом BFF є Minimal API, розгорнутий у проекті `RadarPulse.Http`. Він мапує групу ендпоінтів `/product/pipeline` і виступає тонким адаптером поверх внутрішнього інтерфейсу `IRadarPulseProductPipelineApi`:
+Технічним фундаментом BFF є Minimal API, розгорнутий у проекті [`RadarPulse.Http`](../../../src/Presentation/RadarPulse.Http/RadarPulse.Http.csproj). Він мапує групу ендпоінтів `/product/pipeline` і виступає тонким адаптером поверх внутрішнього інтерфейсу [`IRadarPulseProductPipelineApi`](../../../src/Application/Product/Pipeline/Contracts/RadarPulseProductPipelineContracts.cs):
 
 ```csharp
 public static class RadarPulseProductHttpEndpoints
@@ -55,11 +55,11 @@ public static class RadarPulseProductHttpEndpoints
 
 ---
 
-## 23.2. Сигналізація готовності: Карта дефектів (`RadarPulseProductDemoReadiness`)
+## 23.2. Сигналізація готовності: Карта дефектів ([`RadarPulseProductDemoReadiness`](../../../src/Presentation/RadarPulse.Http/Product/Readiness/RadarPulseProductDemoReadiness.cs))
 
 Одним із ключових завдань BFF є розрахунок сумарного стану системи — **Readiness State**. Коли користувач завантажує інтерфейс, він повинен миттєво зрозуміти: чи готова система до запуску нового аналітичного розслідування?
 
-Замість того, щоб змушувати фронтенд самостійно опитувати стан диска, перевіряти наявність Angular-дистрибутива та підключення до API, BFF об'єднує всі ці перевірки в один об'єкт `RadarPulseProductDemoReadiness` за допомогою методу `From`:
+Замість того, щоб змушувати фронтенд самостійно опитувати стан диска, перевіряти наявність Angular-дистрибутива та підключення до API, BFF об'єднує всі ці перевірки в один об'єкт [`RadarPulseProductDemoReadiness`](../../../src/Presentation/RadarPulse.Http/Product/Readiness/RadarPulseProductDemoReadiness.cs) за допомогою методу `From`:
 
 ```csharp
 public sealed record RadarPulseProductDemoReadiness(
@@ -122,7 +122,7 @@ public sealed record RadarPulseProductDemoReadiness(
 }
 ```
 
-Метод `ResolveFirstBlockingReason` працює за принципом каскадного фільтра. Якщо історія заблокована (наприклад, файл історії `radarpulse-product-history.json` пошкоджений або недоступний для запису), це стає першою причиною блокування (`FirstBlockingReason`). Якщо з історією все гаразд, але адміністратор забув зібрати дистрибутив Angular UI (`index.html` відсутній у папці `dist`), першою причиною стане помилка інтерфейсу. Фронтенд просто зчитує поле `IsReady` та рядок `FirstBlockingReason`, виводячи на екран красивий червоний або зелений банер.
+Метод [`ResolveFirstBlockingReason`](../../../src/Presentation/RadarPulse.Http/Product/Readiness/RadarPulseProductDemoReadiness.cs) працює за принципом каскадного фільтра. Якщо історія заблокована (наприклад, файл історії [`radarpulse-product-history.json`](../../../src/Infrastructure/Product/History/Stores/RadarPulseProductFileRunHistoryStore/RadarPulseProductFileRunHistoryStore.cs) пошкоджений або недоступний для запису), це стає першою причиною блокування (`FirstBlockingReason`). Якщо з історією все гаразд, але адміністратор забув зібрати дистрибутив Angular UI ([`index.html`](../../../src/Presentation/OperatorUi/src/index.html) відсутній у папці `dist`), першою причиною стане помилка інтерфейсу. Фронтенд просто зчитує поле `IsReady` та рядок `FirstBlockingReason`, виводячи на екран красивий червоний або зелений банер.
 
 ---
 
@@ -130,7 +130,7 @@ public sealed record RadarPulseProductDemoReadiness(
 
 У реальних сценаріях кожен метеорологічний радар NEXRAD генерує сотні тисяч точок даних за один повний оберт антени. Тут легко написати красиву обіцянку про плитки, heatmap-и, WebSocket-и та стиснення. Ми так не робимо. У поточній реалізації BFF не є tile server і не містить окремого `ResponseCompression` pipeline. Його реальна робота інша: перетворити внутрішній runtime стан на стабільні product/readiness DTO, які операторський UI може показати без доступу до пам'яті ядра.
 
-Це свідомий вибір черги доказів. Спочатку ми доводимо, що зовнішній контракт не бреше: run summary, detail, capacity evidence, diagnostics, handler output, readiness і `NonClaims` узгоджені з тим, що справді відбулося в pipeline. Трафікова оптимізація без стабільного DTO-контракту була б косметикою поверх рухомої підлоги.
+Це свідомий вибір черги доказів. Спочатку ми доводимо, що зовнішній контракт не бреше: run summary, detail, capacity evidence, diagnostics, handler output, readiness і [`NonClaims`](../../../src/Presentation/RadarPulse.Http/Product/Readiness/RadarPulseProductDemoReadiness.cs) узгоджені з тим, що справді відбулося в pipeline. Трафікова оптимізація без стабільного DTO-контракту була б косметикою поверх рухомої підлоги.
 
 Наступний BFF gate уже має зрозумілий предмет, але поки це не claim:
 * **Downsampling/rasterization path:** сервер може перетворювати radar/event detail у агрегований візуальний зріз, якщо UI перейде від табличного read-model до живої карти.
@@ -141,11 +141,11 @@ public sealed record RadarPulseProductDemoReadiness(
 
 ---
 
-## 23.4. Запобіжні декларації: `Warnings` та `NonClaims`
+## 23.4. Запобіжні декларації: `Warnings` та [`NonClaims`](../../../src/Presentation/RadarPulse.Http/Product/Readiness/RadarPulseProductDemoReadiness.cs)
 
-Наш BFF грає роль чесного детектива. Він не повинен приписувати собі подвигів, яких не здійснював. Оскільки система розроблена в концепції «Лабораторного столу» на одній машині, BFF відкрито транслює список обмежень відповідальності (`NonClaims`) та попереджень (`Warnings`).
+Наш BFF грає роль чесного детектива. Він не повинен приписувати собі подвигів, яких не здійснював. Оскільки система розроблена в концепції «Лабораторного столу» на одній машині, BFF відкрито транслює список обмежень відповідальності ([`NonClaims`](../../../src/Presentation/RadarPulse.Http/Product/Readiness/RadarPulseProductDemoReadiness.cs)) та попереджень (`Warnings`).
 
-Ці списки зашиті в коді `RadarPulseProductDemoReadiness` і передаються кожному клієнту:
+Ці списки зашиті в коді [`RadarPulseProductDemoReadiness`](../../../src/Presentation/RadarPulse.Http/Product/Readiness/RadarPulseProductDemoReadiness.cs) і передаються кожному клієнту:
 
 ```csharp
 private static readonly string[] PackageWarnings =
@@ -182,8 +182,8 @@ BFF виступає надійним щитом: він захищає внут
 SPA могла напряму читати runtime-моделі, але тоді фронтенд отримав би durable envelopes, pooled pressure, topology internals і випадкові зміни доменних типів. Можна було зробити універсальний generic API, але він став би тонким обгортанням внутрішньої кухні. BFF обрано як перекладача для оператора: він віддає не все, що знає система, а те, що потрібно для рішення. Ціна вибору — додаткові DTO і read-model store; виграш — стабільний UI-контракт і захист семантики ядра (core semantics) від presentation-запитів.
 
 ### 2. Закони фізики рантайму (System Invariants)
-* **Незмінність read-моделі**: BFF-сховище `RadarProcessingBffReadModelStore` оновлюється виключно після впорядкованої фіксації (Ordered Commit).
-* **Ізоляція інтерфейсу**: Прямі запити з UI до внутрішніх об'єктів черги `DurableEnvelopeQueue` суворо заборонені.
+* **Незмінність read-моделі**: BFF-сховище [`RadarProcessingBffReadModelStore`](../../../src/Application/Processing/Services/RadarProcessingBffReadModelStore.cs) оновлюється виключно після впорядкованої фіксації (Ordered Commit).
+* **Ізоляція інтерфейсу**: Прямі запити з UI до внутрішніх об'єктів черги [`DurableEnvelopeQueue`](../../../src/Infrastructure/Processing/Durable/Services/RadarProcessingDurableEnvelopeQueue/RadarProcessingDurableEnvelopeQueue.cs) суворо заборонені.
 
 ### 3. Патологоанатомічний звіт (Failure Modes & Recovery)
 * **Збій оновлення read-моделі**: У разі помилки оновлення BFF-сховища, оператор може бачити застарілі дані на екрані, але це жодним чином не впливає на стабільність обробки радарних батчів.

@@ -104,7 +104,7 @@ Processing core + topology state
 
 | Зона компетенції | Що показує книга | Де перевірити |
 | :--- | :--- | :--- |
-| Орієнтований на дані дизайн (Data-oriented design) | Автор не віддає домену сирий NEXRAD binary stream, а проектує компактний `RadarStreamEvent` і `RadarEventBatch` із контрольованим payload lifetime | [Розділ 3](chapter_03_radar_batch.md), [Додаток А](appendix_a_profiling.md) |
+| Орієнтований на дані дизайн (Data-oriented design) | Автор не віддає домену сирий NEXRAD binary stream, а проектує компактний [`RadarStreamEvent`](../../../src/Domain/Streaming/Streams/Models/RadarStreamEvent.cs) і [`RadarEventBatch`](../../../src/Domain/Streaming/Batches/Models/RadarEventBatch.cs) із контрольованим payload lifetime | [Розділ 3](chapter_03_radar_batch.md), [Додаток А](appendix_a_profiling.md) |
 | Дисципліна пам'яті рантайму (Runtime memory discipline) | Allocation crisis не приховано і не списано на GC: `snapshot-copy` отримує діагноз, після чого `pooled-copy` знижує retained allocation з `9_947_507_832` до `102_811_264` bytes | [Розділ 11](chapter_11_allocation_anomaly.md), [Розділ 12](chapter_12_pooled_copy.md) |
 | Цілісність вимірювань (Measurement integrity) | Unit-тести відділені від benchmark-доказів; цифри продуктивності ведуть до контрольної перевірки віхи або її closeout-документа, а не до красивої фрази в тексті | [Додаток Б](appendix_b_claim_evidence_matrix.md) |
 | Коректність конкурентності (Concurrency correctness) | Автор не просто додає воркери, а зупиняється на кризі спільного стану: паралельні воркери впираються у спільний змінний стан. Після цього runtime розділено на compute/commit, а ціна безпеки (safety tax) виміряна окремо | [Розділ 16](chapter_16_mutable_core.md), [Розділ 17](chapter_17_stale_recompute.md) |
@@ -124,7 +124,7 @@ Processing core + topology state
 
 Сильна книга не боїться місць для атаки. Повний набір таких атак винесено в [Додаток Г](appendix_d_reviewer_attack_pack.md), а детальна simulated-сесія з follow-up і verdict — у [Додаток Д](appendix_e_simulated_hostile_reviewer_transcript.md). Найкращі питання до автора після прочитання:
 
-1. Де саме локальний `FileDurableEnvelopeStore` перестає бути достатнім і який broker/database adapter ви ввели б першим?
+1. Де саме локальний [`FileDurableEnvelopeStore`](../../../src/Infrastructure/Processing/Durable/Stores/RadarProcessingFileDurableEnvelopeStore.cs) перестає бути достатнім і який broker/database adapter ви ввели б першим?
 2. Який traffic benchmark потрібен для BFF, щоб перетворити downsampling/compression intent на performance claim?
 3. Як би ви довели handler delta/merge contract для сторонніх обробників, які мають складний власний стан?
 4. Чи може сторонній reviewer відтворити `data/nexrad` cache і пройти archive/product verification без приватних інструкцій автора?

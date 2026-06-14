@@ -158,7 +158,7 @@ dotnet run -c Release --project src/Presentation/RadarPulse.Cli/RadarPulse.Cli.c
   --handlers counter-checksum
 ```
 
-Якщо цей маршрут проходить, локальний стенд уже довів базову функціональність: public archive discovery, deterministic cache write, decompression, replay projection, `RadarEventBatch` path і product-facing archive run.
+Якщо цей маршрут проходить, локальний стенд уже довів базову функціональність: public archive discovery, deterministic cache write, decompression, replay projection, [`RadarEventBatch`](../../../src/Domain/Streaming/Batches/Models/RadarEventBatch.cs) path і product-facing archive run.
 
 ---
 
@@ -446,7 +446,7 @@ dotnet $Cli archive validate replay-shape `
   Tee-Object -FilePath "$PerfRoot/archive-replay-shape-validation.log"
 ```
 
-Перший evidence run — normalized stream benchmark. Він доводить швидкість і allocation profile переходу з archive replay до `RadarEventBatch` stream contract, без handler/runtime layers.
+Перший evidence run — normalized stream benchmark. Він доводить швидкість і allocation profile переходу з archive replay до [`RadarEventBatch`](../../../src/Domain/Streaming/Batches/Models/RadarEventBatch.cs) stream contract, без handler/runtime layers.
 
 ```powershell
 dotnet $Cli archive benchmark stream `
@@ -742,7 +742,7 @@ production deployment readiness
 | Крок | Команда | Ознака успіху |
 | :--- | :--- | :--- |
 | Restore/build | `dotnet build RadarPulse.sln -c Release --no-restore` | Solution builds |
-| UI dependencies | `npm install` у `src/Presentation/OperatorUi` | `node_modules` встановлено без фатальних помилок |
+| UI dependencies | `npm install` у [`src/Presentation/OperatorUi`](../../../src/Presentation/OperatorUi) | `node_modules` встановлено без фатальних помилок |
 | Manifest | `archive list --manifest ...` | Є file/byte summary і JSON manifest |
 | Download | `archive download --manifest ...` | Files downloaded or skipped; no preflight failure |
 | Inspect | `archive inspect --cache ...` | Cache summary shows selected files |

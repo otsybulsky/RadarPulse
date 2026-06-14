@@ -77,7 +77,7 @@ Workload тесту виглядав так:
 
 Важливим фактором, який утримав накладні витрати на повторний обчислювальний шлях у межах 11%, є локальність даних у пам'яті.
 
-Коли батч відправляється на повторний розрахунок, його вихідні бінарні дані та структури `RadarStreamEvent` вже лежать у швидкісній оперативній пам'яті (RAM) та гарячому кеші L3 процесора AMD Ryzen 9 після щойно проведеного першого прогону. Нам не потрібно знову звертатися до повільного SSD чи робити повторну декомпресію BZip2. Процесор Zen 5 виконує повторний розрахунок дельти практично повністю всередині своєї надшвидкої внутрішньої пам'яті, що зводить вартість переобчислення до мінімуму.
+Коли батч відправляється на повторний розрахунок, його вихідні бінарні дані та структури [`RadarStreamEvent`](../../../src/Domain/Streaming/Streams/Models/RadarStreamEvent.cs) вже лежать у швидкісній оперативній пам'яті (RAM) та гарячому кеші L3 процесора AMD Ryzen 9 після щойно проведеного першого прогону. Нам не потрібно знову звертатися до повільного SSD чи робити повторну декомпресію BZip2. Процесор Zen 5 виконує повторний розрахунок дельти практично повністю всередині своєї надшвидкої внутрішньої пам'яті, що зводить вартість переобчислення до мінімуму.
 
 Головний висновок цього розслідування: механізм **перерахунок застарілої топології (Stale Topology Recompute)** є життєздатним і виміряним. Він дозволяє поєднувати гнучкість динамічного ребалансу з паралельним обробником, не підміняючи correctness оптимістичною вірою в те, що стара топологія “майже така сама”.
 ---
@@ -91,7 +91,7 @@ Workload тесту виглядав так:
 Коли topology змінюється під час обчислення, можна було заблокувати всі міграції до завершення активних батчів. Це безпечно, але робить rebalance повільним під реальним тиском. Можна було приймати стару дельту й сподіватися, що різниця несуттєва, але це вже не інженерія, а азарт. Ми обрали stale detection і recompute: якщо карта змінилася, старий розрахунок не коммітиться. Ціна вибору — додаткові worker runs і виміряна allocation-ціна; виграш — correctness сильніший за поспіх.
 
 ### 2. Закони фізики рантайму (System Invariants)
-* **Збіг версії топології**: `TopologyVersion` дельти на момент комміту має строго дорівнювати поточній версії ядра.
+* **Збіг версії топології**: [`TopologyVersion`](../../../src/Domain/Processing/Topology/Models/RadarProcessingTopologyVersion.cs) дельти на момент комміту має строго дорівнювати поточній версії ядра.
 * **Ціна перерахунку**: Збільшення кількості запусків воркерів з 32,000 до 39,292 та зростання алокацій на 1.137x під час активної зміни топології.
 
 ### 3. Патологоанатомічний звіт (Failure Modes & Recovery)
@@ -103,7 +103,7 @@ Workload тесту виглядав так:
 | :--- | :--- | :--- |
 | Active-batch overlap дав виграш навіть під topology churn | Processing-bottleneck matrix: `active=4 elapsed ratio 0.891x` проти same-path `active=1`, accepted moves `2_000 vs 2_000`, failed migrations `0` | [022-ordered-rebalance-topology-commit-processing-bottleneck-performance-matrix.md](../../milestones/022-ordered-rebalance-topology-commit-processing-bottleneck-performance-matrix.md) |
 | Recompute був реальною роботою, а не декоративним прапорцем | Matrix і closeout фіксують `39_292` worker dispatches для `32_000` logical batches та allocation ratio `1.137x` | [022-ordered-rebalance-topology-commit-closeout.md](../../milestones/022-ordered-rebalance-topology-commit-closeout.md) |
-| Unit-тести охороняють replay/recovery contract | `RadarProcessingDurableRebalanceSessionTests` suite перевіряє відновлення та порядок застосування topology state | `dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~RadarProcessingDurableRebalanceSessionTests"` |
+| Unit-тести охороняють replay/recovery contract | [`RadarProcessingDurableRebalanceSessionTests`](../../../tests/RadarPulse.Tests/Processing/Rebalance/RadarProcessingDurableRebalanceSessionTests/RadarProcessingDurableRebalanceSessionTests.TopologyReplay.cs) suite перевіряє відновлення та порядок застосування topology state | `dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~RadarProcessingDurableRebalanceSessionTests"` |
 
 ### 5. Слід доказової бази (Implementation & Tests)
 * Перерахунок топології: [RadarProcessingDurableRebalanceSession.Recovery.cs](../../../src/Infrastructure/Processing/Durable/Services/RadarProcessingDurableRebalanceSession/RadarProcessingDurableRebalanceSession.Recovery.cs)

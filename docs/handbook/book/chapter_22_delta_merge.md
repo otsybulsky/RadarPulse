@@ -1,18 +1,18 @@
-﻿# Розділ 22: Контракт злиття дельт (Delta/Merge Contract)
+# Розділ 22: Контракт злиття дельт (Delta/Merge Contract)
 
-Custom handlers стають по-справжньому корисними лише тоді, коли не повертають систему назад до послідовного виконання. Воркер має право швидко порахувати локальні зміни для свого `RadarEventBatch`, але не має права самовільно оновлювати спільний стан аналітика. Інакше extension point знову відкриває двері до гонок, dirty reads і непередбачуваних метрик.
+Custom handlers стають по-справжньому корисними лише тоді, коли не повертають систему назад до послідовного виконання. Воркер має право швидко порахувати локальні зміни для свого [`RadarEventBatch`](../../../src/Domain/Streaming/Batches/Models/RadarEventBatch.cs), але не має права самовільно оновлювати спільний стан аналітика. Інакше extension point знову відкриває двері до гонок, dirty reads і непередбачуваних метрик.
 
 Протилежна крайність теж погана: якщо всі handler-и примусово чекатимуть `sequential fallback`, паралельний runtime втратить сенс. Нам потрібен контракт, у якому воркери створюють локальні звіти про зміни — **дельти (Delta)**, а runtime зливає їх у правильному порядку.
 
-Для вирішення цієї проблеми у віхах `024` та `025` ми реалізували архітектурний патерн **Delta/Merge Contract** на реальних інтерфейсах `IRadarProcessingHandlerDeltaMerger` та `IRadarProcessingHandlerDeltaAccumulatorFactory`. Він дозволяє аналітикам обчислювати зміни паралельно, а координатору — зливати їх послідовно та детерміновано.
+Для вирішення цієї проблеми у віхах `024` та `025` ми реалізували архітектурний патерн **Delta/Merge Contract** на реальних інтерфейсах [`IRadarProcessingHandlerDeltaMerger`](../../../src/Domain/Processing/Handlers/Contracts/IRadarProcessingHandlerDeltaMerger.cs) та [`IRadarProcessingHandlerDeltaAccumulatorFactory`](../../../src/Domain/Processing/Handlers/Contracts/IRadarProcessingHandlerDeltaAccumulatorFactory.cs). Він дозволяє аналітикам обчислювати зміни паралельно, а координатору — зливати їх послідовно та детерміновано.
 
 ---
 
 ## 22.1. Контракт дельти та злиття: Розділяй та володарюй
 
 Суть контракту полягає у розподілі обчислень на дві фази:
-1. **Паралельна фаза (stateless/source-local):** Воркери в окремих потоках обробляють свої батчі. Вони застосовують метод `Process` і створюють немутабельний пакет накопичених змін для конкретного батча — `RadarProcessingHandlerDelta`.
-2. **Послідовна фаза (ordered merge):** Координатор збирає ці дельти і передає їх спеціальному об'єкту — `IRadarProcessingHandlerDeltaMerger` або `IRadarProcessingHandlerDeltaAccumulator`, який об'єднує дельти у фінальний стан строго за порядком `Provider Sequence`.
+1. **Паралельна фаза (stateless/source-local):** Воркери в окремих потоках обробляють свої батчі. Вони застосовують метод `Process` і створюють немутабельний пакет накопичених змін для конкретного батча — [`RadarProcessingHandlerDelta`](../../../src/Domain/Processing/Handlers/Models/RadarProcessingHandlerDelta.cs).
+2. **Послідовна фаза (ordered merge):** Координатор збирає ці дельти і передає їх спеціальному об'єкту — [`IRadarProcessingHandlerDeltaMerger`](../../../src/Domain/Processing/Handlers/Contracts/IRadarProcessingHandlerDeltaMerger.cs) або [`IRadarProcessingHandlerDeltaAccumulator`](../../../src/Domain/Processing/Handlers/Contracts/IRadarProcessingHandlerDeltaAccumulator.cs), який об'єднує дельти у фінальний стан строго за порядком [`Provider Sequence`](../../../src/Domain/Processing/Queueing/Models/RadarProcessingQueuedBatchSequence.cs).
 
 Давайте подивимося на інтерфейси, які складають основу цього контракту в системі:
 
@@ -36,16 +36,16 @@ public interface IRadarProcessingHandlerDeltaMerger
 }
 ```
 
-Якщо обробник підтримує високу швидкість обробки, він також може реалізувати фабрику акумуляторів `IRadarProcessingHandlerDeltaAccumulatorFactory` для створення спеціальних об'єктів стану, які мінімізують накладні витрати на копіювання масивів.
+Якщо обробник підтримує високу швидкість обробки, він також може реалізувати фабрику акумуляторів [`IRadarProcessingHandlerDeltaAccumulatorFactory`](../../../src/Domain/Processing/Handlers/Contracts/IRadarProcessingHandlerDeltaAccumulatorFactory.cs) для створення спеціальних об'єктів стану, які мінімізують накладні витрати на копіювання масивів.
 
 ### Математика контракту: чому merge не може бути довільним
-Коли конвеєр опрацьовує великі потоки даних, послідовне об'єднання дельт може стати вузьким місцем на етапі commit. Але перший обов'язок handler-а не “бути швидким”, а довести, що його проміжні результати можна зливати детерміновано. Для цього `IRadarProcessingHandlerDeltaMerger` вимагає явного контракту імені, версії та операції merge.
+Коли конвеєр опрацьовує великі потоки даних, послідовне об'єднання дельт може стати вузьким місцем на етапі commit. Але перший обов'язок handler-а не “бути швидким”, а довести, що його проміжні результати можна зливати детерміновано. Для цього [`IRadarProcessingHandlerDeltaMerger`](../../../src/Domain/Processing/Handlers/Contracts/IRadarProcessingHandlerDeltaMerger.cs) вимагає явного контракту імені, версії та операції merge.
 
-Для простих сумарних метрик, таких як `CounterChecksumBenchmarkHandler`, злиття має властивості, близькі до асоціативності:
+Для простих сумарних метрик, таких як [`CounterChecksumBenchmarkHandler`](../../../src/Infrastructure/Processing/Benchmarks/Models/RadarProcessingBenchmarkHandlers/RadarProcessingBenchmarkHandlers.CounterChecksum.cs), злиття має властивості, близькі до асоціативності:
 * **Стабільне групування:** $(Delta_A \oplus Delta_B) \oplus Delta_C$ має давати той самий фінальний підсумок, що й $Delta_A \oplus (Delta_B \oplus Delta_C)$.
-* **Контрольована черговість:** для сум порядок додавання не змінює результат, але runtime усе одно застосовує дельти за `Provider Sequence`, бо не всі майбутні handler-и будуть комутативними.
+* **Контрольована черговість:** для сум порядок додавання не змінює результат, але runtime усе одно застосовує дельти за [`Provider Sequence`](../../../src/Domain/Processing/Queueing/Models/RadarProcessingQueuedBatchSequence.cs), бо не всі майбутні handler-и будуть комутативними.
 
-Саме тут важлива чесність формулювання. Поточний `RadarProcessingHandlerDeltaMergeCoordinator` не будує parallel binary merge tree і не заявляє повну утилізацію ядер на фазі консолідації. Його реальний контракт сильніший для цієї книги: він приймає завершення out-of-order, буферизує їх у `SortedDictionary<long, RadarProcessingHandlerDelta>`, а зливає тільки contiguous sequence. Асоціативність лишається вимогою до mergeable handler-а і можливим наступним optimization gate, а не прихованим claim-ом поточної реалізації.
+Саме тут важлива чесність формулювання. Поточний [`RadarProcessingHandlerDeltaMergeCoordinator`](../../../src/Domain/Processing/Handlers/Services/RadarProcessingHandlerDeltaMergeCoordinator/RadarProcessingHandlerDeltaMergeCoordinator.cs) не будує parallel binary merge tree і не заявляє повну утилізацію ядер на фазі консолідації. Його реальний контракт сильніший для цієї книги: він приймає завершення out-of-order, буферизує їх у `SortedDictionary<long, RadarProcessingHandlerDelta>`, а зливає тільки contiguous sequence. Асоціативність лишається вимогою до mergeable handler-а і можливим наступним optimization gate, а не прихованим claim-ом поточної реалізації.
 
 Концептуально майбутній tree-merge міг би виглядати так:
 
@@ -63,11 +63,11 @@ public interface IRadarProcessingHandlerDeltaMerger
 
 ---
 
-## 22.2. Робота координатора: `RadarProcessingHandlerDeltaMergeCoordinator`
+## 22.2. Робота координатора: [`RadarProcessingHandlerDeltaMergeCoordinator`](../../../src/Domain/Processing/Handlers/Services/RadarProcessingHandlerDeltaMergeCoordinator/RadarProcessingHandlerDeltaMergeCoordinator.cs)
 
-Хто стежить за тим, щоб дельти свідчень підшивалися до справи за порядком? Цю роль виконує `RadarProcessingHandlerDeltaMergeCoordinator`. Його серце — метод `CompleteForCommitCore` та цикл злиття `DrainReadyDeltas`.
+Хто стежить за тим, щоб дельти свідчень підшивалися до справи за порядком? Цю роль виконує [`RadarProcessingHandlerDeltaMergeCoordinator`](../../../src/Domain/Processing/Handlers/Services/RadarProcessingHandlerDeltaMergeCoordinator/RadarProcessingHandlerDeltaMergeCoordinator.cs). Його серце — метод [`CompleteForCommitCore`](../../../src/Domain/Processing/Handlers/Services/RadarProcessingHandlerDeltaMergeCoordinator/RadarProcessingHandlerDeltaMergeCoordinator.Commit.cs) та цикл злиття [`DrainReadyDeltas`](../../../src/Domain/Processing/Handlers/Services/RadarProcessingHandlerDeltaMergeCoordinator/RadarProcessingHandlerDeltaMergeCoordinator.Drain.cs).
 
-Координатор приймає дельти від воркерів у будь-якому порядку (оскільки воркер, що обробляв складні радарні батчі, може закінчити роботу пізніше за того, що обробляв порожнє небо). Він складає їх у буфер `SortedDictionary<long, RadarProcessingHandlerDelta>`, де ключем є номер послідовності `Provider Sequence`:
+Координатор приймає дельти від воркерів у будь-якому порядку (оскільки воркер, що обробляв складні радарні батчі, може закінчити роботу пізніше за того, що обробляв порожнє небо). Він складає їх у буфер `SortedDictionary<long, RadarProcessingHandlerDelta>`, де ключем є номер послідовності [`Provider Sequence`](../../../src/Domain/Processing/Queueing/Models/RadarProcessingQueuedBatchSequence.cs):
 
 ```csharp
 private DrainReadyDeltasResult DrainReadyDeltas()
@@ -127,11 +127,11 @@ private DrainReadyDeltasResult DrainReadyDeltas()
 
 ---
 
-## 22.3. Оптимізація пам'яті: Патрон в обоймі (`ReusableValueList`)
+## 22.3. Оптимізація пам'яті: Патрон в обоймі ([`ReusableValueList`](../../../src/Infrastructure/Processing/Benchmarks/Models/RadarProcessingBenchmarkHandlers/RadarProcessingBenchmarkHandlers.Int64Merge.cs))
 
 У високопродуктивних системах обробки великих даних збирач сміття (Garbage Collector) — це найлютіший ворог. Якщо на кожен комміт батча створювати нові масиви для списку змінених значень, GC швидко зупинить систему для збору сміття. Це рівносильно тому, якби детектив викидав свій блокнот і купував новий після кожного записаного речення.
 
-У класі `Int64SumHandlerDeltaAccumulator` (який використовується нашим `CounterChecksumBenchmarkHandler`) ми застосували архітектурну хитрість — вкладений клас `ReusableValueList`:
+У класі [`Int64SumHandlerDeltaAccumulator`](../../../src/Infrastructure/Processing/Benchmarks/Models/RadarProcessingBenchmarkHandlers/RadarProcessingBenchmarkHandlers.Int64Merge.cs) (який використовується нашим [`CounterChecksumBenchmarkHandler`](../../../src/Infrastructure/Processing/Benchmarks/Models/RadarProcessingBenchmarkHandlers/RadarProcessingBenchmarkHandlers.CounterChecksum.cs)) ми застосували архітектурну хитрість — вкладений клас [`ReusableValueList`](../../../src/Infrastructure/Processing/Benchmarks/Models/RadarProcessingBenchmarkHandlers/RadarProcessingBenchmarkHandlers.Int64Merge.cs):
 
 ```csharp
 private sealed class ReusableValueList : IReadOnlyList<RadarProcessingHandlerDeltaValue>
@@ -177,7 +177,7 @@ private sealed class ReusableValueList : IReadOnlyList<RadarProcessingHandlerDel
 }
 ```
 
-Замість того, щоб будувати повний snapshot після кожного кроку злиття, акумулятор тримає словник накопичених значень, перевикористовуваний буфер `changedBuffer` та обгортку `ReusableValueList`. Ми скидаємо внутрішній покажчик (`Reset`), підставляючи актуальний масив і лічильник елементів. Це не безкоштовна підсистема: dictionary, snapshots і fallback-merger мають свою ціну. Але hot merge path перестає створювати новий список змінених значень на кожен commit, і саме це підтверджується performance gate-ами для handler delta/merge.
+Замість того, щоб будувати повний snapshot після кожного кроку злиття, акумулятор тримає словник накопичених значень, перевикористовуваний буфер `changedBuffer` та обгортку [`ReusableValueList`](../../../src/Infrastructure/Processing/Benchmarks/Models/RadarProcessingBenchmarkHandlers/RadarProcessingBenchmarkHandlers.Int64Merge.cs). Ми скидаємо внутрішній покажчик (`Reset`), підставляючи актуальний масив і лічильник елементів. Це не безкоштовна підсистема: dictionary, snapshots і fallback-merger мають свою ціну. Але hot merge path перестає створювати новий список змінених значень на кожен commit, і саме це підтверджується performance gate-ами для handler delta/merge.
 
 ---
 
@@ -185,7 +185,7 @@ private sealed class ReusableValueList : IReadOnlyList<RadarProcessingHandlerDel
 
 Координатор злиття — це не просто бухгалтер, який сліпо додає цифри. Це консервативний детектив. Якщо дельта не проходить контракт, координатор блокує подальше злиття для цього handler-а й повертає fail-closed результат у pipeline.
 
-У коді `CompleteForCommitCore` передбачено кілька рівнів перевірки:
+У коді [`CompleteForCommitCore`](../../../src/Domain/Processing/Handlers/Services/RadarProcessingHandlerDeltaMergeCoordinator/RadarProcessingHandlerDeltaMergeCoordinator.Commit.cs) передбачено кілька рівнів перевірки:
 1. **Перевірка схеми:** Якщо дельта має несумісну версію схеми або інше ім'я обробника, вона негайно відхиляється.
 2. **Конфлікти дублікатів:** Якщо приходить дельта з ідентичним ID, але іншим вмістом, координатор переходить у стан блокування (`Block`), підозрюючи пошкодження пам'яті або збій передачі даних.
 3. **Хронологічні аномалії:** Якщо воркер намагається надіслати дельту для кроку послідовності, який вже пройдений та зафіксований в історії (`sequence < nextProviderSequence.Value`), це трактується як порушення часової логіки.
@@ -208,7 +208,7 @@ if (sequence < nextProviderSequence.Value)
 ## 🔍 Матеріали справи (Investigation Case Files)
 
 ### 1. Вердикт детективів (Decision Trace & Rationale)
-Створення контракту delta/merge (дельта/злиття) для паралельного обчислення та швидкого злиття дельт аналітики (Віхи `024`-`025`). Mergeable handler-и реалізують `IRadarProcessingHandlerDeltaMerger`; оптимізовані handler-и можуть додати `IRadarProcessingHandlerDeltaAccumulatorFactory`. Це дозволило обробникам вираховувати свої зміни паралельно в різних потоках і зливати їх в один фінальний стан під час впорядкованої фіксації (Ordered Commit) без переходу на повільний послідовний резервний шлях (sequential fallback).
+Створення контракту delta/merge (дельта/злиття) для паралельного обчислення та швидкого злиття дельт аналітики (Віхи `024`-`025`). Mergeable handler-и реалізують [`IRadarProcessingHandlerDeltaMerger`](../../../src/Domain/Processing/Handlers/Contracts/IRadarProcessingHandlerDeltaMerger.cs); оптимізовані handler-и можуть додати [`IRadarProcessingHandlerDeltaAccumulatorFactory`](../../../src/Domain/Processing/Handlers/Contracts/IRadarProcessingHandlerDeltaAccumulatorFactory.cs). Це дозволило обробникам вираховувати свої зміни паралельно в різних потоках і зливати їх в один фінальний стан під час впорядкованої фіксації (Ordered Commit) без переходу на повільний послідовний резервний шлях (sequential fallback).
 
 #### Чому швидкий handler має довести, що він mergeable
 Перший безпечний варіант — усі custom handlers виконувати sequential, тоді порядок очевидний і merge не потрібен. Але це зводить нанівець parallel runtime саме там, де аналітика стає важкою. Другий варіант — дозволити handler-ам мутувати shared state паралельно, але це повторює кризу спільного стану. Delta/merge contract став пропуском у швидкий коридор: handler рахує власну дельту паралельно, а commit зливає її за sequence. Ціна вибору — не кожен handler автоматично mergeable; виграш — швидкість доступна лише тим розширенням, які довели свою детермінованість.

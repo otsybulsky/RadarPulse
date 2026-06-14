@@ -17,7 +17,7 @@
 1. **Блокування входу (Closing the Queue):**
    Черга Durable Queue негайно припиняє приймати нові батчі від провайдера. Будь-які спроби надіслати нові дані відхиляються на вході з повідомленням про помилку. Шлюз зачинено.
 2. **Кооперативне скасування воркерів (Cooperative Worker Cancellation):**
-   Паралельні контури отримують `CancellationToken`, а archive/runtime loops регулярно перевіряють його на межах файлів, записів, батчів і dispatch-операцій. Важлива межа чесності: сам `BZip2Workspace` не приймає `CancellationToken` на кожне читання біта. Скасування працює на orchestration boundary, де ми можемо безпечно не починати наступний шмат роботи або не публікувати результат, який уже став неактуальним.
+   Паралельні контури отримують `CancellationToken`, а archive/runtime loops регулярно перевіряють його на межах файлів, записів, батчів і dispatch-операцій. Важлива межа чесності: сам [`BZip2Workspace`](../../../src/Infrastructure/Archive/Compression/ReusableArchiveBZip2Decompressor/ReusableArchiveBZip2Decompressor.Workspace.cs) не приймає `CancellationToken` на кожне читання біта. Скасування працює на orchestration boundary, де ми можемо безпечно не починати наступний шмат роботи або не публікувати результат, який уже став неактуальним.
 3. **Контрольоване очікування зливу (Graceful Shutdown & Task Drain):**
    Система не просто кидає фонові потоки напризволяще. Async worker group має lifecycle для stop/dispose і може чекати завершення worker completion через `Task.WhenAll`; окремо dispatch-рівень має timeout policy для batch-роботи. Це не універсальний production shutdown manager, але це достатній runtime-контракт для книги: прийом закрито, активна робота або завершується, або явно позначається як canceled/failed, а результат без права на commit не просочується далі.
 4. **Аварійне очищення буферів (Returning Buffers Cleanly):**
@@ -77,7 +77,7 @@
 * **Блокування прийому**: Будь-який новий батч відхиляється, як тільки встановлено статус несправності черги.
 
 ### 3. Патологоанатомічний звіт (Failure Modes & Recovery)
-* **Критичний виняток**: При генерації `FatalPipelineException` система закриває вхідні канали, зливає активних воркерів та переходить в захищений офлайн-режим.
+* **Критичний збій pipeline**: При невідновлюваній помилці система закриває вхідні канали, зливає активних воркерів та переходить у захищений офлайн-режим із видимою причиною блокування.
 
 ### 4. Слід доказової бази (Implementation & Tests)
 * Тести аварійного завершення: [RadarProcessingProductionPipelineFallbackTests.cs](../../../tests/RadarPulse.Tests/Processing/ProductPipeline/RadarProcessingProductionPipelineFallbackTests.cs)

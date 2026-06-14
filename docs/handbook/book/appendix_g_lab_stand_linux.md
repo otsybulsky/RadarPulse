@@ -582,7 +582,7 @@ Performance evidence від product demo не залежить: package script �
 | Крок | Команда | Ознака успіху |
 | :--- | :--- | :--- |
 | Restore/build | `dotnet build RadarPulse.sln -c Release --no-restore` | Solution builds |
-| UI dependencies | `npm install` у `src/Presentation/OperatorUi` | `node_modules` встановлено без фатальних помилок |
+| UI dependencies | `npm install` у [`src/Presentation/OperatorUi`](../../../src/Presentation/OperatorUi) | `node_modules` встановлено без фатальних помилок |
 | Manifest | `archive list --manifest ...` | Є file/byte summary і JSON manifest |
 | Download | `archive download --manifest ...` | Files downloaded or skipped; no preflight failure |
 | Inspect | `archive inspect --cache ...` | Cache summary shows selected files |
