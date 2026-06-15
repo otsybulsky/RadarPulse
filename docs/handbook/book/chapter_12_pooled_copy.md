@@ -6,36 +6,82 @@
 
 ## 12.1. Повернення до пулу: Робота з ArrayPool
 
-Щоб вирішити проблему 9.95 гігабайт сміття, про яку йшлося в Розділі 11, ми інтегрували в серце RadarPulse стандартний механізм .NET для повторного використання масивів — `System.Buffers.ArrayPool<T>`.
+Щоб вирішити проблему 9.95 гігабайт сміття, про яку йшлося в Розділі 11, ми спиралися на стандартну для .NET ідею повторного використання масивів — `System.Buffers.ArrayPool<T>`, а в гарячому runtime-контурі обгорнули її спеціалізованими retained pools із telemetry pool-miss/release.
 
 Замість того, щоб щоразу виділяти нову пам'ять у купі за допомогою оператора `new`, наш метод створення власних знімків перейшов на нові рейки:
-1. **Оренда з пулу:** Коли потрібно скопіювати події з батчу, система звертається до пулу: `ArrayPool<RadarStreamEvent>.Shared.Rent(eventCount)`.
-2. **Оренда байтів:** Для копіювання байтів корисного навантаження ми так само орендуємо масив потрібного розміру з байтового пулу: `ArrayPool<byte>.Shared.Rent(payloadLength)`.
+1. **Оренда з пулу:** Коли потрібно скопіювати події з батчу, система звертається до ArrayPool-сумісного пулу подій: `Rent(eventCount)`.
+2. **Оренда байтів:** Для копіювання байтів корисного навантаження ми так само орендуємо масив потрібного розміру з байтового пулу: `Rent(payloadLength)`.
 3. **Копіювання:** Дані копіюються в орендовані масиви.
 4. **Обробка:** Знімок стає в чергу і передається воркерам.
-5. **Повернення (Release):** Це найкритичніша частина. Як тільки воркер завершує обробку знімка, а координатор фіксує результати в загальному журналі, знімок викликає метод `Release()`. Орендовані масиви повертаються назад у пул: `ArrayPool<T>.Shared.Return(array, clearArray: false)`.
+5. **Повернення (Release):** Це найкритичніша частина. Як тільки воркер завершує обробку знімка, а координатор фіксує результати в загальному журналі, release owner викликає `Release()`. Орендовані масиви повертаються назад у той пул, з якого були взяті.
 
 Тут діють два важливі інженерні правила:
-* **Анатомія бакетів ArrayPool:** Пул масивів виділяє пам'ять фіксованими блоками (бакетами), розміри яких округлюються до найближчого степеня двійки. Якщо нам потрібен масив під 32,400 подій, пул орендує нам масив розміром 32,768 елементів. Ми повинні оперувати лише межами логічної довжини батчу (через `Span.Slice`), ігноруючи зайвий хвіст орендованого масиву.
-* **Оптимізація `clearArray: false`:** При поверненні масиву в пул ми викликаємо `Return(array, clearArray: false)`. Якщо встановити `clearArray: true`, CLR примусово занулить усі 32,768 елементів у пам'яті. Для контуру, де ми вже вимірюємо сотні мільйонів payload values/s, зайве занулення стало б окремим податком на memory bandwidth. Ми вимикаємо занулення для гарячого контуру, але це зобов'язує нас жорстко контролювати межі оренди, щоб не допустити читання залишків старих даних наступними воркерами (use-after-free).
+* **Анатомія орендованих масивів:** Пул не зобов'язаний повернути масив рівно того розміру, який ми попросили. Стандартний `ArrayPool<T>` і наші retained pools можуть округлювати або підбирати більший буфер для повторного використання. Якщо нам потрібен масив під 32,400 подій, фактичний орендований масив може бути більшим. Ми повинні оперувати лише межами логічної довжини батчу, ігноруючи зайвий хвіст орендованого масиву.
+* **Оптимізація без зайвого занулення:** При поверненні масиву в пул гарячий контур не повинен платити зайвий податок на memory bandwidth за повне очищення великих буферів. Це зобов'язує нас жорстко контролювати межі оренди, щоб не допустити читання залишків старих даних наступними воркерами (use-after-free).
 
 Життєвий цикл орендованого ресурсу став залізобетонним. Якщо детектив взяв папку зі складу, він зобов'язаний повернути її туди після закриття справи. Якщо він забуде це зробити — виникне витік пам'яті (leak). Якщо він спробує повернути її двічі або продовжить читати дані після повернення — виникне спотворення даних (use-after-free).
 
-Для захисту від таких помилок ми впровадили строгий контракт **Retained Resource Lifecycle**. Кожен орендований знімок відстежує свій статус використання і веде лічильник активних власників. Тільки коли останній споживач звільняє посилання — масиви повертаються в пул.
+Для захисту від таких помилок ми впровадили строгий контракт **Retained Resource Lifecycle**. Кожен орендований знімок проходить явні ownership-стани: provider-owned, queue-owned, consumer-owned і released. Масиви повертаються в пул тільки після того, як consumer завершив роботу і release-контракт був виконаний.
 
 Якщо прибрати метафору з папками, ownership-схема виглядає так:
 
-```mermaid
-flowchart LR
-    A[Borrowed RadarEventBatch] --> B[Rent event and payload arrays]
-    B --> C[Copy into owned retained payload]
-    C --> D[Enqueue queued-owned work item]
-    D --> E[Worker computes processing result]
-    E --> F[Ordered commit publishes result]
-    F --> G[Release retained payload]
-    G --> H[Return arrays to ArrayPool]
-    G --> I[Telemetry: released batches, failed releases, retained pressure]
+```text
+[1] Borrowed RadarEventBatch
+    орендована пам'ять діє тільки всередині provider callback
+        |
+        v
+[2] Rent arrays from pools
+    events:  event pool Rent(...)
+    payload: byte pool Rent(...)
+        |
+        v
+[3] Copy into retained batch
+    створюється owned payload для queued-owned контуру
+        |
+        v
+[4] Provider-owned resource
+    ресурс щойно створено, але ще не прийнято чергою
+        |
+        v
+[5] Queue-owned resource
+    provider queue відповідає за pending retained pressure
+        |
+        v
+[6] Consumer-owned resource
+    worker читає payload і рахує processing result
+        |
+        v
+[7] Ordered commit
+    результат зафіксовано у правильному порядку
+        |
+        v
+[8] Release retained payload
+    ownership завершується, release-контракт виконується один раз
+        |
+        v
+[9] Return arrays to pools
+    release owner повертає event[] і byte[]
+        |
+        v
+[10] Telemetry evidence
+     released batches / failed releases / retained pressure
 ```
+
+Ownership protocol тут означає не “хтось десь має посилання на масив”, а чітку зміну права відповідальності за retained resource. У коді це оформлено як state machine у [`RadarProcessingRetainedBatchResource`](../../../src/Domain/Processing/Retention/Models/RadarProcessingRetainedBatchResource.cs): ресурс може перейти з `ProviderOwned` у `QueueOwned`, потім у `ConsumerOwned`, а після `Release()` — у terminal state `Released` або `ReleaseFailed`.
+
+Перший власник — provider. Він щойно орендував масиви, скопіював туди `RadarEventBatch` і ще не передав ресурс у чергу. На цьому етапі помилка копіювання або скасування не має залишити масиви без власника: якщо retained batch не створено або не прийнято, орендовані масиви повертаються одразу.
+
+Другий власник — provider queue. Коли retained batch прийнятий у чергу, [`RadarProcessingRetainedQueuedBatch`](../../../src/Domain/Processing/Retention/Models/RadarProcessingRetainedQueuedBatch.cs) переводить ресурс у `QueueOwned`. Це означає: payload ще не читається воркером, але вже рахується як pending retained pressure. Якщо черга закривається, fault-иться або batch так і не доходить до consumer-а, саме queue-side cleanup має викликати `ReleasePending()`.
+
+Третій власник — consumer lease. Коли batch дістають з черги для обробки, `AcquireForConsumer()` переводить ресурс у `ConsumerOwned` і повертає [`RadarProcessingRetainedBatchLease`](../../../src/Domain/Processing/Retention/Models/RadarProcessingRetainedBatchLease.cs). З цього моменту payload читає consumer, а telemetry переносить retained pressure з pending у active. Після processing і ordered commit lease викликає `Release()` або звільняється через `Dispose()`.
+
+Термінальний стан — released evidence. `Release()` повертає масиви в пул і фіксує результат. Повторний release не повинен вдруге віддати той самий масив у `ArrayPool`; він повертає статус `AlreadyReleased`. Якщо release callback падає, стан стає `ReleaseFailed`, і це залишається видимим у telemetry як failed release, а не губиться як непомітний cleanup-шум.
+
+Тому протокол тримається на чотирьох правилах:
+* у retained resource завжди є рівно один актуальний owner;
+* payload можна читати тільки до release, і тільки в межах логічних довжин batch-а;
+* кожен pooled resource має рівно один успішний шлях повернення в pool;
+* telemetry має показати не лише факт release, а й pending, active і combined retained pressure.
 
 Ця схема важлива для рецензента: `pooled-copy` не є “просто ArrayPool”. Це ownership protocol. Якщо забрати будь-який крок між enqueue і release, ми або повернемося до `snapshot-copy` сміття, або відкриємо use-after-free.
 
@@ -59,7 +105,7 @@ flowchart LR
 
 Мета тесту — перевірити, як поводиться черга, коли провайдер намагається забити її вщерть:
 1. **Зростання черги:** Черга швидко досягла свого ліміту ємності (`queue capacity 8`).
-2. **Активація ліміту пам'яті:** Об'єм пам'яті, утримуваної в орендованих знімках, почав зростати, досягнувши пікового значення в **386 megabytes** (при жорсткому ліміті `retained-byte budget` у 536 megabytes).
+2. **Активація ліміту пам'яті:** Об'єм пам'яті, утримуваної в орендованих знімках, почав зростати, досягнувши пікового значення `386_058_240` bytes — приблизно 368 MiB — при жорсткому `retained-byte budget` у `536_870_912` bytes, тобто 512 MiB.
 3. **Блокування провайдера:** Спрацював механізм backpressure. Провайдер був призупинений і простояв в очікуванні звільнення місця сумарно 16.5 секунд.
 4. **Повне прибирання:** Коли тест завершився, всі орендовані масиви були успішно повернуті в пул. Метрика поточного тиску пам'яті повернулася до значення **0**. Лічильник помилок звільнення (`release failures`) показав рівно 0.
 
@@ -73,13 +119,13 @@ flowchart LR
 ## 🔍 Матеріали справи (Investigation Case Files)
 
 ### 1. Вердикт детективів (Decision Trace & Rationale)
-Перехід на стратегію `pooled-copy retained payload` (Віхи `010`-`012`). Замість виділення нових масивів під кожне зчитування, буфери орендуються з `ArrayPool<byte>` і повертаються туди після завершення фази комміту. Це дозволило зменшити алокацію на 98.97% (до 102 МБ).
+Перехід на стратегію `pooled-copy retained payload` (Віхи `010`-`012`). Замість виділення нових масивів під кожне зчитування, event- і payload-буфери орендуються з retained pools і повертаються туди після завершення фази комміту. Це дозволило зменшити алокацію на 98.97% (до 102 МБ).
 
 #### Чому ми орендуємо пам'ять, а не купуємо її щоразу
-Після 9.95 ГБ сміття були три дороги: заборонити queued-owned overlap, копіювати менше, або навчити систему повертати великі папки на полицю. Заборона overlap зберігала б чисту пам'ять, але програвала б pipeline-паралельності. Часткові копії ускладнили б ownership і ризикували б прихованими aliasing-помилками. Pooled-copy залишив семантику owned batch, але змінив спосіб оплати: масиви не купуються щоразу, а орендуються й повертаються. Ціна вибору — сувора дисципліна `Return` і telemetry pool-miss; виграш — контрольований retained pressure без втрати overlap.
+Після 9.95 ГБ heap allocations були три дороги: заборонити queued-owned overlap, копіювати менше, або навчити систему повертати великі папки на полицю. Заборона overlap зберігала б чисту пам'ять, але програвала б pipeline-паралельності. Часткові копії ускладнили б ownership і ризикували б прихованими aliasing-помилками. Pooled-copy залишив семантику owned batch, але змінив спосіб оплати: масиви не купуються щоразу, а орендуються й повертаються. Ціна вибору — сувора дисципліна `Return` і telemetry pool-miss; виграш — контрольований retained pressure без втрати overlap.
 
 ### 2. Закони фізики рантайму (System Invariants)
-* **Обов'язкове повернення**: Кожен орендований буфер має бути детерміновано повернений в пул через `ArrayPool.Return()` у блоці `finally`.
+* **Обов'язкове повернення**: Кожен орендований буфер має бути детерміновано повернений у відповідний pool через release owner; cleanup-шляхи мають гарантувати release навіть після помилки або скасування.
 * **Steady-state allocation discipline**: Відсутність нових retained payload масивів під час steady-state обробки має підтверджуватися telemetry pool-miss/release counters, а не припущенням.
 
 ### 3. Патологоанатомічний звіт (Failure Modes & Recovery)
@@ -95,6 +141,8 @@ flowchart LR
 
 ### 5. Слід доказової бази (Implementation & Tests)
 * Адаптер пулу: [RadarProcessingRetainedPayloadFactory.PooledCopy.cs](../../../src/Infrastructure/Processing/Retention/Services/RadarProcessingRetainedPayloadFactory/RadarProcessingRetainedPayloadFactory.PooledCopy.cs)
+* Ownership state machine: [RadarProcessingRetainedBatchResource.cs](../../../src/Domain/Processing/Retention/Models/RadarProcessingRetainedBatchResource.cs)
+* Queue/consumer ownership boundary: [RadarProcessingRetainedQueuedBatch.cs](../../../src/Domain/Processing/Retention/Models/RadarProcessingRetainedQueuedBatch.cs), [RadarProcessingRetainedBatchLease.cs](../../../src/Domain/Processing/Retention/Models/RadarProcessingRetainedBatchLease.cs)
 * Управління пулами масивів: [RadarProcessingRetainedPayloadByteArrayPool.cs](../../../src/Infrastructure/Processing/Retention/Services/RadarProcessingRetainedPayloadByteArrayPool.cs)
 * Performance gate і closeout: [010-owned-provider-overlap-cost-reduction-performance-gate.md](../../milestones/010-owned-provider-overlap-cost-reduction-performance-gate.md), [010-owned-provider-overlap-cost-reduction-closeout.md](../../milestones/010-owned-provider-overlap-cost-reduction-closeout.md)
 
