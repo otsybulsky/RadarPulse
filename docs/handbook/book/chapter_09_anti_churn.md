@@ -1,44 +1,56 @@
-﻿# Розділ 9: Запобіжники проти паніки, або Справа про анти-черн патруль
+﻿# Розділ 9: Запобіжники проти паніки, або Справа про небезпечну метушню
 
 Уявіть собі шефа поліції, який кожні три хвилини вбігає до кабінетів детективів і перерозподіляє справи. «Так, Джонс, ти тепер не ведеш справу KTLX, віддай її Сміту! Через дві хвилини: Сміт, ти занадто повільний, віддай її Брауну! Ще через хвилину: Браун, поверни справу Джонсу!»
 
 У такому режимі детективи не розкриють жодного злочину. Вони витрачатимуть 100% свого часу на збирання папок, передачу матеріалів та підписання актів прийому-передачі. У комп'ютерній інженерії такий хаос називається **churn** (черн, або миготіння топології), і він здатний повністю паралізувати систему.
 
-Під час Milestone 007 ми присвятили всі сили створенню «анти-черн патруля» — набору жорстких правил та запобіжників, які не дозволяють нашій системі ребалансу впасти в паніку при перших ознаках негоди.
+Під час Milestone 007 ми присвятили всі сили створенню набору жорстких правил та запобіжників проти небезпечної метушні — механізмів, які не дозволяють нашій системі ребалансу впасти в паніку при перших ознаках негоди.
 
 ## 9.1. Гістерезис та охолодження: Закони спокою
 
-Перший запобіжник, який ми встановили на нашому «лабораторному столі» — це **гістерезис навантаження (load hysteresis)** та математичне згладжування метрик.
+Перший запобіжник, який ми встановили на нашому «лабораторному столі» — це **гістерезис навантаження (load hysteresis)** та згладжування метрик через ковзне вікно тиску.
 
-Якщо шард починає відчувати підвищений тиск, це ще не привід негайно бити в дзвони та переносити розділи. Можливо, це просто короткочасний сплеск даних — наприклад, радар зловив відбиття від зграї птахів, і це триватиме лише секунду ([`OscillatingSpike`](../../../src/Infrastructure/Processing/Benchmarks/Options/RadarProcessingSyntheticRebalanceWorkloadKind.cs)).
+Гістерезис простими словами — це коли система не змінює рішення відразу після першого коливання показника. Для входу в стан тривоги потрібен один, вищий поріг; для виходу зі стану тривоги — інший, нижчий поріг. Завдяки цьому ребаланс має пам'ять і не смикається туди-сюди, якщо навантаження кілька секунд танцює біля однієї межі.
 
-Планувальник ребалансу використовує дві математичні лінії оборони:
-1. **Згладжування за допомогою EMA (Exponential Moving Average):** замість миттєвого значення черги ми вираховуємо середньозважений показник навантаження:
-   $$Load_{EMA} = \alpha \times Load_{current} + (1 - \alpha) \times Load_{previous\_EMA}$$
-   де коефіцієнт згладжування $\alpha = 0.2$. Це повністю нівелює миттєвий шум і сплески.
-2. **Пороги Hysteresis (Watermarks):** ми розділяємо критичні рівні прийняття рішень. Шард позначається як «перевантажений» (hot) тільки коли його $Load_{EMA}$ перевищує **High Watermark (85%)**. Але цільовий шард для міграції має бути «вільним» — його навантаження має бути менше за **Low Watermark (30%)**. Рівно 55% різниці створюють мертву зону (deadband), яка зупиняє марний серфінг розділів.
+Якщо шард починає відчувати підвищений тиск, це ще не привід негайно бити в дзвони та переносити partition-и. Можливо, це просто короткочасний сплеск даних — наприклад, радар зловив відбиття від зграї птахів, і це триватиме лише секунду ([`OscillatingSpike`](../../../src/Infrastructure/Processing/Benchmarks/Options/RadarProcessingSyntheticRebalanceWorkloadKind.cs)).
 
-Ми переміщуємо розділ тільки тоді, коли впевнені, що вигода від перенесення перекриє накладні витрати на саму міграцію.
+Планувальник ребалансу використовує дві лінії оборони:
+1. **Ковзне вікно тиску (rolling pressure window):** замість того, щоб реагувати на один миттєвий замір, [`RadarProcessingPressureWindow`](../../../src/Domain/Processing/Pressure/Models/RadarProcessingPressureWindow.cs) утримує обмежену кількість останніх pressure samples і рахує середній pressure score для shard-ів та partition-ів:
+   `average pressure = sum(sample pressure scores) / sample count`.
+   В архівному benchmark-контурі вікно тримає до 8 pressure samples. Це не експоненційне згладжування, а просте ковзне середнє: новий сплеск впливає на рішення, але не отримує повної влади над ним.
+2. **Пороги гістерезису (enter/exit thresholds):** [`RadarProcessingPressureWindowOptions`](../../../src/Domain/Processing/Pressure/Options/RadarProcessingPressureWindowOptions.cs) розділяє поріг входу в стан і поріг виходу з нього. Наприклад, у default-конфігурації shard або partition входить у стан `hot`, коли середній pressure score доходить до `HotEnterThreshold = 50_000`, але не виходить із `hot`, доки не впаде нижче `HotExitThreshold = 40_000`. Така різниця між enter і exit thresholds створює мертву зону (deadband), у якій система свідомо нічого не переносить, щоб зупинити марний серфінг partition-ів.
 
-Другий запобіжник — **таймери охолодження (cooldown times)** та час перебування розділу на одному місці (*partition residency*).
+Ми переміщуємо partition тільки тоді, коли впевнені, що вигода від перенесення перекриє накладні витрати на саму міграцію.
 
-Коли розділ мігрує на новий шард, на нього накладається тимчасове ембарго на переміщення. Він отримує статус «на карантині». Шард-джерело і шард-ціль також входять у режим охолодження (cooldown). Протягом цього періоду жодні нові переміщення з цими вузлами не дозволяються. Це дає системі час стабілізуватися та адаптуватися до нової топології перед наступним кроком.
+Другий запобіжник — **таймери охолодження (cooldown times)** та час перебування partition-а на одному місці (*partition residency*).
+
+Коли partition мігрує на новий шард, на нього накладається тимчасове ембарго на переміщення. Він отримує статус «на карантині». Шард-джерело і шард-ціль також входять у режим охолодження (cooldown). Протягом цього періоду жодні нові переміщення з цими вузлами не дозволяються. Це дає системі час стабілізуватися та адаптуватися до нової топології перед наступним кроком.
+
+Важлива деталь: це не таймер у секундах. У коді заборона серфінгу вимірюється кількістю **rebalance evaluations** — циклів, у яких сесія оцінює, чи треба змінювати топологію. Коли [`RadarProcessingRebalanceSession`](../../../src/Domain/Processing/Rebalance/Services/RadarProcessingRebalanceSession/RadarProcessingRebalanceSession.Processing.cs) доходить до планування, вона викликає `AdvanceEvaluation()`. Якщо міграцію прийнято, [`RadarProcessingRebalancePolicyState`](../../../src/Domain/Processing/Rebalance/Policies/RadarProcessingRebalancePolicyState.cs) запам'ятовує поточний номер evaluation для partition-а, shard-а-джерела і shard-а-цілі. Після цього `PartitionMoveCooldownEvaluations` блокує повторний переїзд цього partition-а, `SourceShardMoveCooldownEvaluations` блокує нові вихідні переміщення з того самого shard-а, а `TargetShardReceiveCooldownEvaluations` блокує нові прийоми в той самий shard. Окремо працює `MinimumPartitionResidencyEvaluations`: partition має прожити на поточному власнику достатньо evaluation-кроків, перш ніж його знову дозволено розглядати як кандидата на міграцію.
 
 
 ## 9.2. Ліміти на міграційний бюджет
 
 Навіть якщо переміщення виглядає логічним та корисним, ми не можемо рухати все і відразу. Детективне бюро має обмежений ресурс на логістику. Тому в RadarPulse було введено концепцію **Migration Budgets (Бюджетів міграції)**:
 
-* **Глобальний бюджет переміщень (Global Move Budget):** максимальна кількість дозволених міграцій за один цикл ребалансування. Зазвичай цей ліміт дорівнює 1. Ми не переносимо п'ять розділів одночасно. Ми робимо один обережний крок, дивимося на результат і лише потім плануємо наступний.
-* **Бюджет джерела (Source Move Budget):** обмежує частоту вихідних міграцій з конкретного шарда.
-* **Бюджет цілі (Target Headroom Gate):** шард-ціль повинен мати достатній запас потужності (headroom). Ми не перенесемо розділ на шард, який після цього сам негайно стане гарячим.
+Бюджети не виводяться з розміру файлу чи кількості радарних значень напряму. Вони задаються політикою [`RadarProcessingRebalanceOptions`](../../../src/Domain/Processing/Rebalance/Options/RadarProcessingRebalanceOptions.cs) і діють у межах вікна `BudgetWindowEvaluationCount`. Кожна прийнята міграція списує одну одиницю з трьох рахунків: глобального, рахунку shard-а-джерела і рахунку shard-а-цілі. Коли evaluation-вікно завершується, лічильники бюджетів скидаються.
+
+У цій реалізації самі числові параметри не адаптуються автоматично під поточний шторм. Це конфігурація policy-контурів, яку передають під час створення `RadarProcessingRebalancePolicyState`; якщо її не передати, використовується консервативний `RadarProcessingRebalanceOptions.Default`. Для архівного benchmark-контуру значення явно зафіксовані в [`RadarProcessingArchiveRebalanceBenchmark.BatchProcessor.cs`](../../../src/Infrastructure/Processing/ArchiveRuntime/Services/RadarProcessingArchiveRebalanceBenchmark/RadarProcessingArchiveRebalanceBenchmark.BatchProcessor.cs). Динамічними є не ці числа, а поточний стан політики: скільки бюджету вже витрачено, скільки cooldown-evaluation залишилося і на якому evaluation-кроці перебуває сесія.
+
+* **Глобальний бюджет переміщень (Global Move Budget):** максимальна кількість дозволених міграцій у межах одного evaluation-вікна. За замовчуванням цей ліміт дорівнює 1. Ми не переносимо п'ять partition-ів одночасно. Ми робимо один обережний крок, дивимося на результат і лише потім плануємо наступний.
+* **Бюджет shard-а-джерела (Source Shard Move Budget):** обмежує, скільки partition-ів можна забрати з одного shard-а в межах бюджетного вікна.
+* **Бюджет shard-а-цілі (Target Shard Receive Budget):** обмежує, скільки partition-ів можна віддати одному shard-у в межах бюджетного вікна.
+* **Запас потужності цілі (Target Headroom Gate):** окрема перевірка, яка вимагає, щоб shard-ціль мав достатній запас потужності (headroom). Ми не перенесемо partition на шард, який після цього сам негайно стане гарячим.
+
+У консервативних параметрах за замовчуванням `RadarProcessingRebalanceOptions` бюджетне вікно дорівнює одному evaluation-кроку, а глобальний/source/target бюджети дорівнюють 1. В архівному benchmark-контурі RadarPulse використовується довше вікно — 8 evaluation-кроків — але все одно лише одна прийнята міграція для кожного з трьох бюджетів у межах цього вікна; cooldown для partition-а становить 4 evaluation-кроки, а cooldown для shard-а-джерела і shard-а-цілі — по 1 evaluation-кроку. Це робить ребаланс повільнішим, зате не дає системі перетворити короткий шторм на серію хаотичних переїздів.
 
 Якщо планувальник намагається порушити хоча б один із цих лімітів, система каже рішуче «ні». Замість міграції вона фіксує відмову з чітким поясненням причини — **Skipped Reason**.
 
 У нашій системі телеметрії з'явилися чіткі діагностичні мітки skipped-decision:
 * `no-hot-shard` — система збалансована, гарячих точок не виявлено.
 * `no-cold-target-shard` — гарячий шард є, але немає жодного вільного шарда, здатного прийняти навантаження без перегріву.
-* `source-shard-move-budget-exhausted` — джерело вичерпало свій ліміт на переміщення і повинно охолонути.
+* `source-shard-move-budget-exhausted` — shard-джерело вже вичерпав свій ліміт вихідних переміщень у поточному бюджетному вікні.
+* `target-shard-receive-budget-exhausted` — shard-ціль уже вичерпав свій ліміт прийому нових partition-ів у поточному бюджетному вікні.
 * `global-move-budget-exhausted` — глобальний ліміт міграцій на цей крок уже вичерпано.
 
 ## 9.3. Проблема нескінченних архівів: Bounded Telemetry
@@ -56,7 +68,7 @@
 * `diagnostic` — повна перевірка топології, маршрутів та handoff.
 * `benchmark` — режим для точного вимірювання накладних витрат.
 
-Під час великого тесту на 220 файлах NEXRAD (понад 8.5 мільярдів значень) система ребалансу поводилася стримано й вимірювано. Вона схвалила лише 2 міграції на самому початку шторму, після чого анти-черн правила заблокували зайві рухи, а обмежена телеметрія утримала виділення пам'яті біля 0.03 байта на одне оброблене значення.
+Під час великого тесту на 220 файлах NEXRAD (понад 8.5 мільярдів значень) система ребалансу поводилася стримано й вимірювано. Вона схвалила лише 2 міграції на самому початку шторму, після чого правила проти небезпечної метушні заблокували зайві рухи, а обмежена телеметрія утримала виділення пам'яті біля 0.03 байта на одне оброблене значення.
 
 Наш детективний офіс навчився працювати спокійно, методично та без паніки. Але попереду на нас чекав наступний крок еволюції — перехід від синхронної обробки на одному потоці до справжньої асинхронності, де завдання передаються за допомогою поштових скриньок воркерів.
 ---
@@ -64,20 +76,22 @@
 ## 🔍 Матеріали справи (Investigation Case Files)
 
 ### 1. Вердикт детективів (Decision Trace & Rationale)
-Для боротьби з ефектом «мигтіння» топології (Shard Churning) впроваджено коефіцієнт Hysteresis та обов'язковий інтервал Cooldown (Віха `007`). Це запобігає панічному перенесенню джерел туди-сюди при випадкових і короткочасних сплесках шуму на радарах.
+Для боротьби з ефектом «мигтіння» топології (Shard Churning) впроваджено гістерезис рішень і обов'язковий інтервал охолодження (Cooldown) (Віха `007`). Це запобігає панічному перенесенню partition-ів туди-сюди при випадкових і короткочасних сплесках шуму на радарах.
 
 #### Чому ребаланс має вміти чекати
-Без hysteresis система стала б надто нервовим диспетчером: кожен короткий сплеск виглядав би як наказ на міграцію. Можна було, навпаки, зробити rebalance рідкісним ручним рішенням, але тоді автоматизація програвала б реальній бурі. Ми обрали набір запобіжників: hysteresis, cooldown, migration budget і bounded telemetry. Ціна вибору — деякі корисні міграції свідомо відкладаються; виграш — topology не смикається від шуму, а рішення мають інерцію й доказову історію.
+Без гістерезису система стала б надто нервовим диспетчером: кожен короткий сплеск виглядав би як наказ на міграцію. Можна було, навпаки, зробити rebalance рідкісним ручним рішенням, але тоді автоматизація програвала б реальній бурі. Ми обрали набір запобіжників: гістерезис, cooldown, migration budget і bounded telemetry. Ціна вибору — деякі корисні міграції свідомо відкладаються; виграш — topology не смикається від шуму, а рішення мають інерцію й доказову історію.
 
 ### 2. Закони фізики рантайму (System Invariants)
-* **Бюджет міграції**: Кількість дозволених одночасних перенесень джерел обмежена бюджетами [`GlobalMoveBudget`](../../../src/Domain/Processing/Rebalance/Policies/RadarProcessingRebalancePolicyState.cs), [`GetSourceShardMoveBudget`](../../../src/Domain/Processing/Rebalance/Policies/RadarProcessingRebalancePolicyState.cs) і [`GetTargetShardReceiveBudget`](../../../src/Domain/Processing/Rebalance/Policies/RadarProcessingRebalancePolicyState.cs).
-* **Заборона серфінгу**: Радіоджерело не може бути повторно мігроване, якщо не минули cooldown-параметри [`PartitionMoveCooldownEvaluations`](../../../src/Domain/Processing/Rebalance/Options/RadarProcessingRebalanceOptions.cs), [`SourceShardMoveCooldownEvaluations`](../../../src/Domain/Processing/Rebalance/Options/RadarProcessingRebalanceOptions.cs) або [`TargetShardReceiveCooldownEvaluations`](../../../src/Domain/Processing/Rebalance/Options/RadarProcessingRebalanceOptions.cs).
+* **Бюджет міграції**: Кількість дозволених перенесень partition-ів у межах evaluation-вікна обмежена бюджетами [`GlobalMoveBudget`](../../../src/Domain/Processing/Rebalance/Policies/RadarProcessingRebalancePolicyState.cs), [`GetSourceShardMoveBudget`](../../../src/Domain/Processing/Rebalance/Policies/RadarProcessingRebalancePolicyState.cs) і [`GetTargetShardReceiveBudget`](../../../src/Domain/Processing/Rebalance/Policies/RadarProcessingRebalancePolicyState.cs).
+* **Заборона серфінгу**: Partition не може бути повторно мігрований, якщо не минули cooldown-параметри [`PartitionMoveCooldownEvaluations`](../../../src/Domain/Processing/Rebalance/Options/RadarProcessingRebalanceOptions.cs), [`SourceShardMoveCooldownEvaluations`](../../../src/Domain/Processing/Rebalance/Options/RadarProcessingRebalanceOptions.cs) або [`TargetShardReceiveCooldownEvaluations`](../../../src/Domain/Processing/Rebalance/Options/RadarProcessingRebalanceOptions.cs).
 
 ### 3. Патологоанатомічний звіт (Failure Modes & Recovery)
 * **Паніка балансування**: При різких коливаннях шуму система тимчасово заморожує будь-які перенесення для збереження стабільного процесингу, віддаючи перевагу накопиченню локальних черг.
 
 ### 4. Слід доказової бази (Implementation & Tests)
 * Політика ребалансу: [RadarProcessingRebalancePolicyState.cs](../../../src/Domain/Processing/Rebalance/Policies/RadarProcessingRebalancePolicyState.cs)
+* Ковзне вікно тиску: [RadarProcessingPressureWindow.cs](../../../src/Domain/Processing/Pressure/Models/RadarProcessingPressureWindow.cs)
+* Пороги гістерезису: [RadarProcessingPressureWindowOptions.cs](../../../src/Domain/Processing/Pressure/Options/RadarProcessingPressureWindowOptions.cs)
 * Конфігурація балансу: [RadarProcessingArchiveRebalanceRolloutDefaults.cs](../../../src/Infrastructure/Processing/ArchiveRuntime/Options/RadarProcessingArchiveRebalanceRolloutDefaults.cs)
 
 ### 5. Протокол допиту процесу (Verification Commands)
