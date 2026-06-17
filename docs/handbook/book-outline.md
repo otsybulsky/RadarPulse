@@ -156,3 +156,6 @@
 *   **[Додаток Є: Як відтворити лабораторний стенд на Linux/macOS/WSL2](book/appendix_g_lab_stand_linux.md)**
     *   *Технічне підґрунтя:* [appendix_g_lab_stand_linux.md](book/appendix_g_lab_stand_linux.md), [Milestone 001 historical loader](../milestones/001-historical-loader.md), [product-demo-readiness.md](../product-demo-readiness.md), [036 performance evidence](../milestones/036-clean-architecture-hardening-performance-evidence.md).
     *   *Сюжет:* Bash-маршрут з тією самою доказовою структурою: manifest/download, archive validation, product demo verify, `tee`-based raw performance logs і чесна hardware/corpus boundary.
+*   **[Додаток Ж: Глосарій RadarPulse і .NET-термінів](book/appendix_h_glossary.md)**
+    *   *Технічне підґрунтя:* [appendix_h_glossary.md](book/appendix_h_glossary.md), терміни з розділів книги, системної архітектури, лабораторних додатків і .NET/C# runtime.
+    *   *Сюжет:* Єдиний словник термінів: NEXRAD, batch/delta/merge, shard/topology, durable envelope, observability, evidence, production hardening, GC/JIT/ArrayPool/Span/ref struct та інші поняття, які читач зустрічає в книзі.
