@@ -10,13 +10,13 @@
 
 ## 25.1. Спектр інструментів: Пульт керування скрипта
 
-Скрипт [`radarpulse-product-demo.ps1`](../../../scripts/radarpulse-product-demo.ps1) (і його аналог для Unix-систем [`radarpulse-product-demo.sh`](../../../scripts/radarpulse-product-demo.sh)) об'єднує всі компоненти системи — від фронтенду до доменного ядра — в єдиний керований контур. Замість того, щоб змушувати розробника вручну прописувати шляхи, збирати Angular-компоненти через npm, налаштовувати змінні середовища та запускати dotnet-сервер, скрипт надає зручний набір команд через параметр `$Command`:
+Скрипт [`radarpulse-product-demo.ps1`](../../../scripts/radarpulse-product-demo.ps1) (і його аналог для Unix-систем [`radarpulse-product-demo.sh`](../../../scripts/radarpulse-product-demo.sh)) оркеструє локальний product surface: Angular UI, HTTP host, demo/readiness endpoints і verify gates. Доменне ядро проходить через build/tests, а не запускається як окремий сервіс. Замість того, щоб змушувати розробника вручну прописувати шляхи, збирати Angular-компоненти через npm, налаштовувати змінні середовища та запускати dotnet-сервер, скрипт надає зручний набір команд через параметр `$Command`:
 
-* **`paths`:** Виводить на екран повну мапу робочих папок проекту ( Repository Root, Dist-папку UI, шлях до бази даних історії та робочу директорію `.tmp`).
-* **`reset-history`:** Безпечно видаляє попередній файл історії [`radarpulse-product-history.json`](../../../src/Infrastructure/Product/History/Stores/RadarPulseProductFileRunHistoryStore/RadarPulseProductFileRunHistoryStore.cs) у межах дозволеної демо-директорії, готуючи чистий аркуш для нового експерименту.
+* **`paths`:** Виводить на екран повну мапу робочих папок проекту: repository root, dist-папку UI, шлях до файлу історії та робочу директорію `.tmp`.
+* **`reset-history`:** Безпечно видаляє попередній файл історії `radarpulse-product-history.json`, яким керує [`RadarPulseProductFileRunHistoryStore`](../../../src/Infrastructure/Product/History/Stores/RadarPulseProductFileRunHistoryStore/RadarPulseProductFileRunHistoryStore.cs), у межах дозволеної демо-директорії, готуючи чистий аркуш для нового експерименту.
 * **`start`:** Компілює Angular SPA, прописує змінні середовища для підключення дистрибутива до сервера і запускає хост Minimal API на вказаному порті.
 * **`readiness`:** Опитує BFF-ендпоінт готовності і виводить детальний звіт про статус API, історії та статичних файлів.
-* **`demo`:** Ініціює тестовий прогін із передачею конфігурації воркерів та аналітичних обробників.
+* **`demo`:** Ініціює тестовий прогін із параметрами `sourceCount`, `batchCount`, `eventsPerBatch` і вибраним набором аналітичних handler-ів.
 * **`history`:** Показує зведену статистику щодо завантажених та виконаних розслідувань.
 * **`verify`:** Запускає повний цикл верифікації системи.
 
@@ -50,13 +50,13 @@ function Start-LocalProductHost {
 }
 ```
 
-Через змінні середовища `RadarPulse__ProductHttp__...` скрипт інжектує конфігурацію безпосередньо у конфігураційний шар ASP.NET Core, який читає [`RadarPulseProductHttpOptions`](../../../src/Presentation/RadarPulse.Http/Product/Options/RadarPulseProductHttpOptions.cs). Це дозволяє нам тестувати систему у строго детермінованому стані без необхідності редагувати конфігураційні файли appsettings.json.
+Через змінні середовища `RadarPulse__ProductHttp__...` скрипт інжектує конфігурацію безпосередньо у конфігураційний шар ASP.NET Core, який читає [`RadarPulseProductHttpOptions`](../../../src/Presentation/RadarPulse.Http/Product/Options/RadarPulseProductHttpOptions.cs). Це дозволяє тестувати систему у контрольованому локальному стані без необхідності редагувати конфігураційні файли appsettings.json.
 
 ---
 
 ## 25.2. Конвеєр верифікації: Команда `verify`
 
-Найважливішим інструментом скрипта є команда `verify`. Це наш внутрішній суд присяжних. Вона запускає п'ятиетапний конвеєр перевірки, який не прощає жодної помилки. Якщо хоча б один крок завершується невдачею, весь процес зупиняється з кодом помилки `1`.
+Найважливішим інструментом скрипта є команда `verify`. Це наш внутрішній суд присяжних. Вона запускає восьмиетапний конвеєр перевірки, який не прощає жодної помилки. Якщо хоча б один крок завершується невдачею, весь процес зупиняється з кодом помилки `1`.
 
 Давайте розберемо етапи цієї перевірки в деталях:
 
@@ -67,8 +67,9 @@ function Invoke-PackagedVerify {
     $testProject = Join-DemoPath -Root $Paths.RepositoryRoot -Segments @("tests", "RadarPulse.Tests", "RadarPulse.Tests.csproj")
     $solution = Join-Path $Paths.RepositoryRoot "RadarPulse.sln"
 
-    # Фільтр для запуску лише перевірених продуктових та архітектурних тестів
+    # Окремі фільтри для архітектурного gate і продуктового HTTP/API gate
     $focusedFilter = "FullyQualifiedName~RadarPulseProductHttpHostTests|FullyQualifiedName~RadarPulseProductHttpControlTests|FullyQualifiedName~RadarPulseProductPipelineApiContractTests"
+    $architectureFilter = "FullyQualifiedName~RadarPulseArchitectureTests"
 
     # Етап 1: Тестування фронтенду
     Write-VerifyStep "Angular unit tests"
@@ -86,11 +87,23 @@ function Invoke-PackagedVerify {
     Write-VerifyStep "Hosted same-origin browser smoke"
     Invoke-CheckedProcess -Executable "npm" -CommandArguments @("run", "smoke:hosted") -WorkingDirectory $Paths.OperatorUiProject
 
-    # Етап 5: Відновлення та верифікація .NET збірки
+    # Етап 5: Відновлення .NET залежностей
     Write-VerifyStep ".NET dependency restore"
     Invoke-CheckedProcess -Executable "dotnet" -CommandArguments @("restore", $solution, "--force") -WorkingDirectory $Paths.RepositoryRoot
 
-    # Етап 6: Архітектурні та продуктові гейти
+    # Етап 6: Архітектурний gate меж шарів
+    Write-VerifyStep ".NET architecture boundary gate"
+    Invoke-CheckedProcess -Executable "dotnet" -CommandArguments @(
+        "test",
+        $testProject,
+        "-c",
+        "Release",
+        "--no-restore",
+        "--filter",
+        $architectureFilter
+    ) -WorkingDirectory $Paths.RepositoryRoot
+
+    # Етап 7: Продуктові HTTP/API/readiness гейти
     Write-VerifyStep "Focused .NET product HTTP/API/readiness Release gate"
     Invoke-CheckedProcess -Executable "dotnet" -CommandArguments @(
         "test",
@@ -102,7 +115,7 @@ function Invoke-PackagedVerify {
         $focusedFilter
     ) -WorkingDirectory $Paths.RepositoryRoot
 
-    # Етап 7: Фінальна Release-компіляція рішення
+    # Етап 8: Фінальна Release-компіляція рішення
     Write-VerifyStep ".NET Release build"
     Invoke-CheckedProcess -Executable "dotnet" -CommandArguments @(
         "build",
@@ -120,7 +133,7 @@ function Invoke-PackagedVerify {
 Чому цей конвеєр є настільки суворим?
 1. **Ніяких здогадок:** Він проганяє не лише юніт-тести Angular, а й повноцінні браузерні смоук-тести (Smoke Tests) за допомогою Playwright. Це перевіряє інтерактивні елементи та зв'язки між Signal-полями й BFF-ендпоінтами у справжньому Chromium, а не в уявному “воно має працювати”.
 2. **Суворий релізний режим (Strict Release Mode):** Ми компілюємо і тестуємо C#-проект у конфігурації `Release` із ключем `--no-restore` після примусового відновлення залежностей. Це знижує ризик «забутих» пакетів та брудних метаданих проекту.
-3. **Архітектурні гейти:** Тести із фільтру `$focusedFilter` перевіряють дотримання контрактів API, коректність ініціалізації хосту та відповідність обмежень нашої системи (наприклад, перевірка того, що доменні об'єкти не виходять за межі шару обробки).
+3. **Архітектурні гейти:** Окремий `$architectureFilter` запускає `RadarPulseArchitectureTests` і перевіряє межі шарів. Продуктовий `$focusedFilter` після цього окремо перевіряє HTTP-host, control endpoints і pipeline API contracts. Так ми не змішуємо structural proof із продуктовою smoke/API перевіркою.
 
 ---
 
@@ -129,7 +142,7 @@ function Invoke-PackagedVerify {
 У будь-якій високопродуктивній системі вимірювання продуктивності — тонка справа. Реальний `Stopwatch`, `TimeProvider.System`, фонова активність ОС і температура процесора можуть дати різницю між двома запусками. І саме тому ми не видаємо поточний demo script за лабораторію з віртуальним часом.
 
 У RadarPulse сьогодні заморожено не годинник, а протокол:
-* **Команди:** `verify` завжди проходить той самий маршрут: Angular tests, production build, browser smoke, hosted smoke, .NET restore, focused product/API/readiness gate, Release build.
+* **Команди:** `verify` завжди проходить той самий маршрут: Angular tests, production build, browser smoke, hosted smoke, .NET restore, architecture boundary gate, focused product/API/readiness gate, Release build.
 * **Робочий простір:** історія demo-run-ів живе в контрольованій `.tmp/product-demo` директорії, а reset не виходить за її межі.
 * **Доказова поверхня:** readiness, warnings і non-claims говорять рецензенту, що саме перевірено, а що свідомо не заявляється.
 
@@ -142,6 +155,7 @@ function Invoke-PackagedVerify {
 У професійній розробці існує термін **«Freeze Mode»** (режим заморозки коду). Це стан перед фінальним релізом, коли додавання нових функцій суворо заборонено, а всі зусилля спрямовані на стабілізацію та перевірку працездатності існуючого коду. Скрипт [`radarpulse-product-demo.ps1`](../../../scripts/radarpulse-product-demo.ps1) — це інструмент, який фіксує цей режим і робить його перевірюваним.
 
 Якщо будь-який крок конвеєра `verify` зазнає невдачі — розслідування вважається проваленим, а код — не готовим до демонстрації. Завдяки цьому ми отримуємо готовність до технічного захисту: покупець системи, інвестор чи головний архітектор може завантажити репозиторій, запустити одну команду `verify` і отримати не обіцянку, а пакет доказів: **тести пройдено, архітектурні гейти на місці, межі відповідальності названо, demo path зібраний у відтворюваний протокол**. Справу закрито.
+
 ## 25.5. Чеклист рецензента (Reviewer Checklist)
 
 Для незалежного експерта, який має лише 15 хвилин на перевірку архітектури та кодової бази RadarPulse, ми підготували цей бліц-чеклист. Він дозволяє швидко переконатися, що проект відповідає заявленим інженерним стандартам:
@@ -151,15 +165,15 @@ function Invoke-PackagedVerify {
    * [ ] Перевірте використання `ArrayPool` у парсері. Переконайтеся, що всі орендовані буфери гарантовано повертаються в пул у блоках `finally`.
 2. **Чиста архітектура та захист меж (Розділ 4, 5):**
    * [ ] Переконайтеся, що шар `Domain` не посилається на зовнішні інфраструктурні пакети чи шари `Infrastructure` / `Cli`.
-   * [ ] Знайдіть архітектурні тести (ArchUnit або аналогічні), які захищають ці правила на рівні білда.
+   * [ ] Знайдіть ручні архітектурні тести [RadarPulseArchitectureTests.cs](../../../tests/RadarPulse.Tests/Architecture/RadarPulseArchitectureTests.cs), які захищають ці правила на рівні білда.
 3. **Обробка помилок та зупинка без прихованої неправди (Fail-Closed; Розділ 20):**
-   * [ ] Перевірте реалізацію аварійного відсікання. Переконайтеся, що при помилці валідації вхідного батча черга блокується, а всі активні фонові воркери отримують сигнал скасування через `CancellationTokenSource`.
+   * [ ] Перевірте реалізацію аварійного відсікання. Переконайтеся, що при fail-closed прийом нової роботи закривається, активна робота завершується або скасовується кооперативно, а причина блокування лишається видимою для оператора.
 4. **Запуск автоматичного аудиту:**
    * [ ] Виконайте команду автоматичної верифікації всього рішення:
      ```powershell
      powershell -ExecutionPolicy Bypass -File scripts/radarpulse-product-demo.ps1 verify
      ```
-     Переконайтеся, що Angular SPA збирається без попереджень, а всі продуктові та інтеграційні гейти проходять успішно.
+     Переконайтеся, що Angular SPA збирається, а архітектурний, продуктовий і browser smoke-гейти проходять успішно.
 
 ---
 
@@ -167,8 +181,8 @@ function Invoke-PackagedVerify {
 
 Щоб запобігти нереалістичним очікуванням під час аудиту промислової придатності RadarPulse, ми чітко окреслюємо межі відповідальності нашого локального Standalone-рішення:
 
-* **Масштабування в межах одного вузла (Single-Node Focus):** RadarPulse оптимізовано для витискання максимальної швидкодії з багатоядерного процесора Ryzen 9 на одній фізичній машині. Система не містить вбудованих інструментів розподіленого консенсусу (на кшталт Raft/Paxos) чи автоматичного шардингу між серверами.
-* **Гарантія транзакційної стійкості (Durability Limits):** Локальне сховище історії записує повний JSON-документ через тимчасовий файл і `File.Move(..., overwrite: true)`. Це достатньо для demo history/restart recovery, але це не WAL, не `fsync`-сертифікація і не база даних для кожної окремої точки на частоті 500M+/сек.
+* **Масштабування в межах одного вузла (Single-Node Focus):** RadarPulse оптимізовано для витискання максимальної швидкодії з багатоядерного процесора Ryzen 9 на одній фізичній машині. Raft і Paxos — це реальні протоколи розподіленого консенсусу: вони потрібні там, де кілька вузлів мають домовитися про спільний стан, лідера або порядок записів попри збої мережі й окремих машин. У цьому проекті вони не реалізовані й не замасковані під інші назви: система не містить вбудованого consensus layer чи автоматичного шардингу між серверами.
+* **Гарантія транзакційної стійкості (Durability Limits):** Локальне сховище історії записує повний JSON-документ через тимчасовий файл і `File.Move(..., overwrite: true)`. Це достатньо для demo history/restart recovery, але це не WAL, не `fsync`-сертифікація і не журналювання кожного payload-value на швидкості benchmark-контуру.
 * **Спрощений контур споживання даних:** Демо-версія системи зчитує локально підготовлені бінарні NEXRAD-файли. Підключення до реальних джерел NOAA в реальному часі (наприклад, AWS S3 buckets) вимагає окремого зовнішнього агента-завантажувача, що виходить за рамки продуктивності обчислювального ядра.
 * **Пропускна здатність UI-клієнтів:** Operator UI (Angular) розрахований на роботу в кабіні одного або кількох операторів-аналітиків. Без використання зовнішніх зворотних проксі-серверів (Nginx/Yarp) локальний BFF-сервер не зможе ефективно обслуговувати тисячі одночасних веб-клієнтів.
 
@@ -177,24 +191,29 @@ function Invoke-PackagedVerify {
 ## 🔍 Матеріали справи (Investigation Case Files)
 
 ### 1. Вердикт детективів (Decision Trace & Rationale)
-Розробка консольного PowerShell/Bash дистрибутива під ключ (Віхи `032`-`033`). Для демонстрації та верифікації системи створено скрипт [`radarpulse-product-demo.ps1`](../../../scripts/radarpulse-product-demo.ps1) з командою `verify`, що автоматично збирає Angular, запускає тести, проганяє локальні дистрибутиви та робить перевірку дискового сховища.
+Розробка консольного PowerShell/Bash дистрибутива під ключ (Віхи `032`-`033`). Для демонстрації та верифікації системи створено скрипти [`radarpulse-product-demo.ps1`](../../../scripts/radarpulse-product-demo.ps1) і [`radarpulse-product-demo.sh`](../../../scripts/radarpulse-product-demo.sh) з командою `verify`, що автоматично збирає Angular, запускає unit-тести, browser smoke-тести, .NET gates і перевіряє локальний demo/readiness маршрут.
 
 #### Чому демо стало протоколом, а не інструкцією
 Демо можна було зібрати як набір інструкцій у README, але тоді кожен рецензент став би сам собі release engineer. Можна було загорнути все в Docker, але для стенда технічного захисту це додало б ще один шар, який приховує реальні команди .NET, Angular і файлового сховища. Скрипт під ключ обрано як протокол допиту системи: одна команда піднімає, перевіряє й показує межі відповідальності. Ціна вибору — треба підтримувати cross-platform shell сценарії; виграш — демонстрація відтворюється без усних пояснень.
 
 ### 2. Закони фізики рантайму (System Invariants)
-* **Кросплатформеність**: Скрипти PowerShell (`.ps1`) та Bash (`.sh`) мають видавати ідентичні результати на Windows та WSL2/Linux.
+* **Кросплатформеність**: Скрипти PowerShell (`.ps1`) та Bash (`.sh`) мають вести рецензента еквівалентним маршрутом і запускати ті самі gates на Windows та WSL2/Linux.
 * **Режим заморозки (Freeze Mode)**: Демо-пакет працює як локальний release-freeze протокол без зовнішніх runtime-сервісів на кшталт брокера, бази даних чи хмарної панелі керування (cloud control plane).
 
 ### 3. Патологоанатомічний звіт (Failure Modes & Recovery)
 * **Помилка верифікації**: Будь-яке падіння тесту (Angular, .NET або UI-smoke) миттєво зупиняє загальний скрипт верифікації з кодом завершення не нуль (Exit Code != 0).
 
 ### 4. Слід доказової бази (Implementation & Tests)
-* Скрипт демонстрації: [radarpulse-product-demo.ps1](../../../scripts/radarpulse-product-demo.ps1)
+* Скрипт демонстрації для Windows/PowerShell: [radarpulse-product-demo.ps1](../../../scripts/radarpulse-product-demo.ps1)
+* Скрипт демонстрації для Linux/macOS/WSL2: [radarpulse-product-demo.sh](../../../scripts/radarpulse-product-demo.sh)
 * Звіт про готовність: [product-demo-readiness.md](../../product-demo-readiness.md)
 
 ### 5. Протокол допиту процесу (Verification Commands)
 Запуск повного циклу автоматичної верифікації демо-пакету:
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/radarpulse-product-demo.ps1 verify
+```
+
+```bash
+bash scripts/radarpulse-product-demo.sh verify
 ```
