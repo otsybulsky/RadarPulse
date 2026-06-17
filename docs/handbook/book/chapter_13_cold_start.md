@@ -6,7 +6,7 @@
 
 З аналогічною інженерною загадкою ми зіткнулися під час фінального шліфування продуктивності RadarPulse в межах Milestones 015-017.
 
-## 13.1. Аномалія холодного старту: ArrayPool Misses
+## 13.1. Аномалія холодного старту: промахи `ArrayPool`
 
 Коли ми успішно впровадили пулінг масивів `pooled-copy` (описаний у Розділі 12), довгі full-cache тести показали різке падіння retained allocation у **steady-state** — усталеному режимі, коли система вже пройшла стартовий прогрів, пули мають стартовий робочий набір буферів, JIT скомпілював гарячі методи, а вимірювання показує не перший запуск, а нормальну роботу конвеєра. Але коли ми почали запускати точкові тести окремих файлів за допомогою методу [`MeasureFile()`](../../../src/Infrastructure/Processing/ArchiveRuntime/Services/RadarProcessingArchiveRebalanceBenchmark/RadarProcessingArchiveRebalanceBenchmark.MeasureFile.cs), звіт про виділення пам'яті знову показав дивні цифри:
 
@@ -23,7 +23,7 @@
 
 Але цей перший, «холодний» крок повністю псує статистику нашого бенчмарку. Він створює un-amortized cost — одноразову ціну холодного запуску, яка для коротких операцій (як-от обробка одного файлу) виглядає як величезний провал у продуктивності.
 
-## 13.2. Рішення: Постава прогріву (Prewarm Posture) та JIT-розігрів
+## 13.2. Рішення: постава прогріву та JIT-розігрів
 
 Щоб зробити вимірювання чесними та прибрати ефект холодного старту з вимірюваних операцій, ми розробили концепцію **Prewarm Posture** (Попереднього прогріву). Вона спрямована на усунення двох основних джерел затримок:
 
@@ -65,7 +65,7 @@
 
 ## 13.4. Висновки нашого великого розслідування
 
-Chapters 7-13 стали хронікою нашої тривалої боротьби за продуктивність та асинхронність на лабораторному столі RadarPulse:
+Розділи 7-13 стали хронікою нашої тривалої боротьби за продуктивність та асинхронність на лабораторному столі RadarPulse:
 
 1. Ми почали з проблеми гарячого радара KTLX під час шторму (**Розділ 7**).
 2. Написали динамічний ребаланс для перенесення розділів між шардами на межах батчів (**Розділ 8**).
@@ -79,22 +79,22 @@ Chapters 7-13 стали хронікою нашої тривалої борот
 
 ---
 
-## 🔍 Матеріали справи (Investigation Case Files)
+## Матеріали справи
 
-### 1. Вердикт детективів (Decision Trace & Rationale)
+### 1. Вердикт детективів
 Рішення про впровадження прогріву пулів — `Prewarm Posture` (Віхи `015`-`017`). Холодний старт призводив до алокації 138 МБ на першому файлі через промахи пулу. Попередній примусовий розігрів пулів виніс cold pool miss у startup phase, а виміряна обробка репрезентативного файлу після прогріву знизилася до контрольованих 68 МБ.
 
 #### Чому холодний старт не можна ховати під килим
 Можна було оголосити перший файл «неважливим» і просто не включати його в benchmark. Це зручно, але нечесно: холодний старт тоді лишається у користувача, а не в наших цифрах. Можна було прогрівати все максимально, але це перетворило б запуск на приховане споживання пам'яті. Ми обрали явний prewarm posture: показати стартову ціну, обмежити її й відділити від steady allocation. Ціна вибору — startup phase стає частиною протоколу; виграш — benchmark більше не плутає одноразовий прогрів із гарячим шляхом.
 
-### 2. Закони фізики рантайму (System Invariants)
+### 2. Закони фізики рантайму
 * **Prewarm Sizing**: На старті системи виділяється та нагрівається рівно 1 батч (`65_536` подій, `67_108_864` payload bytes).
 * **Однократність**: Прогрів виконується строго один раз перед початком прийому реальних радарних даних.
 
-### 3. Патологоанатомічний звіт (Failure Modes & Recovery)
+### 3. Патологоанатомічний звіт
 * **Пропуск прогріву**: Якщо прогрів відключений, перші оброблені батчі зазнають значних затримок у часі виконання (Latency Spikes) через фізичне виділення пам'яті ОС.
 
-### 4. Докази продуктивності (Performance Evidence)
+### 4. Докази продуктивності
 
 | Твердження (Claim) | Доказ (Evidence) | Де дивитися |
 | :--- | :--- | :--- |
@@ -103,12 +103,12 @@ Chapters 7-13 стали хронікою нашої тривалої борот
 | Один прогрітий retained batch достатній для прийнятого full-cache контуру | Full-cache rows: `retained payload pool misses: 0`, provider queue depth high-water `1` | [020-default-baseline-runtime-archive-integration-full-cache-performance-matrix.md](../../milestones/020-default-baseline-runtime-archive-integration-full-cache-performance-matrix.md) |
 | Unit-тести охороняють startup lifecycle | [`StartupPrewarm`](../../../tests/RadarPulse.Tests/Processing/Queueing/RadarProcessingArchiveQueuedOverlapRunnerTests/RadarProcessingArchiveQueuedOverlapRunnerTests.StartupPrewarm.cs) suite перевіряє, що прогрів запускається явно і не ламає release discipline | `dotnet test tests/RadarPulse.Tests --filter "FullyQualifiedName~StartupPrewarm"` |
 
-### 5. Слід доказової бази (Implementation & Tests)
+### 5. Слід доказової бази
 * Метод прогріву: [RadarProcessingRetainedPayloadFactory.Prewarm.cs](../../../src/Infrastructure/Processing/Retention/Services/RadarProcessingRetainedPayloadFactory/RadarProcessingRetainedPayloadFactory.Prewarm.cs)
 * Тести холодного старту: [RadarProcessingArchiveQueuedOverlapRunnerTests.StartupPrewarm.cs](../../../tests/RadarPulse.Tests/Processing/Queueing/RadarProcessingArchiveQueuedOverlapRunnerTests/RadarProcessingArchiveQueuedOverlapRunnerTests.StartupPrewarm.cs)
 * MeasureFile gate: [017-file-level-default-readiness-and-cold-retained-ownership-cost-measurefile-gate.md](../../milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-measurefile-gate.md)
 
-### 6. Протокол допиту процесу (Verification Commands)
+### 6. Протокол допиту процесу
 Запуск тестування фази прогріву пулів пам'яті:
 ```bash
 dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~StartupPrewarm"

@@ -1,4 +1,4 @@
-# Розділ 23: Щит для фронтенду (бекенд для фронтенду, Backend-for-Frontend)
+# Розділ 23: Щит для фронтенду
 
 Внутрішній рантайм RadarPulse не є форматом для браузера. Там живуть [`DurableEnvelope`](../../../src/Infrastructure/Processing/Durable/Services/RadarProcessingDurableEnvelopeQueue/RadarProcessingDurableEnvelopeQueue.cs), утриманий тиск пам'яті (retained pressure), версії топології, стани worker-ів, pooled buffers і координатори комміту. Якщо віддати це напряму Angular SPA, фронтенд швидко стане заручником внутрішньої кухні ядра.
 
@@ -176,26 +176,26 @@ BFF виступає надійним щитом: він захищає внут
 
 ---
 
-## 🔍 Матеріали справи (Investigation Case Files)
+## Матеріали справи
 
-### 1. Вердикт детективів (Decision Trace & Rationale)
+### 1. Вердикт детективів
 Створення захисного щита бекенду для фронтенду (Backend-for-Frontend, BFF) і моделей читання (read models) (Віха `028`). Контролери та DTO-моделі BFF ізолюють складну внутрішню кухню рантайму та черг повідомлень від клієнтських Angular SPA запитів, віддаючи назовні лише агреговані легкі зрізи стану.
 
 #### Чому фронтенд не бачить внутрішню кухню
 SPA могла напряму читати runtime-моделі, але тоді фронтенд отримав би durable envelopes, pooled pressure, topology internals і випадкові зміни доменних типів. Можна було зробити універсальний generic API, але він став би тонким обгортанням внутрішньої кухні. BFF обрано як перекладача для оператора: він віддає не все, що знає система, а те, що потрібно для рішення. Ціна вибору — додаткові DTO і read-model store; виграш — стабільний UI-контракт і захист семантики ядра (core semantics) від presentation-запитів.
 
-### 2. Закони фізики рантайму (System Invariants)
+### 2. Закони фізики рантайму
 * **Публікація read-моделі**: BFF-сховище [`RadarProcessingBffReadModelStore`](../../../src/Application/Processing/Services/RadarProcessingBffReadModelStore.cs) отримує готовий [`RadarProcessingRunReadModel`](../../../src/Application/Processing/ReadModels/RadarProcessingRunReadModel.cs) після того, як pipeline сформував результат виконання; воно не читає внутрішню durable queue напряму.
 * **Ізоляція інтерфейсу**: Прямі запити з UI до внутрішніх об'єктів черги [`DurableEnvelopeQueue`](../../../src/Infrastructure/Processing/Durable/Services/RadarProcessingDurableEnvelopeQueue/RadarProcessingDurableEnvelopeQueue.cs) суворо заборонені.
 
-### 3. Патологоанатомічний звіт (Failure Modes & Recovery)
+### 3. Патологоанатомічний звіт
 * **Неопублікована або застаріла read-модель**: Якщо read model ще не опублікована або оператор дивиться на старий знімок, UI може показувати не найсвіжіший стан, але це не впливає на стабільність обробки радарних батчів.
 
-### 4. Слід доказової бази (Implementation & Tests)
+### 4. Слід доказової бази
 * BFF сховище: [RadarProcessingBffReadModelStore.cs](../../../src/Application/Processing/Services/RadarProcessingBffReadModelStore.cs)
 * Тести BFF read-models: [RadarProcessingBffReadModelStoreTests.cs](../../../tests/RadarPulse.Tests/Processing/ReadModels/RadarProcessingBffReadModelStoreTests.cs)
 
-### 5. Протокол допиту процесу (Verification Commands)
+### 5. Протокол допиту процесу
 Запуск тестів цілісності BFF моделей представлення:
 ```bash
 dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~ReadModel"

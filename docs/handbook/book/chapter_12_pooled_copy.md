@@ -97,7 +97,7 @@ Ownership protocol тут означає не “хтось десь має по
 
 Але це було ще не все. Завдяки тому, що snapshot-copy більше не засмічував картину, ми нарешті змогли чесно подивитися на **Overlap Runner** — конвеєр, у якому провайдер читає наступний файл з диска, поки воркери ще обробляють попередній. У повторному gate контур `queued-owned async / pooled-copy / none` пройшов за `17_158.62 ms`, а `queued-owned overlap async / pooled-copy / capacity 8` — за `14_947.99 ms`. Це не універсальна обіцянка “завжди швидше”, а конкретний доказ: після приборкання пам'яті pipeline-паралельність стала вимірюваною і корисною.
 
-## 12.3. Випробування на міцність: Controlled Queue-Ahead Proof
+## 12.3. Випробування на міцність: контрольований доказ випередження черги
 
 Щоб перевірити, чи здатна наша система витримувати великі перевантаження без виходу з ладу, ми розробили спеціальний стрес-тест — **Controlled Queue-Ahead Proof** (Контрольований тест випередження черги).
 
@@ -116,22 +116,22 @@ Ownership protocol тут означає не “хтось десь має по
 Це була остання загадка в нашому детективному розслідуванні — проблема холодного старту, про яку ми розповімо в Розділі 13.
 ---
 
-## 🔍 Матеріали справи (Investigation Case Files)
+## Матеріали справи
 
-### 1. Вердикт детективів (Decision Trace & Rationale)
+### 1. Вердикт детективів
 Перехід на стратегію `pooled-copy retained payload` (Віхи `010`-`012`). Замість виділення нових масивів під кожне зчитування, event- і payload-буфери орендуються з retained pools і повертаються туди після завершення фази комміту. Це дозволило зменшити алокацію на 98.97% (до 102 МБ).
 
 #### Чому ми орендуємо пам'ять, а не купуємо її щоразу
 Після 9.95 ГБ heap allocations були три дороги: заборонити queued-owned overlap, копіювати менше, або навчити систему повертати великі папки на полицю. Заборона overlap зберігала б чисту пам'ять, але програвала б pipeline-паралельності. Часткові копії ускладнили б ownership і ризикували б прихованими aliasing-помилками. Pooled-copy залишив семантику owned batch, але змінив спосіб оплати: масиви не купуються щоразу, а орендуються й повертаються. Ціна вибору — сувора дисципліна `Return` і telemetry pool-miss; виграш — контрольований retained pressure без втрати overlap.
 
-### 2. Закони фізики рантайму (System Invariants)
+### 2. Закони фізики рантайму
 * **Обов'язкове повернення**: Кожен орендований буфер має бути детерміновано повернений у відповідний pool через release owner; cleanup-шляхи мають гарантувати release навіть після помилки або скасування.
 * **Steady-state allocation discipline**: Відсутність нових retained payload масивів під час steady-state обробки має підтверджуватися telemetry pool-miss/release counters, а не припущенням.
 
-### 3. Патологоанатомічний звіт (Failure Modes & Recovery)
+### 3. Патологоанатомічний звіт
 * **Витік буферів**: Якщо воркер втратить посилання на орендований масив без повернення, пул вичерпається, і система знову почне виділяти пам'ять з кучі, про що свідчитиме зростання лічильника `PoolMissCount`.
 
-### 4. Докази продуктивності (Performance Evidence)
+### 4. Докази продуктивності
 
 | Твердження (Claim) | Доказ (Evidence) | Де дивитися |
 | :--- | :--- | :--- |
@@ -139,14 +139,14 @@ Ownership protocol тут означає не “хтось десь має по
 | Overlap став предметом чесного вимірювання після зняття snapshot-copy шуму | Repeat gate: `queued-owned async / pooled-copy / none` `17_158.62 ms`, `queued-owned overlap async / pooled-copy / capacity 8` `14_947.99 ms` | [010-owned-provider-overlap-cost-reduction-performance-gate.md](../../milestones/010-owned-provider-overlap-cost-reduction-performance-gate.md) |
 | Release-дисципліна не залишилася на словах | Gate фіксує complete lifecycle cleanup: 198 retained batches, 198 released batches, 0 failed releases | [010-owned-provider-overlap-cost-reduction-performance-gate.md](../../milestones/010-owned-provider-overlap-cost-reduction-performance-gate.md) |
 
-### 5. Слід доказової бази (Implementation & Tests)
+### 5. Слід доказової бази
 * Адаптер пулу: [RadarProcessingRetainedPayloadFactory.PooledCopy.cs](../../../src/Infrastructure/Processing/Retention/Services/RadarProcessingRetainedPayloadFactory/RadarProcessingRetainedPayloadFactory.PooledCopy.cs)
 * Ownership state machine: [RadarProcessingRetainedBatchResource.cs](../../../src/Domain/Processing/Retention/Models/RadarProcessingRetainedBatchResource.cs)
 * Queue/consumer ownership boundary: [RadarProcessingRetainedQueuedBatch.cs](../../../src/Domain/Processing/Retention/Models/RadarProcessingRetainedQueuedBatch.cs), [RadarProcessingRetainedBatchLease.cs](../../../src/Domain/Processing/Retention/Models/RadarProcessingRetainedBatchLease.cs)
 * Управління пулами масивів: [RadarProcessingRetainedPayloadByteArrayPool.cs](../../../src/Infrastructure/Processing/Retention/Services/RadarProcessingRetainedPayloadByteArrayPool.cs)
 * Performance gate і closeout: [010-owned-provider-overlap-cost-reduction-performance-gate.md](../../milestones/010-owned-provider-overlap-cost-reduction-performance-gate.md), [010-owned-provider-overlap-cost-reduction-closeout.md](../../milestones/010-owned-provider-overlap-cost-reduction-closeout.md)
 
-### 6. Протокол допиту процесу (Verification Commands)
+### 6. Протокол допиту процесу
 Перевірка алокацій пулу байтових масивів:
 ```bash
 dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~PooledCopy"

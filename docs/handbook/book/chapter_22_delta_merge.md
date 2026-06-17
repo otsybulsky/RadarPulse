@@ -1,4 +1,4 @@
-# Розділ 22: Контракт злиття дельт (Delta/Merge Contract)
+# Розділ 22: Контракт злиття дельт
 
 Custom handlers стають по-справжньому корисними лише тоді, коли не повертають систему назад до послідовного виконання. Воркер має право швидко порахувати локальні зміни для свого [`RadarEventBatch`](../../../src/Domain/Streaming/Batches/Models/RadarEventBatch.cs), але не має права самовільно оновлювати спільний стан аналітика. Інакше extension point знову відкриває двері до гонок, dirty reads і непередбачуваних метрик.
 
@@ -145,13 +145,13 @@ merge(Delta A, merge(Delta B, Delta C))
 Концептуально майбутній tree-merge міг би виглядати так:
 
 ```text
-[Delta 1] ──┐
-            ├──► [Delta 1+2] ──┐
-[Delta 2] ──┘                  │
-                               ├──► [Delta 1+2+3+4] (Фінальний знімок)
-[Delta 3] ──┐                  │
-            ├──► [Delta 3+4] ──┘
-[Delta 4] ──┘
+[Delta 1] -----+
+                +--> [Delta 1+2] -----+
+[Delta 2] -----+                       |
+                                        +--> [Delta 1+2+3+4] (фінальний знімок)
+[Delta 3] -----+                       |
+                +--> [Delta 3+4] ------+
+[Delta 4] -----+
 ```
 
 Такий tree-merge зменшив би глибину злиття для комутативних/асоціативних handler-ів, але він потребує окремого proof: benchmark, блокування для non-commutative handler-ів, snapshot semantics і тести еквівалентності. У поточній книзі ми не беремо цей кредит наперед.
@@ -276,7 +276,7 @@ private sealed class ReusableValueList : IReadOnlyList<RadarProcessingHandlerDel
 
 ---
 
-## 22.4. Протокол безпеки: Закриття за першої підозри (Fail-Closed, зупинка без прихованої неправди)
+## 22.4. Протокол безпеки: закриття за першої підозри
 
 Координатор злиття — це не просто бухгалтер, який сліпо додає цифри. Це консервативний детектив. Якщо дельта не проходить контракт, координатор блокує подальше злиття для цього handler-а й повертає fail-closed результат у pipeline.
 
@@ -301,28 +301,28 @@ if (sequence < nextProviderSequence.Value)
 
 ---
 
-## 🔍 Матеріали справи (Investigation Case Files)
+## Матеріали справи
 
-### 1. Вердикт детективів (Decision Trace & Rationale)
+### 1. Вердикт детективів
 Створення контракту дельта/злиття (delta/merge) для паралельного обчислення та швидкого злиття дельт аналітики (Віхи `024`-`025`). Обробники, придатні до злиття (mergeable), реалізують [`IRadarProcessingHandlerDeltaMerger`](../../../src/Domain/Processing/Handlers/Contracts/IRadarProcessingHandlerDeltaMerger.cs); оптимізовані обробники можуть додати [`IRadarProcessingHandlerDeltaAccumulatorFactory`](../../../src/Domain/Processing/Handlers/Contracts/IRadarProcessingHandlerDeltaAccumulatorFactory.cs). Це дозволило обробникам вираховувати свої зміни паралельно в різних потоках і зливати їх в один фінальний стан під час впорядкованої фіксації (Ordered Commit) без переходу на повільний послідовний резервний шлях (sequential fallback).
 
 #### Чому швидкий handler має довести, що він mergeable
 Перший безпечний варіант — виконувати всі користувацькі обробники послідовно, тоді порядок очевидний і злиття не потрібне. Але це зводить нанівець паралельний рантайм саме там, де аналітика стає важкою. Другий варіант — дозволити обробникам паралельно мутувати спільний стан, але це повторює кризу спільного стану. Контракт дельта/злиття став пропуском у швидкий коридор: обробник рахує власну дельту паралельно, а фіксація зливає її за provider sequence. Ціна вибору — не кожен обробник автоматично придатний до злиття; виграш — швидкість доступна лише тим розширенням, які довели свою детермінованість.
 
-### 2. Закони фізики рантайму (System Invariants)
+### 2. Закони фізики рантайму
 * **Асоціативність злиття**: Результат злиття дельт обробників має бути детермінованим і не залежати від черговості завершення потоків.
 * **Плоский час виконання (flat elapsed gate)**: Для зафіксованого full-cache сценарію handler delta/merge `active=4` має лишатися близьким до `active=1` за часом виконання; накладні виділення пам'яті фіксуються окремо й не маскуються.
 
-### 3. Патологоанатомічний звіт (Failure Modes & Recovery)
+### 3. Патологоанатомічний звіт
 * **Непідтримуване злиття**: Обробник у режимі `SnapshotOnly` примушує послідовний резервний шлях, а набір з `Unsupported`-обробником блокує MVP processing до старту. Mergeable handler без потрібного merger contract не проходить ordered handler-delta шлях.
 
-### 4. Слід доказової бази (Implementation & Tests)
+### 4. Слід доказової бази
 * Контракт злиття: [IRadarProcessingHandlerDeltaMerger.cs](../../../src/Domain/Processing/Handlers/Contracts/IRadarProcessingHandlerDeltaMerger.cs)
 * Тести координатора злиття: [RadarProcessingHandlerDeltaMergeCoordinatorTests.cs](../../../tests/RadarPulse.Tests/Processing/Handlers/RadarProcessingHandlerDeltaMergeCoordinatorTests.cs)
 * Runtime-тести handler delta/merge: [RadarProcessingMvpHandlerDeltaRuntimeTests](../../../tests/RadarPulse.Tests/Processing/Handlers/RadarProcessingMvpHandlerDeltaRuntimeTests)
 * Performance gate: [RadarProcessingHandlerDeltaPerformanceGateTests](../../../tests/RadarPulse.Tests/Processing/Handlers/RadarProcessingHandlerDeltaPerformanceGateTests)
 
-### 5. Протокол допиту процесу (Verification Commands)
+### 5. Протокол допиту процесу
 Запуск перевірки швидкості дельта-злиття для важких обробників:
 ```bash
 dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~HandlerDelta"

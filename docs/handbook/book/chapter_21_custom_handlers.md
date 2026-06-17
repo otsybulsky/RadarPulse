@@ -1,4 +1,4 @@
-# Розділ 21: Спеціальні аналітики (користувацькі обробники, Custom Handlers)
+# Розділ 21: Спеціальні аналітики та користувацькі обробники
 
 Точка розширення (extension point) у продуктивному ядрі завжди небезпечна. Все починається невинно: ще одна формула, ще один сповіщувач (notifier), ще один запис у базу прямо всередині парсера або процесора. Через кілька ітерацій ядро вже не обробляє радарні події, а тягне чужі побічні ефекти.
 
@@ -193,10 +193,10 @@ foreach (var assignment in handlerSlotLayout.Assignments)
 
 Оскільки через систему проходять мільйони подій на секунду на нашому Ryzen 9 процесорі, кожна наносекунда на рахунку. Рантайм .NET (починаючи з .NET 8 і далі) має кілька JIT-оптимізацій, які можуть зменшити цю ціну за відповідного профілю викликів:
 
-### 1. Повна девіртуалізація (Devirtualization)
+### 1. Повна девіртуалізація
 Якщо JIT бачить мономорфний або добре передбачуваний call site, він може перетворити частину інтерфейсних викликів на прямі виклики до конкретного типу. Після цього відкривається шанс на **інлайнінг** (inlining), коли код `Process` вбудовується в цикл обробки подій і hot path платить менше за абстракцію. Ключове слово тут — “може”: цю властивість не варто продавати як гарантію, її треба перевіряти профілем на конкретному runtime і handler-наборі.
 
-### 2. Захищена девіртуалізація (Guarded Devirtualization - GDV)
+### 2. Захищена девіртуалізація
 Якщо в системі зареєстровано кілька різних обробників (наприклад, [`CounterChecksumBenchmarkHandler`](../../../src/Infrastructure/Processing/Benchmarks/Models/RadarProcessingBenchmarkHandlers/RadarProcessingBenchmarkHandlers.CounterChecksum.cs) та [`HeavySampledChecksumHandler`](../../../src/Infrastructure/Processing/Benchmarks/Models/RadarProcessingBenchmarkHandlers/RadarProcessingBenchmarkHandlers.HeavySampledChecksum.cs)), пряма девіртуалізація може бути недоступною. Тоді JIT за відповідного профілю викликів може використати механізм GDV: створити швидку перевірку типу перед викликом і залишити загальний інтерфейсний шлях як fallback:
 
 ```csharp
@@ -294,26 +294,26 @@ private static void ProcessWith<THandler>(
 
 ---
 
-## 🔍 Матеріали справи (Investigation Case Files)
+## Матеріали справи
 
-### 1. Вердикт детективів (Decision Trace & Rationale)
+### 1. Вердикт детективів
 Створення інтерфейсу розширень `користувацькі обробники (Custom Handlers)` (Віха `024`). Будь-яка аналітична логіка (підрахунок середньої температури, грозові попередження) виноситься за межі ядра системи та підключається через контракти. Це зберегло чистоту ядра [`RadarProcessingCore`](../../../src/Domain/Processing/Core/Services/RadarProcessingCore/RadarProcessingCore.cs) та ізолювало його від побічних ефектів.
 
 #### Чому аналітики працюють поруч із ядром, але не всередині нього
 Можна було дозволити аналітикам писати прямо в ядро: швидко, без додаткових контрактів, але кожна нова метрика ставала б ризиком для стану ядра. Можна було винести аналітику в окремий процес через чергу, але тоді серіалізація й IPC з'їдали б гарячий шлях. Ми обрали користувацькі обробники на контрольованих state slots: розширення поряд із ядром, але не всередині його приватної пам'яті. Ціна вибору — суворий контракт життєвого циклу обробника; виграш — розширюваність без втрати локальності кешу і без розмиття доменного ядра.
 
-### 2. Закони фізики рантайму (System Invariants)
+### 2. Закони фізики рантайму
 * **Ізоляція пам'яті обробника**: Обробники отримують лише немутабельні представлення подій та не мають права змінювати вхідний батч.
 * **Реєстрація в каталозі**: Кожен кастомний обробник має проходити через явний контракт фабрики/каталогу, наприклад [`RadarProcessingBenchmarkHandlers`](../../../src/Infrastructure/Processing/Benchmarks/Models/RadarProcessingBenchmarkHandlers/RadarProcessingBenchmarkHandlers.cs) або продуктовий [`RadarPulseProductHandlerFactory`](../../../src/Infrastructure/Product/Pipeline/Handlers/RadarPulseProductHandlerFactory.cs).
 
-### 3. Патологоанатомічний звіт (Failure Modes & Recovery)
+### 3. Патологоанатомічний звіт
 * **Зависання обробника**: Повільний обробник створює штучний утриманий тиск пам'яті (Retained Pressure), що автоматично сповільнює впорядковану фіксацію (Ordered Commit) для наступних батчів конвеєра.
 
-### 4. Слід доказової бази (Implementation & Tests)
+### 4. Слід доказової бази
 * Контракт обробника: [IRadarSourceProcessingHandler.cs](../../../src/Domain/Processing/Handlers/Contracts/IRadarSourceProcessingHandler.cs)
 * Тести кастомних обробників: [src/Domain/Processing/Handlers/](../../../src/Domain/Processing/Handlers)
 
-### 5. Протокол допиту процесу (Verification Commands)
+### 5. Протокол допиту процесу
 Запуск тестування роботи кастомних аналітичних модулів:
 ```bash
 dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~Handlers"

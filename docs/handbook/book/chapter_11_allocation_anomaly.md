@@ -64,22 +64,22 @@
 Цей склад багаторазових масивів та стратегія `pooled-copy` стали головними героями нашого наступного розслідування, описаного в Розділі 12.
 ---
 
-## 🔍 Матеріали справи (Investigation Case Files)
+## Матеріали справи
 
-### 1. Вердикт детективів (Decision Trace & Rationale)
+### 1. Вердикт детективів
 Аналіз алокаційної кризи Milestone `009`. Рішення про створення власних копій payload-у через [`ToOwnedSnapshot`](../../../src/Domain/Streaming/Batches/Models/RadarEventBatch.cs) згенерувало майже 10 ГБ тимчасових heap allocations на 198 файлах кешу. Це призвело до виявлення критичного недоліку в архітектурі буферизації.
 
 #### Чому чесна копія стала головним підозрюваним
 [`ToOwnedSnapshot`](../../../src/Domain/Streaming/Batches/Models/RadarEventBatch.cs) був чесним, але дорогим алібі: кожен queued-owned батч отримував власну копію, тому lifetime ставав безпечним, а GC отримував гору нових масивів. Можна було повернутися до borrowed-only режиму й заборонити overlap, але тоді ми втрачали б головну перевагу асинхронного транспорту. Можна було приховати витрати за більшим heap, але це тільки відкладало проблему. Ми залишили кризу видимою в документах, бо вона пояснює, чому наступний розділ не є передчасною оптимізацією. Ціна помилки — 9.95 ГБ доказових heap allocations; виграш — точний діагноз.
 
-### 2. Закони фізики рантайму (System Invariants)
+### 2. Закони фізики рантайму
 * **Бюджет утриманого payload-у (Retained Payload Budget)**: `536_870_912` байт — це 512 MiB, прийнятий rollout-ліміт для queued-owned/pooled-copy контуру. Він не був причиною кризи Milestone `009`; це пізніший запобіжник, який з'явився як відповідь на неї. Бюджет заданий у [`RadarProcessingArchiveRebalanceRolloutDefaults.RetainedPayloadBytes`](../../../src/Infrastructure/Processing/ArchiveRuntime/Options/RadarProcessingArchiveRebalanceRolloutDefaults.cs) і не є загальним лімітом алокацій .NET. Його роль інша: обмежити, скільки payload-байтів може одночасно чекати в provider queue. Число узгоджене з чергою місткістю 8 і rollout-розміром payload-буфера 64 MiB: `8 * 64 MiB = 512 MiB`. Цього достатньо для контрольованого queue-ahead, але недостатньо для безконтрольного накопичення гігабайтів.
 * **Контроль витоків**: Будь-який утриманий payload-ресурс має супроводжуватися детермінованим release-контрактом.
 
-### 3. Патологоанатомічний звіт (Failure Modes & Recovery)
+### 3. Патологоанатомічний звіт
 * **Атака сміттєзбирача**: Величезна кількість тимчасових об'єктів блокує GC на секунди. Якщо retained payload не обмежувати бюджетом і release-контрактом, heap може рости до довгих GC-пауз і, в крайньому випадку, до `OutOfMemoryException`. Сам retained-byte budget має спрацювати раніше як backpressure або контрольована відмова, а не як аварійне падіння.
 
-### 4. Докази продуктивності (Performance Evidence)
+### 4. Докази продуктивності
 
 | Твердження (Claim) | Доказ (Evidence) | Де дивитися |
 | :--- | :--- | :--- |
@@ -87,11 +87,11 @@
 | Криза була відтворюваною, а не анекдотичною | Той самий gate порівнює `snapshot-copy` з наступним `pooled-copy` контуром і показує падіння до `102_811_264` bytes | [010-owned-provider-overlap-cost-reduction-performance-gate.md](../../milestones/010-owned-provider-overlap-cost-reduction-performance-gate.md) |
 | Unit-тести тут не міряють 10 ГБ, а охороняють контракти lifecycle | Allocation-focused suite перевіряє ownership, release і бюджетні запобіжники | `dotnet test tests/RadarPulse.Tests --filter "FullyQualifiedName~Allocation"` |
 
-### 5. Слід доказової бази (Implementation & Tests)
+### 5. Слід доказової бази
 * Аналіз кризи Milestone 009: [009-owned-payload-provider-decoupling-performance-gate.md](../../milestones/009-owned-payload-provider-decoupling-performance-gate.md)
 * Звіт Milestone 010: [010-owned-provider-overlap-cost-reduction-performance-gate.md](../../milestones/010-owned-provider-overlap-cost-reduction-performance-gate.md)
 
-### 6. Протокол допиту процесу (Verification Commands)
+### 6. Протокол допиту процесу
 Запуск бенчмарку виділення пам'яті для виявлення GC-тиску:
 ```bash
 dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~Allocation"

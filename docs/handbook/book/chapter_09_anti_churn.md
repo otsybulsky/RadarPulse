@@ -53,7 +53,7 @@
 * `target-shard-receive-budget-exhausted` — shard-ціль уже вичерпав свій ліміт прийому нових partition-ів у поточному бюджетному вікні.
 * `global-move-budget-exhausted` — глобальний ліміт міграцій на цей крок уже вичерпано.
 
-## 9.3. Проблема нескінченних архівів: Bounded Telemetry
+## 9.3. Проблема нескінченних архівів: обмежена телеметрія
 
 Коли система працює в режимі жорсткого моніторингу, вона генерує тисячі записів про кожне прийняте чи пропущене рішення. У перших версіях ребалансу ми радісно записували кожну деталь планування в пам'ять системи. Але коли ми запустили тест на реальних архівах NEXRAD, що містять сотні файлів, нас чекав неприємний сюрприз. Пам'ять системи почала танути, як сніг на сонці, через розростання об'єктів телеметрії.
 
@@ -73,28 +73,28 @@
 Наш детективний офіс навчився працювати спокійно, методично та без паніки. Але попереду на нас чекав наступний крок еволюції — перехід від синхронної обробки на одному потоці до справжньої асинхронності, де завдання передаються за допомогою поштових скриньок воркерів.
 ---
 
-## 🔍 Матеріали справи (Investigation Case Files)
+## Матеріали справи
 
-### 1. Вердикт детективів (Decision Trace & Rationale)
+### 1. Вердикт детективів
 Для боротьби з ефектом «мигтіння» топології (Shard Churning) впроваджено гістерезис рішень і обов'язковий інтервал охолодження (Cooldown) (Віха `007`). Це запобігає панічному перенесенню partition-ів туди-сюди при випадкових і короткочасних сплесках шуму на радарах.
 
 #### Чому ребаланс має вміти чекати
 Без гістерезису система стала б надто нервовим диспетчером: кожен короткий сплеск виглядав би як наказ на міграцію. Можна було, навпаки, зробити rebalance рідкісним ручним рішенням, але тоді автоматизація програвала б реальній бурі. Ми обрали набір запобіжників: гістерезис, cooldown, migration budget і bounded telemetry. Ціна вибору — деякі корисні міграції свідомо відкладаються; виграш — topology не смикається від шуму, а рішення мають інерцію й доказову історію.
 
-### 2. Закони фізики рантайму (System Invariants)
+### 2. Закони фізики рантайму
 * **Бюджет міграції**: Кількість дозволених перенесень partition-ів у межах evaluation-вікна обмежена бюджетами [`GlobalMoveBudget`](../../../src/Domain/Processing/Rebalance/Policies/RadarProcessingRebalancePolicyState.cs), [`GetSourceShardMoveBudget`](../../../src/Domain/Processing/Rebalance/Policies/RadarProcessingRebalancePolicyState.cs) і [`GetTargetShardReceiveBudget`](../../../src/Domain/Processing/Rebalance/Policies/RadarProcessingRebalancePolicyState.cs).
 * **Заборона серфінгу**: Partition не може бути повторно мігрований, якщо не минули cooldown-параметри [`PartitionMoveCooldownEvaluations`](../../../src/Domain/Processing/Rebalance/Options/RadarProcessingRebalanceOptions.cs), [`SourceShardMoveCooldownEvaluations`](../../../src/Domain/Processing/Rebalance/Options/RadarProcessingRebalanceOptions.cs) або [`TargetShardReceiveCooldownEvaluations`](../../../src/Domain/Processing/Rebalance/Options/RadarProcessingRebalanceOptions.cs).
 
-### 3. Патологоанатомічний звіт (Failure Modes & Recovery)
+### 3. Патологоанатомічний звіт
 * **Паніка балансування**: При різких коливаннях шуму система тимчасово заморожує будь-які перенесення для збереження стабільного процесингу, віддаючи перевагу накопиченню локальних черг.
 
-### 4. Слід доказової бази (Implementation & Tests)
+### 4. Слід доказової бази
 * Політика ребалансу: [RadarProcessingRebalancePolicyState.cs](../../../src/Domain/Processing/Rebalance/Policies/RadarProcessingRebalancePolicyState.cs)
 * Ковзне вікно тиску: [RadarProcessingPressureWindow.cs](../../../src/Domain/Processing/Pressure/Models/RadarProcessingPressureWindow.cs)
 * Пороги гістерезису: [RadarProcessingPressureWindowOptions.cs](../../../src/Domain/Processing/Pressure/Options/RadarProcessingPressureWindowOptions.cs)
 * Конфігурація балансу: [RadarProcessingArchiveRebalanceRolloutDefaults.cs](../../../src/Infrastructure/Processing/ArchiveRuntime/Options/RadarProcessingArchiveRebalanceRolloutDefaults.cs)
 
-### 5. Протокол допиту процесу (Verification Commands)
+### 5. Протокол допиту процесу
 Перевірка стійкості балансу під хаотичним навантаженням:
 ```bash
 dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~RebalancePolicy"

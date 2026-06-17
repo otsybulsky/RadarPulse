@@ -1,4 +1,4 @@
-﻿# Розділ 14: Хаос на іподромі паралелізму (Concurrency Chaos)
+﻿# Розділ 14: Хаос на іподромі паралелізму
 
 Коли ви запускаєте однопотокову обробку великих масивів даних, система схожа на камерний оркестр: усе входить у партитуру по черзі, кожна нота має своє місце. Але щойно ми відкриваємо паралелізм, порядок завершення перестає бути природним наслідком порядку входу. Воркери стартують із різною роботою, на різних ядрах, із різною поведінкою кешу, і фінішують так, як їм дозволяє runtime.
 
@@ -50,7 +50,7 @@
 
 ---
 
-## 14.3. Commit gate: фінішна пряма з порядком
+## 14.3. Контрольна брама фіксації: фінішна пряма з порядком
 
 Рішення RadarPulse не в тому, щоб змусити воркерів фінішувати в правильному порядку. Це було б марною боротьбою з runtime. Рішення в тому, щоб розділити **compute** і **commit**.
 
@@ -76,23 +76,23 @@ accepted batch
 
 ---
 
-## 🔍 Матеріали справи (Investigation Case Files)
+## Матеріали справи
 
-### 1. Вердикт детективів (Decision Trace & Rationale)
+### 1. Вердикт детективів
 Дозвіл паралельного виконання батчів воркерами без взаємних блокувань (Milestone `021`). Воркери можуть завершувати обробку в іншому порядку через різний обсяг payload, scheduler noise і cache behavior. Тому RadarPulse розділив non-mutating compute і provider-sequence ordered commit: completion order не стає commit order.
 
 #### Чому паралельність не отримала право комміту
 Послідовна обробка була найпростішим способом зберегти порядок: один коридор, одна черга, жодних сюрпризів. Але тоді доступні CPU cores стояли б без роботи. Інший шлях — дозволити воркерам коммітити одразу після завершення, але це руйнує часовий ланцюг доказів. Ми обрали паралельне compute з окремим відновленням порядку на виході. Ціна вибору — потрібен coordinator і буфер для ранніх результатів; виграш — CPU працює паралельно, а фінальний стан лишається детермінованим.
 
-### 2. Закони фізики рантайму (System Invariants)
+### 2. Закони фізики рантайму
 * **Без блокувань в обчисленнях**: Воркери не мають права очікувати один одного під час розрахунку радарних дельт.
 * **Commit тільки за provider sequence**: Shared `RadarProcessingCore` мутує лише через ordered commit, а не в порядку завершення воркерів.
 * **Видимий runtime envelope**: `active=4` має зберігати детермінізм, completeness і clean retained pressure; elapsed/allocation ratio порівнюються з `active=1` як gate без обіцянки лінійного speedup.
 
-### 3. Патологоанатомічний звіт (Failure Modes & Recovery)
+### 3. Патологоанатомічний звіт
 * **Затримка важкого воркера**: Якщо воркер №2 застряг на важкому батчі, воркер №3 завершує роботу швидше, але його результат накопичується в pending buffer coordinator-а, щоб не порушити часову лінію.
 
-### 4. Слід доказової бази (Implementation & Tests)
+### 4. Слід доказової бази
 * Опис рантайму: [processing-runtime.md](../processing-runtime.md)
 * Ordered result coordinator: [RadarProcessingOrderedResultCoordinator.cs](../../../src/Infrastructure/Processing/Async/Services/RadarProcessingOrderedResultCoordinator.cs)
 * Ordered concurrent drain: [RadarProcessingQueuedProcessingSession.DrainOrderedConcurrent.cs](../../../src/Infrastructure/Processing/Queueing/Services/RadarProcessingQueuedProcessingSession/RadarProcessingQueuedProcessingSession.DrainOrderedConcurrent.cs)
@@ -100,7 +100,7 @@ accepted batch
 * Тести coordinator-а: [RadarProcessingOrderedResultCoordinatorTests.cs](../../../tests/RadarPulse.Tests/Processing/Async/RadarProcessingOrderedResultCoordinatorTests.cs)
 * Тести ordered concurrent session: [RadarProcessingQueuedProcessingSessionOrderedConcurrentTests.cs](../../../tests/RadarPulse.Tests/Processing/Queueing/RadarProcessingQueuedProcessingSessionOrderedConcurrentTests.cs)
 
-### 5. Протокол допиту процесу (Verification Commands)
+### 5. Протокол допиту процесу
 Тестування паралельного виконання воркерів під навантаженням:
 ```bash
 dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~RadarProcessingOrderedResultCoordinatorTests|FullyQualifiedName~RadarProcessingQueuedProcessingSessionOrderedConcurrentTests"

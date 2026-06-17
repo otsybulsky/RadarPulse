@@ -1,4 +1,4 @@
-# Розділ 20: Запобіжник: зупинка без прихованої неправди (Fail-Closed)
+# Розділ 20: Запобіжник: зупинка без прихованої неправди
 
 Коли у складних, багатопотокових системах обробки великих даних стається збій, вони часто поводяться вкрай небезпечно. Вони продовжують приймати нові завдання від клієнтів, засмічують диски гігабайтами ідентичних логів помилок, безконтрольно накопичують гігабайти неробочих буферів в оперативній пам'яті (memory leak) та марно спалюють процесорний час на заздалегідь приречені обчислення. Це класична поведінка патерну **Fail-Open** (відкритий збій).
 
@@ -27,7 +27,7 @@
 
 ---
 
-## 20.2. Чому ми вбили автоматичний відкат (No Silent Fallback)
+## 20.2. Чому ми вбили автоматичний відкат
 
 Під час обговорення архітектури віхи `023` виникла спокуса реалізувати механізм «м'якого відновлення» — автоматичного переходу на спрощений режим обробки, наприклад тихий borrowed-provider fallback без використання прийнятого контуру retained resources.
 
@@ -35,10 +35,10 @@
 
 ```text
 [Збій валідації батча]
-         │
-         ├──► [Автоматичний відкат (Silent Fallback)] ──► Приховування помилки, корупція даних! (REJECTED)
-         │
-         └──► [Аварійне блокування (Fail-Closed)] ─────► Зупинка, збереження доказів, безпека! (ACCEPTED)
+  |
+  +--> [Автоматичний відкат] --> приховування помилки, корупція даних
+  |
+  +--> [Аварійне блокування] --> зупинка, збереження доказів, безпека
 ```
 
 Чому автоматичний безшумний відкат є злом?
@@ -65,22 +65,22 @@
 
 ---
 
-## 🔍 Матеріали справи (Investigation Case Files)
+## Матеріали справи
 
-### 1. Вердикт детективів (Decision Trace & Rationale)
+### 1. Вердикт детективів
 Реалізація принципу безпечного відключення — **зупинка без прихованої неправди (Fail-Closed)** (Віха `023`). При критичній помилці вхідний контур перестає приймати нову роботу, durable state лишається видимим для recovery, а очищення ресурсів стає умовою готовності системи.
 
 #### Чому система закривається, а не прикидається живою
 Найпривабливіша версія для демонстрації — тихий fallback: пропустити зламаний пакет, перейти в простіший режим і не тривожити оператора. Але така система виглядає живою саме тоді, коли вже втратила правду. Інша крайність — миттєво вбити процес, залишивши воркерів і буфери з пулу в невідомому стані. Fail-closed обирає контрольоване закриття: нові справи не приймаються на вхідній межі, активні доробляються або коректно відпускають ресурси, причина блокується в telemetry. Ціна вибору — доступність поступається коректності; виграш — помилкова метрика не потрапляє у фінальний стан.
 
-### 2. Закони фізики рантайму (System Invariants)
+### 2. Закони фізики рантайму
 * **Retained Pressure при зупинці**: Кінцевий тиск утримуваної пам'яті має дорівнювати 0 байтів для ready-стану; ненульове значення є доказом блокування (blocking evidence).
 * **Блокування прийому**: Новий батч відхиляється на межі провайдера й керування (provider/control), коли runtime-контур закритий, faulted або переведений у fallback/control mode.
 
-### 3. Патологоанатомічний звіт (Failure Modes & Recovery)
+### 3. Патологоанатомічний звіт
 * **Критичний збій pipeline**: При невідновлюваній помилці система закриває вхідні канали, зливає або скасовує активну роботу та переходить у захищений офлайн-режим із видимою причиною блокування.
 
-### 4. Слід доказової бази (Implementation & Tests)
+### 4. Слід доказової бази
 * Product control fallback: [RadarProcessingProductionPipelineControlCoordinator.cs](../../../src/Infrastructure/Processing/ProductPipeline/Services/RadarProcessingProductionPipelineControlCoordinator.cs)
 * Provider queue lifecycle: [RadarProcessingOwnedBatchQueue.Lifecycle.cs](../../../src/Infrastructure/Processing/Queueing/Services/RadarProcessingOwnedBatchQueue/RadarProcessingOwnedBatchQueue.Lifecycle.cs)
 * Тести аварійного завершення: [RadarProcessingProductionPipelineFallbackTests.cs](../../../tests/RadarPulse.Tests/Processing/ProductPipeline/RadarProcessingProductionPipelineFallbackTests.cs)
@@ -88,7 +88,7 @@
 * Тести production gate та terminal retained pressure: [RadarProcessingProductionPipelineGateTests.cs](../../../tests/RadarPulse.Tests/Processing/ProductPipeline/RadarProcessingProductionPipelineGateTests.cs)
 * Тести faulted queue / skipped-after-fault: [RadarProcessingQueuedRebalanceSessionTests.DrainFailureModes.cs](../../../tests/RadarPulse.Tests/Processing/Rebalance/RadarProcessingQueuedRebalanceSessionTests/RadarProcessingQueuedRebalanceSessionTests.DrainFailureModes.cs)
 
-### 5. Протокол допиту процесу (Verification Commands)
+### 5. Протокол допиту процесу
 Запуск верифікації сценаріїв безпечного аварійного відключення:
 ```bash
 dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~ProductionPipelineFallbackTests|FullyQualifiedName~ProductionPipelineRecoveryTests|FullyQualifiedName~ProductionPipelineGateTests"

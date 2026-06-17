@@ -96,7 +96,7 @@ dotnet-trace collect --profile dotnet-sampled-thread-time,dotnet-common --format
 
 ---
 
-## А.3. Аналіз Flame Graphs (Графіків полум'я)
+## А.3. Аналіз графіків полум'я
 
 Після завершення сесії `dotnet-trace` генерує файл трасування. Відкривши його у Speedscope, ми отримуємо **Flame Graph (Графік полум'я)**.
 
@@ -116,7 +116,7 @@ dotnet-trace collect --profile dotnet-sampled-thread-time,dotnet-common --format
 
 ---
 
-## А.4. Allocation rate через `dotnet-counters`
+## А.4. Темп алокацій через `dotnet-counters`
 
 `dotnet-gcdump` показує живу купу на момент знімка, але не доводить швидкість алокацій. Для тверджень на кшталт "гарячий шлях не генерує сміття" потрібен allocation-rate доказ: лічильники runtime або benchmark-колонки allocated bytes.
 
@@ -165,15 +165,15 @@ dotnet-gcdump collect -p <PID> -o .tmp/profiling/radar_pulse_live_heap.gcdump
 
 ---
 
-## А.6. Матеріали справи (Investigation Case Files)
+## А.6. Матеріали справи
 
-### 1. Закони фізики рантайму (System Invariants)
+### 1. Закони фізики рантайму
 * **Спершу доказ (evidence first):** первинне performance-твердження має підтверджуватися командою репозиторію, типізованим результатом і milestone evidence, а не стороннім скриншотом профайлера.
 * **Профайлер пояснює форму:** низькорівневі інструменти деталізації пояснюють CPU, allocation, GC або форму heap після базового вимірювання; вони не замінюють benchmark або gate.
 * **Allocation rate:** гарячий шлях має підтверджуватися `dotnet-counters` або benchmark-колонками `allocated bytes / payload value`. `dotnet-gcdump` сам по собі цього не доводить.
 * **CPU hot path:** значна частка CPU має припадати на декомпресію, projection, leased batch delivery та дельта-цикли. Конкретний відсоток фіксується в trace-артефакті, а не вгадується наперед.
 
-### 2. Слід доказової бази (Implementation & Tests)
+### 2. Слід доказової бази
 * Конфігурація діагностики: [RadarPulse.Cli.csproj](../../../src/Presentation/RadarPulse.Cli/RadarPulse.Cli.csproj)
 * CLI usage і benchmark-команди: [RadarPulseCliUsage.cs](../../../src/Presentation/RadarPulse.Cli/EntryPoint/RadarPulseCliApplication/RadarPulseCliUsage.cs)
 * Processing benchmark reporter: [ProcessingBenchmarkCliReporter.Synthetic.cs](../../../src/Presentation/RadarPulse.Cli/EntryPoint/RadarPulseCliApplication/ProcessingBenchmarkCliReporter/ProcessingBenchmarkCliReporter.Synthetic.cs)

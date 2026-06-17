@@ -76,24 +76,24 @@
 Однак цей перехід вимагав вирішення нової, набагато страшнішої проблеми. Щоб повністю відпустити провайдера даних і дозволити черзі жити довше за callback, нам довелося навчитися копіювати батчі у власні структури пам'яті системи. І перша ж спроба зробити це призвела до справжньої екологічної катастрофи в пам'яті нашої програми, про яку ми розповімо в Розділі 11.
 ---
 
-## 🔍 Матеріали справи (Investigation Case Files)
+## Матеріали справи
 
-### 1. Вердикт детективів (Decision Trace & Rationale)
+### 1. Вердикт детективів
 Реалізація асинхронного транспорту воркерів на базі **обмежених поштових скриньок воркерів (Bounded Worker Mailboxes)** під час Віхи `008`. Воркери ізольовані за допомогою вбудованих швидкісних каналів `System.Threading.Channels` без блокуючих локів у пам'яті.
 
 #### Чому черги отримали видимі межі
 Ми могли залишити все синхронним і простим: один виклик, один результат, мінімум координації. Але такий шлях не дає перекриття читання, утримання payload і обробки. Інша крайність — необмежена черга, яка чудово виглядає на демо, доки не починає тихо накопичувати пам'ять. Ми обрали bounded mailboxes на `Channel`, бо кожен воркер отримує власну поштову скриньку з видимим тиском. Ціна вибору — потрібні backpressure і правила lifetime для borrowed batch; виграш — асинхронність не перетворюється на неконтрольований склад буферів.
 
-### 2. Закони фізики рантайму (System Invariants)
+### 2. Закони фізики рантайму
 * **Ємність черги**: Місткість поштової скриньки воркера строго фіксована. Низькорівневий mailbox має default capacity `1`, а прийнятий архівний rollout-контур використовує `WorkerQueueCapacity = 8`.
 * **Асинхронний транспорт**: Розсилка work item-ів по mailbox-ах не блокує фізичний потік CPU, але borrowed batch все одно утримує провайдера на completion barrier. Якщо mailbox заповнений, dispatch отримує явну відмову `EnqueueRejected`, а не приховане накопичення черги.
 
-### 3. Патологоанатомічний звіт (Failure Modes & Recovery)
+### 3. Патологоанатомічний звіт
 * **Переповнення воркера**: Якщо воркер не встигає розгрібати поштову скриньку, `TryEnqueue` повертає `Full`, а dispatch завершується контрольованою відмовою `EnqueueRejected`. Це backpressure як явний сигнал, а не мовчазне накопичення черги.
 * **Повільний або завислий воркер**: Якщо work item уже прийнятий, dispatcher стоїть на completion barrier. Без `BatchTimeout` це означає очікування завершення або зовнішньої cancellation. З увімкненим timeout group переходить у `Faulted`-стан і повертає `TimedOut`; у режимі `RequestCancellationAndMarkUnhealthy` вона ще й просить воркер кооперативно зупинитися.
 * **Штатне зупинення group**: `StopAccepting` закриває прийом нових dispatch-ів, але дозволяє вже прийнятим borrowed work item-ам дренуватися. Це зберігає lifetime-контракт borrowed batch і не підміняє незавершену роботу повторним запуском на іншому воркері.
 
-### 4. Слід доказової бази (Implementation & Tests)
+### 4. Слід доказової бази
 * Код воркера: [RadarProcessingWorkerMailbox.cs](../../../src/Infrastructure/Processing/Workers/Models/RadarProcessingWorkerMailbox.cs)
 * Dispatch воркерів: [RadarProcessingAsyncWorkerGroup.Dispatch.cs](../../../src/Infrastructure/Processing/Async/Models/RadarProcessingAsyncWorkerGroup/RadarProcessingAsyncWorkerGroup.Dispatch.cs)
 * Timeout policy: [RadarProcessingAsyncWorkerGroup.Timeouts.cs](../../../src/Infrastructure/Processing/Async/Models/RadarProcessingAsyncWorkerGroup/RadarProcessingAsyncWorkerGroup.Timeouts.cs)
@@ -103,7 +103,7 @@
 * Черга owned batches: [RadarProcessingOwnedBatchQueue.Enqueue.cs](../../../src/Infrastructure/Processing/Queueing/Services/RadarProcessingOwnedBatchQueue/RadarProcessingOwnedBatchQueue.Enqueue.cs)
 * Опції рантайму: [RadarProcessingArchiveQueuedOverlapOptions.cs](../../../src/Infrastructure/Processing/ArchiveRuntime/Options/RadarProcessingArchiveQueuedOverlapOptions.cs)
 
-### 5. Протокол допиту процесу (Verification Commands)
+### 5. Протокол допиту процесу
 Запуск тестування асинхронного транспорту та черг воркерів:
 ```bash
 dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~RadarProcessingWorkerMailboxTests"

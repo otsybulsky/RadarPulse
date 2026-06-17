@@ -97,7 +97,7 @@ dotnet build RadarPulse.sln -c Release --no-restore
 
 ---
 
-## Є.3. Малий smoke-cache
+## Є.3. Малий smoke-cache: швидка перевірка кешу
 
 Починати треба з малого корпусу. Він швидко перевіряє, що пошук публічного архіву, завантаження, схема кешу, розпакування, форма replay і маршрут product archive живі.
 
@@ -452,7 +452,7 @@ dotnet "$Cli" processing benchmark rebalance-archive \
   tee "$PerfRoot/rebalance-archive-default.log"
 ```
 
-Borrowed fallback/oracle contour:
+Контур запозиченого fallback/oracle:
 
 ```bash
 dotnet "$Cli" processing benchmark rebalance-archive \
