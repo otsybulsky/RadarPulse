@@ -142,11 +142,15 @@ private sealed class CounterChecksumBenchmarkHandler :
 }
 ```
 
-Цей обробник чітко розділяє свою роботу на дві складові. З одного боку, він є стандартним [`IRadarSourceProcessingHandler`](../../../src/Domain/Processing/Handlers/Contracts/IRadarSourceProcessingHandler.cs), що обробляє події через інтерфейс `Process`. З іншого боку, він декларує свою готовність до паралельної обробки через [`IRadarSourceProcessingHandlerExecutionMetadata`](../../../src/Domain/Processing/Handlers/Contracts/IRadarSourceProcessingHandlerExecutionMetadata.cs) з класифікацією `Mergeable`. Це сигналізує нашому рантайму, що аналітик вміє розраховувати проміжні результати незалежно для кожного батча, а отже, система може запускати обробку його даних паралельно на кількох ядрах процесора, не створюючи затримок для головної черги.
+Цей обробник має дві ролі. Перша роль звична: він є [`IRadarSourceProcessingHandler`](../../../src/Domain/Processing/Handlers/Contracts/IRadarSourceProcessingHandler.cs) і рахує значення через метод `Process`.
+
+Друга роль важливіша для паралельності. Через [`IRadarSourceProcessingHandlerExecutionMetadata`](../../../src/Domain/Processing/Handlers/Contracts/IRadarSourceProcessingHandlerExecutionMetadata.cs) обробник оголошує класифікацію `Mergeable`: його проміжні результати можна порахувати окремо для кожного батча, а потім безпечно злити. Це дає рантайму право запускати таку аналітику паралельно, не перетворюючи її на затор для головної черги.
 
 ### Як це працює з дельтою
 
-У послідовному режимі handler може писати одразу у свої slots всередині глобального [`RadarSourceProcessingStateStore`](../../../src/Domain/Processing/Handlers/Services/RadarSourceProcessingStateStore/RadarSourceProcessingStateStore.Handlers.cs). Але у впорядкованому конкурентному режимі це було б небезпечно: батч `42` може завершитися раніше за батч `41`, хоча застосовувати їх до фінального стану треба тільки в порядку provider sequence. Тому handler спершу працює не з глобальним станом, а з тимчасовим щільним станом батча: [`ApplyHandlersToDenseState`](../../../src/Infrastructure/Processing/Queueing/Services/RadarProcessingQueuedProcessingSession/RadarProcessingQueuedProcessingSession.OrderedConcurrent.DenseState.cs) викликає `Process` для кожної routed-події, накопичує локальні slots і тільки після цього перетворює їх на [`RadarProcessingHandlerDeltaValue`](../../../src/Domain/Processing/Handlers/Models/RadarProcessingHandlerDeltaValue.cs).
+У послідовному режимі все просто: обробник може писати одразу у свої слоти всередині глобального [`RadarSourceProcessingStateStore`](../../../src/Domain/Processing/Handlers/Services/RadarSourceProcessingStateStore/RadarSourceProcessingStateStore.Handlers.cs). Але у впорядкованому конкурентному режимі це небезпечно. Батч `42` може завершитися раніше за батч `41`, хоча фінальний стан дозволено змінювати тільки в порядку provider sequence.
+
+Тому система вводить проміжний крок. Обробник спершу працює не з глобальним станом, а з тимчасовим щільним станом конкретного батча. Метод [`ApplyHandlersToDenseState`](../../../src/Infrastructure/Processing/Queueing/Services/RadarProcessingQueuedProcessingSession/RadarProcessingQueuedProcessingSession.OrderedConcurrent.DenseState.cs) викликає `Process` для кожної routed-події, накопичує локальні слоти і лише після цього перетворює локальні зміни на [`RadarProcessingHandlerDeltaValue`](../../../src/Domain/Processing/Handlers/Models/RadarProcessingHandlerDeltaValue.cs).
 
 Для `CounterChecksum` дельта є компактним описом того, що цей конкретний батч додав до аналітичного стану. Наприклад, уявімо, що батч з provider sequence `58` містить три події для source `17`:
 
@@ -156,7 +160,7 @@ event 2: payload values = 50, raw checksum = 120
 event 3: payload values = 60, raw checksum = 130
 ```
 
-Після трьох викликів `Process` локальні slots handler-а для цього source матимуть такий вигляд:
+Після трьох викликів `Process` локальні слоти обробника для цього source матимуть такий вигляд:
 
 ```text
 benchmark.events         = 3
@@ -164,9 +168,11 @@ benchmark.payload_values = 150
 benchmark.raw_checksum   = 360
 ```
 
-Рантайм пакує ці значення в [`RadarProcessingHandlerDelta`](../../../src/Domain/Processing/Handlers/Models/RadarProcessingHandlerDelta.cs): додає назву handler-а `benchmark.counter_checksum`, версію контракту `v1`, provider sequence, durable batch id, кількість подій, кількість source-ів, payload value count і input checksum. Це не просто набір чисел; це дельта з ідентичністю. Якщо той самий батч буде повторно відтворений з тим самим payload-ом, координатор злиття впізнає еквівалентне повторне відтворення. Якщо під тим самим `DeltaId` прийде інший payload, [`RadarProcessingHandlerDeltaMergeCoordinator`](../../../src/Domain/Processing/Handlers/Services/RadarProcessingHandlerDeltaMergeCoordinator/RadarProcessingHandlerDeltaMergeCoordinator.Complete.cs) відхилить його як конфлікт.
+Рантайм пакує ці значення в [`RadarProcessingHandlerDelta`](../../../src/Domain/Processing/Handlers/Models/RadarProcessingHandlerDelta.cs). Усередині є не тільки числа, а й паспорт дельти: назва обробника `benchmark.counter_checksum`, версія контракту `v1`, provider sequence, durable batch id, кількість подій, кількість source-ів, payload value count і input checksum.
 
-Далі дельта не одразу пишеться у slots ядра. Вона проходить через впорядковане злиття. Якщо sequence `59` уже готовий, але sequence `58` ще ні, `59` чекає. Коли `58` стає наступним очікуваним sequence, merger `CounterChecksum` застосовує адитивну семантику: додає значення дельти до вже злитих підсумків. Якщо до цього для source `17` було `benchmark.events = 1000`, `benchmark.payload_values = 250000`, `benchmark.raw_checksum = 9000000`, після злиття sequence `58` координатор поверне оновлені значення:
+Завдяки цьому координатор бачить не анонімний набір результатів, а дельту з ідентичністю. Якщо той самий батч повторно відтворюється з тим самим payload-ом, це нормальний replay. Якщо під тим самим `DeltaId` приходить інший payload, [`RadarProcessingHandlerDeltaMergeCoordinator`](../../../src/Domain/Processing/Handlers/Services/RadarProcessingHandlerDeltaMergeCoordinator/RadarProcessingHandlerDeltaMergeCoordinator.Complete.cs) відхиляє його як конфлікт.
+
+Далі дельта не одразу пишеться у слоти ядра. Вона проходить через впорядковане злиття. Якщо sequence `59` уже готовий, але sequence `58` ще ні, `59` чекає. Коли `58` стає наступним очікуваним sequence, merger `CounterChecksum` застосовує адитивну семантику: додає значення дельти до вже злитих підсумків. Якщо до цього для source `17` було `benchmark.events = 1000`, `benchmark.payload_values = 250000`, `benchmark.raw_checksum = 9000000`, після злиття sequence `58` координатор поверне оновлені значення:
 
 ```text
 benchmark.events         = 1003
@@ -174,11 +180,11 @@ benchmark.payload_values = 250150
 benchmark.raw_checksum   = 9000360
 ```
 
-Лише ці вже впорядковано злиті значення записуються назад у state store через [`ApplyMergedHandlerValueGroups`](../../../src/Domain/Processing/Handlers/Services/RadarSourceProcessingStateStore/RadarSourceProcessingStateStore.Deltas.cs). Тобто custom handler залишається швидкою локальною формулою, а дельта-контур вирішує іншу задачу: як безпечно перенести результат цієї формули з паралельного worker-а у фінальний детермінований стан системи.
+Лише ці вже впорядковано злиті значення записуються назад у state store через [`ApplyMergedHandlerValueGroups`](../../../src/Domain/Processing/Handlers/Services/RadarSourceProcessingStateStore/RadarSourceProcessingStateStore.Deltas.cs). Тобто користувацький обробник залишається швидкою локальною формулою, а дельта-контур вирішує іншу задачу: як безпечно перенести результат цієї формули з паралельного worker-а у фінальний детермінований стан системи.
 
 ---
 
-## 21.4. Компіляція та девіртуалізація JIT: Боротьба з віртуальним викликом
+## 21.4. Ціна виклику обробника: JIT і девіртуалізація
 
 Коли ми викликаємо метод `Process` для кожного обробника у циклі:
 
@@ -189,15 +195,17 @@ foreach (var assignment in handlerSlotLayout.Assignments)
 }
 ```
 
-З точки зору архітектури C#, це виклик інтерфейсного методу. На рівні низькорівневого коду (ASM) це означає непрямий виклик (indirect call) через таблицю віртуальних методів (vtable). Процесору доводиться зчитувати адресу методу з пам'яті (що призводить до додаткової операції зчитування та потенційного cache-miss), а конвеєру CPU — виконувати передбачення переходів (branch prediction), що уповільнює гарячий шлях обробки NEXRAD-подій.
+На рівні дизайну це виглядає ідеально: ядро нічого не знає про конкретний тип аналітика, а викликає його через інтерфейс. Але в гарячому циклі така абстракція має ціну. Процесор не завжди бачить одразу, який саме метод треба викликати, тому проходить через непрямий виклик і може втратити кілька дорогих тактів на кожній події.
 
-Оскільки через систему проходять мільйони подій на секунду на нашому Ryzen 9 процесорі, кожна наносекунда на рахунку. Рантайм .NET (починаючи з .NET 8 і далі) має кілька JIT-оптимізацій, які можуть зменшити цю ціну за відповідного профілю викликів:
+Для звичайного бізнес-коду це майже непомітно. Для потоку NEXRAD, де через цикл проходять мільйони подій, така дрібниця вже стає частиною бюджету. Тому питання не в тому, щоб відмовитися від інтерфейсів, а в тому, щоб розуміти, коли .NET JIT може здешевити цей виклик.
 
-### 1. Повна девіртуалізація
-Якщо JIT бачить мономорфний або добре передбачуваний call site, він може перетворити частину інтерфейсних викликів на прямі виклики до конкретного типу. Після цього відкривається шанс на **інлайнінг** (inlining), коли код `Process` вбудовується в цикл обробки подій і hot path платить менше за абстракцію. Ключове слово тут — “може”: цю властивість не варто продавати як гарантію, її треба перевіряти профілем на конкретному runtime і handler-наборі.
+### 1. Прямий виклик після девіртуалізації
+Якщо JIT бачить, що в конкретному місці майже завжди викликається один і той самий тип обробника, він може замінити частину інтерфейсних викликів прямим викликом до цього типу. Після цього з'являється шанс на **інлайнінг** (inlining): код `Process` може бути вбудований прямо в цикл обробки.
 
-### 2. Захищена девіртуалізація
-Якщо в системі зареєстровано кілька різних обробників (наприклад, [`CounterChecksumBenchmarkHandler`](../../../src/Infrastructure/Processing/Benchmarks/Models/RadarProcessingBenchmarkHandlers/RadarProcessingBenchmarkHandlers.CounterChecksum.cs) та [`HeavySampledChecksumHandler`](../../../src/Infrastructure/Processing/Benchmarks/Models/RadarProcessingBenchmarkHandlers/RadarProcessingBenchmarkHandlers.HeavySampledChecksum.cs)), пряма девіртуалізація може бути недоступною. Тоді JIT за відповідного профілю викликів може використати механізм GDV: створити швидку перевірку типу перед викликом і залишити загальний інтерфейсний шлях як fallback:
+Тут важливе слово “може”. Це не обіцянка автора і не властивість інтерфейсу сама по собі. Це оптимізація рантайму, яку треба перевіряти профілем на конкретному наборі обробників.
+
+### 2. Швидка гілка для частого типу
+Якщо в системі зареєстровано кілька різних обробників, наприклад [`CounterChecksumBenchmarkHandler`](../../../src/Infrastructure/Processing/Benchmarks/Models/RadarProcessingBenchmarkHandlers/RadarProcessingBenchmarkHandlers.CounterChecksum.cs) та [`HeavySampledChecksumHandler`](../../../src/Infrastructure/Processing/Benchmarks/Models/RadarProcessingBenchmarkHandlers/RadarProcessingBenchmarkHandlers.HeavySampledChecksum.cs), прямий виклик може бути недоступним. Але JIT іноді може побудувати швидку гілку: спершу перевірити найчастіший тип, а для решти залишити загальний інтерфейсний шлях.
 
 ```csharp
 if (assignment.Handler is CounterChecksumBenchmarkHandler counterHandler)
@@ -214,11 +222,11 @@ else
 }
 ```
 
-JIT збирає статистику викликів (tiered compilation), а ми, зі свого боку, можемо винести найчастіші типи обробників на явний fast path. Якщо production-профіль показує один домінантний handler, гарячий контур перестає платити повну ціну абстракції на кожному виклику: більшість роботи проходить через прямий код, а загальний віртуальний шлях лишається резервом для рідкісних або зовнішніх типів.
+JIT збирає статистику викликів (tiered compilation), а ми, зі свого боку, можемо винести найчастіші типи обробників на явний fast path. Якщо production-профіль показує один домінантний обробник, гарячий контур перестає платити повну ціну абстракції на кожному виклику: більшість роботи проходить через прямий код, а загальний інтерфейсний шлях лишається резервом для рідкісних або зовнішніх типів.
 
-Оптимізаційний відступ: для випадків, де динамічний поліморфізм не потрібен, а швидкість має бути граничною, можна застосувати патерн **Generic Struct Handler** (узагальнені структури з обмеженням інтерфейсу). Коли метод обробки параметризується типом `T where T : struct, IRadarSourceProcessingHandler`, контур стає мономорфним для конкретної структури. Це дає компілятору найкращі умови для девіртуалізації та inline, але остаточну форму машинного коду ми все одно перевіряємо профілем, а не обіцянкою в документації.
+Окремий можливий шлях — **Generic Struct Handler**: узагальнена структура з обмеженням інтерфейсу. Коли метод обробки параметризується типом `T where T : struct, IRadarSourceProcessingHandler`, контур стає мономорфним для конкретної структури. Це дає компілятору найкращі умови для девіртуалізації та inline, але остаточну форму машинного коду ми все одно перевіряємо профілем, а не обіцянкою в документації.
 
-Важлива межа: у поточному коді RadarPulse цей патерн не є окремим production-контуром. Реальний шлях виклику handler-а залишається інтерфейсним і проходить через [`RadarSourceProcessingStateStore.ApplyHandlers`](../../../src/Domain/Processing/Handlers/Services/RadarSourceProcessingStateStore/RadarSourceProcessingStateStore.Handlers.cs). `Generic Struct Handler` тут варто читати як оптимізаційну форму, до якої можна спеціалізувати вже наявний handler, якщо профіль покаже, що саме інтерфейсний виклик став вузьким місцем.
+Важлива межа: у поточному коді RadarPulse цей патерн не є окремим production-контуром. Реальний шлях виклику обробника залишається інтерфейсним і проходить через [`RadarSourceProcessingStateStore.ApplyHandlers`](../../../src/Domain/Processing/Handlers/Services/RadarSourceProcessingStateStore/RadarSourceProcessingStateStore.Handlers.cs). `Generic Struct Handler` тут варто читати як оптимізаційну форму, до якої можна спеціалізувати вже наявний обробник, якщо профіль покаже, що саме інтерфейсний виклик став вузьким місцем.
 
 Наприклад, реальний [`CounterChecksumBenchmarkHandler`](../../../src/Infrastructure/Processing/Benchmarks/Models/RadarProcessingBenchmarkHandlers/RadarProcessingBenchmarkHandlers.CounterChecksum.cs) сьогодні є класом, але його гаряча частина має форму, яка легко переноситься у struct:
 
@@ -273,7 +281,7 @@ private static void ProcessWith<THandler>(
 }
 ```
 
-Суть не в тому, що кожен custom handler треба робити структурою. Суть у trade-off: класовий handler простіший для каталогу розширень і динамічної реєстрації, а generic struct handler доречний лише там, де набір handler-ів відомий наперед і є виміряна потреба прибрати останню ціну віртуального виклику.
+Суть не в тому, що кожен користувацький обробник треба робити структурою. Суть у компромісі: класовий обробник простіший для каталогу розширень і динамічної реєстрації, а generic struct handler доречний лише там, де набір обробників відомий наперед і є виміряна потреба прибрати останню ціну віртуального виклику.
 
 ---
 
@@ -290,7 +298,7 @@ private static void ProcessWith<THandler>(
 
 Ми відхилили Сценарій А через ризик регресій та порушення принципу єдиної відповідальності (Single Responsibility Principle). Сценарій Б був відкинутий як такий, що не відповідає концепції «Лабораторного столу» (занадто багато оверінжинірингу з мережевими чергами для локального рантайму). Наше рішення об'єднало швидкість прямого виклику в межах одного процесу з жорсткою ізоляцією пам'яті через стекові структури.
 
-Таким чином, розробники аналітичних модулів отримали безпечний та простий майданчик для реалізації бізнес-формул. Вони працюють як експерти в лабораторії: отримують конверт із матеріалами дослідження, роблять записи у чітко відведених рядках бланку і повертають його назад. Ядро системи залишається єдиним господарем стану та координатором часу, тому стабільність не залежить від дисципліни кожного нового handler-а.
+Таким чином, розробники аналітичних модулів отримали безпечний та простий майданчик для реалізації бізнес-формул. Вони працюють як експерти в лабораторії: отримують конверт із матеріалами дослідження, роблять записи у чітко відведених рядках бланку і повертають його назад. Ядро системи залишається єдиним господарем стану та координатором часу, тому стабільність не залежить від дисципліни кожного нового обробника.
 
 ---
 
