@@ -1,8 +1,8 @@
 # Розділ 23: Щит для фронтенду (бекенд для фронтенду, Backend-for-Frontend)
 
-Внутрішній runtime RadarPulse не є форматом для браузера. Там живуть [`DurableEnvelope`](../../../src/Infrastructure/Processing/Durable/Services/RadarProcessingDurableEnvelopeQueue/RadarProcessingDurableEnvelopeQueue.cs), retained pressure, topology versions, worker states, pooled buffers і координатори комміту. Якщо віддати це напряму Angular SPA, фронтенд швидко стане заручником внутрішньої кухні ядра.
+Внутрішній рантайм RadarPulse не є форматом для браузера. Там живуть [`DurableEnvelope`](../../../src/Infrastructure/Processing/Durable/Services/RadarProcessingDurableEnvelopeQueue/RadarProcessingDurableEnvelopeQueue.cs), утриманий тиск пам'яті (retained pressure), версії топології, стани worker-ів, pooled buffers і координатори комміту. Якщо віддати це напряму Angular SPA, фронтенд швидко стане заручником внутрішньої кухні ядра.
 
-Тому під час віхи `028` з'явився **бекенд для фронтенду (Backend-for-Frontend, BFF)**: тонкий product-facing шар, який перекладає стан системи на мову оператора. Він не приховує правду і не малює production-ілюзію; він віддає стабільні DTO/read models, readiness, diagnostics, warnings і [`NonClaims`](../../../src/Presentation/RadarPulse.Http/Product/Readiness/RadarPulseProductDemoReadiness.cs), не відкриваючи клієнту приватні моделі рантайму.
+Тому під час віхи `028` з'явився **бекенд для фронтенду (Backend-for-Frontend, BFF)**: тонкий продуктовий шар, який перекладає стан системи на мову оператора. Він не приховує правду і не малює production-ілюзію; він віддає стабільні DTO/read models, readiness, diagnostics, warnings і [`NonClaims`](../../../src/Presentation/RadarPulse.Http/Product/Readiness/RadarPulseProductDemoReadiness.cs), не відкриваючи клієнту приватні моделі рантайму.
 
 ---
 
@@ -27,9 +27,11 @@ public static class RadarPulseProductHttpEndpoints
         group.MapGet("/runs/latest", GetLatestRun);
         group.MapGet("/runs/{runId}", GetRun);
 
-        // Доступ до внутрішнього стану обробки
+        // Доступ до product/read-model проекцій обробки
         group.MapGet("/runs/{runId}/batches", ListBatches);
+        group.MapGet("/runs/{runId}/batches/{providerSequence:long}", GetBatch);
         group.MapGet("/runs/{runId}/sources", ListSources);
+        group.MapGet("/runs/{runId}/sources/{sourceId:int}", GetSource);
         group.MapGet("/runs/{runId}/handlers/{sourceId:int}/{fieldName}", GetHandlerOutput);
 
         // Діагностика та готовність хосту
@@ -51,7 +53,7 @@ public static class RadarPulseProductHttpEndpoints
 }
 ```
 
-Ця структура ендпоінтів — це панель приладів нашого слідчого. Зверніть увагу на групу `/controls/`. Це механізм активного втручання в «кримінальну справу» обробки даних. BFF дозволяє оператору вручну зупинити прийом нових пакетів (`stop-accepting`), очистити чергу обробленого матеріалу (`drain-accepted`) або відхилити небезпечний режим роботи з послідовним падінням продуктивності (`reject-unsafe-fallback`). При цьому фронтенд не знає, як саме ці команди реалізовані всередині доменного ядра; він просто надсилає POST-запити з легким тілом DTO.
+Ця структура ендпоінтів — це панель приладів нашого слідчого. Зверніть увагу на групу `/controls/`. Це механізм активного втручання в «кримінальну справу» обробки даних. BFF дозволяє оператору вручну зупинити прийом нових пакетів (`stop-accepting`), дати системі допрацювати вже прийняті батчі (`drain-accepted`) або відхилити небезпечний режим роботи з послідовним падінням продуктивності (`reject-unsafe-fallback`). При цьому фронтенд не знає, як саме ці команди реалізовані всередині доменного ядра; він просто надсилає POST-запити з легким тілом DTO.
 
 ---
 
@@ -122,7 +124,7 @@ public sealed record RadarPulseProductDemoReadiness(
 }
 ```
 
-Метод [`ResolveFirstBlockingReason`](../../../src/Presentation/RadarPulse.Http/Product/Readiness/RadarPulseProductDemoReadiness.cs) працює за принципом каскадного фільтра. Якщо історія заблокована (наприклад, файл історії [`radarpulse-product-history.json`](../../../src/Infrastructure/Product/History/Stores/RadarPulseProductFileRunHistoryStore/RadarPulseProductFileRunHistoryStore.cs) пошкоджений або недоступний для запису), це стає першою причиною блокування (`FirstBlockingReason`). Якщо з історією все гаразд, але адміністратор забув зібрати дистрибутив Angular UI ([`index.html`](../../../src/Presentation/OperatorUi/src/index.html) відсутній у папці `dist`), першою причиною стане помилка інтерфейсу. Фронтенд просто зчитує поле `IsReady` та рядок `FirstBlockingReason`, виводячи на екран красивий червоний або зелений банер.
+Метод [`ResolveFirstBlockingReason`](../../../src/Presentation/RadarPulse.Http/Product/Readiness/RadarPulseProductDemoReadiness.cs) працює за принципом каскадного фільтра. Якщо історія заблокована (наприклад, файл історії [`radarpulse-product-history.json`](../../../src/Infrastructure/Product/History/Stores/RadarPulseProductFileRunHistoryStore/RadarPulseProductFileRunHistoryStore.cs) пошкоджений або недоступний для запису), це стає першою причиною блокування (`FirstBlockingReason`). Якщо з історією все гаразд, але адміністратор не зібрав або неправильно підклав дистрибутив Angular UI, перевірка [`TryResolveOperatorUiStaticAssetRoot`](../../../src/Presentation/RadarPulse.Http/Product/StaticDelivery/RadarPulseOperatorUiStaticDeliveryExtensions.cs) не знаходить `index.html` у зібраному static asset root, і першою причиною стане помилка інтерфейсу. Фронтенд просто зчитує поле `IsReady` та рядок `FirstBlockingReason`, виводячи на екран красивий червоний або зелений банер.
 
 ---
 
@@ -171,6 +173,7 @@ private static readonly string[] PackageNonClaims =
 Навіщо це потрібно? Якщо сторонній аудитор або розробник запустить систему і спробує розгорнути її на публічному сервері AWS під великим навантаженням, ці попередження нагадають йому: **RadarPulse розроблений для локальної верифікації та тестування алгоритмів**. BFF захищає систему від неправильного використання, чітко розмежовуючи межі відповідальності: ми показуємо детермінований локальний контур і контроль алокацій у нашому бункері, але не претендуємо на роль хмарної системи реального часу без додаткової інфраструктурної обв'язки.
 
 BFF виступає надійним щитом: він захищає внутрішні класи від хаотичних запитів з браузера, забезпечує фронтенд чистими даними та чесно попереджає про межі своїх можливостей.
+
 ---
 
 ## 🔍 Матеріали справи (Investigation Case Files)
@@ -182,11 +185,11 @@ BFF виступає надійним щитом: він захищає внут
 SPA могла напряму читати runtime-моделі, але тоді фронтенд отримав би durable envelopes, pooled pressure, topology internals і випадкові зміни доменних типів. Можна було зробити універсальний generic API, але він став би тонким обгортанням внутрішньої кухні. BFF обрано як перекладача для оператора: він віддає не все, що знає система, а те, що потрібно для рішення. Ціна вибору — додаткові DTO і read-model store; виграш — стабільний UI-контракт і захист семантики ядра (core semantics) від presentation-запитів.
 
 ### 2. Закони фізики рантайму (System Invariants)
-* **Незмінність read-моделі**: BFF-сховище [`RadarProcessingBffReadModelStore`](../../../src/Application/Processing/Services/RadarProcessingBffReadModelStore.cs) оновлюється виключно після впорядкованої фіксації (Ordered Commit).
+* **Публікація read-моделі**: BFF-сховище [`RadarProcessingBffReadModelStore`](../../../src/Application/Processing/Services/RadarProcessingBffReadModelStore.cs) отримує готовий [`RadarProcessingRunReadModel`](../../../src/Application/Processing/ReadModels/RadarProcessingRunReadModel.cs) після того, як pipeline сформував результат виконання; воно не читає внутрішню durable queue напряму.
 * **Ізоляція інтерфейсу**: Прямі запити з UI до внутрішніх об'єктів черги [`DurableEnvelopeQueue`](../../../src/Infrastructure/Processing/Durable/Services/RadarProcessingDurableEnvelopeQueue/RadarProcessingDurableEnvelopeQueue.cs) суворо заборонені.
 
 ### 3. Патологоанатомічний звіт (Failure Modes & Recovery)
-* **Збій оновлення read-моделі**: У разі помилки оновлення BFF-сховища, оператор може бачити застарілі дані на екрані, але це жодним чином не впливає на стабільність обробки радарних батчів.
+* **Неопублікована або застаріла read-модель**: Якщо read model ще не опублікована або оператор дивиться на старий знімок, UI може показувати не найсвіжіший стан, але це не впливає на стабільність обробки радарних батчів.
 
 ### 4. Слід доказової бази (Implementation & Tests)
 * BFF сховище: [RadarProcessingBffReadModelStore.cs](../../../src/Application/Processing/Services/RadarProcessingBffReadModelStore.cs)
