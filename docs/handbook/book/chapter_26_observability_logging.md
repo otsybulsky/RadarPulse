@@ -4,7 +4,7 @@
 
 У програмних системах роль чорного ящика часто помилково віддають логам. Розробник додає `Console.WriteLine`, потім детальний режим (verbose mode), а після першої аварії production отримує або тишу, або лавину тексту, в якій неможливо знайти першу причину. Лог стає шумом, якщо за ним немає моделі.
 
-RadarPulse підходить до цієї теми інакше. Поточна система ще **не заявляє продукційний стек логування (production logging stack)**: у коді немає окремого шару `ILogger`, OpenTelemetry, розподіленого трасування (distributed tracing) чи централізованої доставки логів (centralized log shipping). Це не приховується і не продається як готова платформа спостережуваності (observability platform). Зате в системі вже є те, без чого справжнє логування все одно було б шумом: стабільна мова діагностики, readiness, first blocking reason, capacity evidence, retained pressure, durable envelope state і діагностика для продуктової поверхні (product-facing diagnostics).
+RadarPulse підходить до цієї теми інакше. Поточна система ще **не заявляє продукційний стек логування (production logging stack)**: у production-контурі немає власного structured logging adapter-а, OpenTelemetry pipeline, розподіленого трасування (distributed tracing) чи централізованої доставки логів (centralized log shipping). CLI-вивід і тестове `AddLogging` не є таким стеком. Це не приховується і не продається як готова платформа спостережуваності (observability platform). Зате в системі вже є те, без чого справжнє логування все одно було б шумом: стабільна мова діагностики, готовність (readiness), перша причина блокування (first blocking reason), доказ місткості (capacity evidence), утриманий тиск пам'яті (retained pressure), стан durable envelope і діагностика для продуктової поверхні (product-facing diagnostics).
 
 Цей розділ пояснює, чому це не дрібниця. Логування починається не з бібліотеки. Воно починається з рішення: **які факти система зобов'язана сказати про себе, коли вона працює, сповільнюється або відмовляється продовжувати**.
 
@@ -39,7 +39,7 @@ public string BlockingReason => ...
 public IReadOnlyList<string> Warnings => warnings;
 ```
 
-Це не приймач логів (log sink). Це ще важливіше: словник фактів, які потім можуть бути записані в structured logs, metrics, traces, API responses або UI. Якщо цей словник неправильний, жоден OpenTelemetry collector не врятує систему від самообману.
+Це не приймач логів (log sink). Це ще важливіше: словник фактів, які потім можуть бути записані в структуровані логи (structured logs), метричні підсумки, трасування (traces), API responses або UI. Якщо цей словник неправильний, жоден OpenTelemetry collector не врятує систему від самообману.
 
 ---
 
@@ -51,11 +51,11 @@ public IReadOnlyList<string> Warnings => warnings;
 
 | Мова | Для чого потрібна | Поточний стан RadarPulse |
 | :--- | :--- | :--- |
-| **Diagnostics** | Пояснити стан одного run-а: ready/blocked, first blocking reason, warnings, режим handler-а (handler posture) | Реалізовано через read models і product API |
-| **Metrics** | Показати лічильники, high-watermarks, allocation/capacity evidence, retained pressure | Реалізовано у telemetry summaries і capacity evidence |
-| **Structured logs** | Дати append-only хронологію важливих transitions з correlation fields | Не заявлено як готовий шар |
-| **Traces** | Зв'язати операцію через компоненти, процеси й майбутні external adapters | Не заявлено як готовий шар |
-| **Audit trail** | Зберегти product history і рішення оператора для пізнішого перегляду | Частково є в local run history/demo surface |
+| **Діагностика (diagnostics)** | Пояснити стан одного run-а: ready/blocked, first blocking reason, warnings, режим handler-а (handler posture) | Реалізовано через read models і product API |
+| **Метричні підсумки (metric-like summaries)** | Показати лічильники, верхні межі (high-watermarks), allocation/capacity evidence і retained pressure | Реалізовано як типізовані телеметричні підсумки (telemetry summaries) і capacity evidence; production metrics exporter не заявлено |
+| **Структуровані логи (structured logs)** | Дати дописувану хронологію важливих transitions із correlation fields | Не заявлено як готовий шар |
+| **Траси (traces)** | Зв'язати операцію через компоненти, процеси й майбутні зовнішні адаптери (external adapters) | Не заявлено як готовий шар |
+| **Аудиторський слід (audit trail)** | Зберегти product history і рішення оператора для пізнішого перегляду | Частково є в локальній run history/demo surface |
 
 Це розділення важливе для чесності книги. `Console.WriteLine` у CLI — це не продукційне логування (production logging). HTTP endpoint `/product/pipeline/runs/{runId}/diagnostics` — це не розподілена траса (distributed trace). `FirstBlockingReason` — це не повний стек-трейс (stack trace). Але всі вони можуть бути частинами одного дорослого контракту спостережуваності (observability contract), якщо не плутати їхні ролі.
 
@@ -158,7 +158,7 @@ public long DroppedRecentDetailCount { get; }
 * явно рахувати відкинуту діагностику (dropped diagnostics);
 * не дозволяти observability шару створювати нову retained-payload кризу.
 
-Якщо майбутній `ILogger` adapter порушить ці правила, він буде регресією, навіть якщо виглядатиме “enterprise” (корпоративно).
+Якщо майбутній `ILogger`-адаптер порушить ці правила, він буде регресією, навіть якщо виглядатиме “enterprise” (корпоративно).
 
 ---
 
@@ -192,7 +192,7 @@ RadarPulse обрав третій шлях.
 
 Якщо завтра RadarPulse треба переносити з lab-table стенда в production, logging/observability має бути першим hardening-кроком перед broker/database/live ingestion (брокер/база даних/live-приймання). Але цей крок має бути точним.
 
-Мінімальна структурована подія (structured event) для важливих переходів рантайму (runtime transitions) має нести такі поля:
+Для майбутнього продукційного logging-adapter-а мінімальна структурована подія (structured event) для важливих переходів рантайму (runtime transitions) має спиратися на такі поля:
 
 | Поле | Навіщо |
 | :--- | :--- |
@@ -206,9 +206,9 @@ RadarPulse обрав третій шлях.
 | `retainedPayloadBytes` | Дає memory-pressure контекст |
 | `firstBlockingReason` | Називає першу причину зупинки без ручного archaeology |
 
-Не кожен event має містити всі поля. Але схема продукційного логу (production log schema) має знати ці осі, інакше при першому складному інциденті команда знову опиниться перед купою рядків без карти.
+Не кожен event має містити всі поля. І це не поточний API логування RadarPulse, а цільова карта для production-hardening кроку. Але схема продукційного логу (production log schema) має знати ці осі, інакше при першому складному інциденті команда знову опиниться перед купою рядків без карти.
 
-Архітектурно це не повинно затягувати logging у Domain. Domain має й надалі повертати типізовані результати, підсумки й готовність (typed results, summaries and readiness). Application/Product layer може збирати діагностичні моделі читання (diagnostic read models). Infrastructure/Presentation layer може перетворювати ці факти на `ILogger` scopes, metrics instruments або OpenTelemetry spans.
+Архітектурно це не повинно затягувати логування у Domain. Domain має й надалі повертати типізовані результати, підсумки й готовність (typed results, summaries and readiness). Шар Application/Product може збирати діагностичні моделі читання (diagnostic read models). Шар Infrastructure/Presentation може перетворювати ці факти на `ILogger` scopes, metrics instruments або OpenTelemetry spans.
 
 Правильний напрям залежностей виглядає так:
 
@@ -240,11 +240,11 @@ Domain hot path -> direct log sink -> production semantics hidden in strings
 Сильна відповідь інша:
 
 ```text
-У поточній версії ми не claim-имо продукційне логування (production logging).
+У поточній версії ми не заявляємо продукційне логування (production logging).
 Ми вже маємо діагностичний контракт (diagnostic contract): readiness, blocker, queue telemetry,
-durable state, retained pressure, capacity evidence and non-claims.
-Наступний production-hardening крок — structured logging/metrics/tracing
-adapter, який експортує ці typed facts без зміни Domain hot path.
+durable state, retained pressure, доказ місткості (capacity evidence) і явно названі межі відповідальності.
+Наступний production-hardening крок — адаптер structured logging/metrics/tracing,
+який експортує ці типізовані факти без зміни гарячого доменного шляху (Domain hot path).
 ```
 
 Це саме той тип відповіді, який відрізняє зрілу інженерну роботу від тексту, що просто перелічує назви інструментів. Інструмент можна підключити за день. Правильну модель подій, межі шуму, correlation vocabulary і first-blocker discipline треба спроектувати.
@@ -257,25 +257,25 @@ adapter, який експортує ці typed facts без зміни Domain h
 
 ### 1. Вердикт детективів (Decision Trace & Rationale)
 
-Поточна система не заявляє продукційний стек логування (production logging stack). Її доведене рішення інше: спершу сформувати typed diagnostic/readiness contract, який пояснює стан run-а без залежності від текстового приймача логів (log sink). Це робить майбутній `ILogger`/OpenTelemetry шар адаптером над готовою семантикою, а не місцем, де семантика вигадується.
+Поточна система не заявляє продукційний стек логування (production logging stack). Її доведене рішення інше: спершу сформувати типізований diagnostic/readiness contract, який пояснює стан run-а без залежності від текстового приймача логів (log sink). Це робить майбутній `ILogger`/OpenTelemetry шар адаптером над готовою семантикою, а не місцем, де семантика вигадується.
 
 #### Чому observability починається з діагностичної моделі
 
-Можна було додати `ILogger` у кожен сервіс і отримати знайомий production-looking вигляд. Але це дало б хибний сигнал: система начебто спостережувана, хоча перша причина блокування, retained pressure, режим handler-а (handler posture) і durable state лишалися б розкиданими по рядках. Ми обрали typed diagnostics first. Ціна вибору — немає claim-а “production logging ready” (продукційне логування готове); виграш — кожен майбутній log/metric/trace має джерело правди.
+Можна було додати `ILogger` у кожен сервіс і отримати знайомий вигляд production-системи. Але це дало б хибний сигнал: система начебто спостережувана, хоча перша причина блокування, retained pressure, режим handler-а (handler posture) і durable state лишалися б розкиданими по рядках. Ми обрали спочатку типізовану діагностику (typed diagnostics first). Ціна вибору — немає заяви “production logging ready” (продукційне логування готове); виграш — кожен майбутній log/metric/trace має джерело правди.
 
 ### 2. Закони фізики рантайму (System Invariants)
 
 * **Hot path не логують як proof:** події високої щільності мають агрегуватися в counters/high-watermarks, а не перетворюватися на нескінченний текстовий stream.
 * **First blocker має пріоритет:** оператор і API повинні бачити першу причину блокування, а не випадковий список симптомів.
-* **Diagnostics bounded by design:** recent detail може бути обмежений, але dropped detail має рахуватися явно.
-* **Logging не розширює claims:** наявність приймача логів (log sink) не робить систему production-ready без gates, retention policy, correlation schema і incident workflow.
+* **Діагностика обмежена за задумом:** recent detail може бути обмежений, але dropped detail має рахуватися явно.
+* **Логування не розширює заяви:** наявність приймача логів (log sink) не робить систему production-ready без gates, retention policy, correlation schema і incident workflow.
 
 ### 3. Патологоанатомічний звіт (Failure Modes & Recovery)
 
-* **Log storm:** без rate limit/sampling масовий збій може створити більше I/O та GC pressure, ніж сам runtime.
-* **String-only evidence:** якщо blocker існує тільки як текстовий рядок у логах, UI/API/recovery не можуть надійно використати його як контракт.
-* **Lost correlation:** без `runId`, sequence і durable envelope context production incident перетворюється на ручну археологію.
-* **False confidence:** OpenTelemetry без стабільної внутрішньої diagnostic model дає гарні dashboards, але не пояснює correctness.
+* **Шторм логів (log storm):** без rate limit/sampling масовий збій може створити більше I/O та GC pressure, ніж сам runtime.
+* **Доказ тільки в рядках (string-only evidence):** якщо blocker існує тільки як текстовий рядок у логах, UI/API/recovery не можуть надійно використати його як контракт.
+* **Втрачена кореляція (lost correlation):** без `runId`, sequence і durable envelope context production incident перетворюється на ручну археологію.
+* **Хибна впевненість (false confidence):** OpenTelemetry без стабільної внутрішньої diagnostic model дає гарні dashboards, але не пояснює коректність.
 
 ### 4. Слід доказової бази (Implementation & Tests)
 
@@ -298,4 +298,4 @@ adapter, який експортує ці typed facts без зміни Domain h
 dotnet test tests/RadarPulse.Tests/RadarPulse.Tests.csproj --filter "FullyQualifiedName~RadarProcessingRunReadModelTests|FullyQualifiedName~RadarProcessingProductionPipelineSummaryTests|FullyQualifiedName~RadarPulseProductPipelineDtoTests"
 ```
 
-Окремий production-hardening gate для майбутнього logging layer має з'явитися тільки після додавання structured log/metric/trace adapter-а. Для поточної редакції книги чесний claim обмежується діагностичним контрактом (diagnostic contract), readiness і capacity evidence.
+Окремий production-hardening gate для майбутнього logging layer має з'явитися тільки після додавання structured log/metric/trace adapter-а. Для поточної редакції книги чесна межа твердження така: діагностичний контракт (diagnostic contract), readiness і capacity evidence.
