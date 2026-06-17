@@ -1,449 +1,449 @@
-﻿# Додаток Д: симульована стенограма ворожої рецензії (Simulated Hostile Reviewer Transcript)
+﻿# Додаток Д: симульована стенограма жорсткої рецензії
 
-Цей документ є **симуляцією hostile technical review**, а не реальною зовнішньою рекомендацією і не цитатою конкретної людини. Його роль — підготувати книгу до найгіршого корисного сценарію: сильний principal/staff-level reviewer не вірить красивим формулюванням, атакує кожен великий claim і змушує автора показати код, тест, measurement та межу відповідальності.
+Цей документ є **симуляцією жорсткої технічної рецензії**, а не реальною зовнішньою рекомендацією і не цитатою конкретної людини. Його роль — підготувати книгу до найгіршого корисного сценарію: сильний рецензент інженерно-архітектурного рівня не вірить красивим формулюванням, атакує кожне велике твердження і змушує автора показати код, тест, вимірювання та межу відповідальності.
 
-Якщо реальний reviewer пізніше поставить інші питання, цей додаток треба оновити. Якщо реальний reviewer підтвердить або відхилить відповіді, це має бути окремий документ із явно позначеним джерелом.
+Якщо реальний рецензент пізніше поставить інші питання, цей додаток треба оновити. Якщо реальний рецензент підтвердить або відхилить відповіді, це має бути окремий документ із явно позначеним джерелом.
 
-## Налаштування сесії (Session Setup)
+## Налаштування сесії
 
-**Профіль рецензента (Reviewer profile, simulated):** Principal backend/distributed systems engineer; сильний у .NET runtime, data pipelines, broker semantics, performance measurement, failure modes і production operations.
+**Профіль рецензента, симульовано:** інженер бекенду й розподілених систем рівня principal/staff, тобто провідного або архітектурного рівня; сильний у .NET-рантаймі, конвеєрах даних, семантиці брокерів, вимірюванні продуктивності, режимах відмов і продукційній експлуатації.
 
-**Позиція рецензента (Reviewer posture):** недовіра за замовчуванням. Будь-який claim без scope вважається перебільшенням. Будь-яка performance цифра без corpus/hardware boundary вважається маркетингом. Будь-який local durability claim без crash model вважається слабким.
+**Позиція рецензента:** недовіра за замовчуванням. Будь-яке твердження без межі вважається перебільшенням. Будь-яка цифра продуктивності без межі корпусу й апаратного середовища вважається маркетингом. Будь-яке твердження про локальну стійкість без моделі збою вважається слабким.
 
-**Правило автора (Author rule):** відповідати коротко, посилатися на доказ, називати межу claim-а, не захищати те, що не доведено.
+**Правило автора:** відповідати коротко, посилатися на доказ, називати межу твердження, не захищати те, що не доведено.
 
-**Переглянутий матеріал (Reviewed material):** [Executive Verdict](preface_executive_verdict.md), [Додаток Б](appendix_b_claim_evidence_matrix.md), [Додаток В](appendix_c_production_hardening.md), [Додаток Г](appendix_d_reviewer_attack_pack.md), [Додаток Е](appendix_f_lab_stand_bootstrap.md), [Додаток Є](appendix_g_lab_stand_linux.md), розділи [3](chapter_03_radar_batch.md), [12](chapter_12_pooled_copy.md), [16](chapter_16_mutable_core.md), [17](chapter_17_stale_recompute.md), [18](chapter_18_durable_envelope.md), [19](chapter_19_file_store.md), [22](chapter_22_delta_merge.md), [24](chapter_24_operator_ui.md), [25](chapter_25_demo_scripts.md), [26](chapter_26_observability_logging.md).
+**Переглянутий матеріал:** [Передмова](preface_executive_verdict.md), [Додаток Б](appendix_b_claim_evidence_matrix.md), [Додаток В](appendix_c_production_hardening.md), [Додаток Г](appendix_d_reviewer_attack_pack.md), [Додаток Е](appendix_f_lab_stand_bootstrap.md), [Додаток Є](appendix_g_lab_stand_linux.md), розділи [3](chapter_03_radar_batch.md), [12](chapter_12_pooled_copy.md), [16](chapter_16_mutable_core.md), [17](chapter_17_stale_recompute.md), [18](chapter_18_durable_envelope.md), [19](chapter_19_file_store.md), [22](chapter_22_delta_merge.md), [24](chapter_24_operator_ui.md), [25](chapter_25_demo_scripts.md), [26](chapter_26_observability_logging.md).
 
-## Обмін 1 (Exchange 1): “500M+ values/s sounds like a résumé number”
+## Обмін 1: “500M+ значень/с звучить як цифра для резюме”
 
-**Рецензент (Reviewer):**
+**Рецензент:**
 
-Ви пишете про 500M+ payload values/s. Це типова цифра, яку часто виносять на титульний слайд без контексту. Де доказ, що це не synthetic toy benchmark, підігнаний під красивий headline?
+Ви пишете про 500M+ значень корисного навантаження/с. Це типова цифра, яку часто виносять на титульний слайд без контексту. Де доказ, що це не синтетичний іграшковий бенчмарк, підігнаний під красивий заголовок?
 
-**Автор (Author):**
+**Автор:**
 
-Claim прив'язаний до Milestone 004 і не подається як production throughput. У [Додатку Б](appendix_b_claim_evidence_matrix.md) він має окремий scope: hardware/corpus-bound benchmark. Evidence: [004 closeout](../../milestones/004-processing-core-input-contract-closeout.md) фіксує `553_123_110.90` payload values/s для single-file normalized stream і `509_716_417.97` для cache-wide. Кодова опора — [RadarEventBatchBuilder.cs](../../../src/Domain/Streaming/Batches/Services/RadarEventBatchBuilder/RadarEventBatchBuilder.cs), контрактна опора — [RadarStreamContractTests.cs](../../../tests/RadarPulse.Tests/Streaming/Streams/RadarStreamContractTests.cs).
+Твердження прив'язане до віхи 004 і не подається як продукційна пропускна здатність. У [Додатку Б](appendix_b_claim_evidence_matrix.md) воно має окрему межу: бенчмарк, обмежений корпусом і апаратним середовищем. Доказ: [закриття віхи 004](../../milestones/004-processing-core-input-contract-closeout.md) фіксує `553_123_110.90` значень корисного навантаження/с для нормалізованого потоку одного файла і `509_716_417.97` для всього кешу. Кодова опора — [RadarEventBatchBuilder.cs](../../../src/Domain/Streaming/Batches/Services/RadarEventBatchBuilder/RadarEventBatchBuilder.cs), контрактна опора — [RadarStreamContractTests.cs](../../../tests/RadarPulse.Tests/Streaming/Streams/RadarStreamContractTests.cs).
 
-**Уточнення рецензента (Reviewer follow-up):**
+**Уточнення рецензента:**
 
-Чому я маю вірити, що ця цифра має інженерне значення, якщо вона не production?
+Чому я маю вірити, що ця цифра має інженерне значення, якщо вона не продукційна?
 
-**Автор (Author):**
+**Автор:**
 
-Тому що вона доводить не “система витримає будь-який продакшен”, а іншу властивість: input contract достатньо щільний, щоб не вбити runtime до того, як ми дійдемо до concurrency, retention і durable layers. Це baseline фізики даних. Production throughput потребував би live ingestion, broker/database, deployment і latency distribution gates; цього claim-а книга не робить.
+Тому що вона доводить не “система витримає будь-яку продукційну експлуатацію”, а іншу властивість: вхідний контракт достатньо щільний, щоб не вбити рантайм до того, як ми дійдемо до паралельності, утримання пам'яті й стійких шарів. Це базова фізика даних. Продукційна пропускна здатність потребувала б приймання даних наживо, брокера або бази даних, розгортання і перевірок розподілу затримки; цього твердження книга не робить.
 
-**Вердикт рецензента (Reviewer verdict):**
+**Вердикт рецензента:**
 
-Accepted with scope. Цифра сильна, якщо завжди повторювати corpus/hardware boundary.
+Прийнято з межею. Цифра сильна, якщо завжди повторювати межу корпусу й апаратного середовища.
 
-**Якщо потрібне продукційне твердження (production claim):**
+**Якщо потрібне продукційне твердження:**
 
-Потрібні live-like ingestion workload, deployment profile, latency percentiles, resource saturation, repeat runs and noise analysis.
+Потрібні наближене до живого приймання навантаження, профіль розгортання, перцентилі затримки, насичення ресурсів, повторні прогони й аналіз шуму.
 
-## Обмін 2 (Exchange 2): “Why not zero-copy cast the NEXRAD bytes?”
+## Обмін 2: “Чому не zero-copy cast — пряме трактування байтів NEXRAD без копіювання?”
 
-**Рецензент (Reviewer):**
+**Рецензент:**
 
-Якщо ви так дбаєте про hot path, чому не зробити `MemoryMarshal.Cast<byte, RadarStreamEvent>` і не прибрати builder?
+Якщо ви так дбаєте про гарячий шлях, чому не зробити `MemoryMarshal.Cast<byte, RadarStreamEvent>` і не прибрати збирач?
 
-**Автор (Author):**
+**Автор:**
 
-Це було б швидко тільки для ідеального однорідного формату. У [Розділі 3](chapter_03_radar_batch.md) пояснено, чому NEXRAD не можна пустити прямо в домен: endian conversion, variable payload, зовнішня binary schema, payload references. Builder переводить зовнішній формат у наш [`RadarEventBatch`](../../../src/Domain/Streaming/Batches/Models/RadarEventBatch.cs), де offset/length і payload checksum проходять validation. Кодова точка — [RadarEventBatchBuilder.cs](../../../src/Domain/Streaming/Batches/Services/RadarEventBatchBuilder/RadarEventBatchBuilder.cs), тестова — [RadarEventBatchBuilderTests](../../../tests/RadarPulse.Tests/Streaming/Batches/RadarEventBatchBuilderTests).
+Це було б швидко тільки для ідеального однорідного формату. У [Розділі 3](chapter_03_radar_batch.md) пояснено, чому NEXRAD не можна пустити прямо в домен: перетворення байтового порядку, змінне корисне навантаження, зовнішня бінарна схема, посилання на корисне навантаження. Збирач переводить зовнішній формат у наш [`RadarEventBatch`](../../../src/Domain/Streaming/Batches/Models/RadarEventBatch.cs), де offset/length і контрольна сума корисного навантаження проходять валідацію. Кодова точка — [RadarEventBatchBuilder.cs](../../../src/Domain/Streaming/Batches/Services/RadarEventBatchBuilder/RadarEventBatchBuilder.cs), тестова — [RadarEventBatchBuilderTests](../../../tests/RadarPulse.Tests/Streaming/Batches/RadarEventBatchBuilderTests).
 
-**Уточнення рецензента (Reviewer follow-up):**
+**Уточнення рецензента:**
 
 Тобто ви свідомо платите копіюванням?
 
-**Автор (Author):**
+**Автор:**
 
-Так, але контрольованим. Ми купуємо доменний контракт, deterministic payload references і незалежність від зовнішньої binary layout. Далі retained/pooled-copy layer оптимізує lifetime, але не скасовує boundary normalization.
+Так, але контрольованим. Ми купуємо доменний контракт, детерміновані посилання на корисне навантаження і незалежність від зовнішнього бінарного компонування. Далі retained/pooled-copy шар оптимізує час життя пам'яті, але не скасовує нормалізацію на межі.
 
-**Вердикт рецензента (Reviewer verdict):**
+**Вердикт рецензента:**
 
-Accepted. Це сильніше, ніж “zero-copy everywhere”, бо пояснює, де zero-copy був би неправильним.
+Прийнято. Це сильніше, ніж “zero-copy всюди”, бо пояснює, де zero-copy був би неправильним.
 
-## Обмін 3 (Exchange 3): “98.97% allocation reduction may be hiding total allocation”
+## Обмін 3: “98.97% зменшення алокацій може ховати загальні алокації”
 
-**Рецензент (Reviewer):**
+**Рецензент:**
 
-Фраза про 98.97% reduction легко звучить як “ми майже прибрали алокації”. Це правда для всього процесу?
+Фраза про 98.97% зменшення легко звучить як “ми майже прибрали алокації”. Це правда для всього процесу?
 
-**Автор (Author):**
+**Автор:**
 
-Ні. Це claim тільки про retained payload contour. [Додаток Б](appendix_b_claim_evidence_matrix.md) прямо каже: not total zero allocation. Evidence — [010 performance gate](../../milestones/010-owned-provider-overlap-cost-reduction-performance-gate.md): `snapshot-copy` retained allocation `9_947_507_832` bytes, `pooled-copy` `102_811_264` bytes. Реалізація — [RadarProcessingRetainedPayloadFactory.PooledCopy.cs](../../../src/Infrastructure/Processing/Retention/Services/RadarProcessingRetainedPayloadFactory/RadarProcessingRetainedPayloadFactory.PooledCopy.cs).
+Ні. Це твердження тільки про контур утриманого корисного навантаження. [Додаток Б](appendix_b_claim_evidence_matrix.md) прямо каже: це не нульові алокації всього процесу. Доказ — [перевірка продуктивності віхи 010](../../milestones/010-owned-provider-overlap-cost-reduction-performance-gate.md): `snapshot-copy` створив `9_947_507_832` байти утриманих алокацій, `pooled-copy` — `102_811_264` байти. Реалізація — [RadarProcessingRetainedPayloadFactory.PooledCopy.cs](../../../src/Infrastructure/Processing/Retention/Services/RadarProcessingRetainedPayloadFactory/RadarProcessingRetainedPayloadFactory.PooledCopy.cs).
 
-**Уточнення рецензента (Reviewer follow-up):**
+**Уточнення рецензента:**
 
-Чому тоді це важливо, якщо total allocation лишається?
+Чому тоді це важливо, якщо загальні алокації лишаються?
 
-**Автор (Author):**
+**Автор:**
 
-Тому що bottleneck був не “будь-які bytes у процесі”, а довгоживучий retained payload після queued-owned decoupling. Snapshot-copy переносив занадто багато пам'яті через async boundary. Pooled-copy змінив ownership protocol: rent, enqueue, release. Це зняло конкретну кризу, не претендуючи на нульову купу.
+Тому що вузьким місцем були не “будь-які байти у процесі”, а довгоживуче утримане корисне навантаження після розчеплення queued-owned. Snapshot-copy переносив занадто багато пам'яті через асинхронну межу. Pooled-copy змінив протокол володіння: взяти з пулу, поставити в чергу, повернути. Це зняло конкретну кризу, не претендуючи на нульову купу.
 
-**Вердикт рецензента (Reviewer verdict):**
+**Вердикт рецензента:**
 
-Accepted with wording discipline. Завжди казати “retained payload allocation”, не “all allocations”.
+Прийнято з дисципліною формулювань. Завжди казати “алокації утриманого корисного навантаження”, а не “всі алокації”.
 
-## Обмін 4 (Exchange 4): “Prewarm can be benchmark cheating”
+## Обмін 4: “Прогрів може бути шахрайством у бенчмарку”
 
-**Рецензент (Reviewer):**
+**Рецензент:**
 
-Prewarm часто використовується, щоб сховати перший запуск. Ви просто прибрали cold-start cost із цифр?
+Прогрів часто використовується, щоб сховати перший запуск. Ви просто прибрали ціну холодного старту з цифр?
 
-**Автор (Author):**
+**Автор:**
 
-Ні. [Розділ 13](chapter_13_cold_start.md) відділяє cold start від steady path. Evidence — [017 MeasureFile gate](../../milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-measurefile-gate.md): natural `138_151_728`, prewarmed `68_420_960`, borrowed `70_635_296`, pool misses `0`. Код — [RadarProcessingRetainedPayloadFactory.Prewarm.cs](../../../src/Infrastructure/Processing/Retention/Services/RadarProcessingRetainedPayloadFactory/RadarProcessingRetainedPayloadFactory.Prewarm.cs).
+Ні. [Розділ 13](chapter_13_cold_start.md) відділяє холодний старт від сталого шляху. Доказ — [перевірка MeasureFile віхи 017](../../milestones/017-file-level-default-readiness-and-cold-retained-ownership-cost-measurefile-gate.md): natural `138_151_728`, prewarmed `68_420_960`, borrowed `70_635_296`, промахи пулу `0`. Код — [RadarProcessingRetainedPayloadFactory.Prewarm.cs](../../../src/Infrastructure/Processing/Retention/Services/RadarProcessingRetainedPayloadFactory/RadarProcessingRetainedPayloadFactory.Prewarm.cs).
 
-**Уточнення рецензента (Reviewer follow-up):**
+**Уточнення рецензента:**
 
-Що заважає вам prewarm-ити половину світу й називати steady path дешевим?
+Що заважає вам прогріти половину світу й називати сталий шлях дешевим?
 
-**Автор (Author):**
+**Автор:**
 
-Саме тому prewarm posture має бути explicit startup phase, а не прихована частина benchmark. У книзі це названо як ціна запуску, яку треба міряти окремо. Production version потребував би memory budget для prewarm і cold/warm dashboards.
+Саме тому режим прогріву має бути явною фазою запуску, а не прихованою частиною бенчмарку. У книзі це названо як ціна запуску, яку треба міряти окремо. Продукційна версія потребувала б бюджету пам'яті для прогріву і панелей холодного/теплого запуску.
 
-**Вердикт рецензента (Reviewer verdict):**
+**Вердикт рецензента:**
 
-Accepted. Не cheating, якщо startup cost залишається видимою.
+Прийнято. Це не шахрайство, якщо ціна запуску залишається видимою.
 
-## Обмін 5 (Exchange 5): “Your concurrency story avoids speedup claims. Is that weakness?”
+## Обмін 5: “Ваша історія паралельності уникає тверджень про прискорення. Це слабкість?”
 
-**Рецензент (Reviewer):**
+**Рецензент:**
 
-Ви багато говорите про `active=4`, але не кажете, що воно лінійно швидше. Це тому, що parallel runtime не дав speedup?
+Ви багато говорите про `active=4`, але не кажете, що воно лінійно швидше. Це тому, що паралельний рантайм не дав прискорення?
 
-**Автор (Author):**
+**Автор:**
 
-Ні, це тому, що правильний claim інший. [Розділ 14](chapter_14_concurrency_chaos.md) і [Розділ 16](chapter_16_mutable_core.md) доводять correctness under active batches і bounded tax. Evidence: [021 matrix](../../milestones/021-ordered-concurrent-runtime-archive-processing-ordered-full-cache-performance-matrix.md) має `active=4 elapsed ratio 0.994x` і steady allocation `1.006x`. Це flat/safe envelope, не universal acceleration. Speedup залежить від workload bottleneck; у stale topology bottleneck evidence [022 gate](../../milestones/022-ordered-rebalance-topology-commit-processing-bottleneck-performance-matrix.md) показує `0.891x`, але з allocation cost `1.137x`.
+Ні, це тому, що правильне твердження інше. [Розділ 14](chapter_14_concurrency_chaos.md) і [Розділ 16](chapter_16_mutable_core.md) доводять коректність під активними batch-ами і обмежений податок паралельності. Доказ: [матриця віхи 021](../../milestones/021-ordered-concurrent-runtime-archive-processing-ordered-full-cache-performance-matrix.md) має `active=4 elapsed ratio 0.994x` і сталу алокацію `1.006x`. Це рівний і безпечний конверт, не універсальне прискорення. Прискорення залежить від вузького місця навантаження; для вузького місця застарілої топології [перевірка віхи 022](../../milestones/022-ordered-rebalance-topology-commit-processing-bottleneck-performance-matrix.md) показує `0.891x`, але з ціною алокацій `1.137x`.
 
-**Уточнення рецензента (Reviewer follow-up):**
+**Уточнення рецензента:**
 
-Тоді навіщо active batches?
+Тоді навіщо активні batch-и?
 
-**Автор (Author):**
+**Автор:**
 
-Щоб мати право перекривати compute без shared mutation і без порушення commit order. Це foundation для bottleneck-specific speedup. Спершу система має бути правильною при overlap; лише потім можна оптимізувати workload-specific throughput.
+Щоб мати право перекривати обчислення без спільної мутації і без порушення порядку фіксації. Це основа для прискорення конкретних вузьких місць. Спершу система має бути правильною при перекритті роботи; лише потім можна оптимізувати пропускну здатність під конкретне навантаження.
 
-**Вердикт рецензента (Reviewer verdict):**
+**Вердикт рецензента:**
 
-Accepted. Книга виграє від того, що не продає linear speedup.
+Прийнято. Книга виграє від того, що не продає лінійне прискорення.
 
-## Обмін 6 (Exchange 6): “The shared-state crisis could be a post-hoc story”
+## Обмін 6: “Криза спільного стану могла бути історією після факту”
 
-**Рецензент (Reviewer):**
+**Рецензент:**
 
-Криза спільного стану звучить як сильна назва. Як я знаю, що це не narrative після refactor-а?
+Криза спільного стану звучить як сильна назва. Як я знаю, що це не оповідь, придумана після рефакторингу?
 
-**Автор (Author):**
+**Автор:**
 
-Milestone trail фіксує кризу спільного стану як decision point: [Milestone 021: криза спільного стану](../../milestones/021-ordered-concurrent-runtime-archive-processing-slice-3-blocker.md). Проблема була не в “поганому lock”, а в тому, що [`RadarProcessingCore`](../../../src/Domain/Processing/Core/Services/RadarProcessingCore/RadarProcessingCore.cs) мав спільний змінний стан і cumulative reads. Рішенням став [RadarProcessingBatchDelta.cs](../../../src/Domain/Processing/Core/Models/RadarProcessingBatchDelta.cs): воркер рахує delta, ordered commit застосовує її до core.
+Хронологія віх фіксує кризу спільного стану як точку рішення: [віха 021: криза спільного стану](../../milestones/021-ordered-concurrent-runtime-archive-processing-slice-3-blocker.md). Проблема була не в “поганому lock”, а в тому, що [`RadarProcessingCore`](../../../src/Domain/Processing/Core/Services/RadarProcessingCore/RadarProcessingCore.cs) мав спільний змінний стан і накопичувальні читання. Рішенням став [RadarProcessingBatchDelta.cs](../../../src/Domain/Processing/Core/Models/RadarProcessingBatchDelta.cs): воркер рахує дельту, а впорядкована фіксація застосовує її до ядра.
 
-**Уточнення рецензента (Reviewer follow-up):**
+**Уточнення рецензента:**
 
-Чому не просто lock навколо core?
+Чому не просто lock навколо ядра?
 
-**Автор (Author):**
+**Автор:**
 
-Lock навколо mutation захищає пам'ять, але може звести concurrency до serialized critical section і не розв'язує clean separation між compute і commit. Delta model робить паралельну фазу side-effect-light, а shared mutation лишає в одному commit gate, де порядок і validation контрольовані.
+Lock навколо мутації захищає пам'ять, але може звести паралельність до серіалізованої критичної секції і не розв'язує чисте розділення між обчисленням і фіксацією. Дельта-модель робить паралельну фазу майже без побічних ефектів, а спільну мутацію лишає в одному гейті фіксації, де порядок і валідація контрольовані.
 
-**Вердикт рецензента (Reviewer verdict):**
+**Вердикт рецензента:**
 
-Accepted. Це реальний design correction, не просто “ми додали lock”.
+Прийнято. Це реальна корекція дизайну, не просто “ми додали lock”.
 
-## Обмін 7 (Exchange 7): “Stale topology recompute sounds expensive and fragile”
+## Обмін 7: “Перерахунок застарілої топології звучить дорогим і крихким”
 
-**Рецензент (Reviewer):**
+**Рецензент:**
 
-Якщо topology змінюється під час compute, ви перераховуєте delta. Це може вибухнути worker dispatch count і allocation. Чи це не прихований denial-of-service?
+Якщо топологія змінюється під час обчислення, ви перераховуєте дельту. Це може роздути кількість dispatch-ів воркера й алокації. Чи це не прихований denial-of-service?
 
-**Автор (Author):**
+**Автор:**
 
-Ціна не прихована. [Розділ 17](chapter_17_stale_recompute.md) і [022 processing-bottleneck matrix](../../milestones/022-ordered-rebalance-topology-commit-processing-bottleneck-performance-matrix.md) прямо називають: `39_292` worker dispatches for `32_000` logical batches, allocation ratio `1.137x`, elapsed `0.891x`. Correctness вибрано свідомо: stale route не має права на commit.
+Ціна не прихована. [Розділ 17](chapter_17_stale_recompute.md) і [матриця вузького місця обробки віхи 022](../../milestones/022-ordered-rebalance-topology-commit-processing-bottleneck-performance-matrix.md) прямо називають: `39_292` dispatch-ів воркера для `32_000` логічних batch-ів, співвідношення алокацій `1.137x`, час `0.891x`. Коректність вибрано свідомо: застарілий маршрут не має права на фіксацію.
 
-**Уточнення рецензента (Reviewer follow-up):**
+**Уточнення рецензента:**
 
-Що не дає topology churn робити recompute нескінченним?
+Що не дає метушні топології робити перерахунок нескінченним?
 
-**Автор (Author):**
+**Автор:**
 
-Тут вступають anti-churn/hysteresis policies із [Розділу 9](chapter_09_anti_churn.md) і topology version checks із [Розділу 8](chapter_08_topology_migration.md). Production hardening мав би додати explicit churn budget, alerting і worst-case stress gates.
+Тут вступають запобіжники проти метушні й гістерезис із [Розділу 9](chapter_09_anti_churn.md) та перевірки версії топології з [Розділу 8](chapter_08_topology_migration.md). Продукційне посилення мало б додати явний бюджет метушні, сповіщення і стрес-перевірки найгіршого випадку.
 
-**Вердикт рецензента (Reviewer verdict):**
+**Вердикт рецензента:**
 
-Accepted with future hardening note. Correctness story сильна, але production потребує churn budget.
+Прийнято з нотаткою для майбутнього посилення. Історія коректності сильна, але продукційний контур потребує бюджету метушні.
 
-## Обмін 8 (Exchange 8): “DurableEnvelope looks like a homemade broker”
+## Обмін 8: “DurableEnvelope виглядає як саморобний брокер”
 
-**Рецензент (Reviewer):**
+**Рецензент:**
 
 Ви створили власний [`DurableEnvelope`](../../../src/Infrastructure/Processing/Durable/Services/RadarProcessingDurableEnvelopeQueue/RadarProcessingDurableEnvelopeQueue.cs). Чому це не “not invented here” замість Kafka/RabbitMQ?
 
-**Автор (Author):**
+**Автор:**
 
-Бо це не replacement for Kafka. Це broker-neutral FSM, який описує states and transitions: `Pending`, `Claimed`, `Completed`, `Committed`, `Failed`, `Poison`. Код — [RadarProcessingDurableEnvelopeQueue.cs](../../../src/Infrastructure/Processing/Durable/Services/RadarProcessingDurableEnvelopeQueue/RadarProcessingDurableEnvelopeQueue.cs); тести — [RadarProcessingDurableEnvelopeQueueTests.cs](../../../tests/RadarPulse.Tests/Processing/Durable/RadarProcessingDurableEnvelopeQueueTests.cs). [Розділ 18](chapter_18_durable_envelope.md) прямо не заявляє distributed exactly-once. [Додаток В](appendix_c_production_hardening.md) каже, що broker adapter буде production hardening step після observability/database boundary.
+Бо це не заміна Kafka. Це брокер-нейтральний скінченний автомат, який описує стани й переходи: `Pending`, `Claimed`, `Completed`, `Committed`, `Failed`, `Poison`. Код — [RadarProcessingDurableEnvelopeQueue.cs](../../../src/Infrastructure/Processing/Durable/Services/RadarProcessingDurableEnvelopeQueue/RadarProcessingDurableEnvelopeQueue.cs); тести — [RadarProcessingDurableEnvelopeQueueTests.cs](../../../tests/RadarPulse.Tests/Processing/Durable/RadarProcessingDurableEnvelopeQueueTests.cs). [Розділ 18](chapter_18_durable_envelope.md) прямо не заявляє розподілене “рівно один раз”. [Додаток В](appendix_c_production_hardening.md) каже, що адаптер брокера буде кроком продукційного посилення після межі спостережуваності й бази даних.
 
-**Уточнення рецензента (Reviewer follow-up):**
+**Уточнення рецензента:**
 
-Чому не почати з Kafka і не отримати durability одразу?
+Чому не почати з Kafka і не отримати стійкість одразу?
 
-**Автор (Author):**
+**Автор:**
 
-Kafka дала б delivery primitives, але не дала б нам автоматично domain semantics: poison, provider sequence, ordered commit, handler delta replay, topology version. Спершу треба визначити семантику envelope-а, потім adapter can carry it.
+Kafka дала б примітиви доставки, але не дала б нам автоматично доменну семантику: poison, послідовність провайдера, впорядкована фіксація, повтор дельти обробника, версія топології. Спершу треба визначити семантику конверта, потім адаптер може її переносити.
 
-**Вердикт рецензента (Reviewer verdict):**
+**Вердикт рецензента:**
 
-Accepted. Не broker, а contract before broker.
+Прийнято. Не брокер, а контракт перед брокером.
 
-## Обмін 9 (Exchange 9): “File durability is often overclaimed”
+## Обмін 9: “Файлову стійкість часто перебільшують”
 
-**Рецензент (Reviewer):**
+**Рецензент:**
 
-Ваш file store пише JSON. Це не serious durability. Де WAL, fsync, transaction log?
+Ваше файлове сховище пише JSON. Це не серйозна стійкість. Де WAL, fsync, журнал транзакцій?
 
-**Автор (Author):**
+**Автор:**
 
-Їх немає, і книга більше цього не стверджує. [Розділ 19](chapter_19_file_store.md) описує temp-file replacement через local adapter. Code: [RadarProcessingFileDurableEnvelopeStore.cs](../../../src/Infrastructure/Processing/Durable/Stores/RadarProcessingFileDurableEnvelopeStore.cs). Scope: local restart/recovery baseline, not WAL/fsync/database durability. Production plan у [Додатку В](appendix_c_production_hardening.md) вимагає database adapter або broker adapter gates перед production durability claim.
+Їх немає, і книга більше цього не стверджує. [Розділ 19](chapter_19_file_store.md) описує заміну через тимчасовий файл у локальному адаптері. Код: [RadarProcessingFileDurableEnvelopeStore.cs](../../../src/Infrastructure/Processing/Durable/Stores/RadarProcessingFileDurableEnvelopeStore.cs). Межа: базовий локальний перезапуск і відновлення, не WAL/fsync/стійкість бази даних. Продукційний план у [Додатку В](appendix_c_production_hardening.md) вимагає адаптер бази даних або адаптер брокера та їхні перевірки перед твердженням про продукційну стійкість.
 
-**Уточнення рецензента (Reviewer follow-up):**
+**Уточнення рецензента:**
 
-Тобто crash during write може бути складним?
+Тобто збій під час запису може бути складним?
 
-**Автор (Author):**
+**Автор:**
 
-Так. Поточний contract захищає від частини simple corruption scenarios через temp-file replacement, але не претендує на full power-loss durability semantics. Саме тому це single-node demo/runtime contour.
+Так. Поточний контракт захищає від частини простих сценаріїв пошкодження через заміну тимчасового файла, але не претендує на повну семантику стійкості після втрати живлення. Саме тому це демонстраційний/рантайм-контур одного вузла.
 
-**Вердикт рецензента (Reviewer verdict):**
+**Вердикт рецензента:**
 
-Accepted because claim is now honest. Without that scope it would be rejected.
+Прийнято, бо твердження тепер чесне. Без цієї межі воно було б відхилене.
 
-## Обмін 10 (Exchange 10): “Fail-closed can be an availability disaster”
+## Обмін 10: “Fail-closed може стати катастрофою доступності”
 
-**Рецензент (Reviewer):**
+**Рецензент:**
 
-Fail-closed звучить красиво, але production users ненавидять зупинки. Чи не створили ви систему, яка надто легко падає?
+Fail-closed звучить красиво, але продукційні користувачі ненавидять зупинки. Чи не створили ви систему, яка надто легко падає?
 
-**Автор (Author):**
+**Автор:**
 
-Так, availability тут свідомо поступається correctness. [Розділ 20](chapter_20_fail_closed.md) описує trade-off: wrong metric гірша за visible stop. Тести: [RadarProcessingProductionPipelineFallbackTests.cs](../../../tests/RadarPulse.Tests/Processing/ProductPipeline/RadarProcessingProductionPipelineFallbackTests.cs), [RadarProcessingProductionPipelineRecoveryTests.cs](../../../tests/RadarPulse.Tests/Processing/ProductPipeline/RadarProcessingProductionPipelineRecoveryTests.cs). Production version потребував би SLO/risk budget, operator workflow, replay tools і alerting, але не silent fallback.
+Так, доступність тут свідомо поступається коректності. [Розділ 20](chapter_20_fail_closed.md) описує компроміс: хибна метрика гірша за видиму зупинку. Тести: [RadarProcessingProductionPipelineFallbackTests.cs](../../../tests/RadarPulse.Tests/Processing/ProductPipeline/RadarProcessingProductionPipelineFallbackTests.cs), [RadarProcessingProductionPipelineRecoveryTests.cs](../../../tests/RadarPulse.Tests/Processing/ProductPipeline/RadarProcessingProductionPipelineRecoveryTests.cs). Продукційна версія потребувала б SLO, бюджету ризику, операторського сценарію, інструментів повторного програвання і сповіщень, але не тихого запасного шляху.
 
-**Уточнення рецензента (Reviewer follow-up):**
+**Уточнення рецензента:**
 
 Коли fail-open був би допустимим?
 
-**Автор (Author):**
+**Автор:**
 
-Для некритичних secondary projections або stale UI cache, якщо вони явно позначені degraded і не пишуть у canonical processing state. Для core metrics and ordered commit — ні.
+Для некритичних вторинних проєкцій або застарілого UI-кешу, якщо вони явно позначені як деградований режим і не пишуть у канонічний стан обробки. Для основних метрик і впорядкованої фіксації — ні.
 
-**Вердикт рецензента (Reviewer verdict):**
+**Вердикт рецензента:**
 
-Accepted. Good engineering judgment, if product stakeholders accept correctness-first posture.
+Прийнято. Це здорове інженерне рішення, якщо продуктові стейкхолдери приймають позицію “коректність першою”.
 
-## Обмін 11 (Exchange 11): “Custom handlers can destroy your invariants”
+## Обмін 11: “Користувацькі обробники можуть зруйнувати інваріанти”
 
-**Рецензент (Reviewer):**
+**Рецензент:**
 
-Extension points часто стають діркою в архітектурі. Як custom handler не ламає core?
+Точки розширення часто стають діркою в архітектурі. Як користувацький обробник не ламає ядро?
 
-**Автор (Author):**
+**Автор:**
 
-Handler отримує [`RadarSourceProcessingHandlerContext`](../../../src/Domain/Processing/Handlers/Models/RadarSourceProcessingHandlerContext.cs) і [`RadarSourceProcessingState`](../../../src/Domain/Processing/Handlers/Models/RadarSourceProcessingState.cs), обмежений slots і posture. Contract — [IRadarSourceProcessingHandler.cs](../../../src/Domain/Processing/Handlers/Contracts/IRadarSourceProcessingHandler.cs). Runtime plan — [RadarProcessingMvpRuntimePlan.cs](../../../src/Infrastructure/Processing/Runtime/Models/RadarProcessingMvpRuntimePlan.cs): snapshot-only handler веде до sequential fallback, unsupported blocks MVP processing, mergeable отримує ordered handler delta/merge path.
+Обробник отримує [`RadarSourceProcessingHandlerContext`](../../../src/Domain/Processing/Handlers/Models/RadarSourceProcessingHandlerContext.cs) і [`RadarSourceProcessingState`](../../../src/Domain/Processing/Handlers/Models/RadarSourceProcessingState.cs), обмежений слотами і режимом підключення. Контракт — [IRadarSourceProcessingHandler.cs](../../../src/Domain/Processing/Handlers/Contracts/IRadarSourceProcessingHandler.cs). План рантайму — [RadarProcessingMvpRuntimePlan.cs](../../../src/Infrastructure/Processing/Runtime/Models/RadarProcessingMvpRuntimePlan.cs): snapshot-only обробник, тобто обробник лише на знімку, веде до послідовного запасного шляху; непідтриманий режим блокує MVP-обробку; mergeable, тобто злитний обробник, отримує впорядкований шлях дельти/злиття.
 
-**Уточнення рецензента (Reviewer follow-up):**
+**Уточнення рецензента:**
 
-А якщо handler має складний mutable state?
+А якщо обробник має складний змінний стан?
 
-**Автор (Author):**
+**Автор:**
 
-Тоді він не повинен автоматично отримати parallel fast path. Йому потрібен explicit delta/merge contract, tests of associativity/ordering assumptions, and performance gate. Це описано в [Розділі 22](chapter_22_delta_merge.md).
+Тоді він не повинен автоматично отримати швидкий паралельний шлях. Йому потрібен явний контракт дельти/злиття, тести припущень про асоціативність і порядок, а також перевірка продуктивності. Це описано в [Розділі 22](chapter_22_delta_merge.md).
 
-**Вердикт рецензента (Reviewer verdict):**
+**Вердикт рецензента:**
 
-Accepted. Extension model консервативний, а не permissive.
+Прийнято. Модель розширення консервативна, а не вседозволена.
 
-## Обмін 12 (Exchange 12): “Handler delta/merge still has allocation debt”
+## Обмін 12: “Дельта/злиття обробника все ще має борг алокацій”
 
-**Рецензент (Reviewer):**
+**Рецензент:**
 
-У Milestone 025 heavy handler active=4 має allocation ratio `2.612x`. Чому це не блокує інженерний висновок роботи?
+У межах віхи 025 важкий обробник з `active=4` має співвідношення алокацій `2.612x`. Чому це не блокує інженерний висновок роботи?
 
-**Автор (Author):**
+**Автор:**
 
-Бо це не приховано. [Додаток Б](appendix_b_claim_evidence_matrix.md) прямо вносить `2.612x` як visible debt. Кодова точка — [RadarProcessingHandlerDeltaMergeCoordinator.cs](../../../src/Domain/Processing/Handlers/Services/RadarProcessingHandlerDeltaMergeCoordinator/RadarProcessingHandlerDeltaMergeCoordinator.cs); тести — [RadarProcessingHandlerDeltaMergeCoordinatorTests.cs](../../../tests/RadarPulse.Tests/Processing/Handlers/RadarProcessingHandlerDeltaMergeCoordinatorTests.cs), [RadarProcessingHandlerDeltaPerformanceGateTests](../../../tests/RadarPulse.Tests/Processing/Handlers/RadarProcessingHandlerDeltaPerformanceGateTests). У [Розділі 22](chapter_22_delta_merge.md) tree-merge позначено як future optimization, не виконаний claim.
+Бо це не приховано. [Додаток Б](appendix_b_claim_evidence_matrix.md) прямо вносить `2.612x` як видимий борг. Кодова точка — [RadarProcessingHandlerDeltaMergeCoordinator.cs](../../../src/Domain/Processing/Handlers/Services/RadarProcessingHandlerDeltaMergeCoordinator/RadarProcessingHandlerDeltaMergeCoordinator.cs); тести — [RadarProcessingHandlerDeltaMergeCoordinatorTests.cs](../../../tests/RadarPulse.Tests/Processing/Handlers/RadarProcessingHandlerDeltaMergeCoordinatorTests.cs), [RadarProcessingHandlerDeltaPerformanceGateTests](../../../tests/RadarPulse.Tests/Processing/Handlers/RadarProcessingHandlerDeltaPerformanceGateTests). У [Розділі 22](chapter_22_delta_merge.md) tree-merge позначено як майбутню оптимізацію, не як виконане твердження.
 
-**Уточнення рецензента (Reviewer follow-up):**
+**Уточнення рецензента:**
 
 Що ви зробили б далі?
 
-**Автор (Author):**
+**Автор:**
 
-Почав би з allocation profile of [`RadarProcessingHandlerDeltaValue`](../../../src/Domain/Processing/Handlers/Models/RadarProcessingHandlerDeltaValue.cs) arrays, accumulator snapshots, dictionary churn, and heavy handler field cardinality. Наступний gate мав би порівнювати active=4 allocation after optimization against current `2.612x`, without weakening correctness.
+Почав би з профілю алокацій масивів [`RadarProcessingHandlerDeltaValue`](../../../src/Domain/Processing/Handlers/Models/RadarProcessingHandlerDeltaValue.cs), знімків акумуляторів, churn словників і кардинальності полів важкого обробника. Наступна перевірка мала б порівнювати алокації `active=4` після оптимізації з поточними `2.612x`, не послаблюючи коректність.
 
-**Вердикт рецензента (Reviewer verdict):**
+**Вердикт рецензента:**
 
-Accepted as mature evidence. Debt named, not hidden.
+Прийнято як зрілий доказ. Борг названий, а не прихований.
 
-## Обмін 13 (Exchange 13): “BFF and UI may look better than they are”
+## Обмін 13: “BFF і UI можуть виглядати краще, ніж є насправді”
 
-**Рецензент (Reviewer):**
+**Рецензент:**
 
-UI часто продає систему краще, ніж вона є. Чи Operator UI не створює враження live radar cockpit?
+UI часто продає систему краще, ніж вона є. Чи Operator UI не створює враження живої радарної панелі?
 
-**Автор (Author):**
+**Автор:**
 
-[Розділ 24](chapter_24_operator_ui.md) прямо каже: current UI is read-model cockpit, not live-radar canvas. It uses Angular/HTTP product API, run history, diagnostics, readiness, handler outputs. Code: [Operator UI app](../../../src/Presentation/OperatorUi/src/app), [product-api.client.ts](../../../src/Presentation/OperatorUi/src/app/product/product-api.client.ts). Tests: [app.spec.ts](../../../src/Presentation/OperatorUi/src/app/app.spec.ts), [operator-ui.smoke.spec.ts](../../../src/Presentation/OperatorUi/smoke/operator-ui.smoke.spec.ts).
+[Розділ 24](chapter_24_operator_ui.md) прямо каже: поточний UI — це панель моделей читання, а не живе радарне полотно. Він використовує Angular/HTTP product API, історію запусків, діагностику, готовність і результати обробників. Код: [Operator UI app](../../../src/Presentation/OperatorUi/src/app), [product-api.client.ts](../../../src/Presentation/OperatorUi/src/app/product/product-api.client.ts). Тести: [app.spec.ts](../../../src/Presentation/OperatorUi/src/app/app.spec.ts), [operator-ui.smoke.spec.ts](../../../src/Presentation/OperatorUi/smoke/operator-ui.smoke.spec.ts).
 
-**Уточнення рецензента (Reviewer follow-up):**
+**Уточнення рецензента:**
 
-А BFF optimization, compression, WebSocket?
+А оптимізація BFF, стиснення, WebSocket?
 
-**Автор (Author):**
+**Автор:**
 
-Not claimed. [Розділ 23](chapter_23_bff_shield.md) and [Додаток В](appendix_c_production_hardening.md) put traffic benchmark, visual DTO, WebSocket/SSE and browser render gate into future hardening, not current work.
+Не заявлено. [Розділ 23](chapter_23_bff_shield.md) і [Додаток В](appendix_c_production_hardening.md) відносять бенчмарк трафіку, візуальні DTO, WebSocket/SSE і перевірку браузерного рендерингу до майбутнього посилення, а не до поточної роботи.
 
-**Вердикт рецензента (Reviewer verdict):**
+**Вердикт рецензента:**
 
-Accepted. UI boundary is honest.
+Прийнято. Межа UI чесна.
 
-## Обмін 14 (Exchange 14): “Demo scripts are not a substitute for real CI”
+## Обмін 14: “Демо-скрипти не замінюють справжній CI”
 
-**Рецензент (Reviewer):**
+**Рецензент:**
 
-`radarpulse-product-demo.ps1 verify` виглядає як локальний convenience script. Чому це evidence?
+`radarpulse-product-demo.ps1 verify` виглядає як локальний допоміжний скрипт. Чому це доказ?
 
-**Автор (Author):**
+**Автор:**
 
-Тому що claim не “enterprise CI complete”, а “reviewer can reproduce local product/demo readiness route without author folklore”. Scripts: [radarpulse-product-demo.ps1](../../../scripts/radarpulse-product-demo.ps1), [radarpulse-product-demo.sh](../../../scripts/radarpulse-product-demo.sh). Evidence: [Розділ 25](chapter_25_demo_scripts.md), [product-demo-readiness.md](../../product-demo-readiness.md). It runs build/test/smoke/readiness route for the local demo.
+Тому що твердження не “enterprise CI завершений”, а “рецензент може відтворити локальний маршрут готовності продукту/демо без авторського фольклору”. Скрипти: [radarpulse-product-demo.ps1](../../../scripts/radarpulse-product-demo.ps1), [radarpulse-product-demo.sh](../../../scripts/radarpulse-product-demo.sh). Доказ: [Розділ 25](chapter_25_demo_scripts.md), [product-demo-readiness.md](../../product-demo-readiness.md). Він запускає маршрут збірки, тестів, швидкої перевірки й готовності для локального демо.
 
-**Уточнення рецензента (Reviewer follow-up):**
+**Уточнення рецензента:**
 
 Що лишається для CI?
 
-**Автор (Author):**
+**Автор:**
 
-Decide which gates become CI-blocking versus release/manual because of hardware noise. Production CI also needs artifact signing, deployment stages, secret handling and environment-specific smoke tests.
+Треба вирішити, які перевірки стають блокувальними в CI, а які лишаються релізними або ручними через апаратний шум. Продукційний CI також потребує підписування артефактів, стадій розгортання, роботи з секретами і швидких перевірок під конкретне середовище.
 
-**Вердикт рецензента (Reviewer verdict):**
+**Вердикт рецензента:**
 
-Accepted. Good defense readiness, not deployment automation.
+Прийнято. Це добра готовність до захисту, але не автоматизація розгортання.
 
-## Обмін 15 (Exchange 15): “Where are the production logs?”
+## Обмін 15: “Де продукційні логи?”
 
-**Рецензент (Reviewer):**
+**Рецензент:**
 
-У книзі багато diagnostics/readiness, але я не бачу `ILogger`, OpenTelemetry, trace ids, centralized logs. Як я маю дебажити це о третій ночі?
+У книзі багато діагностики й готовності, але я не бачу `ILogger`, OpenTelemetry, trace id, централізованих логів. Як я маю дебажити це о третій ночі?
 
-**Автор (Author):**
+**Автор:**
 
-Поточна книга не claim-ить production logging stack. [Розділ 26](chapter_26_observability_logging.md) прямо каже: немає готового `ILogger`/OpenTelemetry шару. Claim інший: RadarPulse уже має typed diagnostic/readiness contract, з якого такий шар має вирости. Code: [RadarProcessingRunDiagnosticsReadModel.cs](../../../src/Application/Processing/ReadModels/RadarProcessingRunDiagnosticsReadModel.cs), [RadarProcessingProviderQueueTelemetrySummary.cs](../../../src/Domain/Processing/Queueing/Telemetry/RadarProcessingProviderQueueTelemetrySummary.cs), [RadarProcessingProductionPipelineOperatorSummary.Blocking.cs](../../../src/Infrastructure/Processing/ProductPipeline/Models/RadarProcessingProductionPipelineOperatorSummary/RadarProcessingProductionPipelineOperatorSummary.Blocking.cs). Tests: [RadarProcessingRunReadModelTests.cs](../../../tests/RadarPulse.Tests/Processing/ReadModels/RadarProcessingRunReadModelTests.cs), [RadarProcessingProductionPipelineSummaryTests.cs](../../../tests/RadarPulse.Tests/Processing/ProductPipeline/RadarProcessingProductionPipelineSummaryTests.cs).
+Поточна книга не заявляє готовий стек продукційного логування. [Розділ 26](chapter_26_observability_logging.md) прямо каже: немає готового шару `ILogger`/OpenTelemetry. Твердження інше: RadarPulse уже має типізований контракт діагностики й готовності, з якого такий шар має вирости. Код: [RadarProcessingRunDiagnosticsReadModel.cs](../../../src/Application/Processing/ReadModels/RadarProcessingRunDiagnosticsReadModel.cs), [RadarProcessingProviderQueueTelemetrySummary.cs](../../../src/Domain/Processing/Queueing/Telemetry/RadarProcessingProviderQueueTelemetrySummary.cs), [RadarProcessingProductionPipelineOperatorSummary.Blocking.cs](../../../src/Infrastructure/Processing/ProductPipeline/Models/RadarProcessingProductionPipelineOperatorSummary/RadarProcessingProductionPipelineOperatorSummary.Blocking.cs). Тести: [RadarProcessingRunReadModelTests.cs](../../../tests/RadarPulse.Tests/Processing/ReadModels/RadarProcessingRunReadModelTests.cs), [RadarProcessingProductionPipelineSummaryTests.cs](../../../tests/RadarPulse.Tests/Processing/ProductPipeline/RadarProcessingProductionPipelineSummaryTests.cs).
 
-**Уточнення рецензента (Reviewer follow-up):**
+**Уточнення рецензента:**
 
-Чому не додати logs first?
+Чому не додати логи першими?
 
-**Автор (Author):**
+**Автор:**
 
-Logs-first легко перетворити на string soup. Спочатку потрібні stable facts: `runId`, provider sequence, topology version, envelope state, retained pressure, first blocking reason. Поточний код уже формує ці факти як typed summaries/read models. Production hardening step має експортувати їх у structured logs/metrics/traces, не тягнучи sink-и в Domain hot path.
+Підхід “спершу логи” легко перетворити на хаос рядкових повідомлень. Спочатку потрібні стабільні факти: `runId`, послідовність провайдера, версія топології, стан конверта, тиск утриманих ресурсів, перша причина блокування. Поточний код уже формує ці факти як типізовані зведення й моделі читання. Крок продукційного посилення має експортувати їх у структуровані логи, метрики й трасування, не тягнучи приймачі логів у гарячий шлях домену.
 
-**Вердикт рецензента (Reviewer verdict):**
+**Вердикт рецензента:**
 
-Accepted with explicit gap. Good answer because it names the missing production layer instead of pretending diagnostics are centralized logging.
+Прийнято з явною прогалиною. Відповідь добра, бо називає відсутній продукційний шар, а не вдає, що діагностика вже є централізованим логуванням.
 
-## Обмін 16 (Exchange 16): “Architecture tests can create false confidence”
+## Обмін 16: “Архітектурні тести можуть створити хибну впевненість”
 
-**Рецензент (Reviewer):**
+**Рецензент:**
 
-Architecture tests можуть перевіряти тільки `using` і project refs, але не якість дизайну. Чому ви ставите на них вагу?
+Архітектурні тести можуть перевіряти тільки `using` і посилання між проєктами, але не якість дизайну. Чому ви ставите на них вагу?
 
-**Автор (Author):**
+**Автор:**
 
-Я не ставлю на них всю вагу. [Розділ 5](chapter_05_architecture_guards.md) і [RadarPulseArchitectureTests.cs](../../../tests/RadarPulse.Tests/Architecture/RadarPulseArchitectureTests.cs) доводять executable boundary: dependency direction, import constraints, guardrails. Це не замінює design review. [Додаток Б](appendix_b_claim_evidence_matrix.md) прямо каже: protects declared boundaries; does not replace design review.
+Я не ставлю на них всю вагу. [Розділ 5](chapter_05_architecture_guards.md) і [RadarPulseArchitectureTests.cs](../../../tests/RadarPulse.Tests/Architecture/RadarPulseArchitectureTests.cs) доводять виконувану межу: напрям залежностей, обмеження імпортів, запобіжники. Це не замінює перегляд дизайну. [Додаток Б](appendix_b_claim_evidence_matrix.md) прямо каже: захищає заявлені межі, але не замінює перегляд дизайну.
 
-**Уточнення рецензента (Reviewer follow-up):**
+**Уточнення рецензента:**
 
 Що було б кращим наступним рівнем?
 
-**Автор (Author):**
+**Автор:**
 
-Architectural decision records tied to runtime gates, dependency graph snapshots, module ownership review, and “why not” documentation for major alternatives. Частина цього вже є в chapter rationale blocks and appendices, але automated tests alone are not enough.
+Архітектурні записи рішень, прив'язані до перевірок рантайму, знімки графа залежностей, перегляд володіння модулями і документація “чому ні” для головних альтернатив. Частина цього вже є в блоках обґрунтування розділів і додатках, але самих автоматизованих тестів недостатньо.
 
-**Вердикт рецензента (Reviewer verdict):**
+**Вердикт рецензента:**
 
-Accepted. Good guardrail, if not oversold.
+Прийнято. Добрий запобіжник, якщо не продавати його як більше, ніж він є.
 
-## Обмін 17 (Exchange 17): “Production hardening plan may be hand-wavy”
+## Обмін 17: “План продукційного посилення може бути розмитим”
 
-**Рецензент (Reviewer):**
+**Рецензент:**
 
-У [Додатку В](appendix_c_production_hardening.md) ви описуєте production hardening. Чому це не wishlist?
+У [Додатку В](appendix_c_production_hardening.md) ви описуєте продукційне посилення. Чому це не список бажань?
 
-**Автор (Author):**
+**Автор:**
 
-Тому що він впорядкований навколо invariants and proof gates, not tools. For each layer — observability, database adapter, broker adapter, public API, live ingestion, multi-node — it names why, when, and first proof gate. It also says what not to do first: Kubernetes before SLOs, Kafka without envelope semantics, WebSocket before visual DTO/browser gate.
+Тому що він впорядкований навколо інваріантів і доказових перевірок, а не навколо інструментів. Для кожного шару — спостережуваність, адаптер бази даних, адаптер брокера, публічний API, приймання даних наживо, обробка на кількох вузлах — він називає навіщо, коли і яка перша доказова перевірка. Він також каже, чого не робити першим: Kubernetes до SLO, Kafka без семантики конверта, WebSocket до візуальних DTO і перевірки браузера.
 
-**Уточнення рецензента (Reviewer follow-up):**
+**Уточнення рецензента:**
 
-Що першим робити, якщо завтра команда попросить production?
+Що першим робити, якщо завтра команда попросить продукційний контур?
 
-**Автор (Author):**
+**Автор:**
 
-Observability contract first. Without run id, sequence id, topology version, retained pressure, retry/poison state and first blocking reason in logs/metrics/traces, every later broker/database/live-ingestion bug becomes harder to debug. Then choose database or broker adapter depending on the first real product pain.
+Спершу контракт спостережуваності. Без ідентифікатора запуску, ідентифікатора послідовності, версії топології, тиску утриманих ресурсів, стану retry/poison і першої причини блокування в логах/метриках/трасуваннях кожен наступний баг у брокері, базі даних або прийманні наживо буде важче дебажити. Потім треба вибрати адаптер бази даних або брокера залежно від першого реального продуктового болю.
 
-**Вердикт рецензента (Reviewer verdict):**
+**Вердикт рецензента:**
 
-Accepted. This is a production thinking plan, not a production claim.
+Прийнято. Це план продукційного мислення, а не продукційне твердження.
 
-## Обмін 18 (Exchange 18): “Can I recreate your lab cache without you?”
+## Обмін 18: “Чи можу я відтворити ваш лабораторний кеш без вас?”
 
-**Рецензент (Reviewer):**
+**Рецензент:**
 
-Ви постійно посилаєтесь на `data/nexrad`, KTLX/KINX, full-cache matrices. Це ваша приватна папка? Якщо я не маю вашого SSD, я не можу перевірити claims.
+Ви постійно посилаєтесь на `data/nexrad`, KTLX/KINX, матриці повного кешу. Це ваша приватна папка? Якщо я не маю вашого SSD, я не можу перевірити твердження.
 
-**Автор (Author):**
+**Автор:**
 
-Це більше не має бути приватним знанням. [Додаток Е](appendix_f_lab_stand_bootstrap.md) описує Windows/PowerShell bootstrap, а [Додаток Є](appendix_g_lab_stand_linux.md) описує Linux/macOS/WSL2 Bash bootstrap: prerequisites, `archive list`, manifest JSON, `archive download`, deterministic cache layout `data/nexrad/level2/{yyyy}/{MM}/{dd}/{radarId}/{fileName}`, smoke-cache і author-equivalent corpus. Обидва маршрути показують, як зібрати `data/perf/reviewer-*` evidence bundle: environment snapshot, Release build log, cache contour, full-cache benchmark logs і processing-only synthetic logs. Code path: [ArchiveCliApplication.Historical.cs](../../../src/Presentation/RadarPulse.Cli/EntryPoint/RadarPulseCliApplication/ArchiveCliApplication/ArchiveCliApplication.Historical.cs), CLI usage: [RadarPulseCliUsage.cs](../../../src/Presentation/RadarPulse.Cli/EntryPoint/RadarPulseCliApplication/RadarPulseCliUsage.cs), milestone source: [001 historical loader](../../milestones/001-historical-loader.md).
+Це більше не має бути приватним знанням. [Додаток Е](appendix_f_lab_stand_bootstrap.md) описує початкове налаштування Windows/PowerShell, а [Додаток Є](appendix_g_lab_stand_linux.md) описує початкове налаштування Linux/macOS/WSL2 Bash: передумови, `archive list`, manifest JSON, `archive download`, детерміноване компонування кешу `data/nexrad/level2/{yyyy}/{MM}/{dd}/{radarId}/{fileName}`, smoke-cache для швидкої перевірки і корпус, еквівалентний авторському. Обидва маршрути показують, як зібрати доказовий пакет `data/perf/reviewer-*`: знімок середовища, лог Release-збірки, контур кешу, логи бенчмарку повного кешу й синтетичні логи тільки для обробки. Шлях у коді: [ArchiveCliApplication.Historical.cs](../../../src/Presentation/RadarPulse.Cli/EntryPoint/RadarPulseCliApplication/ArchiveCliApplication/ArchiveCliApplication.Historical.cs), використання CLI: [RadarPulseCliUsage.cs](../../../src/Presentation/RadarPulse.Cli/EntryPoint/RadarPulseCliApplication/RadarPulseCliUsage.cs), джерело віхи: [історичний завантажувач 001](../../milestones/001-historical-loader.md).
 
-**Уточнення рецензента (Reviewer follow-up):**
+**Уточнення рецензента:**
 
-Якщо я завантажу ті самі дати, я отримаю ті самі performance цифри?
+Якщо я завантажу ті самі дати, я отримаю ті самі цифри продуктивності?
 
-**Автор (Author):**
+**Автор:**
 
-Не гарантовано. Функціональна відтворюваність ідентифікується через manifest/cache/validation route. Performance цифри лишаються hardware/corpus-bound: CPU, SSD, OS, filesystem, scheduler, thermal state, parallelism і точний cache contour впливають на результат. Додатки Е/Є дають платформені шляхи перевірки й smoke/performance commands; вони не перетворюють локальний benchmark на cross-machine certification.
+Не гарантовано. Функціональна відтворюваність ідентифікується через маршрут manifest/cache/validation. Цифри продуктивності лишаються обмеженими апаратним середовищем і корпусом: CPU, SSD, OS, файлова система, планувальник, тепловий стан, паралельність і точний контур кешу впливають на результат. Додатки Е/Є дають платформені шляхи перевірки й команди швидкої перевірки/продуктивності; вони не перетворюють локальний бенчмарк на сертифікацію між різними машинами.
 
-**Вердикт рецензента (Reviewer verdict):**
+**Вердикт рецензента:**
 
-Accepted. The important improvement is that the cache is now reproducible from public data, while benchmark scope remains honest.
+Прийнято. Важливе покращення в тому, що кеш тепер відтворюється з публічних даних, а межа бенчмарку лишається чесною.
 
-## Фінальний вердикт симульованого рецензента (Final Simulated Reviewer Verdict)
+## Фінальний вердикт симульованого рецензента
 
-**Accepted as a senior/principal-level engineering defense artifact with explicit scope.**
+**Прийнято як артефакт інженерного захисту рівня senior/principal з явно названою межею.**
 
-The strongest signal is not any single number. The strongest signal is the repeated pattern:
+Найсильніший сигнал — не окрема цифра. Найсильніший сигнал — повторюваний патерн:
 
 ```text
-claim -> code contract -> focused tests -> measurement -> scope boundary
+твердження -> кодовий контракт -> сфокусовані тести -> вимірювання -> межа
 ```
 
-The author shows:
+Автор показує:
 
-* data-oriented design under real binary-format constraints;
-* runtime memory discipline with measured allocation crises and fixes;
-* concurrency correctness without pretending every parallel path is a speedup;
-* failure-mode thinking that favors visible correctness over silent progress;
-* extension design that blocks unsafe custom behavior instead of trusting discipline;
-* product/demo packaging that names non-claims instead of hiding them;
-* observability discipline that starts with typed diagnostics before claiming production logs;
-* platform-specific lab-stand bootstrap that avoids private setup folklore;
-* production thinking that preserves invariants before adding infrastructure.
+* орієнтований на дані дизайн під реальними обмеженнями бінарного формату;
+* дисципліну пам'яті рантайму з виміряними кризами алокацій і виправленнями;
+* коректність паралельності без удавання, що кожен паралельний шлях є прискоренням;
+* мислення про режими відмов, де видима коректність важливіша за тихий прогрес;
+* дизайн розширень, який блокує небезпечну користувацьку поведінку замість довіри до дисципліни;
+* упаковку продукту/демо, яка називає незаявлені твердження замість того, щоб їх ховати;
+* дисципліну спостережуваності, яка починається з типізованої діагностики перед заявами про продукційні логи;
+* платформо-специфічне розгортання лабораторного стенда без приватного фольклору налаштування;
+* продукційне мислення, яке зберігає інваріанти перед додаванням інфраструктури.
 
-**Remaining reservations:**
+**Залишкові застереження:**
 
-* Production broker/database adapters are not implemented.
-* Public API security is not implemented.
-* Live radar ingestion is not implemented.
-* Handler delta/merge still has visible heavy-handler allocation debt.
-* Benchmarks remain hardware/corpus-bound and should not be generalized.
+* Продукційні адаптери брокера й бази даних не реалізовані.
+* Безпека публічного API не реалізована.
+* Приймання радарних даних наживо не реалізоване.
+* Дельта/злиття обробників усе ще має видимий борг алокацій для важких обробників.
+* Бенчмарки лишаються обмеженими апаратним середовищем і корпусом; їх не можна узагальнювати.
 
-**Defense interpretation:**
+**Інтерпретація для захисту:**
 
-For an expert review that evaluates ownership of backend runtime, performance-sensitive data pipelines, clean architecture boundaries and technical evidence culture, this artifact is stronger than a broad oral quiz. A formal defense should move past foundational questions and focus on production trade-offs, risk budgets, external adapter design and how the author would run the next hardening milestone.
+Для експертної перевірки, яка оцінює володіння бекенд-рантаймом, чутливими до продуктивності конвеєрами даних, межами чистої архітектури й культурою технічних доказів, цей артефакт сильніший за широкий усний іспит. Формальний захист має пройти повз базові питання й сфокусуватися на продукційних компромісах, бюджетах ризику, дизайні зовнішніх адаптерів і тому, як автор провів би наступну віху посилення.
