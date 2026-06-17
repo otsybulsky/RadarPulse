@@ -135,9 +135,9 @@
         *   *Сюжет:* Чому `Console.WriteLine` і “логи всюди” не є спостережуваністю (observability). Як RadarPulse уже має типізований контракт діагностики й готовності (typed diagnostic/readiness contract), але чесно не заявляє готовий продукційний стек (production stack) `ILogger`/OpenTelemetry.
 
 ## Додатки. Лабораторні докази
-*   **[Додаток А: Апаратне профілювання системи у лабораторії](book/appendix_a_profiling.md)**
+*   **[Додаток А: Лабораторне профілювання продуктивності](book/appendix_a_profiling.md)**
     *   *Технічне підґрунтя:* [appendix_a_profiling.md](book/appendix_a_profiling.md), [Milestone 004 closeout](../milestones/004-processing-core-input-contract-closeout.md), [RadarPulse.Cli.csproj](../../src/Presentation/RadarPulse.Cli/RadarPulse.Cli.csproj).
-    *   *Сюжет:* Як підтверджувати throughput, allocation rate і форму живої купи за допомогою `dotnet-trace`, `dotnet-counters`, `dotnet-gcdump` та benchmark-команд, не підміняючи performance-докази звичайними unit-тестами.
+    *   *Сюжет:* Як будувати доказову інженерію без сторонніх інструментів: власні benchmark-команди, typed telemetry, capacity evidence, milestone evidence; а вже потім `dotnet-trace`, `dotnet-counters` і `dotnet-gcdump` як додаткові низькорівневі інструменти деталізації.
 *   **[Додаток Б: Матриця тверджень і доказів](book/appendix_b_claim_evidence_matrix.md)**
     *   *Технічне підґрунтя:* [appendix_b_claim_evidence_matrix.md](book/appendix_b_claim_evidence_matrix.md), milestone performance gates, source files і verification commands.
     *   *Сюжет:* Стисла таблиця `Твердження -> Код -> Тест -> Вимірювання -> Межа` (`Claim -> Code -> Test -> Measurement -> Scope`), яка дозволяє рецензенту швидко відрізнити доведені твердження від навмисних non-claims.
