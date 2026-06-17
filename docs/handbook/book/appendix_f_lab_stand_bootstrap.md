@@ -1,28 +1,28 @@
 ﻿# Додаток Е: Як відтворити лабораторний стенд на Windows
 
-Цей додаток потрібен для людини, яка не хоче вірити книзі на слово. Вона бере чистий checkout на Windows, ставить залежності, завантажує локальний NEXRAD cache, запускає перевірки й дивиться, чи система справді поводиться так, як описано в розділах.
+Цей додаток потрібен для людини, яка не хоче вірити книзі на слово. Вона бере чисту копію репозиторію на Windows, ставить залежності, завантажує локальний NEXRAD-кеш, запускає перевірки й дивиться, чи система справді поводиться так, як описано в розділах.
 
-Це не production deployment guide. Тут немає Kubernetes, TLS, зовнішнього брокера, бази даних чи alert routing. Мета інша: **відтворити лабораторний стенд RadarPulse**, на якому можна перевірити archive parsing, streaming contract, processing runtime, product demo і частину performance evidence.
+Це не інструкція продукційного розгортання. Тут немає Kubernetes, TLS, зовнішнього брокера, бази даних чи маршрутизації сповіщень. Мета інша: **відтворити лабораторний стенд RadarPulse**, на якому можна перевірити розбір архівів, контракт потокової обробки, рантайм обробки, демо продукту і частину доказів продуктивності.
 
-Linux/macOS/WSL2 маршрут винесено в [Додаток Є](appendix_g_lab_stand_linux.md). Команди й синтаксис там не є перекладом PowerShell один-в-один; це окремий Bash runbook з тією самою доказовою структурою.
+Linux/macOS/WSL2 маршрут винесено в [Додаток Є](appendix_g_lab_stand_linux.md). Команди й синтаксис там не є перекладом PowerShell один-в-один; це окремий Bash-маршрут з тією самою доказовою структурою.
 
 ---
 
-## E.1. Що саме ми відтворюємо
+## Е.1. Що саме ми відтворюємо
 
 Лабораторний стенд складається з чотирьох речей:
 
 ```text
-repository checkout
-  -> .NET + Node/npm dependencies
-  -> local NEXRAD cache under data/nexrad
-  -> CLI/archive/product verification commands
-  -> optional Operator UI demo package
+копія репозиторію
+  -> залежності .NET і Node/npm
+  -> локальний NEXRAD-кеш у data/nexrad
+  -> команди перевірки CLI/archive/product
+  -> необов'язковий demo-пакет Operator UI
 ```
 
-Ключова межа: `data/nexrad` не є частиною Git-репозиторію. Це локальний корпус даних, який треба завантажити з public AWS Open Data bucket `unidata-nexrad-level2` через RadarPulse CLI.
+Ключова межа: `data/nexrad` не є частиною Git-репозиторію. Це локальний корпус даних, який треба завантажити з публічного AWS Open Data bucket `unidata-nexrad-level2` через RadarPulse CLI.
 
-Детермінований cache layout:
+Детермінована схема кешу:
 
 ```text
 data/nexrad/level2/{yyyy}/{MM}/{dd}/{radarId}/{fileName}
@@ -34,7 +34,7 @@ data/nexrad/level2/{yyyy}/{MM}/{dd}/{radarId}/{fileName}
 data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06
 ```
 
-Поруч із новими завантаженнями створюється sidecar metadata:
+Поруч із новими завантаженнями створюється супровідний metadata-файл:
 
 ```text
 data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06.metadata.json
@@ -42,23 +42,37 @@ data/nexrad/level2/2026/05/04/KTLX/KTLX20260504_000245_V06.metadata.json
 
 ---
 
-## E.2. Передумови
+## Е.2. Передумови
+
+Після встановлення Git спершу треба отримати сам репозиторій. Для відтворюваного стенда краще робити `git clone`, а не завантажувати ZIP з GitHub: команди нижче очікують нормальну Git-копію, у якій можна перевірити `git status`, подивитися remote і зафіксувати стан робочого дерева.
+
+```powershell
+git clone https://github.com/otsybulsky/RadarPulse.git
+Set-Location RadarPulse
+```
+
+Якщо перевіряється fork або приватна копія, URL може бути іншим, але далі команди мають запускатися з кореня репозиторію, де лежить `RadarPulse.sln`.
 
 На машині мають бути:
 
 ```text
-.NET SDK for the solution target framework
-Node.js/npm for OperatorUi
-Windows PowerShell 5.1 or PowerShell 7
-network access to public AWS Open Data
-enough disk space for the chosen NEXRAD cache
+Git
+.NET SDK 10.0 або новіший сумісний SDK
+Node.js 20.19.0+ для OperatorUi або Node.js 22.12.0+/24.0.0+
+npm; OperatorUi фіксує npm 11.12.1 у packageManager
+Windows PowerShell 5.1 або PowerShell 7
+доступ до мережі й public AWS Open Data
+достатньо місця на диску для вибраного NEXRAD-кешу
 ```
 
-Для швидкого smoke-cache достатньо кількох сотень мегабайт. Для cache, аналогічного авторському milestone-корпусу, потрібно приблизно 5 GB плюс запас під metadata, build artifacts і performance logs.
+Версії не є декоративними. Усі C# проєкти таргетять `net10.0`, тому .NET 8/9 SDK не є достатнім для збірки. Operator UI побудований на Angular 21 і Vite 7; їхні `engines` вимагають Node.js `^20.19.0 || ^22.12.0 || >=24.0.0`. `packageManager` у `src/Presentation/OperatorUi/package.json` фіксує `npm@11.12.1`; якщо локальний npm інший, це треба записати в доказовий пакет разом із `node --version`.
 
-Перевірка базового checkout:
+Для швидкого smoke-cache достатньо кількох сотень мегабайт. Для кешу, аналогічного авторському milestone-корпусу, потрібно приблизно 5 GB плюс запас під metadata, артефакти збірки й журнали продуктивності.
+
+Перевірка базової копії репозиторію:
 
 ```powershell
+git --version
 dotnet --info
 node --version
 npm --version
@@ -88,9 +102,9 @@ src/Presentation/RadarPulse.Cli/RadarPulse.Cli.csproj
 
 ---
 
-## E.3. Малий smoke-cache: швидка перевірка, що pipeline живий
+## Е.3. Малий smoke-cache: швидка перевірка, що pipeline живий
 
-Починати треба не з повного cache. Спочатку завантажуємо кілька файлів KTLX за одну дату й перевіряємо, що download, inspect, decompression, replay-shape і product archive run працюють.
+Починати треба не з повного кешу. Спочатку завантажуємо кілька файлів KTLX за одну дату й перевіряємо, що завантаження, огляд кешу, розпакування, форма replay і product archive run працюють.
 
 Створити manifest для перших двох файлів:
 
@@ -113,7 +127,7 @@ dotnet run -c Release --project src/Presentation/RadarPulse.Cli/RadarPulse.Cli.c
   --concurrency 4
 ```
 
-Перевірити, що cache бачиться:
+Перевірити, що кеш бачиться:
 
 ```powershell
 dotnet run -c Release --project src/Presentation/RadarPulse.Cli/RadarPulse.Cli.csproj -- `
@@ -124,7 +138,7 @@ dotnet run -c Release --project src/Presentation/RadarPulse.Cli/RadarPulse.Cli.c
   --max-files 2
 ```
 
-Перевірити decompression:
+Перевірити розпакування:
 
 ```powershell
 dotnet run -c Release --project src/Presentation/RadarPulse.Cli/RadarPulse.Cli.csproj -- `
@@ -134,7 +148,7 @@ dotnet run -c Release --project src/Presentation/RadarPulse.Cli/RadarPulse.Cli.c
   --max-files 2
 ```
 
-Перевірити replay shape:
+Перевірити форму replay:
 
 ```powershell
 dotnet run -c Release --project src/Presentation/RadarPulse.Cli/RadarPulse.Cli.csproj -- `
@@ -158,22 +172,22 @@ dotnet run -c Release --project src/Presentation/RadarPulse.Cli/RadarPulse.Cli.c
   --handlers counter-checksum
 ```
 
-Якщо цей маршрут проходить, локальний стенд уже довів базову функціональність: public archive discovery, deterministic cache write, decompression, replay projection, [`RadarEventBatch`](../../../src/Domain/Streaming/Batches/Models/RadarEventBatch.cs) path і product-facing archive run.
+Якщо цей маршрут проходить, локальний стенд уже довів базову функціональність: пошук публічного архіву, детермінований запис кешу, розпакування, replay-проєкцію, шлях [`RadarEventBatch`](../../../src/Domain/Streaming/Batches/Models/RadarEventBatch.cs) і product-facing archive run.
 
 ---
 
-## E.4. Author-equivalent cache: корпус, схожий на той, що використовувався в performance gates
+## Е.4. Кеш, еквівалентний авторському корпусу
 
-У milestone 016/017 авторський локальний cache мав такий контур:
+У milestone 016/017 авторський локальний кеш мав такий контур:
 
-| Corpus | Files | Bytes |
+| Корпус | Файли | Байти |
 | :--- | ---: | ---: |
 | `data/nexrad/level2/2026/05/04/KTLX` | 244 | `1_347_625_897` |
 | `data/nexrad/level2/2026/05/04/KINX` | 462 | `1_404_452_903` |
 | `data/nexrad/level2/2026/05/05/KTLX` | 848 | `2_232_493_336` |
-| **Total** | `1_554` | `4_984_572_136` |
+| **Разом** | `1_554` | `4_984_572_136` |
 
-Це не магічний corpus. Це просто зафіксований набір історичних NEXRAD Level II архівів, який дає достатньо великий локальний стенд для cache-level performance і regression checks.
+Це не магічний корпус. Це просто зафіксований набір історичних NEXRAD Level II архівів, який дає достатньо великий локальний стенд для перевірок продуктивності на рівні кешу й регресійних перевірок.
 
 Завантажити його краще через manifest-и, щоб спочатку побачити кількість файлів і байти.
 
@@ -233,15 +247,15 @@ dotnet run -c Release --project src/Presentation/RadarPulse.Cli/RadarPulse.Cli.c
   archive inspect --cache data/nexrad --date 2026-05-05 --radar KTLX
 ```
 
-Якщо file counts відрізняються від таблиці вище, це треба записати як відмінність corpus-а. Performance claims у книзі прив'язані до зафіксованого локального cache/hardware contour, а не до абстрактного “будь-якого NEXRAD дня”.
+Якщо кількість файлів відрізняється від таблиці вище, це треба записати як відмінність корпусу. Твердження про продуктивність у книзі прив'язані до зафіксованого локального контуру кешу й апаратного середовища, а не до абстрактного “будь-якого NEXRAD дня”.
 
 ---
 
-## E.5. Функціональна перевірка archive path
+## Е.5. Функціональна перевірка маршруту архіву
 
-Після завантаження cache треба довести, що архіви не просто лежать на диску, а проходять parser/replay path.
+Після завантаження кешу треба довести, що архіви не просто лежать на диску, а проходять шлях parser/replay.
 
-Decompression validation на перших 20 файлах KTLX:
+Перевірка розпакування на перших 20 файлах KTLX:
 
 ```powershell
 dotnet run -c Release --project src/Presentation/RadarPulse.Cli/RadarPulse.Cli.csproj -- `
@@ -263,7 +277,7 @@ dotnet run -c Release --project src/Presentation/RadarPulse.Cli/RadarPulse.Cli.c
   --decompressor radarpulse
 ```
 
-Single-file replay:
+Replay одного файла:
 
 ```powershell
 dotnet run -c Release --project src/Presentation/RadarPulse.Cli/RadarPulse.Cli.csproj -- `
@@ -273,7 +287,7 @@ dotnet run -c Release --project src/Presentation/RadarPulse.Cli/RadarPulse.Cli.c
   --decompressor radarpulse
 ```
 
-Cache replay:
+Replay кешу:
 
 ```powershell
 dotnet run -c Release --project src/Presentation/RadarPulse.Cli/RadarPulse.Cli.csproj -- `
@@ -286,15 +300,15 @@ dotnet run -c Release --project src/Presentation/RadarPulse.Cli/RadarPulse.Cli.c
   --decompressor radarpulse
 ```
 
-Ці команди не є performance proof. Вони потрібні для функціональної впевненості: files selected, decompressed, scanned, projected and replayed.
+Ці команди не є доказом продуктивності. Вони потрібні для функціональної впевненості: файли вибрані, розпаковані, проскановані, спроєктовані й відтворені через replay.
 
 ---
 
-## E.6. Performance smoke: не плутати smoke з claim-ом
+## Е.6. Коротка перевірка продуктивності: не плутати smoke з твердженням
 
-Після функціональних перевірок можна запускати короткі performance smoke-команди. Вони потрібні, щоб побачити форму runtime-а на машині reviewer-а, але не замінюють milestone performance gates.
+Після функціональних перевірок можна запускати короткі команди перевірки продуктивності. Вони потрібні, щоб побачити форму рантайму на машині рецензента, але не замінюють milestone performance gates.
 
-Stream benchmark на cache:
+Stream benchmark на кеші:
 
 ```powershell
 dotnet run --no-build -c Release --project src/Presentation/RadarPulse.Cli/RadarPulse.Cli.csproj -- `
@@ -309,7 +323,7 @@ dotnet run --no-build -c Release --project src/Presentation/RadarPulse.Cli/Radar
   --decompressor radarpulse
 ```
 
-Processing/rebalance smoke:
+Коротка перевірка processing/rebalance:
 
 ```powershell
 dotnet run --no-build -c Release --project src/Presentation/RadarPulse.Cli/RadarPulse.Cli.csproj -- `
@@ -326,7 +340,7 @@ dotnet run --no-build -c Release --project src/Presentation/RadarPulse.Cli/Radar
   --shards 4
 ```
 
-Ordered archive processing smoke:
+Коротка перевірка ordered archive processing:
 
 ```powershell
 dotnet run --no-build -c Release --project src/Presentation/RadarPulse.Cli/RadarPulse.Cli.csproj -- `
@@ -342,31 +356,31 @@ dotnet run --no-build -c Release --project src/Presentation/RadarPulse.Cli/Radar
   --shards 4
 ```
 
-Для повторення cache-wide rows із книги reviewer може підняти `--max-files` до `1000000`, але це вже довга performance-команда, чутлива до заліза, температури CPU, фонових процесів, диска й точного cache contour.
+Для повторення рядків повного кешу з книги рецензент може підняти `--max-files` до `1000000`, але це вже довга performance-команда, чутлива до заліза, температури CPU, фонових процесів, диска й точного контуру кешу.
 
 ---
 
-## E.7. Performance evidence: як отримати не скріншот, а доказ
+## Е.7. Доказ продуктивності: як отримати не скріншот, а доказ
 
-Performance smoke відповідає на просте питання: “чи benchmark взагалі запускається на цій машині?”. Performance evidence відповідає на інше питання: “яку цифру можна показати зовнішньому reviewer-у, разом із corpus, hardware boundary, checksum, allocation і raw log?”. Це різні рівні довіри.
+Коротка перевірка продуктивності відповідає на просте питання: “чи benchmark взагалі запускається на цій машині?”. Доказ продуктивності відповідає на інше питання: “яку цифру можна показати зовнішньому рецензенту разом із корпусом, межею апаратного середовища, контрольною сумою, алокаціями й сирим журналом?”. Це різні рівні довіри.
 
 У RadarPulse доказ продуктивності має складатися з п'яти артефактів:
 
 ```text
-environment snapshot
-Release build log
-cache contour and validation log
-full-cache end-to-end benchmark logs
-processing-only synthetic benchmark logs
+знімок середовища
+журнал Release-збірки
+контур кешу й журнал валідації
+журнали end-to-end benchmark для повного кешу
+синтетичні benchmark-журнали тільки для processing
 ```
 
-Починати варто з окремої директорії. Вона не є частиною Git-репозиторію; це локальний evidence bundle, який можна прикріпити до review, milestone або матеріалів захисту роботи.
+Починати варто з окремої директорії. Вона не є частиною Git-репозиторію; це локальний доказовий пакет, який можна прикріпити до рецензії, milestone або матеріалів захисту роботи.
 
 ```powershell
 $Stamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $PerfRoot = "data/perf/reviewer-$Stamp"
 New-Item -ItemType Directory -Force $PerfRoot | Out-Null
-"Performance evidence root: $PerfRoot" | Tee-Object -FilePath "$PerfRoot/README.txt"
+"Корінь доказів продуктивності: $PerfRoot" | Tee-Object -FilePath "$PerfRoot/README.txt"
 ```
 
 Зафіксувати revision і чистоту worktree:
@@ -376,9 +390,9 @@ git rev-parse HEAD | Tee-Object -FilePath "$PerfRoot/git-head.txt"
 git status --short | Tee-Object -FilePath "$PerfRoot/git-status.txt"
 ```
 
-Якщо `git status --short` не порожній, це не автоматично погано. Але reviewer має бачити, чи цифри зібрані з clean commit, чи з локальними змінами.
+Якщо `git status --short` не порожній, це не автоматично погано. Але рецензент має бачити, чи цифри зібрані з чистого commit, чи з локальними змінами.
 
-Зафіксувати runtime і машину:
+Зафіксувати рантайм і машину:
 
 ```powershell
 dotnet --info | Tee-Object -FilePath "$PerfRoot/dotnet-info.txt"
@@ -403,7 +417,7 @@ Get-CimInstance Win32_LogicalDisk |
   Tee-Object -FilePath "$PerfRoot/disks.txt"
 ```
 
-Зібрати Release binary один раз і далі запускати саме його, щоб raw logs не змішували benchmark із `dotnet run` build/restore шумом:
+Зібрати Release binary один раз і далі запускати саме його, щоб сирі журнали не змішували benchmark із шумом `dotnet run`, build і restore:
 
 ```powershell
 dotnet build RadarPulse.sln -c Release --no-restore /p:UseSharedCompilation=false 2>&1 |
@@ -416,7 +430,7 @@ $Cli = Get-ChildItem -Path src/Presentation/RadarPulse.Cli/bin/Release -Recurse 
 "CLI binary: $Cli" | Tee-Object -FilePath "$PerfRoot/cli-binary.txt"
 ```
 
-Далі зафіксувати cache contour. Без цього цифра “530M payload values/s” висить у повітрі: невідомо, які файли, які радари, скільки skipped/published, скільки payload values.
+Далі зафіксувати контур кешу. Без цього цифра “530M payload values/s” висить у повітрі: невідомо, які файли, які радари, скільки skipped/published, скільки payload values.
 
 ```powershell
 dotnet $Cli archive inspect --cache data/nexrad --date 2026-05-04 --radar KTLX 2>&1 |
@@ -429,13 +443,13 @@ dotnet $Cli archive inspect --cache data/nexrad --date 2026-05-05 --radar KTLX 2
   Tee-Object -FilePath "$PerfRoot/cache-inspect-2026-05-05-KTLX.log"
 ```
 
-Для швидкого reviewer-run можна лишити `--max-files 20`. Для доказу, який має стояти поруч із книгою, треба проходити повний cache contour:
+Для швидкого запуску рецензента можна лишити `--max-files 20`. Для доказу, який має стояти поруч із книгою, треба проходити повний контур кешу:
 
 ```powershell
 $MaxFiles = 1000000
 ```
 
-Перед benchmark-ами варто зафіксувати replay-shape validation на тому самому cache contour. Інакше benchmark може бути швидким, але reviewer не побачить, що stream shape пройшов окрему correctness перевірку.
+Перед benchmark-ами варто зафіксувати replay-shape validation на тому самому контурі кешу. Інакше benchmark може бути швидким, але рецензент не побачить, що форма потоку пройшла окрему перевірку коректності.
 
 ```powershell
 dotnet $Cli archive validate replay-shape `
@@ -446,7 +460,7 @@ dotnet $Cli archive validate replay-shape `
   Tee-Object -FilePath "$PerfRoot/archive-replay-shape-validation.log"
 ```
 
-Перший evidence run — normalized stream benchmark. Він доводить швидкість і allocation profile переходу з archive replay до [`RadarEventBatch`](../../../src/Domain/Streaming/Batches/Models/RadarEventBatch.cs) stream contract, без handler/runtime layers.
+Перший доказовий запуск — normalized stream benchmark. Він доводить швидкість і профіль алокацій переходу з archive replay до stream contract [`RadarEventBatch`](../../../src/Domain/Streaming/Batches/Models/RadarEventBatch.cs), без handler/runtime layers.
 
 ```powershell
 dotnet $Cli archive benchmark stream `
@@ -459,7 +473,7 @@ dotnet $Cli archive benchmark stream `
   Tee-Object -FilePath "$PerfRoot/archive-stream-cache.log"
 ```
 
-У цьому log reviewer має шукати:
+У цьому журналі рецензент має шукати:
 
 ```text
 Examined files per iteration
@@ -476,7 +490,7 @@ Allocated bytes / stream event
 Allocated bytes / payload value
 ```
 
-Другий evidence run — full-cache rebalance matrix. Він показує не тільки throughput, а й поведінку provider/default contour проти borrowed fallback, validation profile, retained payload telemetry і allocation attribution.
+Другий доказовий запуск — full-cache rebalance matrix. Він показує не тільки пропускну здатність, а й поведінку provider/default contour проти borrowed fallback, validation profile, retained payload telemetry і allocation attribution.
 
 Default rollout contour:
 
@@ -515,7 +529,7 @@ dotnet $Cli processing benchmark rebalance-archive `
   Tee-Object -FilePath "$PerfRoot/rebalance-archive-blocking-borrowed.log"
 ```
 
-Тут важливі не тільки `End-to-end payload values/s`. Evidence має містити:
+Тут важливі не тільки `End-to-end payload values/s`. Доказ має містити:
 
 ```text
 Default selected contour
@@ -535,7 +549,7 @@ Replay and batch construction allocated bytes
 Retained payload pool misses
 ```
 
-Третій evidence run — ordered archive processing with handlers. Це ближче до product-facing runtime path: active batches, handler delta/merge, custom handler state, final checksum і completeness.
+Третій доказовий запуск — ordered archive processing with handlers. Це ближче до product-facing runtime path: active batches, handler delta/merge, custom handler state, final checksum і completeness.
 
 ```powershell
 foreach ($Handlers in @("none", "counter-checksum", "counter-checksum-heavy")) {
@@ -557,7 +571,7 @@ foreach ($Handlers in @("none", "counter-checksum", "counter-checksum-heavy")) {
 }
 ```
 
-У цих logs reviewer має перевірити:
+У цих журналах рецензент має перевірити:
 
 ```text
 Processing path
@@ -574,7 +588,7 @@ End-to-end payload values/s
 End-to-end allocated bytes / stream event
 ```
 
-Четвертий evidence run — processing-only synthetic benchmark. Він потрібен, щоб не змішувати archive replay, decompression, Archive II scanning, identity normalization і batch construction із власне processing engine. Саме цей контур найкраще підтримує restrained “world-class technology” claim, але тільки в межах локального workload.
+Четвертий доказовий запуск — синтетичний benchmark тільки для processing. Він потрібен, щоб не змішувати archive replay, розпакування, сканування Archive II, нормалізацію ідентичності й побудову batch-ів із власне рушієм обробки. Саме цей контур найкраще підтримує стримане твердження “world-class technology”, але тільки в межах локального workload.
 
 `--workers` і `--queue-capacity` дозволені тільки для `--mode async`, тому цикл збирає аргументи явно:
 
@@ -605,7 +619,7 @@ foreach ($Mode in @("sequential", "partitioned", "async")) {
 }
 ```
 
-У synthetic logs reviewer має шукати:
+У синтетичних журналах рецензент має шукати:
 
 ```text
 Measured contour: RadarProcessingCore over prebuilt RadarEventBatch
@@ -626,7 +640,7 @@ Sync comparison checksum
 Async comparison checksum
 ```
 
-Після цього evidence bundle має мати таку мінімальну форму:
+Після цього доказовий пакет має мати таку мінімальну форму:
 
 ```text
 data/perf/reviewer-<timestamp>/
@@ -648,41 +662,41 @@ data/perf/reviewer-<timestamp>/
   synthetic-*.log
 ```
 
-Цей bundle уже можна читати як інженерний доказ. Якщо потрібно перетворити його на milestone-документ, таблиця має виводитися з raw logs, а не з пам'яті:
+Цей пакет уже можна читати як інженерний доказ. Якщо потрібно перетворити його на milestone-документ, таблиця має виводитися з сирих журналів, а не з пам'яті:
 
-| Evidence row | Primary fields |
+| Рядок доказу | Основні поля |
 | :--- | :--- |
-| Archive stream | files, payload values, elapsed ms, stream events/s, payload values/s, allocated bytes/value |
-| Rebalance archive | provider contour, mode, validation, processing completeness, end-to-end throughput, processing throughput, allocation attribution |
-| Ordered archive processing | handler set, active batches, final checksums, completeness, throughput, allocation per stream event |
-| Synthetic processing | mode, handler set, validation checksum, stream events/s, payload values/s, allocated bytes/event, async validation |
+| Archive stream | файли, значення корисного навантаження, elapsed ms, stream events/s, payload values/s, allocated bytes/value |
+| Rebalance archive | контур провайдера, режим, валідація, повнота обробки, end-to-end пропускна здатність, пропускна здатність processing, атрибуція алокацій |
+| Ordered archive processing | набір обробників, активні batch-и, фінальні контрольні суми, повнота, пропускна здатність, алокації на stream event |
+| Synthetic processing | режим, набір обробників, контрольна сума валідації, stream events/s, payload values/s, allocated bytes/event, async validation |
 
 Правильне формулювання після такого запуску:
 
 ```text
-On this machine, at this commit, over this cache contour, Release benchmark
-logs show <N> stream events/s and <M> payload values/s for the measured path.
-The run included checksum/completeness/allocation evidence and is not a
-cross-machine certification.
+На цій машині, на цьому commit і на цьому контурі кешу Release benchmark
+показав <N> stream events/s і <M> payload values/s для виміряного шляху.
+Запуск містив докази checksum/completeness/allocation і не є сертифікацією
+для інших машин.
 ```
 
 Неправильне формулювання:
 
 ```text
-RadarPulse always processes <M> payload values/s.
-This proves production throughput.
-This proves the system is faster than named external systems.
+RadarPulse завжди обробляє <M> payload values/s.
+Це доводить продукційну пропускну здатність.
+Це доводить, що система швидша за названі зовнішні системи.
 ```
 
-Linux/macOS/WSL2 не має бути короткою приміткою в кінці Windows-інструкції. Повний Bash-маршрут із `tee`, `find`, shell arrays і platform diagnostics винесено в [Додаток Є](appendix_g_lab_stand_linux.md).
+Linux/macOS/WSL2 не має бути короткою приміткою в кінці Windows-інструкції. Повний Bash-маршрут із `tee`, `find`, shell arrays і діагностикою платформи винесено в [Додаток Є](appendix_g_lab_stand_linux.md).
 
-Цей додаток не вимагає, щоб reviewer повторив авторські цифри. Він вимагає, щоб reviewer міг отримати власні raw logs і чесно порівняти форму доказу з історичним milestone evidence: [036 performance evidence](../../milestones/036-clean-architecture-hardening-performance-evidence.md).
+Цей додаток не вимагає, щоб рецензент повторив авторські цифри. Він вимагає, щоб рецензент міг отримати власні сирі журнали й чесно порівняти форму доказу з історичним milestone evidence: [036 performance evidence](../../milestones/036-clean-architecture-hardening-performance-evidence.md).
 
 ---
 
-## E.8. Product demo package: перевірка UI/API без підміни cache proof
+## Е.8. Пакет демо продукту: перевірка UI/API без підміни доказу кешу
 
-Пакетний demo script перевіряє product surface: HTTP host, Angular UI, readiness, local history, browser smoke і focused API gates. Він не завантажує NEXRAD cache і не є archive performance gate.
+Пакетний demo script перевіряє product surface: HTTP host, Angular UI, readiness, local history, browser smoke і focused API gates. Він не завантажує NEXRAD-кеш і не є archive performance gate.
 
 Windows:
 
@@ -717,67 +731,67 @@ http://127.0.0.1:5129
 Що це доводить:
 
 ```text
-Angular build/test/smoke
-same-origin RadarPulse.Http delivery
-product API/readiness/history
-deterministic synthetic product run
-diagnostics/capacity/read-model cockpit
+збірка, тести й smoke Angular
+same-origin доставка RadarPulse.Http
+product API, readiness і history
+детермінований синтетичний product run
+панель діагностики, capacity і read-model
 ```
 
 Що це не доводить:
 
 ```text
-NEXRAD cache download
-archive parsing correctness over full corpus
-500M+ payload values/s на машині reviewer-а
-production deployment readiness
+завантаження NEXRAD-кешу
+коректність розбору архіву на повному корпусі
+500M+ payload values/s на машині рецензента
+готовність до продукційного розгортання
 ```
 
 Саме тому цей додаток тримає два маршрути окремо: cache/bootstrap для archive evidence і package verify для product/demo evidence.
 
 ---
 
-## E.9. Мінімальна карта “усе працює”
+## Е.9. Мінімальна карта “усе працює”
 
 | Крок | Команда | Ознака успіху |
 | :--- | :--- | :--- |
-| Restore/build | `dotnet build RadarPulse.sln -c Release --no-restore` | Solution builds |
-| UI dependencies | `npm install` у [`src/Presentation/OperatorUi`](../../../src/Presentation/OperatorUi) | `node_modules` встановлено без фатальних помилок |
-| Manifest | `archive list --manifest ...` | Є file/byte summary і JSON manifest |
-| Download | `archive download --manifest ...` | Files downloaded or skipped; no preflight failure |
-| Inspect | `archive inspect --cache ...` | Cache summary shows selected files |
-| Decompress | `archive validate decompress ...` | Validation completes without failure |
-| Replay shape | `archive validate replay-shape ...` | Replay shape validation completes |
-| Product archive | `product pipeline run-archive ...` | Run is ready or reports explicit blocking reason |
-| Demo package | `radarpulse-product-demo.ps1 verify` | Packaged verification passed |
-| Performance smoke | `archive benchmark stream ...` | Throughput/allocation summary printed |
-| Performance evidence | `Tee-Object` route from E.7 | Raw logs include environment, cache contour, checksums, throughput and allocation |
+| Збірка | `dotnet build RadarPulse.sln -c Release --no-restore` | Solution збирається |
+| UI-залежності | `npm install` у [`src/Presentation/OperatorUi`](../../../src/Presentation/OperatorUi) | `node_modules` встановлено без фатальних помилок |
+| Маніфест | `archive list --manifest ...` | Є summary файлів/байтів і JSON manifest |
+| Завантаження | `archive download --manifest ...` | Файли завантажені або пропущені; немає preflight failure |
+| Огляд кешу | `archive inspect --cache ...` | Cache summary показує вибрані файли |
+| Розпакування | `archive validate decompress ...` | Валідація завершується без помилки |
+| Форма replay | `archive validate replay-shape ...` | Replay shape validation завершується |
+| Product archive | `product pipeline run-archive ...` | Run готовий або повідомляє явну причину блокування |
+| Демо-пакет | `radarpulse-product-demo.ps1 verify` | Пакетна перевірка проходить |
+| Коротка перевірка продуктивності | `archive benchmark stream ...` | Надруковано summary пропускної здатності й алокацій |
+| Доказ продуктивності | `Tee-Object` маршрут з Е.7 | Сирі журнали містять середовище, контур кешу, контрольні суми, пропускну здатність і алокації |
 
 Якщо якийсь крок падає, це не треба ховати. Лабораторний стенд цінний саме тим, що відмова має короткий шлях: manifest, download, cache path, decompressor, replay shape, product surface або benchmark contour.
 
 ---
 
-## E.10. Межі відповідальності цього додатка
+## Е.10. Межі відповідальності цього додатка
 
-Цей додаток не робить нових performance claims. Він дає маршрут відтворення.
+Цей додаток не робить нових тверджень про продуктивність. Він дає маршрут відтворення.
 
-Не claim-иться:
+Не заявляється:
 
 ```text
-що public AWS archive завжди має однакову доступність у момент запуску
-що reviewer отримає ті самі throughput цифри на іншому CPU/SSD/OS
+що публічний AWS archive завжди має однакову доступність у момент запуску
+що рецензент отримає ті самі цифри пропускної здатності на іншому CPU/SSD/OS
 що smoke-cache еквівалентний full-cache performance gate
-що product demo script завантажує або валідовує NEXRAD corpus
-що local archive replay є true live radar network ingestion
+що product demo script завантажує або валідовує NEXRAD-корпус
+що local archive replay є справжнім прийманням живої радарної мережі
 ```
 
-Claim, який цей додаток дозволяє:
+Твердження, яке цей додаток дозволяє:
 
 ```text
-Reviewer can bootstrap a Windows local lab stand, create a deterministic NEXRAD
-cache, run archive validation, run product demo verification, and choose
-bounded performance smoke or performance evidence commands without asking the
-author for private setup steps.
+Рецензент може підняти локальний Windows-стенд, створити детермінований
+NEXRAD-кеш, запустити archive validation, перевірити product demo і вибрати
+обмежену коротку перевірку продуктивності або команди доказу продуктивності без приватних
+інструкцій автора.
 ```
 
 Це практичний еквівалент хорошого інженерного рукостискання: ось корпус, ось команди, ось межі, ось де починається чесний доказ.
