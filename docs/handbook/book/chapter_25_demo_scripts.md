@@ -1,10 +1,10 @@
-﻿# Розділ 25: Демо-пакет під ключ
+# Розділ 25: Демо-пакет під ключ
 
 Фінальний доказ проекту не в тому, що автор може запустити систему на своїй машині. Доказ починається тоді, коли сторонній архітектор отримує повторюваний маршрут: зібрати, перевірити, побачити readiness, зламати очевидні місця і зрозуміти межі claims без приватних пояснень.
 
 Для цього в RadarPulse з'явився комплексний автоматизований скрипт — [`radarpulse-product-demo.ps1`](../../../scripts/radarpulse-product-demo.ps1) (Віхи `032`, `033`). Він не заморожує час і не підміняє реальність, а фіксує release-freeze протокол, який можна повторити на звичайній машині.
 
-Окремі практичні маршрути для повного лабораторного стенда — від чистого checkout до завантаженого `data/nexrad`, archive validation і performance evidence — винесено в [Додаток Е для Windows](appendix_f_lab_stand_bootstrap.md) і [Додаток Є для Linux/macOS/WSL2](appendix_g_lab_stand_linux.md). Цей розділ описує demo/package протокол; платформені додатки закривають cache bootstrap і performance proof.
+Окремі практичні маршрути для повного лабораторного стенда — від чистого checkout до завантаженого `data/nexrad`, archive validation і performance evidence — винесено в [Додаток 6 для Windows](appendix_f_lab_stand_bootstrap.md) і [Додаток 7 для Linux/macOS/WSL2](appendix_g_lab_stand_linux.md). Цей розділ описує demo/package протокол; платформені додатки закривають cache bootstrap і performance proof.
 
 ---
 

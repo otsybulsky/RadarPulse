@@ -53,7 +53,7 @@ milestone closeouts, decision traces, and gates where the evidence matters.
 ## Book Website
 
 The book can be published as a VitePress site. The current published source is
-`docs/handbook/book-outline.md` plus `docs/handbook/book`. Local commands:
+`docs/handbook/book/book-outline.md` plus `docs/handbook/book`. Local commands:
 
 ```sh
 npm install

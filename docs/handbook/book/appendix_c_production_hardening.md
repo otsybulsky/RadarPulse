@@ -1,4 +1,4 @@
-﻿# Додаток В: план підготовки до продукційної експлуатації
+# Додаток 3: План підготовки до продукційної експлуатації
 
 Цей додаток не стверджує, що RadarPulse вже є продукційною платформою. Його завдання інше: показати, як автор переносив би доведений лабораторний рантайм у продукційний контур, не ламаючи ті інваріанти, заради яких книга взагалі була написана.
 
@@ -31,7 +31,7 @@
 
 | Інваріант | Чому він важливий | Де вже доведений |
 | :--- | :--- | :--- |
-| [`RadarStreamEvent`](../../../src/Domain/Streaming/Streams/Models/RadarStreamEvent.cs)/[`RadarEventBatch`](../../../src/Domain/Streaming/Batches/Models/RadarEventBatch.cs) лишаються контрольованим контрактом гарячого шляху | Інакше зовнішній формат знову пролізе в домен | [Розділ 3](chapter_03_radar_batch.md), [Додаток Б](appendix_b_claim_evidence_matrix.md) |
+| [`RadarStreamEvent`](../../../src/Domain/Streaming/Streams/Models/RadarStreamEvent.cs)/[`RadarEventBatch`](../../../src/Domain/Streaming/Batches/Models/RadarEventBatch.cs) лишаються контрольованим контрактом гарячого шляху | Інакше зовнішній формат знову пролізе в домен | [Розділ 3](chapter_03_radar_batch.md), [Додаток 2](appendix_b_claim_evidence_matrix.md) |
 | [`Послідовність провайдера`](../../../src/Domain/Processing/Queueing/Models/RadarProcessingQueuedBatchSequence.cs) визначає порядок фіксації | Інакше паралельність почне міняти історію | [Розділ 14](chapter_14_concurrency_chaos.md), [Розділ 15](chapter_15_ordered_coordinator.md) |
 | Обчислення і фіксація лишаються розділеними | Інакше повертається криза спільного стану | [Розділ 16](chapter_16_mutable_core.md) |
 | Версія топології перевіряється перед фіксацією | Інакше застарілий маршрут потрапить у ядро | [Розділ 17](chapter_17_stale_recompute.md) |

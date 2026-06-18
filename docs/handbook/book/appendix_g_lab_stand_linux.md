@@ -1,4 +1,4 @@
-﻿# Додаток Є: Як відтворити лабораторний стенд на Linux/macOS/WSL2
+# Додаток 7: Як відтворити лабораторний стенд на Linux/macOS/WSL2
 
 Цей додаток є окремим Bash-маршрутом для рецензента, який запускає RadarPulse не з Windows PowerShell, а з Linux, macOS або WSL2. Він має ту саму доказову структуру, що й [Windows-додаток](appendix_f_lab_stand_bootstrap.md): копія репозиторію, залежності, публічний NEXRAD-кеш, archive validation, перевірка product demo і доказовий пакет продуктивності.
 

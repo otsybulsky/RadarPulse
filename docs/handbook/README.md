@@ -113,7 +113,7 @@ docs/handbook/verification-and-evidence.md
   focused gates, package verification, milestone evidence, and known scope
   limits
 
-docs/handbook/book-outline.md
+docs/handbook/book/book-outline.md
   structural outline and chapter roadmap for the engineering book
   'Документація як інженерний детектив'
 

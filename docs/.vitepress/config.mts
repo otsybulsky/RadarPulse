@@ -41,7 +41,7 @@ function splitHref(href: string): { pathname: string; suffix: string } {
 function isPublishedBookMarkdown(targetPath: string): boolean {
   const normalized = normalizePath(path.relative(handbookRoot, targetPath))
 
-  return normalized === 'book-outline.md' || (normalized.startsWith('book/') && normalized.endsWith('.md'))
+  return normalized.startsWith('book/') && normalized.endsWith('.md')
 }
 
 function encodeRepoPath(relativePath: string): string {
@@ -320,7 +320,7 @@ function copyLocalRepoDirectory(directoryPath: string, outDir: string): void {
 
 function collectReferencedLocalRepoTargets(): string[] {
   const markdownFiles = [
-    path.join(handbookRoot, 'book-outline.md'),
+    path.join(handbookRoot, 'book', 'book-outline.md'),
     ...fs
       .readdirSync(path.join(handbookRoot, 'book'))
       .filter(fileName => fileName.endsWith('.md'))
@@ -381,7 +381,7 @@ export default defineConfig({
     /^\/RadarPulse\/_repo\//
   ],
   rewrites: {
-    'book-outline.md': 'index.md'
+    'book/book-outline.md': 'index.md'
   },
   srcExclude: [
     'README.md',
@@ -491,37 +491,38 @@ export default defineConfig({
             { text: '6. Контракти домену', link: '/book/chapter_06_domain_contracts' },
             { text: '7. Гарячий радар', link: '/book/chapter_07_hot_partitions' },
             { text: '8. Міграція топологій', link: '/book/chapter_08_topology_migration' },
-            { text: '9. Анти-чорн патруль', link: '/book/chapter_09_anti_churn' },
+            { text: '9. Запобіжники проти паніки', link: '/book/chapter_09_anti_churn' },
             { text: '10. Асинхронний департамент', link: '/book/chapter_10_async_transport' },
             { text: '11. Алокаційна аномалія', link: '/book/chapter_11_allocation_anomaly' },
-            { text: '12. Копіювання через пул (Pooled copy)', link: '/book/chapter_12_pooled_copy' },
-            { text: '13. Холодний старт (Cold start)', link: '/book/chapter_13_cold_start' },
-            { text: '14. Хаос паралельності (Concurrency chaos)', link: '/book/chapter_14_concurrency_chaos' },
-            { text: '15. Впорядкований координатор (Ordered coordinator)', link: '/book/chapter_15_ordered_coordinator' },
-            { text: '16. Мутабельне ядро', link: '/book/chapter_16_mutable_core' },
-            { text: '17. Перерахунок топології (Stale recompute)', link: '/book/chapter_17_stale_recompute' },
-            { text: '18. Стійкий конверт (Durable envelope)', link: '/book/chapter_18_durable_envelope' },
+            { text: '12. Оренда буферів', link: '/book/chapter_12_pooled_copy' },
+            { text: '13. Прогрів холодного двигуна', link: '/book/chapter_13_cold_start' },
+            { text: '14. Хаос паралелізму', link: '/book/chapter_14_concurrency_chaos' },
+            { text: '15. Старшина черги', link: '/book/chapter_15_ordered_coordinator' },
+            { text: '16. Криза спільного стану', link: '/book/chapter_16_mutable_core' },
+            { text: '17. Перерахунок топології', link: '/book/chapter_17_stale_recompute' },
+            { text: '18. Дипломатичний конверт', link: '/book/chapter_18_durable_envelope' },
             { text: '19. Файлове стійке сховище', link: '/book/chapter_19_file_store' },
-            { text: '20. Зупинка без неправди (Fail-closed)', link: '/book/chapter_20_fail_closed' },
+            { text: '20. Зупинка без неправди', link: '/book/chapter_20_fail_closed' },
             { text: '21. Користувацькі обробники', link: '/book/chapter_21_custom_handlers' },
             { text: '22. Контракт дельта/злиття', link: '/book/chapter_22_delta_merge' },
-            { text: '23. Щит BFF (Backend-for-Frontend)', link: '/book/chapter_23_bff_shield' },
+            { text: '23. Щит для фронтенду', link: '/book/chapter_23_bff_shield' },
             { text: '24. Інтерфейс оператора', link: '/book/chapter_24_operator_ui' },
             { text: '25. Демо-пакет', link: '/book/chapter_25_demo_scripts' },
-            { text: '26. Логування спостережуваності', link: '/book/chapter_26_observability_logging' }
+            { text: '26. Чорний ящик RadarPulse', link: '/book/chapter_26_observability_logging' }
           ]
         },
         {
           text: 'Додатки',
           collapsed: true,
           items: [
-            { text: 'А. Профілювання', link: '/book/appendix_a_profiling' },
-            { text: 'Б. Матриця доказів', link: '/book/appendix_b_claim_evidence_matrix' },
-            { text: 'В. Production hardening (продукційне зміцнення)', link: '/book/appendix_c_production_hardening' },
-            { text: 'Г. Reviewer attack pack (атаки рецензента)', link: '/book/appendix_d_reviewer_attack_pack' },
-            { text: 'Д. Hostile reviewer transcript (ворожа рецензія)', link: '/book/appendix_e_simulated_hostile_reviewer_transcript' },
-            { text: 'Е. Windows lab stand (лабораторний стенд)', link: '/book/appendix_f_lab_stand_bootstrap' },
-            { text: 'Є. Linux lab stand (лабораторний стенд)', link: '/book/appendix_g_lab_stand_linux' }
+            { text: '1. Профілювання', link: '/book/appendix_a_profiling' },
+            { text: '2. Матриця доказів', link: '/book/appendix_b_claim_evidence_matrix' },
+            { text: '3. Продукційне посилення', link: '/book/appendix_c_production_hardening' },
+            { text: '4. Атаки рецензента', link: '/book/appendix_d_reviewer_attack_pack' },
+            { text: '5. Жорстка рецензія', link: '/book/appendix_e_simulated_hostile_reviewer_transcript' },
+            { text: '6. Стенд на Windows', link: '/book/appendix_f_lab_stand_bootstrap' },
+            { text: '7. Стенд на Linux/macOS', link: '/book/appendix_g_lab_stand_linux' },
+            { text: '8. Глосарій', link: '/book/appendix_h_glossary' }
           ]
         }
       ]

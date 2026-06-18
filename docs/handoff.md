@@ -149,8 +149,9 @@ docs/handbook/processing-runtime.md
 docs/handbook/product-surface.md
 docs/handbook/verification-and-evidence.md
 docs/handbook/glossary.md
-docs/handbook/book-outline.md
-docs/handbook/book/chapter_01_lab_table.md through chapter_25_demo_scripts.md (25 chapters)
+docs/handbook/book/book-outline.md
+docs/handbook/book/chapter_01_lab_table.md through chapter_26_observability_logging.md (26 chapters)
+docs/handbook/book/appendix_a_profiling.md through appendix_h_glossary.md (8 appendices)
 ```
 
 Milestone 037 latest verification:
