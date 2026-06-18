@@ -11,6 +11,7 @@ const configDir = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(configDir, '../..')
 const docsRoot = path.join(repoRoot, 'docs')
 const handbookRoot = path.join(docsRoot, 'handbook')
+const bookRoot = path.join(handbookRoot, 'book')
 const localRepoRoute = `${siteBase}_repo/`
 const allowedLocalRepoRoots = new Set(['README.md', 'docs', 'scripts', 'src', 'tests'])
 const blockedLocalRepoSegments = new Set([
@@ -41,7 +42,28 @@ function splitHref(href: string): { pathname: string; suffix: string } {
 function isPublishedBookMarkdown(targetPath: string): boolean {
   const normalized = normalizePath(path.relative(handbookRoot, targetPath))
 
-  return normalized.startsWith('book/') && normalized.endsWith('.md')
+  return /^book\/(?:en|uk)\/.+\.md$/.test(normalized)
+}
+
+function collectPublishedBookMarkdownFiles(): string[] {
+  const markdownFiles: string[] = []
+
+  for (const locale of ['en', 'uk']) {
+    const localeBookRoot = path.join(bookRoot, locale)
+
+    if (!fs.existsSync(localeBookRoot)) {
+      continue
+    }
+
+    markdownFiles.push(
+      ...fs
+        .readdirSync(localeBookRoot)
+        .filter(fileName => fileName.endsWith('.md'))
+        .map(fileName => path.join(localeBookRoot, fileName))
+    )
+  }
+
+  return markdownFiles.sort()
 }
 
 function encodeRepoPath(relativePath: string): string {
@@ -319,13 +341,7 @@ function copyLocalRepoDirectory(directoryPath: string, outDir: string): void {
 }
 
 function collectReferencedLocalRepoTargets(): string[] {
-  const markdownFiles = [
-    path.join(handbookRoot, 'book', 'book-outline.md'),
-    ...fs
-      .readdirSync(path.join(handbookRoot, 'book'))
-      .filter(fileName => fileName.endsWith('.md'))
-      .map(fileName => path.join(handbookRoot, 'book', fileName))
-  ]
+  const markdownFiles = collectPublishedBookMarkdownFiles()
   const targets = new Set<string>()
   const markdownLinkPattern = /\[[^\]]+\]\(([^)]+)\)/g
 
@@ -371,9 +387,9 @@ function publishReferencedLocalRepoTargets(outDir: string): void {
 }
 
 export default defineConfig({
-  title: 'Книга RadarPulse',
-  description: 'Українська версія книги RadarPulse.',
-  lang: 'uk-UA',
+  title: 'RadarPulse Book',
+  description: 'English edition of the RadarPulse book.',
+  lang: 'en-US',
   base: siteBase,
   srcDir: 'handbook',
   ignoreDeadLinks: [
@@ -381,7 +397,34 @@ export default defineConfig({
     /^\/RadarPulse\/_repo\//
   ],
   rewrites: {
-    'book/book-outline.md': 'index.md'
+    'book/en/book-outline.md': 'index.md',
+    'book/en/:page.md': 'book/:page.md',
+    'book/uk/book-outline.md': 'uk/index.md',
+    'book/uk/:page.md': 'uk/book/:page.md'
+  },
+  locales: {
+    root: {
+      label: 'English',
+      lang: 'en-US'
+    },
+    uk: {
+      label: 'Українська',
+      lang: 'uk-UA',
+      link: '/uk/',
+      title: 'Книга RadarPulse',
+      description: 'Українська версія книги RadarPulse.',
+      themeConfig: {
+        siteTitle: 'Книга RadarPulse',
+        nav: [
+          { text: 'Книга', link: '/uk/' },
+          { text: 'English', link: '/' }
+        ],
+        footer: {
+          message: 'Українська версія книги RadarPulse.',
+          copyright: 'Опубліковано за допомогою VitePress і GitHub Pages.'
+        }
+      }
+    }
   },
   srcExclude: [
     'README.md',
@@ -466,63 +509,73 @@ export default defineConfig({
     ]
   },
   themeConfig: {
-    siteTitle: 'Книга RadarPulse',
+    siteTitle: 'RadarPulse Book',
     nav: [
-      { text: 'План книги', link: '/' }
+      { text: 'Book', link: '/' },
+      { text: 'Українська', link: '/uk/' }
     ],
     sidebar: {
       '/': [
         {
+          text: 'Book',
+          items: [
+            { text: 'Work in Progress', link: '/' },
+            { text: 'Ukrainian edition', link: '/uk/' }
+          ]
+        }
+      ],
+      '/uk/': [
+        {
           text: 'Книга',
           items: [
-            { text: 'План книги', link: '/' },
-            { text: 'Передмова', link: '/book/preface_executive_verdict' }
+            { text: 'План книги', link: '/uk/' },
+            { text: 'Передмова', link: '/uk/book/preface_executive_verdict' }
           ]
         },
         {
           text: 'Розділи',
           collapsed: false,
           items: [
-            { text: '1. Двигун на верстаку', link: '/book/chapter_01_lab_table' },
-            { text: '2. Бінарні лабіринти NEXRAD', link: '/book/chapter_02_nexrad_binaries' },
-            { text: '3. Контракт радарного батча', link: '/book/chapter_03_radar_batch' },
-            { text: '4. Монастир Домену', link: '/book/chapter_04_domain_monastery' },
-            { text: '5. Архітектурні вартові', link: '/book/chapter_05_architecture_guards' },
-            { text: '6. Контракти домену', link: '/book/chapter_06_domain_contracts' },
-            { text: '7. Гарячий радар', link: '/book/chapter_07_hot_partitions' },
-            { text: '8. Міграція топологій', link: '/book/chapter_08_topology_migration' },
-            { text: '9. Запобіжники проти паніки', link: '/book/chapter_09_anti_churn' },
-            { text: '10. Асинхронний департамент', link: '/book/chapter_10_async_transport' },
-            { text: '11. Алокаційна аномалія', link: '/book/chapter_11_allocation_anomaly' },
-            { text: '12. Оренда буферів', link: '/book/chapter_12_pooled_copy' },
-            { text: '13. Прогрів холодного двигуна', link: '/book/chapter_13_cold_start' },
-            { text: '14. Хаос паралелізму', link: '/book/chapter_14_concurrency_chaos' },
-            { text: '15. Старшина черги', link: '/book/chapter_15_ordered_coordinator' },
-            { text: '16. Криза спільного стану', link: '/book/chapter_16_mutable_core' },
-            { text: '17. Перерахунок топології', link: '/book/chapter_17_stale_recompute' },
-            { text: '18. Дипломатичний конверт', link: '/book/chapter_18_durable_envelope' },
-            { text: '19. Файлове стійке сховище', link: '/book/chapter_19_file_store' },
-            { text: '20. Зупинка без неправди', link: '/book/chapter_20_fail_closed' },
-            { text: '21. Користувацькі обробники', link: '/book/chapter_21_custom_handlers' },
-            { text: '22. Контракт дельта/злиття', link: '/book/chapter_22_delta_merge' },
-            { text: '23. Щит для фронтенду', link: '/book/chapter_23_bff_shield' },
-            { text: '24. Інтерфейс оператора', link: '/book/chapter_24_operator_ui' },
-            { text: '25. Демо-пакет', link: '/book/chapter_25_demo_scripts' },
-            { text: '26. Чорний ящик RadarPulse', link: '/book/chapter_26_observability_logging' }
+            { text: '1. Двигун на верстаку', link: '/uk/book/chapter_01_lab_table' },
+            { text: '2. Бінарні лабіринти NEXRAD', link: '/uk/book/chapter_02_nexrad_binaries' },
+            { text: '3. Контракт радарного батча', link: '/uk/book/chapter_03_radar_batch' },
+            { text: '4. Монастир Домену', link: '/uk/book/chapter_04_domain_monastery' },
+            { text: '5. Архітектурні вартові', link: '/uk/book/chapter_05_architecture_guards' },
+            { text: '6. Контракти домену', link: '/uk/book/chapter_06_domain_contracts' },
+            { text: '7. Гарячий радар', link: '/uk/book/chapter_07_hot_partitions' },
+            { text: '8. Міграція топологій', link: '/uk/book/chapter_08_topology_migration' },
+            { text: '9. Запобіжники проти паніки', link: '/uk/book/chapter_09_anti_churn' },
+            { text: '10. Асинхронний департамент', link: '/uk/book/chapter_10_async_transport' },
+            { text: '11. Алокаційна аномалія', link: '/uk/book/chapter_11_allocation_anomaly' },
+            { text: '12. Оренда буферів', link: '/uk/book/chapter_12_pooled_copy' },
+            { text: '13. Прогрів холодного двигуна', link: '/uk/book/chapter_13_cold_start' },
+            { text: '14. Хаос паралелізму', link: '/uk/book/chapter_14_concurrency_chaos' },
+            { text: '15. Старшина черги', link: '/uk/book/chapter_15_ordered_coordinator' },
+            { text: '16. Криза спільного стану', link: '/uk/book/chapter_16_mutable_core' },
+            { text: '17. Перерахунок топології', link: '/uk/book/chapter_17_stale_recompute' },
+            { text: '18. Дипломатичний конверт', link: '/uk/book/chapter_18_durable_envelope' },
+            { text: '19. Файлове стійке сховище', link: '/uk/book/chapter_19_file_store' },
+            { text: '20. Зупинка без неправди', link: '/uk/book/chapter_20_fail_closed' },
+            { text: '21. Користувацькі обробники', link: '/uk/book/chapter_21_custom_handlers' },
+            { text: '22. Контракт дельта/злиття', link: '/uk/book/chapter_22_delta_merge' },
+            { text: '23. Щит для фронтенду', link: '/uk/book/chapter_23_bff_shield' },
+            { text: '24. Інтерфейс оператора', link: '/uk/book/chapter_24_operator_ui' },
+            { text: '25. Демо-пакет', link: '/uk/book/chapter_25_demo_scripts' },
+            { text: '26. Чорний ящик RadarPulse', link: '/uk/book/chapter_26_observability_logging' }
           ]
         },
         {
           text: 'Додатки',
           collapsed: true,
           items: [
-            { text: '1. Профілювання', link: '/book/appendix_a_profiling' },
-            { text: '2. Матриця доказів', link: '/book/appendix_b_claim_evidence_matrix' },
-            { text: '3. Продукційне посилення', link: '/book/appendix_c_production_hardening' },
-            { text: '4. Атаки рецензента', link: '/book/appendix_d_reviewer_attack_pack' },
-            { text: '5. Жорстка рецензія', link: '/book/appendix_e_simulated_hostile_reviewer_transcript' },
-            { text: '6. Стенд на Windows', link: '/book/appendix_f_lab_stand_bootstrap' },
-            { text: '7. Стенд на Linux/macOS', link: '/book/appendix_g_lab_stand_linux' },
-            { text: '8. Глосарій', link: '/book/appendix_h_glossary' }
+            { text: '1. Профілювання', link: '/uk/book/appendix_a_profiling' },
+            { text: '2. Матриця доказів', link: '/uk/book/appendix_b_claim_evidence_matrix' },
+            { text: '3. Продукційне посилення', link: '/uk/book/appendix_c_production_hardening' },
+            { text: '4. Атаки рецензента', link: '/uk/book/appendix_d_reviewer_attack_pack' },
+            { text: '5. Жорстка рецензія', link: '/uk/book/appendix_e_simulated_hostile_reviewer_transcript' },
+            { text: '6. Стенд на Windows', link: '/uk/book/appendix_f_lab_stand_bootstrap' },
+            { text: '7. Стенд на Linux/macOS', link: '/uk/book/appendix_g_lab_stand_linux' },
+            { text: '8. Глосарій', link: '/uk/book/appendix_h_glossary' }
           ]
         }
       ]
@@ -531,8 +584,8 @@ export default defineConfig({
       level: [2, 3]
     },
     footer: {
-      message: 'Українська версія книги RadarPulse.',
-      copyright: 'Опубліковано за допомогою VitePress і GitHub Pages.'
+      message: 'English edition of the RadarPulse book is in progress.',
+      copyright: 'Published with VitePress and GitHub Pages.'
     }
   }
 })

@@ -52,8 +52,10 @@ milestone closeouts, decision traces, and gates where the evidence matters.
 
 ## Book Website
 
-The book can be published as a VitePress site. The current published source is
-`docs/handbook/book/book-outline.md` plus `docs/handbook/book`. Local commands:
+The book can be published as a VitePress site. The current root edition is the
+English work-in-progress placeholder in `docs/handbook/book/en/book-outline.md`.
+The complete Ukrainian edition is under `docs/handbook/book/uk`. Local
+commands:
 
 ```sh
 npm install
@@ -62,8 +64,9 @@ npm run docs:build
 ```
 
 The GitHub Actions workflow in `.github/workflows/deploy-vitepress.yml` builds
-the Ukrainian book site and publishes `docs/.vitepress/dist` to GitHub Pages for
-the `master` branch. The project Pages URL is:
+the VitePress book site and publishes `docs/.vitepress/dist` to GitHub Pages for
+the `master` branch. The English placeholder is published at the root, and the
+Ukrainian edition is published under `/uk/`. The project Pages URL is:
 
 ```text
 https://otsybulsky.github.io/RadarPulse/

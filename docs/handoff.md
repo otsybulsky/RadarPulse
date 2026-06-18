@@ -149,9 +149,10 @@ docs/handbook/processing-runtime.md
 docs/handbook/product-surface.md
 docs/handbook/verification-and-evidence.md
 docs/handbook/glossary.md
-docs/handbook/book/book-outline.md
-docs/handbook/book/chapter_01_lab_table.md through chapter_26_observability_logging.md (26 chapters)
-docs/handbook/book/appendix_a_profiling.md through appendix_h_glossary.md (8 appendices)
+docs/handbook/book/en/book-outline.md
+docs/handbook/book/uk/book-outline.md
+docs/handbook/book/uk/chapter_01_lab_table.md through chapter_26_observability_logging.md (26 chapters)
+docs/handbook/book/uk/appendix_a_profiling.md through appendix_h_glossary.md (8 appendices)
 ```
 
 Milestone 037 latest verification:

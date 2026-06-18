@@ -233,10 +233,10 @@ not for routine documentation edits. Choose the platform-specific runbook:
 
 ```text
 Windows:
-  docs/handbook/book/appendix_f_lab_stand_bootstrap.md
+  docs/handbook/book/uk/appendix_f_lab_stand_bootstrap.md
 
 Linux/macOS/WSL2:
-  docs/handbook/book/appendix_g_lab_stand_linux.md
+  docs/handbook/book/uk/appendix_g_lab_stand_linux.md
 ```
 
 The minimum evidence bundle records:

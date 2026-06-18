@@ -113,11 +113,14 @@ docs/handbook/verification-and-evidence.md
   focused gates, package verification, milestone evidence, and known scope
   limits
 
-docs/handbook/book/book-outline.md
-  structural outline and chapter roadmap for the engineering book
+docs/handbook/book/en/book-outline.md
+  English work-in-progress placeholder for the future root edition
+
+docs/handbook/book/uk/book-outline.md
+  structural outline and chapter roadmap for the Ukrainian engineering book
   'Документація як інженерний детектив'
 
-docs/handbook/book/
+docs/handbook/book/uk/
   executive verdict, 26-chapter engineering casebook, profiling appendix,
   claim/evidence matrix, production-hardening plan, reviewer attack pack, and
   simulated hostile reviewer transcript, plus Windows/Linux lab-stand bootstrap
